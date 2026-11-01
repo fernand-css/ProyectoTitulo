@@ -5,6 +5,12 @@
 > **Fecha:** 2026-11-01
 > **Objetivo:** Dejar creado y ejecutable el proyecto Django `cesfam` con sus carpetas ordenadas en Modelo–Vista–Controlador, las seis apps registradas, el núcleo compartido `coreapp`, los layouts base de la PWA y un login mínimo, sin lógica de dominio.
 
+## Acuerdo de ejecución
+
+- Por instrucción del equipo del 2026-11-01, este spec se implementa en la rama actual `fdaza`.
+- La creación de una rama por spec de `spec-impl` se reemplaza por un commit que guarda este spec aprobado antes de implementar.
+- Se mantiene la revisión del diff al terminar cada paso del plan. Los commits de implementación requieren una instrucción explícita del equipo.
+
 ---
 
 ## Por qué existe este spec
