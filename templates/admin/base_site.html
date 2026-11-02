@@ -1,0 +1,11 @@
+{% extends "admin/base_site.html" %}
+{% load static %}
+{# Reutiliza la plantilla de Django (se extiende a sí misma desde otro directorio) y solo añade la identidad visual. #}
+{% block extrastyle %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/admin.css' %}">{% endblock %}
+{% block title %}{% if subtitle %}{{ subtitle }} | {% endif %}{{ title }} | Administración de Farmacia{% endblock %}
+{% block branding %}
+<div id="site-name"><a href="{% url 'admin:index' %}">Administración de Farmacia</a></div>
+{% if user.is_anonymous %}
+  {% include "admin/color_theme_toggle.html" %}
+{% endif %}
+{% endblock %}

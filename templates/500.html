@@ -1,0 +1,73 @@
+{% load static %}
+<!doctype html>
+<html lang="es-CL">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#bc4f4f">
+  <title>Problema temporal · Farmacia</title>
+  <link rel="icon" type="image/png" href="{% static 'icons/icon-192.png' %}">
+  <link rel="stylesheet" href="{% static 'css/base.css' %}">
+</head>
+<body>
+  <a class="skip-link" href="#contenido">Saltar al contenido</a>
+  {# Esta página no extiende ninguna otra ni incluye parciales: debe poder mostrarse aunque falle lo demás. #}
+  <div class="acceso">
+    <header class="paisaje">
+      <a class="marca" href="/">
+        <svg class="marca-svg" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+          <clipPath id="recorte-500"><rect width="48" height="48" rx="12"/></clipPath>
+          <g clip-path="url(#recorte-500)">
+            <rect width="48" height="48" fill="#BC4F4F"/>
+            <path d="M24 21V15M31 22.9l3-5.2M36.1 28l5.2-3M17 22.9l-3-5.2M11.9 28l-5.2-3" stroke="#FEF2A0" stroke-width="3" stroke-linecap="round" fill="none"/>
+            <path d="M14 35a10 10 0 0 1 20 0z" fill="#FEF2A0"/>
+            <rect y="35" width="48" height="13" fill="#E98B50"/>
+            <path d="M24 35 0 48h10zM24 35l-5 13h10zM24 35l14 13h10z" fill="#F3CD97"/>
+          </g>
+        </svg>
+        <span class="marca-texto"><strong>Farmacia</strong><span>CESFAM San Nicolás</span></span>
+      </a>
+      <p class="paisaje-lema">Departamento de Salud Municipal<br>San Nicolás, Región de Ñuble</p>
+      <svg class="paisaje-arte" viewBox="0 0 600 800" preserveAspectRatio="xMidYMax meet" aria-hidden="true" focusable="false">
+        <circle cx="360" cy="540" r="330" fill="#C25555"/>
+        <circle cx="360" cy="540" r="252" fill="#C86060"/>
+        <g transform="translate(360 540) scale(0.92)">
+          <path fill="#FEF2A0" d="M-104 -3L-234.7 -24.7L-102.3 -18.6Z M-67.3 -79.3L-138.7 -190.9L-54.6 -88.5Z M13.9 -103.1L49.1 -230.8L29.2 -99.8Z M-29.2 -99.8L-49.1 -230.8L-13.9 -103.1Z M54.6 -88.5L138.7 -190.9L67.3 -79.3Z M102.3 -18.6L234.7 -24.7L104 -3Z M-93.7 -45.1L-204.4 -118L-85.9 -58.6Z M85.9 -58.6L204.4 -118L93.7 -45.1Z"/>
+          <path fill="#E98B50" d="M-101 -24.6L-186.4 -60.6L-96.2 -39.5Z M-82.3 -63.6L-145.7 -131.1L-71.8 -75.2Z M-49.3 -91.6L-79.7 -179.1L-35 -97.9Z M-7.8 -103.7L0 -196L7.8 -103.7Z M35 -97.9L79.7 -179.1L49.3 -91.6Z M71.8 -75.2L145.7 -131.1L82.3 -63.6Z M96.2 -39.5L186.4 -60.6L101 -24.6Z"/>
+          <path fill="#FEF2A0" d="M-92 0A92 92 0 0 1 92 0Z"/>
+          <path fill="#E98B50" d="M-62 0A62 62 0 0 1 62 0Z"/>
+          <path fill="#FEF2A0" d="M-32 0A32 32 0 0 1 32 0Z"/>
+        </g>
+        <rect x="-1200" y="540" width="3000" height="400" fill="#E98B50"/>
+        <path fill="#F3CD97" d="M360 540L-2100 840L-1910 840Z M360 540L-1720 840L-1530 840Z M360 540L-1340 840L-1150 840Z M360 540L-960 840L-770 840Z M360 540L-580 840L-390 840Z M360 540L-200 840L-10 840Z M360 540L180 840L370 840Z M360 540L560 840L750 840Z M360 540L940 840L1130 840Z M360 540L1320 840L1510 840Z M360 540L1700 840L1890 840Z M360 540L2080 840L2270 840Z M360 540L2460 840L2650 840Z"/>
+        <rect x="-1200" y="536" width="3000" height="8" fill="#8F3434"/>
+      </svg>
+      <svg class="paisaje-arte-movil" viewBox="0 0 600 300" preserveAspectRatio="xMidYMax meet" aria-hidden="true" focusable="false">
+        <circle cx="470" cy="235" r="190" fill="#C25555"/>
+        <circle cx="470" cy="235" r="145" fill="#C86060"/>
+        <g transform="translate(470 235) scale(0.52)">
+          <path fill="#FEF2A0" d="M-104 -3L-234.7 -24.7L-102.3 -18.6Z M-67.3 -79.3L-138.7 -190.9L-54.6 -88.5Z M13.9 -103.1L49.1 -230.8L29.2 -99.8Z M-29.2 -99.8L-49.1 -230.8L-13.9 -103.1Z M54.6 -88.5L138.7 -190.9L67.3 -79.3Z M102.3 -18.6L234.7 -24.7L104 -3Z M-93.7 -45.1L-204.4 -118L-85.9 -58.6Z M85.9 -58.6L204.4 -118L93.7 -45.1Z"/>
+          <path fill="#E98B50" d="M-101 -24.6L-186.4 -60.6L-96.2 -39.5Z M-82.3 -63.6L-145.7 -131.1L-71.8 -75.2Z M-49.3 -91.6L-79.7 -179.1L-35 -97.9Z M-7.8 -103.7L0 -196L7.8 -103.7Z M35 -97.9L79.7 -179.1L49.3 -91.6Z M71.8 -75.2L145.7 -131.1L82.3 -63.6Z M96.2 -39.5L186.4 -60.6L101 -24.6Z"/>
+          <path fill="#FEF2A0" d="M-92 0A92 92 0 0 1 92 0Z"/>
+          <path fill="#E98B50" d="M-62 0A62 62 0 0 1 62 0Z"/>
+          <path fill="#FEF2A0" d="M-32 0A32 32 0 0 1 32 0Z"/>
+        </g>
+        <rect x="-1200" y="235" width="3000" height="300" fill="#E98B50"/>
+        <path fill="#F3CD97" d="M470 235L-1500 520L-1350 520Z M470 235L-1200 520L-1050 520Z M470 235L-900 520L-750 520Z M470 235L-600 520L-450 520Z M470 235L-300 520L-150 520Z M470 235L0 520L150 520Z M470 235L300 520L450 520Z M470 235L600 520L750 520Z M470 235L900 520L1050 520Z M470 235L1200 520L1350 520Z M470 235L1500 520L1650 520Z M470 235L1800 520L1950 520Z M470 235L2100 520L2250 520Z"/>
+        <rect x="-1200" y="231" width="3000" height="8" fill="#8F3434"/>
+      </svg>
+    </header>
+    <div class="acceso-panel">
+      <main id="contenido" class="acceso-contenido" tabindex="-1">
+        <h1 id="titulo-error">Ocurrió un problema temporal</h1>
+        <p class="acceso-intro">Intenta nuevamente en unos momentos. Si el problema continúa, avisa a la administración.</p>
+        <div class="acciones">
+          <a class="boton" href="/">Volver al inicio</a>
+        </div>
+        <p class="acceso-codigo">Código del error: 500</p>
+      </main>
+    </div>
+  </div>
+  <div class="banda" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+</body>
+</html>

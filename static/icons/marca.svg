@@ -1,0 +1,10 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 48 48" width="48" height="48" role="img" aria-label="Farmacia, CESFAM San Nicolás">
+  <clipPath id="recorte"><rect width="48" height="48" rx="12"/></clipPath>
+  <g clip-path="url(#recorte)">
+    <rect width="48" height="48" fill="#BC4F4F"/>
+    <path d="M24 21V15M31 22.9l3-5.2M36.1 28l5.2-3M17 22.9l-3-5.2M11.9 28l-5.2-3" stroke="#FEF2A0" stroke-width="3" stroke-linecap="round" fill="none"/>
+    <path d="M14 35a10 10 0 0 1 20 0z" fill="#FEF2A0"/>
+    <rect y="35" width="48" height="13" fill="#E98B50"/>
+    <path d="M24 35 0 48h10zM24 35l-5 13h10zM24 35l14 13h10z" fill="#F3CD97"/>
+  </g>
+</svg>

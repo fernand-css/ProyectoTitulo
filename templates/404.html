@@ -1,0 +1,11 @@
+{% extends 'components/Layout/base_publica.html' %}
+{% block titulo %}Página no encontrada · Farmacia{% endblock %}
+{% block contenido %}
+<div class="acceso-icono" aria-hidden="true"><svg class="icono" focusable="false"><use href="#i-mapa"/></svg></div>
+<h1 id="titulo-error">No encontramos esta página</h1>
+<p class="acceso-intro">Revisa la dirección o vuelve al inicio para continuar.</p>
+<div class="acciones">
+  <a class="boton" href="{% url 'coreapp:inicio' %}">Volver al inicio</a>
+</div>
+<p class="acceso-codigo">Código del error: 404</p>
+{% endblock %}

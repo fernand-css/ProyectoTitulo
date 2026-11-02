@@ -1,0 +1,17 @@
+{% extends 'components/Layout/base.html' %}
+{% comment %}
+  Pantallas sin sesión (inicio de sesión, recuperación de clave, errores): panel de identidad a la
+  izquierda y contenido a la derecha. En pantallas angostas el panel pasa a ser una cabecera.
+{% endcomment %}
+{% block cuerpo %}
+<div class="acceso">
+  {% include 'components/paisaje.html' %}
+  <div class="acceso-panel">
+    <main id="contenido" class="acceso-contenido" tabindex="-1">
+      {% include 'components/mensajes.html' %}
+      {% block contenido %}{% endblock %}
+    </main>
+  </div>
+</div>
+<div class="banda" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
+{% endblock %}

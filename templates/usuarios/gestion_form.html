@@ -1,0 +1,32 @@
+{% extends 'components/Layout/base.html' %}
+{% block titulo %}{% if cuenta %}Editar usuario{% else %}Crear usuario{% endif %} · Farmacia{% endblock %}
+{% block contenido %}
+<div class="contenedor pagina">
+  <nav class="migas" aria-label="Ruta de navegación">
+    <ol>
+      <li><a href="{% url 'coreapp:inicio' %}">Inicio</a></li>
+      <li><a href="{% url 'usuariosapp:gestion_usuarios' %}">Usuarios</a></li>
+      <li aria-current="page">{% if cuenta %}Editar usuario{% else %}Crear usuario{% endif %}</li>
+    </ol>
+  </nav>
+  <div class="encabezado">
+    <div>
+      <h1 id="titulo-usuario">{% if cuenta %}Editar usuario{% else %}Crear usuario{% endif %}</h1>
+      <p>El correo solicitado requiere confirmación. Un correo vigente se conserva hasta verificar el nuevo.</p>
+    </div>
+  </div>
+  <section class="panel" aria-labelledby="titulo-usuario">
+    {% if cuenta.perfil.correo_pendiente %}<p class="message">Confirmación pendiente para {{ cuenta.perfil.correo_pendiente }}.</p>{% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <div class="campos-grid">
+        {% include 'registration/_campos_formulario.html' %}
+      </div>
+      <div class="acciones">
+        <button class="boton" type="submit">Guardar usuario</button>
+        <a class="boton boton-secundario" href="{% url 'usuariosapp:gestion_usuarios' %}">Volver a usuarios</a>
+      </div>
+    </form>
+  </section>
+</div>
+{% endblock %}

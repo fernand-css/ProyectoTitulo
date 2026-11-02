@@ -1,0 +1,16 @@
+{
+  "id": "/",
+  "name": "Farmacia · CESFAM San Nicolás",
+  "short_name": "Farmacia",
+  "description": "Acceso a la Unidad de Farmacia del CESFAM San Nicolás.",
+  "lang": "es-CL",
+  "start_url": "/",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#fef2a0",
+  "theme_color": "#bc4f4f",
+  "icons": [
+    {"src": "/static/icons/icon-192.png", "sizes": "192x192", "type": "image/png", "purpose": "any"},
+    {"src": "/static/icons/icon-512.png", "sizes": "512x512", "type": "image/png", "purpose": "any"}
+  ]
+}

@@ -1,0 +1,69 @@
+{# Sprite SVG: se incluye una sola vez por página y se usa con <svg class="icono"><use href="#i-nombre"/></svg>. #}
+{# Los iconos son decorativos (aria-hidden): el texto siempre acompaña a la acción. #}
+<svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
+  <defs>
+    {# Marca de la Unidad: sol naciente sobre surcos, en los esmaltes del escudo comunal. #}
+    <clipPath id="marca-recorte"><rect width="48" height="48" rx="12"/></clipPath>
+    <symbol id="marca" viewBox="0 0 48 48">
+      <g clip-path="url(#marca-recorte)">
+        <rect width="48" height="48" fill="#BC4F4F"/>
+        <path d="M24 21V15M31 22.9l3-5.2M36.1 28l5.2-3M17 22.9l-3-5.2M11.9 28l-5.2-3" stroke="#FEF2A0" stroke-width="3" stroke-linecap="round" fill="none"/>
+        <path d="M14 35a10 10 0 0 1 20 0z" fill="#FEF2A0"/>
+        <rect y="35" width="48" height="13" fill="#E98B50"/>
+        <path d="M24 35 0 48h10zM24 35l-5 13h10zM24 35l14 13h10z" fill="#F3CD97"/>
+      </g>
+    </symbol>
+
+    {# Sol naciente: centro en (0,0), solo la mitad superior. Los colores se cambian con variables CSS. #}
+    <g id="sol-naciente">
+      <path style="fill:var(--rayo-a,#FEF2A0)" d="M-104 -3L-234.7 -24.7L-102.3 -18.6Z M-67.3 -79.3L-138.7 -190.9L-54.6 -88.5Z M13.9 -103.1L49.1 -230.8L29.2 -99.8Z M-29.2 -99.8L-49.1 -230.8L-13.9 -103.1Z M54.6 -88.5L138.7 -190.9L67.3 -79.3Z M102.3 -18.6L234.7 -24.7L104 -3Z M-93.7 -45.1L-204.4 -118L-85.9 -58.6Z M85.9 -58.6L204.4 -118L93.7 -45.1Z"/>
+      <path style="fill:var(--rayo-b,#E98B50)" d="M-101 -24.6L-186.4 -60.6L-96.2 -39.5Z M-82.3 -63.6L-145.7 -131.1L-71.8 -75.2Z M-49.3 -91.6L-79.7 -179.1L-35 -97.9Z M-7.8 -103.7L0 -196L7.8 -103.7Z M35 -97.9L79.7 -179.1L49.3 -91.6Z M71.8 -75.2L145.7 -131.1L82.3 -63.6Z M96.2 -39.5L186.4 -60.6L101 -24.6Z"/>
+      <path style="fill:var(--disco,#FEF2A0)" d="M-92 0A92 92 0 0 1 92 0Z"/>
+      <path style="fill:var(--disco-2,#E98B50)" d="M-62 0A62 62 0 0 1 62 0Z"/>
+      <path style="fill:var(--disco,#FEF2A0)" d="M-32 0A32 32 0 0 1 32 0Z"/>
+    </g>
+
+    {# Espiga de trigo: base en (0,0), crece hacia arriba. Tres espigas, como en el escudo. #}
+    <g id="espiga">
+      <path d="M0 0V-250" style="stroke:var(--tallo,#FEF2A0)" stroke-width="5" stroke-linecap="round" fill="none"/>
+      <g style="fill:var(--grano,#FEF2A0);stroke:var(--contorno,#BC4F4F)" stroke-width="3" paint-order="stroke">
+        <ellipse cx="0" cy="-266" rx="9" ry="21"/>
+        <ellipse cx="-12" cy="-232" rx="9" ry="19" transform="rotate(-28 -12 -232)"/>
+        <ellipse cx="12" cy="-232" rx="9" ry="19" transform="rotate(28 12 -232)"/>
+        <ellipse cx="-12" cy="-204" rx="9" ry="19" transform="rotate(-28 -12 -204)"/>
+        <ellipse cx="12" cy="-204" rx="9" ry="19" transform="rotate(28 12 -204)"/>
+        <ellipse cx="-12" cy="-176" rx="9" ry="19" transform="rotate(-28 -12 -176)"/>
+        <ellipse cx="12" cy="-176" rx="9" ry="19" transform="rotate(28 12 -176)"/>
+        <ellipse cx="-12" cy="-148" rx="9" ry="19" transform="rotate(-28 -12 -148)"/>
+        <ellipse cx="12" cy="-148" rx="9" ry="19" transform="rotate(28 12 -148)"/>
+        <ellipse cx="-11" cy="-120" rx="8" ry="17" transform="rotate(-26 -11 -120)"/>
+        <ellipse cx="11" cy="-120" rx="8" ry="17" transform="rotate(26 11 -120)"/>
+      </g>
+      <path d="M0 -286V-340M-4 -283L-24 -332M4 -283L24 -332" style="stroke:var(--tallo,#FEF2A0)" stroke-width="2.6" stroke-linecap="round" fill="none"/>
+    </g>
+
+    {# Iconos de trazo: 24 px, línea de 2, puntas redondeadas. #}
+    <symbol id="i-inicio" viewBox="0 0 24 24"><path d="M3.5 11 12 3.8l8.5 7.2"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5.5h4V20"/></symbol>
+    <symbol id="i-usuario" viewBox="0 0 24 24"><circle cx="12" cy="8" r="3.8"/><path d="M4.5 20.5c.6-3.9 3.7-6 7.5-6s6.9 2.1 7.5 6"/></symbol>
+    <symbol id="i-usuarios" viewBox="0 0 24 24"><circle cx="9" cy="8.5" r="3.3"/><path d="M2.8 20c.5-3.4 3.1-5.2 6.2-5.2s5.7 1.8 6.2 5.2"/><path d="M15.5 5.4a3.2 3.2 0 0 1 0 6.2"/><path d="M18 14.9c1.8.6 3 2.2 3.3 4.6"/></symbol>
+    <symbol id="i-candado" viewBox="0 0 24 24"><rect x="4.5" y="10.5" width="15" height="10" rx="2.5"/><path d="M8 10.5V8a4 4 0 0 1 8 0v2.5"/><path d="M12 14.5v2.5"/></symbol>
+    <symbol id="i-ojo" viewBox="0 0 24 24"><path d="M2.5 12S6 5.5 12 5.5 21.5 12 21.5 12 18 18.5 12 18.5 2.5 12 2.5 12z"/><circle cx="12" cy="12" r="3"/></symbol>
+    <symbol id="i-ojo-cerrado" viewBox="0 0 24 24"><path d="M3 3l18 18"/><path d="M10.6 5.7A9 9 0 0 1 12 5.5c6 0 9.5 6.5 9.5 6.5a15 15 0 0 1-2.8 3.6"/><path d="M6.5 7.3C4 9 2.5 12 2.5 12S6 18.5 12 18.5c1.3 0 2.5-.3 3.6-.8"/><path d="M9.9 9.9a3 3 0 0 0 4.2 4.2"/></symbol>
+    <symbol id="i-sobre" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><path d="m3.5 7.5 8.5 6 8.5-6"/></symbol>
+    <symbol id="i-salir" viewBox="0 0 24 24"><path d="M10 4H6.5A2.5 2.5 0 0 0 4 6.5v11A2.5 2.5 0 0 0 6.5 20H10"/><path d="M15.5 8 20 12l-4.5 4"/><path d="M20 12H9"/></symbol>
+    <symbol id="i-escudo-ok" viewBox="0 0 24 24"><path d="M12 3 4.8 5.8v5.5c0 4.6 3 8 7.2 9.7 4.2-1.7 7.2-5.1 7.2-9.7V5.8L12 3z"/><path d="m8.8 12 2.3 2.3 4.2-4.6"/></symbol>
+    <symbol id="i-alerta" viewBox="0 0 24 24"><path d="M12 3.8 2.8 19.8h18.4L12 3.8z"/><path d="M12 10v4.2"/><path d="M12 17.1h.01"/></symbol>
+    <symbol id="i-info" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M12 11v5.5"/><path d="M12 7.7h.01"/></symbol>
+    <symbol id="i-ok" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="m8 12.3 2.8 2.8 5.4-5.6"/></symbol>
+    <symbol id="i-flecha" viewBox="0 0 24 24"><path d="M4.5 12h15"/><path d="m13.5 6 6 6-6 6"/></symbol>
+    <symbol id="i-ajustes" viewBox="0 0 24 24"><path d="M4 7h9"/><path d="M17 7h3"/><circle cx="15" cy="7" r="2"/><path d="M4 17h3"/><path d="M11 17h9"/><circle cx="9" cy="17" r="2"/></symbol>
+    <symbol id="i-capsula" viewBox="0 0 24 24"><g transform="rotate(-45 12 12)"><rect x="2" y="7.5" width="20" height="9" rx="4.5"/><path d="M12 7.5v9"/></g></symbol>
+    <symbol id="i-mortero" viewBox="0 0 24 24"><path d="M3.5 11.5h17c0 4.7-3.6 7.5-8.5 7.5s-8.5-2.8-8.5-7.5z"/><path d="M8.5 21h7"/><path d="m14 10.5 5.3-6.8"/></symbol>
+    <symbol id="i-lapiz" viewBox="0 0 24 24"><path d="M4.5 19.5 5.4 15 16 4.4a2.1 2.1 0 0 1 3 3L8.5 18.1z"/><path d="m14.5 6 3.5 3.5"/></symbol>
+    <symbol id="i-mas" viewBox="0 0 24 24"><path d="M12 5v14"/><path d="M5 12h14"/></symbol>
+    <symbol id="i-ayuda" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M9.5 9.3a2.6 2.6 0 0 1 5 .9c0 1.7-2.5 2.1-2.5 3.8"/><path d="M12 17h.01"/></symbol>
+    <symbol id="i-mapa" viewBox="0 0 24 24"><path d="M9 5 3.5 7v12L9 17l6 2 5.5-2V5L15 7z"/><path d="M9 5v12"/><path d="M15 7v12"/></symbol>
+    <symbol id="i-ubicacion" viewBox="0 0 24 24"><path d="M12 21s6.5-5.8 6.5-11a6.5 6.5 0 0 0-13 0c0 5.2 6.5 11 6.5 11z"/><circle cx="12" cy="10" r="2.3"/></symbol>
+    <symbol id="i-pausa" viewBox="0 0 24 24"><circle cx="12" cy="12" r="9"/><path d="M10 9v6"/><path d="M14 9v6"/></symbol>
+  </defs>
+</svg>

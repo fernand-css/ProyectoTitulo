@@ -1,0 +1,47 @@
+{% extends 'components/Layout/base.html' %}
+{% block titulo %}Mi perfil · Farmacia{% endblock %}
+{% block contenido %}
+<div class="contenedor pagina">
+  <nav class="migas" aria-label="Ruta de navegación">
+    <ol>
+      <li><a href="{% url 'coreapp:inicio' %}">Inicio</a></li>
+      <li aria-current="page">Mi perfil</li>
+    </ol>
+  </nav>
+  <div class="encabezado">
+    <div>
+      <h1 id="titulo-perfil">Mi perfil</h1>
+      <p>Modifica tus nombres, apellidos y correo electrónico.</p>
+    </div>
+  </div>
+  <div class="rejilla rejilla-2">
+    <section class="panel" aria-labelledby="titulo-datos">
+      <h2 id="titulo-datos" class="panel-titulo"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-usuario"/></svg>Tus datos</h2>
+      <form method="post" action="{% url 'usuariosapp:perfil' %}">
+        {% csrf_token %}
+        {% include 'registration/_campos_formulario.html' %}
+        <button class="boton" type="submit">Guardar perfil</button>
+      </form>
+    </section>
+    <div class="rejilla">
+      <section class="panel panel-trigo" aria-labelledby="titulo-correo">
+        <h2 id="titulo-correo" class="panel-titulo"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-sobre"/></svg>Estado del correo</h2>
+        {% if perfil_cuenta.correo_verificado_en %}<p><strong>Correo vigente verificado.</strong></p>{% else %}<p><strong>Verifica tu correo para poder recuperar tu contraseña.</strong></p>{% endif %}
+        <p>El correo vigente se mantiene hasta que confirmes una nueva dirección.</p>
+        {% if perfil_cuenta.correo_pendiente %}<p>Confirmación pendiente para <strong>{{ perfil_cuenta.correo_pendiente }}</strong>.</p>{% endif %}
+        {% if not perfil_cuenta.correo_verificado_en or perfil_cuenta.correo_pendiente %}
+          <form method="post" action="{% url 'usuariosapp:solicitar_verificacion' %}">
+            {% csrf_token %}
+            <button class="boton boton-secundario" type="submit">Enviar otro enlace de verificación</button>
+          </form>
+        {% endif %}
+      </section>
+      <section class="panel" aria-labelledby="titulo-clave">
+        <h2 id="titulo-clave" class="panel-titulo"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-candado"/></svg>Contraseña</h2>
+        <p>Cámbiala cuando lo necesites. Te pediremos la contraseña actual.</p>
+        <a class="boton boton-secundario" href="{% url 'usuariosapp:cambiar_clave' %}">Cambiar contraseña</a>
+      </section>
+    </div>
+  </div>
+</div>
+{% endblock %}

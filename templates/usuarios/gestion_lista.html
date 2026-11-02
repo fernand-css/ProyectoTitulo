@@ -1,0 +1,52 @@
+{% extends 'components/Layout/base.html' %}
+{% block titulo %}Usuarios · Farmacia{% endblock %}
+{% block contenido %}
+<div class="contenedor pagina">
+  <nav class="migas" aria-label="Ruta de navegación">
+    <ol>
+      <li><a href="{% url 'coreapp:inicio' %}">Inicio</a></li>
+      <li aria-current="page">Usuarios</li>
+    </ol>
+  </nav>
+  <div class="encabezado">
+    <div>
+      <h1>Usuarios</h1>
+      <p>Administra las cuentas de técnicos y encargados de terreno.</p>
+    </div>
+    <a class="boton" href="{% url 'usuariosapp:gestion_nuevo' %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-mas"/></svg>Crear usuario</a>
+  </div>
+  <div class="rejilla rejilla-cuentas">
+    {% for cuenta in cuentas %}
+      <article class="panel cuenta">
+        <div class="cuenta-cabecera">
+          <span class="cuenta-inicial" aria-hidden="true">{% if cuenta.first_name or cuenta.last_name %}{{ cuenta.first_name|slice:":1" }}{{ cuenta.last_name|slice:":1" }}{% else %}{{ cuenta.username|slice:":1" }}{% endif %}</span>
+          <h2>{{ cuenta.get_full_name|default:cuenta.username }}</h2>
+        </div>
+        <dl class="ficha">
+          <dt>Usuario</dt><dd>{{ cuenta.username }}</dd>
+          <dt>Rol</dt><dd>{{ cuenta.rol_visible }}</dd>
+          <dt>Estado</dt><dd>{% if cuenta.is_active %}<span class="insignia insignia-activa"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg>Activo</span>{% else %}<span class="insignia insignia-inactiva"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-pausa"/></svg>Inactivo</span>{% endif %}</dd>
+          <dt>Correo vigente</dt><dd>{{ cuenta.email|default:'Sin confirmar' }}</dd>
+        </dl>
+        <div class="acciones">
+          <a class="boton boton-secundario" href="{% url 'usuariosapp:gestion_editar' pk=cuenta.pk %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-lapiz"/></svg>Editar<span class="sr-only"> a {{ cuenta.get_full_name|default:cuenta.username }}</span></a>
+          <form method="post" action="{% url 'usuariosapp:gestion_estado' pk=cuenta.pk %}">
+            {% csrf_token %}
+            {% if cuenta.is_active %}
+              <button class="boton boton-peligro" name="activo" value="0" type="submit">Desactivar {{ cuenta.username }}</button>
+            {% else %}
+              <button class="boton" name="activo" value="1" type="submit">Activar {{ cuenta.username }}</button>
+            {% endif %}
+          </form>
+        </div>
+      </article>
+    {% empty %}
+      <section class="panel panel-trigo">
+        <p>No hay cuentas operativas para mostrar.</p>
+        <a class="boton" href="{% url 'usuariosapp:gestion_nuevo' %}">Crear usuario</a>
+      </section>
+    {% endfor %}
+  </div>
+  {% include 'components/paginator.html' %}
+</div>
+{% endblock %}

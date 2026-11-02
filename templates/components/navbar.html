@@ -1,0 +1,22 @@
+<header class="cabecera">
+  <div class="cabecera-int">
+    <a class="marca" href="{% url 'coreapp:inicio' %}">
+      <svg class="marca-svg" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><use href="#marca"/></svg>
+      <span class="marca-texto"><strong>Farmacia</strong><span>CESFAM San Nicolás</span></span>
+    </a>
+    <nav class="nav" aria-label="Navegación principal">
+      {% if request.user.is_authenticated %}
+        <a class="nav-enlace" href="{% url 'coreapp:inicio' %}"{% if request.resolver_match.url_name == 'inicio' %} aria-current="page"{% endif %}><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-inicio"/></svg>{% if rol == 'Jefa de Farmacia' %}Inicio de farmacia{% elif rol == 'Técnico en Farmacia' %}Atención en ventanilla{% elif rol == 'Encargado de entrega' %}Entregas en terreno{% else %}Inicio{% endif %}</a>
+        {% if rol %}<a class="nav-enlace" href="{% url 'usuariosapp:perfil' %}"{% if request.resolver_match.url_name == 'perfil' or request.resolver_match.url_name == 'cambiar_clave' %} aria-current="page"{% endif %}><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-usuario"/></svg>Mi perfil</a>{% endif %}
+        {% if rol == 'Jefa de Farmacia' or rol == 'superusuario' %}<a class="nav-enlace" href="{% url 'usuariosapp:gestion_usuarios' %}"{% if request.resolver_match.url_name|slice:':8' == 'gestion_' %} aria-current="page"{% endif %}><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-usuarios"/></svg>Usuarios</a>{% endif %}
+        {% if rol == 'superusuario' %}<a class="nav-enlace" href="{% url 'admin:index' %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ajustes"/></svg>Administración</a>{% endif %}
+        <form action="{% url 'usuariosapp:logout' %}" method="post">
+          {% csrf_token %}
+          <button class="boton boton-claro" type="submit"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-salir"/></svg>Cerrar sesión</button>
+        </form>
+      {% else %}
+        <a class="nav-enlace" href="{% url 'usuariosapp:login' %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-usuario"/></svg>Iniciar sesión</a>
+      {% endif %}
+    </nav>
+  </div>
+</header>

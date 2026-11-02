@@ -1,6 +1,19 @@
 # Template for a useful spec
 
-This file is the reference the `/spec` skill consults when generating specs. Each section includes its purpose and a minimal example. **It is not text to be copied verbatim** — it is the shape the skill must respect.
+This is the legacy monolithic reference for repositories without project templates. In this project, use the four templates in `specs/_templates/` and the index in `specs/README.md`. Each section below illustrates useful content; it is not text to copy verbatim or a requirement to put everything into one file.
+
+## Current document structure
+
+Each spec uses `specs/NN-slug/` with these files:
+
+| File | Contents from this reference |
+| --- | --- |
+| `spec.md` | Header, problem, scope, business rules, requirements, acceptance criteria and decisions. |
+| `plan.md` | Technical integration, data model, numbered implementation plan, risks and verification strategy. |
+| `tasks.md` | Small tasks linked to requirement IDs, dependencies and observable completion checks. |
+| `validation.md` | Actual commands, results, evidence and limitations; initially marked not executed. |
+
+Link the four documents to each other. Use two-digit numbers, preserve the existing spec identities and reservations recorded in `specs/README.md`, and never mark approval, tests or user acceptance automatically. The remaining examples apply to content within the appropriate document, rather than to one monolithic spec.
 
 ---
 

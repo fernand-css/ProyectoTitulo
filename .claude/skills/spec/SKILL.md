@@ -24,7 +24,7 @@ This skill helps you produce a useful spec following the spec-driven method. **Y
 
 A spec is not decorative documentation. It is the contract that drives later execution. If the spec is vague, the code will improvise. That is why this flow is **deliberately slow during the definition phase** and **fast during the writing phase**.
 
-Read `template.md` (in the same directory as this skill) to see the full structure the spec will follow. Lean on it at every step.
+Read `specs/README.md` for the index, numbering and reservations, and the four templates in `specs/_templates/` (`spec.md`, `plan.md`, `tasks.md`, `validation.md`). Each spec lives in `specs/NN-slug/`; keep requirements in `spec.md`, technical design in `plan.md`, executable work in `tasks.md`, and evidence in `validation.md`. Use the skill-local `template.md` only as a fallback for repositories that have not adopted this structure.
 
 ## Command flow
 
@@ -36,8 +36,8 @@ Read `template.md` (in the same directory as this skill) to see the full structu
 Before asking questions about the feature, make sure you have project context:
 
 1. Read the project-memory file, if one exists. Try in order and stop at the first hit: `CLAUDE.md`, `AGENTS.md`, `GEMINI.md`, `README.md`. This adapts the skill to whichever agent is running it (Claude Code, Codex, Gemini CLI, etc.).
-2. Look at the `specs/` listing in the session context above to see which specs already exist and how they are numbered.
-3. If previous specs exist, read at least the two most recent ones to pick up the project's conventions — including the **language** they are written in and the exact wording they use for states and section headings. A new spec must match the existing ones.
+2. Look at `specs/README.md` and the `specs/` listing in the session context above to see existing specs and reserved numbers. Ignore `_templates`, index files and configuration when identifying specs.
+3. If previous specs exist, read at least the two most recent ones (or all if fewer exist), including their four documents, to pick up the project's conventions — including the **language**, states and section headings. For legacy flat specs, read `specs/NN-slug.md`; new specs use folders. Do not create a second spec for a number or slug that already exists.
 
 If the `$ARGUMENTS` argument comes in empty, ask the user for an initial **single-sentence** description of what they want to build. If the description does not fit in one sentence, that is the first signal that the feature is too big — suggest splitting it before continuing.
 
@@ -82,15 +82,16 @@ Once Phase 2 is closed, decide how to write it:
 
 **Only if information is still missing** (the user cut Phase 2 short, an answer was vague, or some section cannot be written without inventing something), develop the sections **one by one**, showing each one and waiting for confirmation before moving to the next.
 
-In both cases the content follows the same order:
+In both cases develop these contents, separated into the four project templates when saving:
 
 1. **Header** (state, dependencies, date, one-sentence objective). The one-sentence objective is critical — if it does not fit in one sentence, go back to Phase 2.
 2. **Scope** (what is in and what is NOT). The "not in" must be explicit.
-3. **Data model** (concrete structures with real names). If the feature introduces no new data, skip this section and say so explicitly.
-4. **Implementation plan** (numbered steps, each leaving the system functional).
+3. **Data model** (concrete structures with real names) in `plan.md`, with business rules in `spec.md`. If the feature introduces no new data, say so explicitly.
+4. **Implementation plan** in `plan.md` and identifiable tasks with dependencies and completion checks in `tasks.md`, each leaving the system functional. Link tasks to stable requirement IDs.
 5. **Acceptance criteria** (boolean checklist, not aspirational).
 6. **Decisions taken and discarded** (with brief justification).
-7. **Identified risks** (only if applicable — if no relevant risks exist, skip it).
+7. **Identified risks** in `plan.md` (only if applicable — if no relevant risks exist, skip it).
+8. **Validation record** in `validation.md`, initially marked not executed. Planned checks are not evidence; do not mark tests, implementation or user acceptance as completed without real results.
 
 **After each section (only in the section-by-section mode):**
 
@@ -110,12 +111,12 @@ In both cases the content follows the same order:
 
 When the content is ready (either because you had everything, or because all sections were confirmed):
 
-1. Determine the next sequential number from the `specs/` listing in the session context. Take the highest existing number and add one, zero-padded to two digits. If the last one is `02-powerups.md`, this one will be `03-`. If `specs/` is empty or missing, start at `01-`.
+1. Determine the number from `specs/README.md`, existing folders and legacy flat specs, using two digits. Preserve all existing identities and reservations. In this project, 01 is the implemented base, 02 is authentication, 06 is WebSocket, 11 is offline/PWA cache and 12 is notifications. Use a reserved number only for its recorded function; otherwise choose the first free unreserved number. A reservation has no approved spec until its documents exist and are approved.
 2. Generate a short kebab-case slug from the objective (e.g. `levels-and-highscores`). See **Arguments** below for when `$ARGUMENTS` is the slug instead.
 3. Use the date from the session context above for the `**Date:**` field. **Never write a date you did not read from there.**
-4. Write the file directly at `specs/NN-slug.md` with all the sections. **Do not ask for permission to write it and do not ask whether the file name works** — announce the path in the final confirmation. Only ask if the target file already exists.
+4. Create `specs/NN-slug/` and write `spec.md`, `plan.md`, `tasks.md` and `validation.md` from the project templates, completing them with real project context. Use requirement IDs `RF-NN-01` and task IDs `T-NN-01`. Link the four files to one another. **Do not ask for permission to write them and do not ask whether the folder name works** — announce the path in the final confirmation. If the target already exists, inspect it and resume it rather than overwriting it; ask only when the intended update is unclear. Update the index in `specs/README.md`; keep `specs/00-indice.md` as a compatibility link if it exists.
 5. Mark the state as `Draft` by default (or the equivalent word used by the existing specs in this repo). **Do not mark it as `Approved` automatically** — the user does that once they have re-read it.
-6. If the header lists dependencies (`**Depends on:** SPEC 01`), check that each referenced spec actually exists in `specs/`. If one does not, say so instead of writing a dangling reference.
+6. If the header lists dependencies (`**Depends on:** SPEC 01`), check that each referenced spec actually exists as `specs/NN-slug/spec.md` or a legacy `specs/NN-slug.md`. A reservation alone is not an existing spec. If one does not exist, say so instead of writing a dangling reference.
 7. **Seed the config file if it does not exist.** Check for `specs/.spec-config.yml`. If it is **missing**, create it with the default content below. If it **already exists, leave it untouched** — never overwrite the user's settings.
 
    ```yaml
@@ -128,7 +129,7 @@ When the content is ready (either because you had everything, or because all sec
    ```
 
 8. Confirm to the user:
-   - Path of the created file.
+   - Path of the created folder, its four documents and the updated index.
    - Reminder: the spec is in `Draft` state. Change it to `Approved` once you have re-read it.
    - If you just created `specs/.spec-config.yml`, mention it exists and that `AutoCreateBranch` defaults to `true` (set it to `false` to control branch creation yourself).
    - Next step: once reviewed and approved, run `/spec-impl NN-slug` to implement it.
@@ -136,7 +137,7 @@ When the content is ready (either because you had everything, or because all sec
 
 ## Hard rules
 
-- **Never write code during this command.** Only the spec's `.md` file at the end.
+- **Never write code during this command.** Write only the four spec documents, their index and the missing workflow config described above.
 - **Never propose implementing the spec after saving it.** Your job ends when the file is written. The user runs `/spec-impl` when they are ready.
 - **Never assume decisions the user did not confirm.** If you are missing information, ask — in Phase 2, which is where the questions belong.
 - **Do not re-ask in Phase 3 what was already answered in Phase 2.** If the information is complete, write the whole spec and save it. Section-by-section confirmation is the fallback for incomplete information, not the default.

@@ -1,0 +1,77 @@
+{% extends 'components/Layout/base.html' %}
+{% block titulo %}Inicio · Farmacia{% endblock %}
+{% block contenido %}
+{% now "G" as hora %}
+<section class="portada" aria-labelledby="titulo-inicio">
+  <div class="portada-int">
+    <p class="portada-rol"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-escudo-ok"/></svg>{{ nombre_rol }}</p>
+    <h1 id="titulo-inicio">{% if hora|add:0 < 12 %}Buenos días{% elif hora|add:0 < 20 %}Buenas tardes{% else %}Buenas noches{% endif %}, {% firstof request.user.first_name request.user.get_username %}</h1>
+    <p>Estás en la Unidad de Farmacia del CESFAM San Nicolás.</p>
+    <svg class="portada-arte" viewBox="0 0 520 190" aria-hidden="true" focusable="false">
+      <use href="#sol-naciente" transform="translate(400 190) scale(0.62)"/>
+      <use href="#espiga" transform="translate(196 196) rotate(-10) scale(0.5)"/>
+      <use href="#espiga" transform="translate(246 198) rotate(1) scale(0.6)"/>
+      <use href="#espiga" transform="translate(294 196) rotate(10) scale(0.47)"/>
+    </svg>
+  </div>
+</section>
+<div class="contenedor pagina">
+  {% if rol %}
+  <h2 class="sr-only">Accesos directos</h2>
+  <ul class="atajos">
+    {% if rol == 'Jefa de Farmacia' or rol == 'superusuario' %}
+    <li><a class="atajo" href="{% url 'usuariosapp:gestion_usuarios' %}">
+      <span class="atajo-icono"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-usuarios"/></svg></span>
+      <span class="atajo-texto"><strong>Usuarios</strong><span>Crea y administra las cuentas del equipo.</span></span>
+      <svg class="icono atajo-flecha" aria-hidden="true" focusable="false"><use href="#i-flecha"/></svg>
+    </a></li>
+    {% endif %}
+    {% if rol == 'superusuario' %}
+    <li><a class="atajo" href="{% url 'admin:index' %}">
+      <span class="atajo-icono"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ajustes"/></svg></span>
+      <span class="atajo-texto"><strong>Administración</strong><span>Cuentas, grupos y registro de auditoría.</span></span>
+      <svg class="icono atajo-flecha" aria-hidden="true" focusable="false"><use href="#i-flecha"/></svg>
+    </a></li>
+    {% endif %}
+    <li><a class="atajo" href="{% url 'usuariosapp:perfil' %}">
+      <span class="atajo-icono"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-usuario"/></svg></span>
+      <span class="atajo-texto"><strong>Mi perfil</strong><span>Revisa tus datos, tu correo y tu contraseña.</span></span>
+      <svg class="icono atajo-flecha" aria-hidden="true" focusable="false"><use href="#i-flecha"/></svg>
+    </a></li>
+  </ul>
+  {% endif %}
+  <div class="rejilla rejilla-2">
+    <section class="panel" aria-labelledby="titulo-perfil">
+      {% if rol == 'superusuario' %}
+        <h2 id="titulo-perfil" class="panel-titulo"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ajustes"/></svg>{{ nombre_rol }}</h2>
+        <p>Tu cuenta tiene acceso a la administración del sistema.</p>
+        <a class="boton" href="{% url 'admin:index' %}">Abrir administración</a>
+      {% elif rol == 'Jefa de Farmacia' %}
+        <h2 id="titulo-perfil" class="panel-titulo"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-mortero"/></svg>{{ nombre_rol }}</h2>
+        <p>Este es el punto de acceso a tus herramientas de gestión de farmacia.</p>
+        <a class="boton" href="{% url 'usuariosapp:gestion_usuarios' %}">Administrar usuarios</a>
+      {% elif rol == 'Técnico en Farmacia' %}
+        <h2 id="titulo-perfil" class="panel-titulo"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-capsula"/></svg>{{ nombre_rol }}</h2>
+        <p>Este es el punto de acceso a tus herramientas de atención en ventanilla.</p>
+        <p class="suave">Los turnos y el llamado de pacientes se sumarán en las próximas versiones del prototipo.</p>
+      {% elif rol == 'Encargado de entrega' %}
+        <h2 id="titulo-perfil" class="panel-titulo"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ubicacion"/></svg>{{ nombre_rol }}</h2>
+        <p>Este es el punto de acceso a tus herramientas de entrega en terreno.</p>
+        <p class="suave">Las rutas y el registro de entregas se sumarán en las próximas versiones del prototipo.</p>
+      {% else %}
+        <h2 id="titulo-perfil" class="panel-titulo"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-alerta"/></svg>{{ nombre_rol }}</h2>
+        <p>Tu cuenta aún no tiene un perfil asignado. Solicita su asignación a la administración.</p>
+      {% endif %}
+    </section>
+    <section class="panel panel-trigo" aria-labelledby="titulo-sesion">
+      <h2 id="titulo-sesion" class="panel-titulo"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-escudo-ok"/></svg>Sesión activa</h2>
+      <dl class="ficha">
+        <dt>Cuenta</dt><dd>{{ request.user.get_username }}</dd>
+        <dt>Perfil</dt><dd>{{ nombre_rol }}</dd>
+      </dl>
+      <p>Cierra tu sesión al terminar, especialmente en equipos compartidos.</p>
+      <a href="{% url 'usuariosapp:perfil' %}">Revisar mi perfil</a>
+    </section>
+  </div>
+</div>
+{% endblock %}

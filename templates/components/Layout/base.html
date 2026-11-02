@@ -1,0 +1,35 @@
+{% load static %}
+<!doctype html>
+<html lang="es-CL">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#bc4f4f">
+  <title>{% block titulo %}Farmacia · CESFAM San Nicolás{% endblock %}</title>
+  <link rel="manifest" href="{% static 'manifest.webmanifest' %}">
+  <link rel="icon" type="image/svg+xml" href="{% static 'icons/marca.svg' %}">
+  <link rel="icon" type="image/png" href="{% static 'icons/icon-192.png' %}">
+  <link rel="apple-touch-icon" href="{% static 'icons/icon-192.png' %}">
+  <link rel="preload" href="{% static 'fonts/bitter-latin-wght-normal.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="preload" href="{% static 'fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2' %}" as="font" type="font/woff2" crossorigin>
+  <link rel="stylesheet" href="{% static 'css/base.css' %}">
+  {% block estilos %}{% endblock %}
+  <script src="{% static 'js/preferencias.js' %}"></script>
+  <script defer src="{% static 'js/alpine.min.js' %}"></script>
+  <script defer src="{% static 'js/pwa.js' %}" data-service-worker="{% url 'coreapp:sw_js' %}"></script>
+</head>
+<body>
+  <a class="skip-link" href="#contenido">Saltar al contenido</a>
+  {% include 'components/iconos.html' %}
+  {% include 'components/franja.html' %}
+  {% block cuerpo %}
+  {% block navegacion %}{% include 'components/navbar.html' %}{% endblock %}
+  <main id="contenido" class="principal" tabindex="-1">
+    {% include 'components/mensajes.html' %}
+    {% block contenido %}{% endblock %}
+  </main>
+  {% include 'components/footer.html' %}
+  {% endblock %}
+  {% block scripts %}{% endblock %}
+</body>
+</html>

@@ -1,0 +1,6 @@
+Confirma tu correo para Farmacia CESFAM San Nicolás.
+
+Abre este enlace y confirma la dirección:
+{{ enlace }}
+
+Si no solicitaste la verificación, puedes ignorar este mensaje.

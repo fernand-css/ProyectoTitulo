@@ -22,7 +22,27 @@ Guía para Claude Code en este repositorio. La fuente de verdad del proyecto es 
 | Servicios externos | SMS o push web; cartografía | Proveedores por definir. |
 | Infraestructura | Cloud de bajo costo | Solo para el prototipo; la implementación real la decide el DESAMU con su unidad TIC. |
 
-Todavía no hay código, comandos de build ni pruebas: agrégalos a este archivo cuando existan.
+## Base implementada y comandos
+
+El proyecto es `cesfam`, con un único `cesfam/settings.py`, `auth.User` de Django y seis apps: `coreapp`, `usuariosapp`, `recetasapp`, `turnosapp`, `entregasapp` e `indicadoresapp`. Las cuatro últimas conservan el esqueleto y sus rutas vacías hasta su spec.
+
+`coreapp` centraliza roles, `RolRequeridoMixin`, auditoría, contexto, filtros y utilidades RUT. `usuariosapp` usa `LoginView` y `LogoutView`. La presentación comparte `templates/components/Layout/base.html`, su variante pública y estáticos locales. La lógica futura de negocio va en `<app>/services.py`.
+
+La spec 02 incorpora Perfil, comandos demo, habilitación, auditoría restringida, correo verificado, claves y administración de cuentas. `BackendPersonal` exige actividad, perfil y rol único; los superusuarios activos conservan su excepción. Las etiquetas son Q.F., Técnico en Farmacia y Encargado de terreno, preservando nombres internos. Confirmación/recuperación usan `PASSWORD_RESET_TIMEOUT`; recuperar exige usuario y correo vigente verificado. Q.F. gestiona solo técnicos/encargados no privilegiados. `CuentaAdmin` es exclusivo de superusuario y usa servicios auditados, incluidas M2M y claves; grupos de solo lectura, sin edición directa de Perfil ni borrado. Navegación y verificación técnica final: 185 pruebas y HTTP real con 21 migraciones nuevas mediante `tools/verificar_spec_02_http.py`. Revisión visual y commit de cierre pendientes por acceso al navegador.
+
+Con el venv activo y `.env` preparado según `README.md`:
+
+```powershell
+python -m pip install -r requirements.txt
+python manage.py check
+python manage.py migrate
+python manage.py createsuperuser
+python manage.py runserver
+python manage.py test
+python manage.py makemigrations --check --dry-run
+```
+
+La instalación y las variables están en `README.md`; el árbol y los contratos, en `docs/estructura.md`. Los secretos se leen con `python-dotenv`; `SECRET_KEY` es obligatoria y `DEBUG` es falso por defecto. ASGI y WSGI siguen las plantillas estándar, sin WebSocket todavía.
 
 ## Reglas obligatorias
 
@@ -86,9 +106,9 @@ Resumen de §3.2 del informe. **Lee los criterios de aceptación completos en `d
 
 ## Flujo de trabajo
 
-- El desarrollo es spec-driven: cada funcionalidad tiene su `specs/NN-slug.md`, diseñado con la skill `/spec` y llevado a código con `/spec-impl` (están en `.agents/skills/`). Hay una rama por spec.
-- `/spec` y `/spec-impl` viven en `.agents/skills/`, no en `.claude/skills/`: Claude Code no las registra como comandos. Para usarlas, lee su `SKILL.md` y sigue las instrucciones. La carpeta `specs/` aún no existe; se crea con el primer spec.
-- Subagente `django-architect` (`.claude/agents/django-architect.md`): planifica sin escribir código. Úsalo antes de una funcionalidad nueva o un cambio de estructura. Su propuesta de apps (`cuentas`, `recetas`, `turnos`, `reparto`, `indicadores`) es un punto de partida: si un spec o el código existente la contradicen, mandan ellos.
+- El desarrollo es spec-driven: cada funcionalidad tiene su carpeta `specs/NN-slug/`, con números de dos dígitos. `spec.md` contiene el contrato funcional y las decisiones; `plan.md`, el diseño técnico y los pasos; `tasks.md`, las tareas y su avance; y `validation.md`, las verificaciones y su evidencia. La definición se trabaja con `/spec` y la implementación con `/spec-impl` (en `.agents/skills/`). Por defecto hay una rama por spec; el acuerdo del spec 01 reemplaza esa rama por un commit del documento aprobado y la implementación sobre `fdaza`.
+- `/spec` y `/spec-impl` viven en `.agents/skills/`: lee su `SKILL.md` y sigue las instrucciones junto con la autorización vigente del equipo. El índice canónico es `specs/README.md`; `specs/00-indice.md` conserva el acceso anterior. Las cuatro plantillas están en `specs/_templates/`. La base implementada se consulta en `specs/01-base-del-proyecto/spec.md`; se conservan las reservas 02 (autenticación), 06 (WebSocket), 11 (sin conexión) y 12 (notificaciones).
+- Subagente `django-architect` (`.claude/agents/django-architect.md`): planifica sin escribir código cuando el flujo del agente permita delegar. Respeta las seis apps `*app`, un solo `settings.py`, `auth.User` y las decisiones del spec aprobado.
 - Subagente `django-builder` (`.claude/agents/django-builder.md`): implementa el plan de `django-architect` (modelos, servicios, vistas, plantillas, comandos y pruebas). Las pruebas usan el ejecutor de Django; `pytest-django` no está en el stack.
 - La interfaz, la documentación y los mensajes de commit van en español de Chile.
 - Si una decisión de implementación se aparta del informe, déjala anotada en el spec que la tomó, con su motivo.

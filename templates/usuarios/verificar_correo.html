@@ -1,0 +1,28 @@
+{% extends 'components/Layout/base_publica.html' %}
+{% block titulo %}Verificar correo · Farmacia{% endblock %}
+{% block contenido %}
+{% if confirmado %}
+  <div class="acceso-icono acceso-icono-ok" aria-hidden="true"><svg class="icono" focusable="false"><use href="#i-ok"/></svg></div>
+  <h1 id="titulo-correo">Correo verificado</h1>
+  <p class="acceso-intro" role="status">Tu correo quedó verificado.</p>
+  <p>Con él podrás recuperar tu contraseña si la olvidas.</p>
+  <p class="formulario-pie"><a class="boton boton-bloque" href="{% url 'usuariosapp:perfil' %}">Ir a mi perfil</a></p>
+{% elif valido %}
+  <div class="acceso-icono" aria-hidden="true"><svg class="icono" focusable="false"><use href="#i-sobre"/></svg></div>
+  <h1 id="titulo-correo">Verificar correo electrónico</h1>
+  <p class="acceso-intro">Confirma que deseas usar esta dirección de correo para tu cuenta.</p>
+  <form method="post" aria-labelledby="titulo-correo">
+    {% csrf_token %}
+    <button class="boton boton-bloque" type="submit">Confirmar correo</button>
+  </form>
+{% elif error %}
+  <div class="acceso-icono acceso-icono-error" aria-hidden="true"><svg class="icono" focusable="false"><use href="#i-alerta"/></svg></div>
+  <h1 id="titulo-correo">No pudimos verificar el correo</h1>
+  <p class="message message-error" role="alert">{{ error }}</p>
+  <p class="formulario-pie"><a class="boton boton-bloque" href="{% url 'usuariosapp:perfil' %}">Ir a mi perfil</a></p>
+{% else %}
+  <div class="acceso-icono" aria-hidden="true"><svg class="icono" focusable="false"><use href="#i-sobre"/></svg></div>
+  <h1 id="titulo-correo">Verificar correo electrónico</h1>
+  <p class="acceso-intro">Abre el enlace recibido para verificar tu correo.</p>
+{% endif %}
+{% endblock %}

@@ -28,6 +28,8 @@ Branch-creation config:
 
 Follow these four phases in strict order. **Do not advance to the next phase if the previous one did not complete correctly.**
 
+Apply explicit user instructions and existing session authorization before asking for permission again, including documented agreements about branches or pauses. Preserve all unrelated local work. The folder format below changes document lookup, not the approval requirements.
+
 ---
 
 ### Phase 1 — Identify the spec
@@ -36,21 +38,22 @@ The received argument is: `$ARGUMENTS`
 
 If `$ARGUMENTS` is empty:
 
-- List the files available in `specs/` (you already have them above).
+- Read `specs/README.md` and list actual spec folders in `specs/`, excluding `_templates`, indexes and config. Include legacy flat specs if present; reserved numbers without documents are not implementable specs.
 - Ask the user to specify the exact name of the spec.
 - Stop and wait for an answer. Do not continue.
 
 If `$ARGUMENTS` has a value:
 
-- Look for the file in `specs/`. The user may have written the full name (`01-mvp-arkanoid`), only the number (`01`), or only the slug (`mvp-arkanoid`). Try to find the correct file in any of those cases.
-- If you do not find the file, show the available specs and ask the user to correct the name.
-- If you do find it, continue to Phase 2.
+- Find `specs/NN-slug/spec.md` by full folder name, number, slug, folder path or direct path to `spec.md`. The user may write `01-mvp-arkanoid`, `01` or `mvp-arkanoid`. Resolve an exact match before partial matches; if multiple candidates remain, ask which one.
+- For compatibility, accept legacy `specs/NN-slug.md`. If it is a redirect to a folder, follow the link to the canonical `spec.md`; do not treat the redirect as a separate spec.
+- If you do not find an actual spec, show the available specs and ask the user to correct the name. Do not create documents or implement a reservation automatically.
+- Read `spec.md`, `plan.md`, `tasks.md` and `validation.md` for the selected folder, and any execution agreement they reference. If a required document is missing, report that gap instead of inventing its contents. For a legacy monolithic spec, use its embedded sections. Continue to Phase 2.
 
 ---
 
 ### Phase 2 — Validate the spec's state
 
-Read the spec file you located in Phase 1 using the Read tool or `cat`.
+Read the canonical `spec.md` you located in Phase 1 using the Read tool or `cat` (or the legacy monolithic spec). Approval is determined from that spec, not from `plan.md`, `tasks.md`, `validation.md` or the index.
 
 In the file's contents, look for the line that contains the spec's state. The header label is typically `**Status:**` (English) or `**Estado:**` (Spanish), but it may use any language. Match by position (status line near the top of the spec) and by the surrounding state machine, not by the exact label.
 
@@ -114,10 +117,10 @@ Once you have confirmed the state means `Approved`:
 
    Wait for the answer. **Do not stash or commit on the user's behalf** unless they explicitly ask for it. If the working tree is clean, skip straight to step 1 without mentioning it.
 
-1. Derive the branch name from the spec file's full name, without the extension. Format: `spec-NN-slug`. Examples:
+1. Derive the branch name from the spec folder name (`NN-slug`), or the file stem for a legacy flat spec. Never derive it from the basename `spec.md`. Format: `spec-NN-slug`. Examples:
 
-   - `01-mvp-arkanoid.md` → branch `spec-01-mvp-arkanoid`
-   - `02-powerups.md` → branch `spec-02-powerups`
+   - `specs/01-mvp-arkanoid/spec.md` → branch `spec-01-mvp-arkanoid`
+   - `specs/02-powerups/spec.md` → branch `spec-02-powerups`
 
 2. Read the `AutoCreateBranch` flag from the **Branch-creation config** shown in the session context above.
 
@@ -145,7 +148,7 @@ Once you have confirmed the state means `Approved`:
    ```
    ✅ Ready to implement.
 
-   Spec:   specs/NN-slug.md
+   Spec:   specs/NN-slug/spec.md
    Branch: spec-NN-slug  (active)   (← or the current branch, if no new branch was created)
    State:  Approved   (← echo back the actual value found in the spec)
    ```
@@ -153,10 +156,12 @@ Once you have confirmed the state means `Approved`:
 4. **Do not start implementing yet.** First show the spec summary to the user so they have it fresh. Extract and show:
    - The **objective** (the line after `**Objective:**` / `**Objetivo:**` / equivalent label).
    - The **scope** (the `## Scope` / `## Alcance` / equivalent section).
-   - The **implementation plan** (the section with the numbered steps — `## Implementation plan` / `## Plan de implementación` / equivalent).
+   - The **implementation plan** from `plan.md` and the tasks/dependencies from `tasks.md` (or the embedded plan for a legacy flat spec).
    - The **acceptance criteria** (the checklist — `## Acceptance criteria` / `## Criterios de aceptación` / equivalent).
 
 Match section headings by meaning, not by exact wording — the spec may be authored in any language.
+
+Read existing results and limitations in `validation.md` before proposing validation; do not count historical evidence as newly executed tests.
 
 ---
 
@@ -182,6 +187,7 @@ Once confirmed, follow these rules during the entire implementation:
 **Work rhythm:**
 
 - Implement one step of the plan.
+- Track the corresponding task IDs in `tasks.md`; record only completed work and real commands/results in `validation.md`.
 - Show a summary of which files you touched and what you did.
 - Say: `Step N completed. Could you review the diff and let me know if I continue with Step N+1?`
 - Wait for confirmation before continuing.
@@ -207,7 +213,8 @@ Once confirmed, follow these rules during the entire implementation:
 
 Next step: verify the spec's acceptance criteria one by one.
 If they all pass, update the spec's state to "Implemented" (or the equivalent
-in your repo's language) and make the final commit before merging this branch.
+in your repo's language), update tasks, validation and specs/README.md.
+Commit only if the user explicitly requests it before merging this branch.
 ```
 
 ---
@@ -217,7 +224,7 @@ in your repo's language) and make the final commit before merging this branch.
 ```
 /spec-impl 01-mvp-arkanoid
 
-  Phase 1  →  Finds specs/01-mvp-arkanoid.md
+  Phase 1  →  Finds specs/01-mvp-arkanoid/spec.md and reads plan, tasks and validation
   Phase 2  →  Reads the state → "Approved" (or "Aprobado", etc.) → ✅ continues
   Phase 3  →  git checkout -b spec-01-mvp-arkanoid → git checkout spec-01-mvp-arkanoid
               Shows objective, scope, plan and criteria
@@ -226,7 +233,7 @@ in your repo's language) and make the final commit before merging this branch.
 
 /spec-impl 02-powerups  (state: Draft / Borrador)
 
-  Phase 1  →  Finds specs/02-powerups.md
+  Phase 1  →  Finds specs/02-powerups/spec.md
   Phase 2  →  Reads the state → "Draft" → ❌ stops
               Shows the standard error message
               Does not create branch, does not touch code
