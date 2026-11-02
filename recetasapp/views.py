@@ -30,7 +30,9 @@ class FarmaciaView(RolRequeridoMixin, View):
 
     def render(self, template, contexto, **kwargs):
         respuesta = render(self.request, "recetas/" + template, contexto, **kwargs)
-        respuesta.headers["Referrer-Policy"] = "no-referrer"
+        # Los formularios necesitan conservar su origen para la validación
+        # CSRF. No enviar el referente a destinos externos.
+        respuesta.headers["Referrer-Policy"] = "same-origin"
         return respuesta
 
 

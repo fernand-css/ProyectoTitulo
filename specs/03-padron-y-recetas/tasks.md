@@ -50,6 +50,7 @@ Las rutas de los pasos completados existen en el código. El alcance restante de
 | 2026-11-02 | T-03-02/03 | Servicios e importación; migración 0002 de conteos por fila; pruebas de negocio/importación/concurrencia | Primera colisión de bitácora corregida con reintentos acotados; filas y auditoría atómicas, cupo e idempotencia verificados |
 | 2026-11-02 | T-03-04/05 | Comando demo, formularios, vistas, rutas, plantillas, navbar/inicio y pruebas | Descarga/generación CSV/XLSX, 670 pacientes, roles, CSRF, búsquedas y formularios verificados |
 | 2026-11-02 | T-03-06, verificación técnica | Suite Django, herramienta HTTP aislada, checks y documentación | Resultados exactos en validation.md; revisión visual/móvil y axe pendientes por acceso al navegador |
+| 2026-11-02 | Corrección posterior del 403 de importación | Política de referente en vistas de farmacia, pruebas CSRF multipart y herramienta HTTP | Cambiada a same-origin; 70 pruebas y HTTP real aprobados. Se conservan roles y CSRF; pendiente confirmar en la sesión del usuario |
 
 ## Reanudación
 

@@ -98,6 +98,7 @@ try:
             cabeceras = {"Referer": url}
             cuerpo = None
             if datos is not None:
+                cabeceras["Origin"] = base
                 datos = dict(datos)
                 if csrf:
                     datos["csrfmiddlewaretoken"] = next((c.value for c in self.jar if c.name == "csrftoken"), "")

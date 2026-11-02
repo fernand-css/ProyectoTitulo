@@ -47,7 +47,42 @@ class VistasTests(TestCase):
         self.assertContains(respuesta, fila()[1])
         self.assertEqual(respuesta["Cache-Control"].find("no-store") >= 0, True)
         self.assertNotIn(fila()[0], respuesta.wsgi_request.get_full_path())
-        self.assertEqual(respuesta["Referrer-Policy"], "no-referrer")
+        self.assertEqual(respuesta["Referrer-Policy"], "same-origin")
+
+    def test_importacion_no_suprime_origen_del_formulario(self):
+        self.client.force_login(self.actores["qf"])
+        respuesta = self.client.get(reverse("recetasapp:importacion_nueva"))
+        self.assertEqual(respuesta["Referrer-Policy"], "same-origin")
+
+    def test_importacion_multipart_csrf_origen_http_https_y_referente(self):
+        ruta = reverse("recetasapp:importacion_nueva")
+        for secure in (False, True):
+            for formato in ("csv", "xlsx"):
+                with self.subTest(secure=secure, formato=formato):
+                    cliente = Client(enforce_csrf_checks=True)
+                    cliente.force_login(self.actores["qf"])
+                    self.assertEqual(cliente.get(ruta, secure=secure).status_code, 200)
+                    origen = ("https" if secure else "http") + "://testserver"
+                    token = cliente.cookies["csrftoken"].value
+
+                    def enviar(cabeceras, incluir_token=True):
+                        datos = {
+                            "formato": formato, "sintetico": "on",
+                            "archivo": SimpleUploadedFile("sintetico." + formato, generar_archivo(formato, [fila()])),
+                        }
+                        if incluir_token:
+                            datos["csrfmiddlewaretoken"] = token
+                        return cliente.post(ruta, datos, secure=secure, **cabeceras)
+
+                    previas = ImportacionPadron.objects.count()
+                    for origen_invalido in ("null", "https://otro.example.invalid"):
+                        self.assertEqual(enviar({"HTTP_ORIGIN": origen_invalido}).status_code, 403)
+                    self.assertEqual(enviar({"HTTP_ORIGIN": origen}, incluir_token=False).status_code, 403)
+                    self.assertEqual(ImportacionPadron.objects.count(), previas)
+                    self.assertEqual(enviar({"HTTP_ORIGIN": origen}).status_code, 302)
+                    self.assertEqual(ImportacionPadron.objects.count(), previas + 1)
+                    if secure:
+                        self.assertEqual(enviar({"HTTP_REFERER": origen + ruta}).status_code, 302)
 
     def test_creacion_renovacion_entrega_y_uuid_repetido(self):
         self.client.force_login(self.actores["qf"])

@@ -78,6 +78,14 @@ Sin API con Rayén ni archivos reales, despliegue, HTTPS final, turnos HU-07 o p
 
 ## Aceptación y reanudación
 
+### Corrección posterior — 403 al importar (2026-11-02)
+
+El usuario informó un 403 durante la importación. Se identificó `Referrer-Policy: no-referrer` en todas las pantallas de farmacia: esa política puede producir `Origin: null` al enviar formularios y omitir el referente requerido por Django en HTTPS cuando no hay Origin. Se cambió a `same-origin`, conservando CSRF y roles y evitando enviar el referente a otros orígenes. Referencia del comportamiento del navegador: [MDN — Referrer-Policy](https://developer.mozilla.org/en-US/docs/Web/HTTP/Reference/Headers/Referrer-Policy).
+
+La prueba de regresión de cabecera falló antes del cambio y pasó después. Se añadieron POST multipart CSV/XLSX con `Client(enforce_csrf_checks=True)`, HTTP/HTTPS, Origin correcto, Origin nulo/ajeno, token ausente y alternativa HTTPS con Referer válido. Los válidos importan; los inválidos devuelven 403 sin crear cargas. Se ajustó la herramienta HTTP para enviar Origin en sus POST, que antes solo incluían Referer.
+
+Verificación posterior: `python manage.py test recetasapp coreapp.tests.test_plantillas --noinput`: **70 pruebas aprobadas en 19,679 s**. `python tools/verificar_spec_03_http.py`: **aprobado**, 23 migraciones temporales, 670 pacientes, CSV/XLSX, renovación, idempotencia y CSRF; cierre normal y limpieza de la SQLite temporal. No se modificó la base local. No se observó directamente el navegador del usuario ni se recibió aún el texto exacto de su 403; la comprobación demuestra la corrección del defecto encontrado, pendiente de confirmación en su sesión después de recargar el formulario.
+
 Documento: Aprobado. Implementación de código y continuación sin pausas: autorizadas por el usuario. Commit al terminar: autorizado en `fdaza`, excluyendo el cambio previo del spec 02. Aceptación funcional del software: pendiente.
 
 T-03-01 a T-03-05 completadas; T-03-06 tiene comprobaciones técnicas y documentación completadas, con revisión visual/móvil/axe pendiente por entorno. Mantener estado Aprobado hasta cerrar esas comprobaciones y registrar aceptación real, sin marcar Implementado automáticamente.

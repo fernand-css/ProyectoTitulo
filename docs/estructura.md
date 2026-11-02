@@ -130,7 +130,7 @@ El árbol inicial del 01 se amplía en `recetasapp` con estos componentes:
 | `migrations/0001_initial.py`, `0002_resultadofilaimportacion_pacientes_actualizados_and_more.py` | Esquema y conteos de objetos por fila para reconstruir bitácoras. |
 | `services.py` | Autorización, calendario, elegibilidad, creación/renovación, confirmación idempotente y aplicación atómica de fila; auditoría y reintentos por colisiones SQLite. |
 | `importacion.py` | Contrato de doce columnas, CSV/XLSX limitado, prevalidación de contradicciones, procesamiento parcial y bitácoras; generación de plantillas y archivos sintéticos. |
-| `forms.py`, `views.py`, `urls.py` | Búsqueda privada por POST, padrón, recetas, entregas y cargas protegidas por rol. Respuestas sin caché y sin referente. |
+| `forms.py`, `views.py`, `urls.py` | Búsqueda privada por POST, padrón, recetas, entregas y cargas protegidas por rol. Respuestas sin caché; referente limitado al mismo origen para compatibilidad con CSRF. |
 | `admin.py` | No registra escritura de dominio; las operaciones pasan por servicios. |
 | `management/commands/generar_padron_demo.py` | Exportación explícita de 670 pacientes sintéticos reproducibles, sin modificar la base. |
 | `tests/test_modelos.py`, `test_servicios.py`, `test_importacion.py`, `test_concurrencia.py`, `test_comandos.py`, `test_vistas.py` | Integridad/migración, negocio, importación, colisiones con conexiones separadas, archivos, roles/CSRF y accesibilidad estructural. `ayudas.py` prepara exclusivamente datos sintéticos. |
