@@ -1,6 +1,51 @@
 {% extends 'recetas/base.html' %}
+{% load core_tags %}
 {% block titulo %}Confirmar entrega · Farmacia{% endblock %}
-{% block farmacia %}<h1>Confirmar entrega del ciclo</h1>{% if receta %}<p>Receta {{ receta.codigo }} · {{ estado.completadas }} de {{ estado.maximo }} completadas. Restan {{ estado.restantes }}.</p>{% endif %}
-{% for causa in estado.causas %}<p role="alert">{{ causa }}</p>{% endfor %}
-<form method="post" class="panel">{% csrf_token %}{% include 'recetas/campos.html' %}<button class="boton" type="submit">Confirmar entrega completada</button></form>
+{% block migas %}{{ block.super }}{% if receta %}<li><a href="{% url 'recetasapp:paciente_detalle' pk=receta.paciente_id %}">{{ receta.paciente.apellidos }}, {{ receta.paciente.nombres }}</a></li><li><a href="{% url 'recetasapp:receta_detalle' pk=receta.pk %}">Receta {{ receta.codigo }}</a></li><li><span aria-current="page">Confirmar entrega</span></li>{% endif %}{% endblock %}
+{% block farmacia %}
+<div class="confirmar">
+  <h1>Confirmar entrega</h1>
+  {% if receta %}
+  <p class="confirmar-paciente"><span>Paciente</span> <strong>{{ receta.paciente.nombres }} {{ receta.paciente.apellidos }}</strong> <span>RUT {{ receta.paciente.rut|rut }}</span></p>
+
+  <section class="libreta{% if not estado.elegible %} libreta-cerrada{% endif %}" aria-labelledby="titulo-ciclo">
+    <div class="libreta-cuerpo">
+      <header class="libreta-cab">
+        <h2 class="libreta-codigo" id="titulo-ciclo">Receta {{ receta.codigo }}</h2>
+        {% include 'recetas/_situacion.html' with situacion=receta.situacion %}
+      </header>
+      {% include 'recetas/_sellos.html' %}
+      {% if estado.elegible %}
+      <p class="libreta-cuenta"><strong>Entrega {{ estado.completadas|add:1 }} de {{ estado.maximo }}</strong><span>es la que se va a confirmar</span></p>
+      {% else %}
+      <p class="libreta-cuenta"><strong>{{ estado.completadas }} de {{ estado.maximo }}</strong><span>entregas completadas</span></p>
+      {% endif %}
+    </div>
+  </section>
+
+  {% if form.non_field_errors %}<div class="message message-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+
+  {% if estado.elegible %}
+  <form method="post" class="panel">
+    {% csrf_token %}
+    {{ form.operacion_id }}
+    {% if form.operacion_id.errors %}<div class="campo-error" role="alert">{{ form.operacion_id.errors }}</div>{% endif %}
+    <div class="campo campo-casilla">
+      {{ form.confirmar }}
+      <label for="{{ form.confirmar.id_for_label }}">{{ form.confirmar.label }}</label>
+    </div>
+    {% if form.confirmar.errors %}<div class="campo-error" role="alert">{{ form.confirmar.errors }}</div>{% endif %}
+    <div class="acciones">
+      <button class="boton" type="submit"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-sello"/></svg>Confirmar entrega</button>
+      <a class="boton boton-secundario" href="{% url 'recetasapp:receta_detalle' pk=receta.pk %}">Volver a la receta</a>
+    </div>
+  </form>
+  {% else %}
+  <div class="message message-warning">
+    <div>{% for causa in estado.causas %}<p>{{ causa }}</p>{% endfor %}<p>No se puede confirmar una entrega con esta receta.</p></div>
+  </div>
+  <div class="acciones"><a class="boton boton-secundario" href="{% url 'recetasapp:receta_detalle' pk=receta.pk %}">Volver a la receta</a></div>
+  {% endif %}
+  {% endif %}
+</div>
 {% endblock %}

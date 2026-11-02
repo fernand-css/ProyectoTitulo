@@ -1,10 +1,16 @@
 {% extends 'components/Layout/base.html' %}
+{% load static %}
+{# Padrón y recetas: «la libreta de control». Los estilos del módulo viven en static/css/recetas.css. #}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/recetas.css' %}">{% endblock %}
 {% block contenido %}
+{% block cabecera_pagina %}{% endblock %}
 <div class="contenedor pagina">
+  {% block migas_contenedor %}
   <nav class="migas" aria-label="Ruta de navegación"><ol>
     <li><a href="{% url 'coreapp:inicio' %}">Inicio</a></li>
-    <li><a href="{% url 'recetasapp:pacientes' %}">Padrón y recetas</a></li>
+    {% block migas %}<li><a href="{% url 'recetasapp:pacientes' %}">Padrón y recetas</a></li>{% endblock %}
   </ol></nav>
+  {% endblock %}
   {% block farmacia %}{% endblock %}
 </div>
 {% endblock %}

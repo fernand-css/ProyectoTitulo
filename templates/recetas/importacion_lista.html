@@ -1,5 +1,45 @@
 {% extends 'recetas/base.html' %}
 {% block titulo %}Importaciones · Farmacia{% endblock %}
-{% block farmacia %}<div class="encabezado"><h1>Importaciones del padrón</h1><a class="boton" href="{% url 'recetasapp:importacion_nueva' %}">Nueva importación</a></div>
-{% for carga in page_obj %}<article class="panel"><h2>Carga {{ carga.referencia }}</h2><p>{{ carga.creado_en }} · {{ carga.creado_por.get_username|default:'Cuenta retirada' }} · {{ carga.get_formato_display }} · {{ carga.get_estado_display }}</p><p>{{ carga.total_filas }} filas; {{ carga.filas_rechazadas }} rechazadas.</p><a href="{% url 'recetasapp:importacion_detalle' referencia=carga.referencia %}">Consultar reporte de carga {{ carga.referencia }}</a></article>{% empty %}<p>No hay cargas registradas.</p>{% endfor %}
-{% include 'components/paginator.html' %}{% endblock %}
+{% block migas %}{{ block.super }}<li><span aria-current="page">Importaciones</span></li>{% endblock %}
+{% block farmacia %}
+<header class="encabezado">
+  <div>
+    <h1>Importaciones del padrón</h1>
+    <p>Bitácora de cada archivo cargado: quién lo subió, cuándo y qué filas se guardaron o se rechazaron.</p>
+  </div>
+  <a class="boton" href="{% url 'recetasapp:importacion_nueva' %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-subir"/></svg>Nueva importación</a>
+</header>
+{% if page_obj %}
+<div class="tabla-caja">
+  <table class="tabla tabla-apilable" aria-label="Cargas del padrón, de la más reciente a la más antigua">
+    <thead><tr><th scope="col">Fecha</th><th scope="col">Responsable</th><th scope="col">Formato</th><th scope="col">Estado</th><th scope="col">Resultado</th><th scope="col"><span class="sr-only">Reporte</span></th></tr></thead>
+    <tbody>
+      {% for carga in page_obj %}
+      <tr>
+        <th scope="row">{{ carga.creado_en|date:"j b Y, H:i" }}</th>
+        <td data-etiqueta="Responsable">{{ carga.creado_por.get_username|default:"Cuenta retirada" }}</td>
+        <td data-etiqueta="Formato">{{ carga.get_formato_display }}</td>
+        <td data-etiqueta="Estado">
+          {% if carga.estado == 'completada' %}<span class="insignia insignia-activa"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg>{{ carga.get_estado_display }}</span>
+          {% elif carga.estado == 'fallida' %}<span class="insignia insignia-alerta"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-alerta"/></svg>{{ carga.get_estado_display }}</span>
+          {% else %}<span class="insignia insignia-espera"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-pausa"/></svg>{{ carga.get_estado_display }}</span>{% endif %}
+        </td>
+        <td data-etiqueta="Resultado">{{ carga.total_filas }} filas, {{ carga.filas_rechazadas }} rechazadas{% include 'recetas/_barra_carga.html' with categorias=carga.categorias chica=True %}</td>
+        <td><a href="{% url 'recetasapp:importacion_detalle' referencia=carga.referencia %}">Ver reporte<span class="sr-only"> de la carga del {{ carga.creado_en|date:"j \d\e F \d\e Y, H:i" }}</span></a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'components/paginator.html' %}
+{% else %}
+<div class="vacio">
+  <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-documento"/></svg>
+  <div>
+    <h2>Aún no hay cargas registradas</h2>
+    <p>Cada archivo que importes quedará aquí, con su reporte de filas guardadas y rechazadas.</p>
+    <div class="acciones"><a class="boton" href="{% url 'recetasapp:importacion_nueva' %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-subir"/></svg>Importar el primer archivo</a></div>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

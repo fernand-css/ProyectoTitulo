@@ -1,7 +1,43 @@
 {% extends 'recetas/base.html' %}
-{% block titulo %}Registrar receta · Farmacia{% endblock %}
-{% block farmacia %}<h1>{% if anterior %}Renovar receta{% else %}Crear receta simulada{% endif %}</h1>
-<p>Control interno anexo de farmacia. Cada entrega corresponde a un ciclo, sin inventario por medicamento.</p>
-{% if anterior %}<p>Antecedente: {{ anterior.codigo }}. La nueva receta comienza con cero entregas y conserva el historial anterior.</p>{% endif %}
-<p>La vigencia termina el día anterior a la fecha obtenida al sumar los meses naturales al inicio, ajustando los meses cortos.</p>
-<form method="post" class="panel">{% csrf_token %}{% include 'recetas/campos.html' %}<button class="boton" type="submit">Guardar receta simulada</button></form>{% endblock %}
+{% load static %}
+{% block titulo %}{% if anterior %}Renovar receta{% else %}Crear receta{% endif %} · Farmacia{% endblock %}
+{% block migas %}{{ block.super }}<li><span aria-current="page">{% if anterior %}Renovar receta{% else %}Crear receta{% endif %}</span></li>{% endblock %}
+{% block farmacia %}
+<header class="encabezado">
+  <div>
+    <h1>{% if anterior %}Renovar receta{% else %}Crear receta simulada{% endif %}</h1>
+    <p>Control interno anexo de farmacia. Cada entrega corresponde a un ciclo, sin inventario por medicamento.</p>
+  </div>
+</header>
+{% if anterior %}
+<div class="message message-info"><div><p>Renovación de la receta <strong>{{ anterior.codigo }}</strong>. La nueva receta comienza con cero entregas y conserva el historial anterior.</p></div></div>
+{% endif %}
+
+{# La vista previa es una ayuda con JavaScript: dibuja las casillas y calcula el último día válido mientras se escribe. #}
+<div class="editor" x-data="recetaPrevia" @input="leer()" @change="leer()">
+  <form method="post" class="panel">
+    {% csrf_token %}
+    {% include 'recetas/campos.html' %}
+    <div class="nota"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-info"/></svg><p>La vigencia termina el día anterior a la fecha que resulta de sumar los meses al inicio. Si el mes es más corto, se ajusta al último día.</p></div>
+    <div class="acciones"><button class="boton" type="submit"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-sello"/></svg>Guardar receta simulada</button></div>
+  </form>
+
+  <aside class="vista-previa" aria-labelledby="titulo-previa" x-cloak>
+    <div class="libreta libreta-compacta">
+      <div class="libreta-cuerpo">
+        <h2 class="libreta-codigo" id="titulo-previa">Así quedará la libreta</h2>
+        <p class="vista-previa-vacia" x-show="cupo < 1">Indica el máximo de entregas para ver sus casillas.</p>
+        <ol class="sellos" x-show="cupo >= 1" aria-label="Casillas que tendrá la receta">
+          <template x-for="numero in casillas" :key="numero">
+            <li class="sello-casilla"><span class="sello sello-libre" aria-hidden="true" x-text="numero"></span><span class="sello-pie"></span></li>
+          </template>
+        </ol>
+        <p class="vista-previa-mas" x-show="cupo > limite" x-text="'y ' + (cupo - limite) + ' casillas más'"></p>
+        <p class="vista-previa-fin" x-text="textoFin"></p>
+        <p class="suave">Es una vista previa: el sistema confirma las fechas al guardar.</p>
+      </div>
+    </div>
+  </aside>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/receta_previa.js' %}"></script>{% endblock %}

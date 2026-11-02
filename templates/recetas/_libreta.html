@@ -1,0 +1,13 @@
+{# Tarjeta de una receta en la ficha del paciente. Espera `receta` preparada; `compacta` reduce las casillas. #}
+<article class="libreta{% if compacta %} libreta-compacta{% endif %}{% if receta.situacion.clave != 'vigente' %} libreta-cerrada{% endif %}" aria-labelledby="libreta-{{ receta.pk }}">
+  <div class="libreta-cuerpo">
+    <header class="libreta-cab">
+      <h3 class="libreta-codigo" id="libreta-{{ receta.pk }}">Receta {{ receta.codigo }}</h3>
+      {% include 'recetas/_situacion.html' with situacion=receta.situacion %}
+    </header>
+    {% include 'recetas/_sellos.html' %}
+    <p class="libreta-cuenta"><strong>{{ receta.entregas_completadas }} de {{ receta.max_entregas }}</strong><span>entregas completadas{% if receta.estado.elegible %}, quedan {{ receta.estado.restantes }}{% endif %}</span></p>
+    <p class="libreta-fechas"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-calendario"/></svg><span>Del {{ receta.estado.fecha_inicio|date:"j b Y" }} al {{ receta.estado.ultimo_dia_valido|date:"j b Y" }}</span></p>
+    {% if receta.pk %}<a class="libreta-enlace" href="{% url 'recetasapp:receta_detalle' pk=receta.pk %}">Abrir receta<span class="sr-only"> {{ receta.codigo }}</span><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-flecha"/></svg></a>{% endif %}
+  </div>
+</article>

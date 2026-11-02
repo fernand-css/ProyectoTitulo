@@ -1,7 +1,7 @@
 # Tareas — 03 / Padrón y recetas
 
 Spec: [spec.md](spec.md). Plan: [plan.md](plan.md). Evidencia: [validation.md](validation.md).
-Fecha de definición: 2026-11-01. Actualización: 2026-11-02. Estado: pasos 1 a 5 completados; verificación técnica y documentación del paso 6 completadas, visual/móvil/axe pendientes por entorno. Autorizada en `fdaza`, sin rama nueva y con commit al terminar.
+Fecha de definición: 2026-11-01. Actualización: 2026-11-02. Estado: pasos 1 a 5 completados; verificación técnica, documentación, revisión visual/móvil y axe del paso 6 completadas (2026-11-02, con el rediseño de las pantallas); pendientes navegación manual por teclado, prueba de usabilidad y aceptación. Autorizada en `fdaza`, sin rama nueva y con commit al terminar.
 
 Las rutas de los pasos completados existen en el código. El alcance restante de validación se identifica expresamente; una prueba planificada no equivale a evidencia ejecutada.
 
@@ -35,7 +35,7 @@ Las rutas de los pasos completados existen en el código. El alcance restante de
   - Depende de: T-03-05.
   - Archivos previstos: pruebas pertinentes, eventual herramienta HTTP aislada; `README.md`, `docs/estructura.md`, `CLAUDE.md`, cuatro documentos de esta carpeta e índice.
   - Hecho cuando: checks, migraciones y regresión tienen resultados reales; se demuestra carga/repetición de 670 pacientes en ambos formatos, historial y permisos; revisión HTTP/CSRF, visual, móvil, accesibilidad y p95 quedan registrados con límites. El bloqueo efectivo de emisión de turnos permanece explícitamente pendiente de su integración futura, sin declararlo probado aquí.
-  - Avance: código, regresión, HTTP real/CSRF, migraciones, carga y repetición de 670, rendimiento, comprobaciones estructurales de accesibilidad y documentación completados. Pendiente: revisión visual/móvil y axe del módulo. El host de navegador no responde y Firefox no expone una ventana capturable; no marcar realizadas esas comprobaciones.
+  - Avance: código, regresión, HTTP real/CSRF, migraciones, carga y repetición de 670, rendimiento, comprobaciones estructurales de accesibilidad y documentación completados. Revisión visual/móvil y axe del módulo realizadas el 2026-11-02 con Chrome headless sobre el rediseño (28 pantallas, 0 violaciones; ver validation.md). Pendiente: navegación manual por teclado, prueba de usabilidad con al menos cinco personas y aceptación del usuario; por eso la tarea no se marca completada.
 
 ## Autorización posterior
 
@@ -51,10 +51,11 @@ Las rutas de los pasos completados existen en el código. El alcance restante de
 | 2026-11-02 | T-03-04/05 | Comando demo, formularios, vistas, rutas, plantillas, navbar/inicio y pruebas | Descarga/generación CSV/XLSX, 670 pacientes, roles, CSRF, búsquedas y formularios verificados |
 | 2026-11-02 | T-03-06, verificación técnica | Suite Django, herramienta HTTP aislada, checks y documentación | Resultados exactos en validation.md; revisión visual/móvil y axe pendientes por acceso al navegador |
 | 2026-11-02 | Corrección posterior del 403 de importación | Política de referente en vistas de farmacia, pruebas CSRF multipart y herramienta HTTP | Cambiada a same-origin; 70 pruebas y HTTP real aprobados. Se conservan roles y CSRF; pendiente confirmar en la sesión del usuario |
+| 2026-11-02 | T-03-06, rediseño visual de las pantallas | `recetasapp/presentacion.py`, `static/css/recetas.css`, dos scripts, parciales y plantillas de `templates/recetas/`; ajustes menores en `views.py` y `forms.py`; capturas, axe y pruebas | Revisión visual/móvil y axe completadas; 278 pruebas aprobadas. Detalle y límites en validation.md |
 
 ## Reanudación
 
-Código y documentación implementados en `fdaza`; verificación técnica completada. Pendiente de T-03-06: revisar las pantallas en escritorio/móvil, teclado/texto ampliado y axe con navegador disponible; luego registrar aceptación real y cerrar el estado si corresponde. No se migró la SQLite local ni se creó rama. El cambio previo del spec 02 se conserva fuera del commit del 03.
+Código y documentación implementados en `fdaza`; verificación técnica completada. Pendiente de T-03-06: la navegación manual por teclado, la prueba de usabilidad del RNF-04 y la aceptación real; luego cerrar el estado si corresponde. La revisión de pantallas en escritorio/móvil, texto ampliado y axe se hizo el 2026-11-02. No se migró la SQLite local ni se creó rama. El cambio previo del spec 02 se conserva fuera del commit del 03.
 
 ## Aceptación del usuario
 

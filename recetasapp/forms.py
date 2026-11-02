@@ -8,7 +8,11 @@ from .models import ImportacionPadron, Paciente
 
 
 class BusquedaPacienteForm(forms.Form):
-    buscar = forms.CharField(label="Buscar por RUT o nombre", max_length=150, required=False)
+    # Sin autocompletar ni corrector: son datos de otras personas y no deben quedar en el navegador.
+    buscar = forms.CharField(
+        label="Buscar por RUT o nombre", max_length=150, required=False,
+        widget=forms.TextInput(attrs={"type": "search", "autocomplete": "off", "spellcheck": "false", "enterkeyhint": "search", "placeholder": "RUT, nombre o apellido"}),
+    )
     pagina = forms.IntegerField(min_value=1, initial=1, widget=forms.HiddenInput, required=False)
 
 

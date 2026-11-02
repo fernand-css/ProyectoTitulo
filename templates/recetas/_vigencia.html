@@ -1,0 +1,12 @@
+{# El sol recorre el surco desde el inicio hasta el último día válido. Espera `vigencia` (presentacion.linea_vigencia). #}
+<div class="vigencia" style="--hoy: {{ vigencia.porcentaje }}">
+  <p class="vigencia-texto">{{ vigencia.texto }}</p>
+  <div class="vigencia-pista" aria-hidden="true">
+    <span class="vigencia-recorrido"></span>
+    <span class="vigencia-sol"><svg class="icono" focusable="false"><use href="#i-sello"/></svg></span>
+  </div>
+  <dl class="vigencia-datos">
+    <div><dt>Inicio</dt><dd>{{ vigencia.inicio|date:"j b Y" }}</dd></div>
+    <div><dt>Último día válido</dt><dd>{{ vigencia.ultimo_dia|date:"j b Y" }}</dd></div>
+  </dl>
+</div>

@@ -1,7 +1,67 @@
 {% extends 'recetas/base.html' %}
 {% block titulo %}Reporte de importación · Farmacia{% endblock %}
-{% block farmacia %}<h1>Reporte de importación</h1>
-{% if carga %}<section class="panel"><h2>Carga {{ carga.referencia }}</h2><p>{{ carga.get_estado_display }} · {{ carga.get_formato_display }} · {{ carga.creado_en }} · {{ carga.creado_por.get_username|default:'Cuenta retirada' }}</p>{% if carga.resumen_fallo %}<p role="alert">{{ carga.resumen_fallo }}</p>{% endif %}
-<dl class="ficha"><dt>Filas de datos</dt><dd>{{ carga.total_filas }}</dd><dt>Con altas</dt><dd>{{ carga.filas_creadas }}</dd><dt>Con actualizaciones</dt><dd>{{ carga.filas_actualizadas }}</dd><dt>Sin cambios</dt><dd>{{ carga.filas_sin_cambios }}</dd><dt>Duplicadas omitidas</dt><dd>{{ carga.filas_omitidas }}</dd><dt>Rechazadas</dt><dd>{{ carga.filas_rechazadas }}</dd><dt>Pacientes creados / actualizados</dt><dd>{{ carga.pacientes_creados }} / {{ carga.pacientes_actualizados }}</dd><dt>Recetas creadas / actualizadas</dt><dd>{{ carga.recetas_creadas }} / {{ carga.recetas_actualizadas }}</dd><dt>Referencia SHA-256</dt><dd style="overflow-wrap:anywhere">{{ carga.archivo_sha256 }}</dd></dl></section>{% endif %}
-<h2>Resultados por fila</h2>{% for resultado in page_obj %}<article class="panel"><h3>Fila {{ resultado.numero_fila }} · {{ resultado.get_estado_display }}</h3><p>{{ resultado.mensaje|default:'Fila confirmada sin errores.' }}</p></article>{% empty %}<p>No hay filas procesadas para mostrar.</p>{% endfor %}{% include 'components/paginator.html' %}
+{% block migas %}{{ block.super }}<li><a href="{% url 'recetasapp:importaciones' %}">Importaciones</a></li><li><span aria-current="page">Reporte de importación</span></li>{% endblock %}
+{% block farmacia %}
+{% if carga %}
+<header class="reporte-cab">
+  <div>
+    <h1>Reporte de importación</h1>
+    <p class="reporte-meta">
+      {% if carga.estado == 'completada' %}<span class="insignia insignia-activa"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg>{{ carga.get_estado_display }}</span>
+      {% elif carga.estado == 'fallida' %}<span class="insignia insignia-alerta"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-alerta"/></svg>{{ carga.get_estado_display }}</span>
+      {% else %}<span class="insignia insignia-espera"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-pausa"/></svg>{{ carga.get_estado_display }}</span>{% endif %}
+      <span>{{ carga.creado_en|date:"j \d\e F \d\e Y, H:i" }}</span>
+      <span>Cargó {{ carga.creado_por.get_username|default:"una cuenta retirada" }}</span>
+      <span>{{ carga.get_formato_display }}</span>
+    </p>
+  </div>
+  <a class="boton" href="{% url 'recetasapp:importacion_nueva' %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-subir"/></svg>Nueva importación</a>
+</header>
+
+{% if carga.resumen_fallo %}<div class="message message-error" role="alert">{{ carga.resumen_fallo }}</div>{% endif %}
+
+<section class="panel" aria-labelledby="titulo-resultado">
+  <h2 id="titulo-resultado">Resultado de {{ carga.total_filas }} fila{{ carga.total_filas|pluralize }} de datos</h2>
+  {% include 'recetas/_barra_carga.html' %}
+  <ul class="leyenda">
+    {% for categoria in categorias %}
+    <li><span class="muestra muestra-{{ categoria.clave }}" aria-hidden="true"></span><span class="leyenda-texto"><strong>{{ categoria.cantidad }}</strong><span>{{ categoria.texto }}</span></span></li>
+    {% endfor %}
+  </ul>
+  <dl class="totales">
+    <div><dt>Pacientes creados / actualizados</dt><dd>{{ carga.pacientes_creados }} / {{ carga.pacientes_actualizados }}</dd></div>
+    <div><dt>Recetas creadas / actualizadas</dt><dd>{{ carga.recetas_creadas }} / {{ carga.recetas_actualizadas }}</dd></div>
+  </dl>
+  <details class="referencia"><summary>Referencia del archivo (SHA-256)</summary><p>{{ carga.archivo_sha256 }}</p></details>
+</section>
+
+<section aria-labelledby="titulo-filas" class="filas-reporte">
+  <h2 id="titulo-filas">Resultados por fila</h2>
+  <ul class="filtros" aria-label="Filtrar filas">
+    <li><a href="{% querystring estado=None page=None %}"{% if not solo_rechazadas %} aria-current="true"{% endif %}>Todas las filas</a></li>
+    <li><a href="{% querystring estado='rechazada' page=None %}"{% if solo_rechazadas %} aria-current="true"{% endif %}><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-alerta"/></svg>Solo rechazadas ({{ carga.filas_rechazadas }})</a></li>
+  </ul>
+  {% if page_obj %}
+  <div class="tabla-caja">
+    <table class="tabla" aria-labelledby="titulo-filas">
+      <thead><tr><th scope="col">Fila</th><th scope="col">Resultado</th><th scope="col">Detalle</th></tr></thead>
+      <tbody>
+        {% for resultado in page_obj %}
+        <tr{% if resultado.estado == 'rechazada' %} class="tabla-fila-rechazada"{% endif %}>
+          <th scope="row">{{ resultado.numero_fila }}</th>
+          <td><span class="insignia insignia-fila-{{ resultado.clase }}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#{{ resultado.icono }}"/></svg>{{ resultado.get_estado_display }}</span></td>
+          <td>{{ resultado.mensaje|default:"Fila confirmada sin errores." }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% elif solo_rechazadas %}
+  <p class="tabla-vacia">Ninguna fila fue rechazada en esta carga.</p>
+  {% else %}
+  <p class="tabla-vacia">No hay filas procesadas para mostrar.</p>
+  {% endif %}
+  {% include 'components/paginator.html' %}
+</section>
+{% endif %}
 {% endblock %}

@@ -134,12 +134,13 @@ El árbol inicial del 01 se amplía en `recetasapp` con estos componentes:
 | `admin.py` | No registra escritura de dominio; las operaciones pasan por servicios. |
 | `management/commands/generar_padron_demo.py` | Exportación explícita de 670 pacientes sintéticos reproducibles, sin modificar la base. |
 | `tests/test_modelos.py`, `test_servicios.py`, `test_importacion.py`, `test_concurrencia.py`, `test_comandos.py`, `test_vistas.py` | Integridad/migración, negocio, importación, colisiones con conexiones separadas, archivos, roles/CSRF y accesibilidad estructural. `ayudas.py` prepara exclusivamente datos sintéticos. |
-| `templates/recetas/` | Base y campos compartidos, padrón/detalle, receta/renovación, confirmación, carga, bitácora y reporte paginado. Reutilizan los estilos existentes. |
+| `presentacion.py` | Datos de solo lectura para dibujar la libreta: situación de la receta, casillas, línea de vigencia, resumen por paciente y categorías de una carga. No escribe ni decide permisos. |
+| `templates/recetas/`, `static/css/recetas.css`, `static/js/receta_previa.js`, `static/js/importacion.js` | Base y campos compartidos, padrón/detalle, receta/renovación, confirmación, carga, bitácora y reporte paginado, con la identidad «libreta de control» (sección siguiente a la de identidad visual). |
 | `tools/verificar_spec_03_http.py` | SQLite temporal, WSGI real, cookies/CSRF, importación de 670, renovación e idempotencia; medición p95 y vista HTML sintética opcional de solo lectura. |
 
 La navegación del inicio y navbar enlaza el padrón para Q.F., Técnico y superusuario; Encargado no accede. No se añaden rutas públicas de pacientes ni API con Rayén. Los formatos y comandos están en [README](../README.md#padrón-y-recetas--spec-03); evidencia y límites en [validation.md](../specs/03-padron-y-recetas/validation.md).
 
-La ejecución técnica del 03 quedó verificada con 238 pruebas y HTTP real sobre 23 migraciones nuevas. La revisión visual/móvil y axe del módulo siguen pendientes porque el host de navegador no está disponible y las ventanas de Firefox no pudieron capturarse por estar minimizadas. Las comprobaciones de presentación de specs previas no se atribuyen al 03.
+La ejecución técnica del 03 quedó verificada con 238 pruebas y HTTP real sobre 23 migraciones nuevas. La revisión visual/móvil y axe del módulo quedaron pendientes en esa ejecución porque el host de navegador no estaba disponible; se hicieron después con el rediseño descrito en la sección «Padrón y recetas: la libreta de control». Las comprobaciones de presentación de specs previas no se atribuyen al 03.
 
 ## Identidad visual de la presentación
 
@@ -166,3 +167,26 @@ Reglas para las vistas que lleguen después:
 - Los datos públicos del pie (Departamento de Salud Municipal, Arturo Prat s/n) provienen del listado público del Servicio de Salud Ñuble; confirmarlos con el CESFAM antes de la demostración.
 
 Verificación realizada: capturas en Chrome a 1280 px y a 390 px (incluido texto «muy grande») y auditoría con axe-core 4.10 sobre 21 pantallas (login y sus errores, recuperación, 403/404/500, inicio por cada rol, perfil, claves y gestión de usuarios): **0 violaciones de WCAG 2.1 A/AA**. Axe deja como «incompletas» tres comprobaciones de contraste (texto sobre el SVG del paisaje, sobre un pseudo-elemento o bajo la flecha de un `select`); se calcularon a mano (blanco sobre `#BC4F4F` = 4,81:1; tinta sobre trigo/blanco ≥ 15:1). Pendientes: la aceptación del equipo y la prueba de usabilidad con al menos cinco personas representativas que exige el informe (RNF-04).
+
+## Padrón y recetas: la libreta de control
+
+Rediseño de las nueve pantallas de `templates/recetas/` sobre la identidad anterior. Idea: en el CESFAM el paciente crónico lleva una libreta que se timbra en cada retiro. Cada receta es una libreta con una casilla por entrega, y cada entrega confirmada es un **sello** con el sol sobre surcos del escudo. Los colores son solo los de la paleta; las referencias de Pinterest no pudieron consultarse (la página exige sesión y carga con JavaScript), así que el diseño se apoya en patrones abiertos de tarjetas de sellos: casillas vacías que muestran lo que falta y movimiento solo al completar algo.
+
+| Archivo | Responsabilidad |
+|---|---|
+| `recetasapp/presentacion.py` | Situación única de cada receta (vigente, aún no inicia, vencida, agotada) calculada con la misma regla que `services.evaluar_elegibilidad`; casillas, línea de vigencia («hoy» entre el inicio y el último día válido), resumen por paciente y categorías de una carga. Solo lee. |
+| `static/css/recetas.css` | Estilos del módulo. No declara colores: usa las variables de `base.css` (una prueba lo exige) y todas las animaciones parten de su estado final. |
+| `static/js/receta_previa.js` | «Así quedará la libreta» en crear/renovar: dibuja las casillas y calcula el último día válido mientras se escribe. Es una ayuda; el servidor recalcula y valida. Repite `services.calcular_fin` (comprobado contra Python en fin de mes y año bisiesto). |
+| `static/js/importacion.js` | Muestra el archivo elegido y deduce el formato por la extensión. El servidor vuelve a validar. |
+| `templates/recetas/_sellos.html`, `_libreta.html`, `_vigencia.html`, `_situacion.html`, `_barra_carga.html` | Piezas compartidas. `test_plantillas` renderiza cada archivo con un contexto mínimo, así que los parciales deben tolerar variables ausentes. |
+
+Comportamiento que conviene conocer antes de tocar estas pantallas:
+
+- **Padrón:** banda de búsqueda y filas (no tarjetas). Cada fila resume la receta que importa: la vigente más reciente o, si no hay, la más reciente con el motivo. La búsqueda y la paginación siguen viajando por POST para que el RUT no quede en la URL; el campo desactiva autocompletar y corrector.
+- **Sello nuevo:** `ConfirmarEntregaView` envía el mensaje de éxito con la etiqueta `entrega-sellada`; la receta se estampa solo el sello recién confirmado y solo en esa carga. No usar `sello` como etiqueta de mensaje: choca con la clase `.sello` de la casilla.
+- **Confirmar entrega** muestra el nombre y RUT del paciente, la casilla que se va a sellar y no ofrece el formulario si la receta no admite entregas.
+- **Reporte de carga:** barra proporcional con leyenda en texto (nunca solo color) y filtro `?estado=rechazada`, que se conserva al paginar.
+- **Movimiento:** estampado del sello nuevo, sol que recorre el surco al abrir una receta, casillas que aparecen en la vista previa, latido de la próxima casilla (3 repeticiones, 3,9 s, menos de los 5 s de WCAG 2.2.2) y barras del reporte que crecen una vez. Con «reducir movimiento» todo queda en su estado final.
+- Cupos mayores a 24 entregas se dibujan como barra en lugar de casillas.
+
+Verificación realizada (2026-11-02, Chrome headless y datos sintéticos inventados en una base temporal): capturas a 1280 px y 390 px, también con texto «muy grande», sin desbordes horizontales; auditoría con axe-core 4.10.2 sobre 28 pantallas (padrón y búsquedas, ficha del paciente, recetas en cada situación, crear/renovar con errores, confirmación, cargas, reporte y filtro) con Q.F. y Técnico: **0 violaciones de WCAG 2.1 A/AA**. Axe deja como «incompletas» tres comprobaciones de contraste sobre los `select` con flecha de fondo (tinta sobre blanco, ≥ 15:1). Comportamiento comprobado en el navegador: vista previa, detección de formato, animaciones y su ausencia fuera del momento de confirmar. Suite: 278 pruebas aprobadas; `tools/verificar_spec_02_http.py` y `tools/verificar_spec_03_http.py` aprobados. Pendientes: aceptación del equipo, prueba de usabilidad con al menos cinco personas (RNF-04) y, si se quiere, registrar este rediseño en un spec propio o cerrar con él la revisión visual de [validation.md](../specs/03-padron-y-recetas/validation.md) del 03.

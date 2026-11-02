@@ -7,7 +7,7 @@
 
 Módulo solicitado: `recetasapp`, con reutilización del núcleo y la autenticación existentes.
 Fuente: respuestas del equipo 1A/2A/3A y confirmación expresa de las cuatro reglas; HU-21, HU-23, RNF-01 y RNF-07 de [Informe.md](../../docs/Informe.md).
-Implementación autorizada: SÍ, mediante invocación de `spec-impl`, confirmación «comienza» y posterior instrucción de continuar todos los pasos sin pausas. Revisión documental: Aprobado. Código y verificación técnica completados; revisión visual/móvil y auditoría de accesibilidad en navegador pendientes por limitación del entorno. Aceptación funcional pendiente.
+Implementación autorizada: SÍ, mediante invocación de `spec-impl`, confirmación «comienza» y posterior instrucción de continuar todos los pasos sin pausas. Revisión documental: Aprobado. Código y verificación técnica completados; revisión visual/móvil y auditoría de accesibilidad realizadas el 2026-11-02 (ver validation.md). Aceptación funcional y prueba de usabilidad pendientes.
 
 Documentos: [plan.md](plan.md), [tasks.md](tasks.md), [validation.md](validation.md), [índice](../README.md).
 
@@ -113,13 +113,15 @@ La dependencia 02 existe y su estado canónico actual es Implementado; sus docum
 
 ## Supuestos y decisiones pendientes
 
-Las decisiones funcionales y el diseño de `plan.md` forman parte del documento aprobado. Calendario, formato, rutas, límites y concurrencia están implementados según ese contrato. La matriz no extiende a Q.F. el registro de entregas asignado al Técnico. Pendientes: revisión visual/móvil y axe del módulo cuando el entorno permita navegador, y aceptación funcional del usuario. Mantener el estado Aprobado hasta completar estas verificaciones, sin marcar automáticamente Implementado por pasar pruebas técnicas.
+Las decisiones funcionales y el diseño de `plan.md` forman parte del documento aprobado. Calendario, formato, rutas, límites y concurrencia están implementados según ese contrato. La matriz no extiende a Q.F. el registro de entregas asignado al Técnico. Pendientes: aceptación funcional del usuario y prueba de usabilidad del RNF-04 (la revisión visual/móvil y axe se hicieron el 2026-11-02). Mantener el estado Aprobado hasta completar estas verificaciones, sin marcar automáticamente Implementado por pasar pruebas técnicas.
 
 ## Revisión y cambios
 
 2026-11-01: respuestas 1A/2A/3A; solicitud de separar documentación siguiendo specs previas; confirmación posterior «Confirmo las 4 reglas». Se guarda el borrador en cuatro documentos y se actualiza el índice.
 
 2026-11-02: el usuario marcó el estado Aprobado, invocó `spec-impl` e indicó «solo hacer commit, no crees una rama nueva». Luego confirmó «comienza» para el paso 1 y posteriormente «si, ahora continua todos los pasos solito». Se ejecutaron de corrido los pasos 2 a 6; código y verificación técnica completados. La evidencia y los límites de revisión visual están en `validation.md`.
+
+2026-11-02 (posterior): a petición del usuario se rediseñaron las pantallas del módulo («libreta de control») y se registró su revisión visual, móvil y de accesibilidad. Decisiones que se apartan de «reutilizar componentes existentes» (NFR de presentación): el módulo agrega componentes propios (casillas y sellos, línea de vigencia, barra de carga) sobre la misma identidad, paleta y tipografías; todo color sale de `base.css`. No cambia el contrato funcional ni la matriz de permisos; añade tres ayudas de lectura: resumen de receta por paciente en el padrón, filtro `?estado=rechazada` del reporte y vista previa de crear/renovar (la validación sigue en el servidor). El Técnico ve además el nombre y el RUT del paciente al confirmar una entrega, para evitar sellar la receta equivocada.
 
 ## Acuerdo de ejecución
 

@@ -1,6 +1,68 @@
 {% extends 'recetas/base.html' %}
+{% load static %}
 {% block titulo %}Importar padrón · Farmacia{% endblock %}
-{% block farmacia %}<h1>Importar padrón y recetas</h1><p>Usa exclusivamente datos sintéticos. Cada fila contiene un paciente y una receta opcional; para cargar solo padrón, deja vacías las cuatro columnas de receta.</p>
-<div class="acciones"><a class="boton boton-secundario" href="{% url 'recetasapp:plantilla' formato='csv' %}">Descargar plantilla CSV</a><a class="boton boton-secundario" href="{% url 'recetasapp:plantilla' formato='xlsx' %}">Descargar plantilla Excel</a></div>
-<p>Fechas como AAAA-MM-DD, indicadores 0/1 y cupos enteros positivos. No cambies los encabezados. Las filas válidas se guardan aunque otras se rechacen; el reporte explica el resultado. Las recetas con entregas conservan su vigencia y cupo.</p>
-<form method="post" enctype="multipart/form-data" class="panel">{% csrf_token %}{% include 'recetas/campos.html' %}<button class="boton" type="submit">Validar e importar archivo</button></form>{% endblock %}
+{% block migas %}{{ block.super }}<li><a href="{% url 'recetasapp:importaciones' %}">Importaciones</a></li><li><span aria-current="page">Nueva importación</span></li>{% endblock %}
+{% block farmacia %}
+<header class="encabezado">
+  <div>
+    <h1>Importar padrón y recetas</h1>
+    <p>Usa exclusivamente datos sintéticos. Las filas válidas se guardan aunque otras se rechacen; el reporte explica cada caso.</p>
+  </div>
+</header>
+
+<div class="importar">
+  <form method="post" enctype="multipart/form-data" x-data="importacion">
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="message message-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    <ol class="pasos">
+      <li class="paso">
+        <h2>Descarga la plantilla</h2>
+        <p>Parte de una plantilla para no cambiar los encabezados.</p>
+        <div class="acciones">
+          <a class="boton boton-secundario" href="{% url 'recetasapp:plantilla' formato='csv' %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-descargar"/></svg>Descargar plantilla CSV</a>
+          <a class="boton boton-secundario" href="{% url 'recetasapp:plantilla' formato='xlsx' %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-descargar"/></svg>Descargar plantilla Excel</a>
+        </div>
+      </li>
+
+      <li class="paso">
+        <h2>Elige el archivo</h2>
+        <label class="dropzone" for="{{ form.archivo.id_for_label }}" :class="{ 'dropzone-sobre': sobre }" @dragenter="sobre = true" @dragleave="sobre = false" @drop="sobre = false">
+          <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-subir"/></svg>
+          <span class="dropzone-titulo">{{ form.archivo.label }}: arrástralo aquí o elígelo</span>
+          <span class="dropzone-archivo" x-text="nombre"></span>
+          {{ form.archivo }}
+        </label>
+        {% if form.archivo.help_text %}<div class="campo-ayuda" id="{{ form.archivo.auto_id }}_helptext">{{ form.archivo.help_text }}</div>{% endif %}
+        {% if form.archivo.errors %}<div class="campo-error" role="alert">{{ form.archivo.errors }}</div>{% endif %}
+        <div class="campo">
+          <label for="{{ form.formato.id_for_label }}">{{ form.formato.label }}</label>
+          {{ form.formato }}
+          <div class="campo-ayuda" x-show="detectado" x-cloak>Lo elegimos según la extensión del archivo. Cámbialo si no corresponde.</div>
+          {% if form.formato.errors %}<div class="campo-error" role="alert">{{ form.formato.errors }}</div>{% endif %}
+        </div>
+      </li>
+
+      <li class="paso">
+        <h2>Confirma y carga</h2>
+        <div class="campo campo-casilla">
+          {{ form.sintetico }}
+          <label for="{{ form.sintetico.id_for_label }}">{{ form.sintetico.label }}</label>
+        </div>
+        {% if form.sintetico.errors %}<div class="campo-error" role="alert">{{ form.sintetico.errors }}</div>{% endif %}
+        <div class="acciones"><button class="boton" type="submit"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-subir"/></svg>Validar e importar archivo</button></div>
+      </li>
+    </ol>
+  </form>
+
+  <aside class="panel" aria-labelledby="titulo-reglas">
+    <h2 class="panel-titulo" id="titulo-reglas"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-info"/></svg>Qué debe tener el archivo</h2>
+    <ul class="reglas">
+      <li><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg><span>Una fila por paciente, con una receta opcional.</span></li>
+      <li><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg><span>Para cargar solo el padrón, deja vacías las cuatro columnas de receta.</span></li>
+      <li><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-calendario"/></svg><span>Fechas como AAAA-MM-DD, indicadores 0 o 1, vigencia y cupos con enteros positivos.</span></li>
+      <li><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-candado"/></svg><span>Las recetas con entregas conservan su vigencia y cupo. Para cambiarlas, registra una renovación.</span></li>
+    </ul>
+  </aside>
+</div>
+{% endblock %}
+{% block scripts %}<script src="{% static 'js/importacion.js' %}"></script>{% endblock %}

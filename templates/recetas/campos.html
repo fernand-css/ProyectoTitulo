@@ -1,10 +1,10 @@
-{% if form.non_field_errors %}<div role="alert">{{ form.non_field_errors }}</div>{% endif %}
+{% if form.non_field_errors %}<div class="message message-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
 {% for field in form %}
-  {% if field.is_hidden %}{{ field }}{% if field.errors %}<div role="alert">{{ field.errors }}</div>{% endif %}{% else %}
+  {% if field.is_hidden %}{{ field }}{% if field.errors %}<div class="campo-error" role="alert">{{ field.errors }}</div>{% endif %}{% else %}
     <div class="campo">
-      {{ field.label_tag }}{{ field }}
-      {% if field.help_text %}<p id="{{ field.auto_id }}_helptext" class="ayuda">{{ field.help_text }}</p>{% endif %}
-      {% if field.errors %}<div role="alert">{{ field.errors }}</div>{% endif %}
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+      {% if field.help_text %}<div class="campo-ayuda" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</div>{% endif %}
+      {% if field.errors %}<div class="campo-error" role="alert">{{ field.errors }}</div>{% endif %}
     </div>
   {% endif %}
 {% endfor %}

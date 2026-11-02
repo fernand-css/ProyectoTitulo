@@ -48,6 +48,45 @@ class EstaticosTests(SimpleTestCase):
         # El botón principal es naranja sobre blanco (2,5:1): su borde de tinta es lo que lo delimita.
         self.assertGreaterEqual(contraste(variables["tinta"], variables["panel-fondo"]), 3)
 
+    def test_libreta_del_padron_usa_solo_colores_de_la_paleta_y_variables_definidas(self):
+        """recetas.css no declara colores propios: todo sale de base.css, donde se verifica el contraste."""
+        base = (settings.BASE_DIR / "static/css/base.css").read_text(encoding="utf-8")
+        recetas = (settings.BASE_DIR / "static/css/recetas.css").read_text(encoding="utf-8")
+        self.assertNotRegex(recetas, r"#[0-9a-fA-F]{3,8}\b")
+        self.assertNotRegex(recetas, r"\b(?:rgb|rgba|hsl|hsla)\(")
+        definidas = set(re.findall(r"(--[a-z0-9-]+)\s*:", base + recetas))
+        # Las plantillas inyectan estos tres valores numéricos (porcentaje, posición de «hoy» y cantidad de la barra).
+        inyectadas = {"--p", "--hoy", "--n"}
+        usadas = set(re.findall(r"var\((--[a-z0-9-]+)", recetas))
+        self.assertEqual(usadas - definidas - inyectadas, set())
+
+    def test_graficos_de_la_libreta_cumplen_contraste_de_componentes(self):
+        """WCAG 1.4.11: sellos, casillas y barras se distinguen del fondo con al menos 3:1."""
+        css = (settings.BASE_DIR / "static/css/base.css").read_text(encoding="utf-8")
+        variables = dict(re.findall(r"--([a-z-]+):\s*(#[0-9a-fA-F]{6})\s*;", css))
+        pares = [
+            ("ladrillo", "trigo-fondo"), ("ladrillo", "suave-fondo"), ("ladrillo", "panel-fondo"),  # sello, aro y lomo
+            ("borde", "suave-fondo"), ("borde", "panel-fondo"),  # casilla vacía y punto sin sellar
+            ("tinta", "trigo-fondo"),  # próxima casilla
+            ("exito-texto", "panel-fondo"), ("error-texto", "panel-fondo"),  # tramos de la barra de carga
+        ]
+        for primero, segundo in pares:
+            with self.subTest(primero=primero, segundo=segundo):
+                self.assertGreaterEqual(contraste(variables[primero], variables[segundo]), 3)
+
+    def test_recursos_del_padron_existen_y_estan_enlazados(self):
+        base = (settings.BASE_DIR / "templates/recetas/base.html").read_text(encoding="utf-8")
+        self.assertIn("css/recetas.css", base)
+        self.assertTrue(finders.find("css/recetas.css"))
+        enlazados = {
+            "js/receta_previa.js": "templates/recetas/receta_form.html",
+            "js/importacion.js": "templates/recetas/importacion_form.html",
+        }
+        for recurso, plantilla in enlazados.items():
+            with self.subTest(recurso=recurso):
+                self.assertTrue(finders.find(recurso))
+                self.assertIn(recurso, (settings.BASE_DIR / plantilla).read_text(encoding="utf-8"))
+
     def test_fuentes_locales_woff2_con_licencia_y_referenciadas_por_el_css(self):
         css = (settings.BASE_DIR / "static/css/base.css").read_text(encoding="utf-8")
         carpeta = settings.BASE_DIR / "static/fonts"

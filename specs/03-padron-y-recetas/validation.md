@@ -3,7 +3,7 @@
 Spec: [spec.md](spec.md). Plan: [plan.md](plan.md). Tareas: [tasks.md](tasks.md).
 Fecha de definición: 2026-11-01. Ejecución: 2026-11-02.
 Entorno: Windows, Python 3.13 del venv, Django 5.2.18, openpyxl 3.1.5 y SQLite temporal. Referencia: implementación del 03 en `fdaza`; commit de cierre de esta entrega.
-Estado: **verificación técnica completada; visual/móvil/axe y aceptación funcional pendientes**. No se declara completado todo RNF-04.
+Estado: **verificación técnica, revisión visual/móvil y axe completadas (2026-11-02, con el rediseño «libreta de control»); aceptación funcional y prueba de usabilidad pendientes**. No se declara completado todo RNF-04.
 
 ## Comandos y resultados reales
 
@@ -68,7 +68,26 @@ No ejecutado: revisión visual en escritorio/móvil, teclado real, texto ampliad
 
 La herramienta preparó doce copias HTML sintéticas para revisión: padrón, paciente, receta, alta, renovación, entrega, carga, bitácora, reporte y tres formularios con errores. Su preparación no cuenta como captura ni auditoría visual. Se cerró el servidor y se verificó que ya no escuchaba el puerto; tras terminar la sesión de ejecución, se eliminó explícitamente su SQLite y carpeta temporal exacta, previamente inspeccionadas.
 
-Quedan pendientes la revisión visual/móvil y axe del 03, y la prueba de usabilidad con al menos cinco participantes del RNF-04. No se declara esa prueba realizada por contar con pruebas automáticas.
+La revisión visual/móvil y axe se hicieron después, con el navegador disponible (subsección siguiente). Sigue pendiente la prueba de usabilidad con al menos cinco participantes del RNF-04; no se declara realizada por contar con pruebas automáticas.
+
+### Revisión visual, móvil y accesibilidad del rediseño — 2026-11-02
+
+Se rediseñaron las nueve pantallas de `templates/recetas/` con la identidad «libreta de control» (casillas y sellos por entrega, vigencia como un sol que recorre un surco). Descripción, archivos y reglas en [docs/estructura.md](../../docs/estructura.md#padrón-y-recetas-la-libreta-de-control). El rediseño no cambia permisos, URLs, servicios ni el contrato de importación; agrega tres comportamientos de lectura o ayuda: resumen de receta por paciente en el padrón, filtro `?estado=rechazada` del reporte de carga y vista previa de casillas y último día válido al crear o renovar (la validación sigue en el servidor).
+
+Entorno: Chrome 156 en modo headless; servidor WSGI en localhost con una SQLite temporal y datos sintéticos inventados (33 pacientes con recetas vigentes, vencidas, agotadas, futuras, con renovación y con cupo de 30; dos cargas, una con rechazos). La base temporal y su carpeta se eliminaron al terminar; no se usó `db.sqlite3`.
+
+| Comprobación | Resultado |
+|---|---|
+| Capturas a 1280 px y 390 px: padrón, búsquedas, ficha, receta en cada situación, confirmación, crear/renovar, importación, bitácora y reporte | Revisadas. Correcciones hechas: choque entre la etiqueta del mensaje de éxito y la clase del sello, tabla del historial angosta, espaciados y lomo de la libreta |
+| Desborde horizontal a 390 px con texto normal y «muy grande» (150 %), 13 pantallas | Ninguno |
+| axe-core 4.10.2 (wcag2a, wcag2aa, wcag21a, wcag21aa y buenas prácticas), 28 pantallas con Q.F. y Técnico, incluidos estados vacíos, errores, receta agotada y filtro de rechazadas | **0 violaciones**. Tres comprobaciones de contraste «incompletas» sobre `select` con flecha de fondo; calculadas a mano: tinta sobre blanco, más de 15:1 |
+| Contraste de gráficos (WCAG 1.4.11): sellos, casillas, puntos y barras | Al menos 3:1; prueba automática en `coreapp/tests/test_estaticos.py` |
+| Vista previa de crear receta | Casillas 5 y 24 (más «y 6 casillas más» con cupo 30). Último día válido idéntico a `calcular_fin` en cinco casos: fin de mes, año bisiesto, 6 y 12 meses y cruce de año |
+| Animaciones | El sello nuevo se estampa solo tras confirmar y no al recargar; el latido de la próxima casilla dura 3,9 s (3 repeticiones, menos de 5 s de WCAG 2.2.2); las demás corren una vez |
+| Permisos en pantalla | Técnico ve «Confirmar entrega» solo en recetas con cupo; en una receta agotada no se ofrece el formulario ni la casilla próxima |
+| Pruebas automatizadas | **278 aprobadas** (40 nuevas: presentación, vistas y estáticos); `manage.py check` y `makemigrations --check --dry-run` sin cambios; `tools/verificar_spec_02_http.py` y `tools/verificar_spec_03_http.py` aprobados |
+
+Límites: no se probó la navegación solo con teclado de forma manual (se confía en el foco visible global y en axe); no se alternó la preferencia «reducir movimiento» del sistema, solo se revisó que la regla global de `base.css` anula las animaciones; en el modo de prueba `requestAnimationFrame` no se dispara, por lo que se sustituyó por un temporizador en la página de prueba (artefacto del entorno, no de la aplicación). Pendientes: aceptación del equipo y prueba de usabilidad con al menos cinco personas representativas.
 
 ## Aplicación, reversión y límites
 
@@ -88,4 +107,4 @@ Verificación posterior: `python manage.py test recetasapp coreapp.tests.test_pl
 
 Documento: Aprobado. Implementación de código y continuación sin pausas: autorizadas por el usuario. Commit al terminar: autorizado en `fdaza`, excluyendo el cambio previo del spec 02. Aceptación funcional del software: pendiente.
 
-T-03-01 a T-03-05 completadas; T-03-06 tiene comprobaciones técnicas y documentación completadas, con revisión visual/móvil/axe pendiente por entorno. Mantener estado Aprobado hasta cerrar esas comprobaciones y registrar aceptación real, sin marcar Implementado automáticamente.
+T-03-01 a T-03-05 completadas; T-03-06 tiene comprobaciones técnicas, revisión visual/móvil, axe y documentación completadas; quedan la navegación manual por teclado, la prueba de usabilidad y la aceptación real. Mantener estado Aprobado hasta registrar esa aceptación, sin marcar Implementado automáticamente.

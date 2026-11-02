@@ -1,0 +1,22 @@
+{# Casillas de la libreta: una por entrega del ciclo. Espera `receta` preparada (presentacion.preparar_receta). #}
+{# Los sellos son decorativos: cada casilla dice en texto su número y su estado para quien no los ve. #}
+{% if receta.casillas %}
+<ol class="sellos" aria-label="Entregas de la receta {{ receta.codigo }}">
+  {% for casilla in receta.casillas %}
+  <li class="sello-casilla{% if sello_nuevo and casilla.numero == receta.entregas_completadas %} sello-casilla-nuevo{% endif %}">
+    {% if casilla.estado == 'sellada' %}
+      <span class="sello sello-sellada" aria-hidden="true"><svg class="icono" focusable="false"><use href="#i-sello"/></svg></span>
+      <span class="sello-pie"><span class="sr-only">Entrega {{ casilla.numero }} realizada{% if casilla.entrega %} el {{ casilla.entrega.creado_en|date:"j \d\e F \d\e Y" }}{% endif %}.</span>{% if casilla.entrega %}<span aria-hidden="true">{{ casilla.entrega.creado_en|date:"j b" }}</span>{% endif %}</span>
+    {% elif casilla.estado == 'proxima' %}
+      <span class="sello sello-proxima" aria-hidden="true">{{ casilla.numero }}</span>
+      <span class="sello-pie sello-pie-proxima"><span class="sr-only">Entrega {{ casilla.numero }}: </span>Próxima</span>
+    {% else %}
+      <span class="sello sello-libre" aria-hidden="true">{{ casilla.numero }}</span>
+      <span class="sello-pie"><span class="sr-only">Entrega {{ casilla.numero }} pendiente.</span></span>
+    {% endif %}
+  </li>
+  {% endfor %}
+</ol>
+{% else %}
+<div class="barra-cupo" aria-hidden="true" style="--p: {{ receta.porcentaje }}"><span></span></div>
+{% endif %}

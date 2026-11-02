@@ -1,0 +1,4 @@
+{# Barra proporcional de una carga: un tramo por categoría. Es un resumen visual; las cifras van siempre en texto. #}
+<div class="barra-carga{% if chica %} barra-carga-chica{% endif %}" aria-hidden="true"{% if not carga.total_filas %} hidden{% endif %}>
+  {% for categoria in categorias %}{% if categoria.cantidad %}<span class="muestra-{{ categoria.clave }}" style="--n: {{ categoria.cantidad }}"></span>{% endif %}{% endfor %}
+</div>

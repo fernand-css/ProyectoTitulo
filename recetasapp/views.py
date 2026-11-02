@@ -6,7 +6,7 @@ from django.contrib import messages
 from django.core.exceptions import ValidationError
 from django.core.paginator import Paginator
 from django.db import DatabaseError
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.utils.decorators import method_decorator
@@ -19,8 +19,9 @@ from coreapp.roles import JEFA, TECNICO
 from coreapp.utils.rut import normalizar_rut
 from .forms import BusquedaPacienteForm, EntregaForm, ImportacionForm, RecetaForm
 from .importacion import filas_demo, generar_archivo, importar_padron
+from . import presentacion
 from .models import ImportacionPadron, Paciente, Receta
-from .services import crear_receta, evaluar_elegibilidad, registrar_entrega
+from .services import crear_receta, registrar_entrega
 
 
 @method_decorator(never_cache, name="dispatch")
@@ -58,22 +59,32 @@ class PacientesView(FarmaciaView):
                     pacientes = pacientes.filter(condicion)
             else:
                 pacientes = pacientes.none()
+        pacientes = pacientes.prefetch_related(Prefetch("recetas", queryset=Receta.objects.order_by("-fecha_inicio", "-pk")))
         page_obj = Paginator(pacientes, 20).get_page(pagina)
+        page_obj.object_list = list(page_obj.object_list)
+        for paciente in page_obj.object_list:
+            paciente.resumen = presentacion.resumen_paciente(paciente.recetas.all())
         return self.render("pacientes_lista.html", {"form": form, "page_obj": page_obj, "buscar": buscar})
 
 
 class PacienteView(FarmaciaView):
     def get(self, request, pk):
         paciente = get_object_or_404(Paciente, pk=pk)
-        return self.render("paciente_detalle.html", {"paciente": paciente, "recetas": paciente.recetas.order_by("-fecha_inicio", "-pk"), "puede_crear": tiene_rol(request.user, JEFA)})
+        recetas = [presentacion.preparar_receta(receta) for receta in paciente.recetas.order_by("-fecha_inicio", "-pk")]
+        recetas.sort(key=lambda receta: receta.situacion["clave"] != "vigente")
+        return self.render("paciente_detalle.html", {"paciente": paciente, "recetas": recetas, "puede_crear": tiene_rol(request.user, JEFA)})
 
 
 class RecetaView(FarmaciaView):
     def get(self, request, pk):
         receta = get_object_or_404(Receta.objects.select_related("paciente", "receta_anterior"), pk=pk)
+        entregas = list(receta.entregas.select_related("creado_por"))
+        presentacion.preparar_receta(receta, entregas)
+        # El sello nuevo se estampa solo cuando la persona acaba de confirmar la entrega.
+        sello_nuevo = any("entrega-sellada" in mensaje.tags.split() for mensaje in messages.get_messages(request))
         return self.render("receta_detalle.html", {
-            "receta": receta, "estado": evaluar_elegibilidad(receta),
-            "entregas": receta.entregas.select_related("creado_por"),
+            "receta": receta, "estado": receta.estado, "entregas": entregas,
+            "vigencia": presentacion.linea_vigencia(receta), "sello_nuevo": sello_nuevo,
             "puede_crear": tiene_rol(request.user, JEFA), "puede_entregar": tiene_rol(request.user, TECNICO),
         })
 
@@ -111,11 +122,12 @@ class ConfirmarEntregaView(FarmaciaView):
     roles_permitidos = (TECNICO,)
 
     def get(self, request, pk):
-        receta = get_object_or_404(Receta, pk=pk)
-        return self.render("entrega_confirmar.html", {"receta": receta, "estado": evaluar_elegibilidad(receta), "form": EntregaForm(initial={"operacion_id": uuid.uuid4()})})
+        receta = get_object_or_404(Receta.objects.select_related("paciente"), pk=pk)
+        presentacion.preparar_receta(receta, proxima=True)
+        return self.render("entrega_confirmar.html", {"receta": receta, "estado": receta.estado, "form": EntregaForm(initial={"operacion_id": uuid.uuid4()})})
 
     def post(self, request, pk):
-        receta = get_object_or_404(Receta, pk=pk)
+        receta = get_object_or_404(Receta.objects.select_related("paciente"), pk=pk)
         form = EntregaForm(request.POST)
         if form.is_valid():
             try:
@@ -125,17 +137,22 @@ class ConfirmarEntregaView(FarmaciaView):
             except DatabaseError:
                 form.add_error(None, "La entrega no fue confirmada. Reintenta con este mismo formulario.")
             else:
-                messages.success(request, "Entrega del ciclo confirmada.")
+                messages.success(request, "Entrega del ciclo confirmada.", extra_tags="entrega-sellada")
                 return redirect("recetasapp:receta_detalle", pk=pk)
         receta.refresh_from_db()
-        return self.render("entrega_confirmar.html", {"receta": receta, "estado": evaluar_elegibilidad(receta), "form": form})
+        presentacion.preparar_receta(receta, proxima=True)
+        return self.render("entrega_confirmar.html", {"receta": receta, "estado": receta.estado, "form": form})
 
 
 class ImportacionesView(FarmaciaView):
     roles_permitidos = (JEFA,)
 
     def get(self, request):
-        return self.render("importacion_lista.html", {"page_obj": Paginator(ImportacionPadron.objects.select_related("creado_por"), 20).get_page(request.GET.get("page"))})
+        page_obj = Paginator(ImportacionPadron.objects.select_related("creado_por"), 20).get_page(request.GET.get("page"))
+        page_obj.object_list = list(page_obj.object_list)
+        for carga in page_obj.object_list:
+            carga.categorias = presentacion.categorias_carga(carga)
+        return self.render("importacion_lista.html", {"page_obj": page_obj})
 
 
 class NuevaImportacionView(FarmaciaView):
@@ -161,7 +178,14 @@ class ImportacionView(FarmaciaView):
 
     def get(self, request, referencia):
         carga = get_object_or_404(ImportacionPadron.objects.select_related("creado_por"), referencia=referencia)
-        return self.render("importacion_detalle.html", {"carga": carga, "page_obj": Paginator(carga.resultados.all(), 50).get_page(request.GET.get("page"))})
+        solo_rechazadas = request.GET.get("estado") == "rechazada"
+        resultados = carga.resultados.filter(estado="rechazada") if solo_rechazadas else carga.resultados.all()
+        page_obj = Paginator(resultados, 50).get_page(request.GET.get("page"))
+        page_obj.object_list = [presentacion.preparar_fila(resultado) for resultado in page_obj.object_list]
+        return self.render("importacion_detalle.html", {
+            "carga": carga, "page_obj": page_obj, "solo_rechazadas": solo_rechazadas,
+            "categorias": presentacion.categorias_carga(carga),
+        })
 
 
 class PlantillaView(FarmaciaView):

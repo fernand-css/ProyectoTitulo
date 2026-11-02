@@ -1,0 +1,448 @@
+/*
+  Padrón y recetas · «la libreta de control».
+  En el CESFAM el paciente crónico lleva una libreta que se timbra en cada retiro. Aquí cada receta es una
+  libreta con una casilla por entrega y cada entrega confirmada es un sello (el sol sobre surcos del escudo).
+  Solo usa las variables de base.css: no declara colores propios (lo vigila coreapp/tests/test_estaticos.py).
+  Todo el movimiento va dentro de @keyframes cuyo estado inicial es el final; base.css lo apaga con «reducir movimiento».
+*/
+
+/* ------------------------------------------------------------------ Banda de búsqueda del padrón */
+.padron-cabecera { position: relative; color: var(--trigo-texto); background: var(--trigo-fondo); }
+.padron-cabecera::after {
+  content: "";
+  display: block;
+  height: 1.1rem;
+  background: linear-gradient(to bottom, var(--activo-fondo) 0 0.2rem, var(--naranja) 0.2rem 0.7rem, var(--arena) 0.7rem 100%);
+}
+.padron-cabecera-int { max-width: var(--ancho-contenido); margin: auto; padding: 1.75rem 1.5rem 2rem; }
+.padron-cabecera .migas { margin-bottom: 1.25rem; }
+.padron-cabecera .migas a, .padron-cabecera .migas [aria-current="page"] { color: var(--trigo-texto); }
+.padron-cabecera .migas li + li::before { border-color: var(--trigo-texto); }
+.padron-titulo { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0.75rem 2rem; }
+.padron-titulo h1 { margin-bottom: 0.35rem; }
+.padron-titulo p { margin: 0; font-size: 1.1rem; }
+
+.busqueda { max-width: 48rem; margin-top: 1.25rem; }
+.busqueda label { display: block; margin-bottom: 0.4rem; font-weight: 700; }
+.busqueda-caja { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.busqueda-campo { position: relative; flex: 1 1 16rem; min-width: 0; }
+.busqueda-campo .icono { position: absolute; top: 50%; left: 1.1rem; width: 1.5rem; height: 1.5rem; color: var(--tinta); transform: translateY(-50%); pointer-events: none; }
+.busqueda-campo input {
+  display: block;
+  width: 100%;
+  min-height: 3.5rem;
+  padding: 0.6rem 1rem 0.6rem 3.2rem;
+  color: var(--panel-texto);
+  background: var(--panel-fondo);
+  border: 2px solid var(--tinta);
+  border-radius: 999px;
+  font-size: 1.2rem;
+}
+.busqueda-campo input::placeholder { color: var(--secundario-texto); opacity: 1; }
+.busqueda .boton { min-height: 3.5rem; }
+.busqueda .message { margin: 0.75rem 0 0; }
+
+.padron-resumen { margin: 1.75rem 0 0.75rem; color: var(--secundario-texto); font-size: 1rem; }
+.padron-resumen strong { color: var(--panel-texto); }
+
+/* ------------------------------------------------------------------ Filas del padrón */
+.padron { margin: 0; padding: 0; list-style: none; border-top: 2px solid var(--linea); }
+.padron-fila {
+  position: relative;
+  display: grid;
+  grid-template-columns: minmax(0, 1.35fr) minmax(0, 1fr) minmax(0, 1.25fr) 1.75rem;
+  grid-template-areas: "persona etiquetas libreta flecha";
+  align-items: center;
+  gap: 0.6rem 1.5rem;
+  padding: 1.15rem 0.75rem 1.15rem 1.25rem;
+  border-bottom: 2px solid var(--linea);
+  transition: background-color 0.15s;
+}
+.padron-fila:hover { background: var(--suave-fondo); box-shadow: inset 0.35rem 0 0 var(--ladrillo); }
+.padron-fila:has(a:focus-visible) { background: var(--suave-fondo); outline: 3px solid var(--tinta); outline-offset: -3px; }
+.padron-persona { grid-area: persona; min-width: 0; }
+.padron-nombre { margin: 0 0 0.2rem; font-family: var(--fuente-titulo); font-size: 1.3rem; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
+.padron-nombre a { color: var(--panel-texto); text-decoration: none; }
+.padron-nombre a::after { content: ""; position: absolute; inset: 0; }
+.padron-nombre a:hover { text-decoration: underline; text-decoration-thickness: 0.12em; }
+.padron-datos { display: flex; flex-wrap: wrap; gap: 0 1.1rem; margin: 0; color: var(--secundario-texto); font-variant-numeric: tabular-nums; }
+.padron-etiquetas { grid-area: etiquetas; }
+.padron-libreta { grid-area: libreta; min-width: 0; }
+.padron-flecha { grid-area: flecha; justify-self: end; width: 1.6rem; height: 1.6rem; color: var(--tinta); transition: transform 0.15s; }
+.padron-fila:hover .padron-flecha { transform: translateX(0.25rem); }
+
+.etiquetas { display: flex; flex-wrap: wrap; gap: 0.4rem; margin: 0; padding: 0; list-style: none; }
+.etiqueta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.1rem 0.75rem 0.1rem 0.55rem;
+  color: var(--arena-texto);
+  background: var(--arena-fondo);
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 700;
+}
+.etiqueta .icono { width: 1.1em; height: 1.1em; }
+.etiquetas-encabezado { margin-top: 0.75rem; }
+.encabezado .padron-datos { font-size: 1.1rem; }
+.sin-dato { color: var(--secundario-texto); font-size: 0.95rem; }
+
+.insignia-alerta { color: var(--error-texto); background: var(--error-fondo); }
+.insignia-espera { color: var(--trigo-texto); background: var(--trigo-fondo); }
+
+.mini { display: flex; flex-wrap: wrap; gap: 0.3rem; margin: 0.45rem 0 0.3rem; }
+.punto { width: 0.9rem; height: 0.9rem; border: 2px solid var(--borde); border-radius: 50%; background: var(--panel-fondo); }
+.punto-lleno { border-color: var(--ladrillo); background: var(--ladrillo); }
+.mini-barra { width: min(100%, 10rem); height: 0.9rem; margin: 0.45rem 0 0.3rem; overflow: hidden; border: 2px solid var(--borde); border-radius: 999px; background: var(--panel-fondo); }
+.mini-barra span { display: block; width: calc(var(--p) * 1%); height: 100%; background: var(--ladrillo); }
+.padron-estado { margin: 0; font-weight: 700; line-height: 1.35; }
+.padron-estado small { display: block; color: var(--secundario-texto); font-size: 0.95rem; font-weight: 400; }
+
+/* ------------------------------------------------------------------ Estados vacíos */
+.vacio {
+  display: flex;
+  gap: 1.25rem;
+  align-items: flex-start;
+  margin-top: 1.5rem;
+  padding: clamp(1.25rem, 3vw, 2rem);
+  color: var(--suave-texto);
+  background: var(--suave-fondo);
+  border: 3px dashed var(--borde);
+  border-radius: var(--radio-panel);
+}
+.vacio .icono { width: 2.6rem; height: 2.6rem; color: var(--ladrillo); }
+.vacio h2 { margin-bottom: 0.4rem; font-size: 1.3rem; }
+.vacio p { margin-bottom: 0.9rem; }
+.vacio .acciones { margin-top: 0.25rem; }
+
+/* ------------------------------------------------------------------ La libreta */
+.libreta {
+  display: grid;
+  grid-template-columns: 1.5rem minmax(0, 1fr);
+  min-width: 0;
+  color: var(--suave-texto);
+  background: var(--suave-fondo);
+  border: 2px solid var(--arena);
+  border-radius: 0.5rem 1.25rem 1.25rem 0.5rem;
+  overflow: hidden;
+  --lomo: var(--ladrillo);
+}
+/* Lomo cosido: franja de tinta con las perforaciones de la libreta. */
+.libreta::before {
+  content: "";
+  background:
+    radial-gradient(circle at center, var(--trigo) 0.22rem, transparent 0.26rem) 0 0 / 100% 3.4rem no-repeat round,
+    var(--lomo);
+}
+.libreta-cerrada { --lomo: var(--borde); }
+.libreta-cuerpo { min-width: 0; padding: clamp(1.1rem, 3vw, 1.75rem); }
+.libreta-cuerpo > :last-child { margin-bottom: 0; }
+.libreta-cab { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; margin-bottom: 1.1rem; }
+.libreta-codigo { margin: 0; font-size: 1.35rem; overflow-wrap: anywhere; }
+.libreta-codigo a { color: var(--suave-texto); text-decoration-color: var(--ladrillo); }
+.libreta a:not(.boton) { color: var(--enlace-texto); }
+.libreta .libreta-codigo a { color: var(--suave-texto); }
+.libreta-cuenta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.1rem 0.6rem; margin: 0 0 1rem; max-width: none; }
+.libreta-cuenta strong { font-family: var(--fuente-titulo); font-size: 1.7rem; line-height: 1.1; }
+.libreta-fechas { display: flex; align-items: center; gap: 0.5rem; margin: 0 0 1rem; color: var(--secundario-texto); }
+.libreta-fechas .icono { color: var(--ladrillo); }
+.libreta-enlace { display: inline-flex; align-items: center; gap: 0.4rem; font-weight: 700; }
+.libreta-enlace .icono { width: 1.2em; height: 1.2em; transition: transform 0.15s; }
+.libreta-enlace:hover .icono { transform: translateX(0.2rem); }
+
+/* Casillas: cada una es una entrega del ciclo. */
+.sellos { display: flex; flex-wrap: wrap; gap: 0.9rem 0.6rem; margin: 0 0 1.1rem; padding: 0; list-style: none; }
+.sello-casilla { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; width: 4.4rem; text-align: center; }
+.sello-casilla:nth-child(3n + 1) { --giro: -5deg; }
+.sello-casilla:nth-child(3n + 2) { --giro: 4deg; }
+.sello-casilla:nth-child(3n) { --giro: -2deg; }
+.sello {
+  position: relative;
+  display: grid;
+  place-items: center;
+  width: 3.5rem;
+  height: 3.5rem;
+  border-radius: 50%;
+  font-family: var(--fuente-titulo);
+  font-size: 1.2rem;
+  font-weight: 800;
+}
+.sello .icono { width: 2.1rem; height: 2.1rem; stroke-width: 2.2; }
+.sello-libre { color: var(--secundario-texto); background: var(--panel-fondo); border: 2px dashed var(--borde); }
+.sello-proxima { color: var(--tinta); background: var(--trigo-fondo); border: 3px dashed var(--tinta); animation: latido 1.3s ease-in-out 3; }
+/* Sello estampado: tinta ladrillo sobre trigo, con doble aro como el timbre de una libreta. */
+.sello-sellada {
+  color: var(--ladrillo);
+  background: var(--trigo-fondo);
+  border: 3px solid var(--ladrillo);
+  box-shadow: inset 0 0 0 3px var(--trigo-fondo), inset 0 0 0 4.5px var(--ladrillo);
+  transform: rotate(var(--giro, 0deg));
+}
+.sello::after { content: ""; position: absolute; inset: -3px; border: 3px solid var(--ladrillo); border-radius: 50%; opacity: 0; pointer-events: none; }
+.sello-pie { min-height: 1.2em; color: var(--secundario-texto); font-size: 0.88rem; line-height: 1.2; }
+.sello-pie-proxima { color: var(--panel-texto); font-weight: 700; }
+
+/* Con cupos mayores a 24 no se dibuja una casilla por entrega: se muestra una barra. */
+.barra-cupo { height: 1.2rem; margin: 0 0 1.1rem; overflow: hidden; border: 2px solid var(--ladrillo); border-radius: 999px; background: var(--panel-fondo); }
+.barra-cupo span { display: block; width: calc(var(--p) * 1%); height: 100%; background: var(--ladrillo); }
+
+/* Libretas pequeñas dentro de la ficha del paciente. */
+.libreta-compacta .sello-casilla { width: 3.4rem; }
+.libreta-compacta .sello { width: 2.7rem; height: 2.7rem; font-size: 1.05rem; }
+.libreta-compacta .sello .icono { width: 1.6rem; height: 1.6rem; }
+.libretas { display: grid; gap: 1.25rem; }
+.rejilla-receta { grid-template-columns: minmax(0, 11fr) minmax(0, 9fr); }
+
+/* Vigencia: el sol recorre el surco desde el inicio hasta el último día válido. */
+.vigencia { margin: 0 0 1.25rem; }
+.vigencia-texto { margin: 0 0 0.2rem; font-weight: 700; }
+.vigencia-pista { position: relative; height: 0.7rem; margin: 1.25rem 1.2rem 0.9rem; border-radius: 999px; background: var(--arena); }
+.vigencia-recorrido { position: absolute; inset: 0 auto 0 0; width: calc(var(--hoy) * 1%); border-radius: inherit; background: var(--ladrillo); animation: crecer 1.1s cubic-bezier(0.25, 0.8, 0.3, 1) both; }
+.vigencia-sol {
+  position: absolute;
+  top: 50%;
+  left: calc(var(--hoy) * 1%);
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  color: var(--ladrillo);
+  background: var(--trigo-fondo);
+  border: 3px solid var(--ladrillo);
+  border-radius: 50%;
+  transform: translate(-50%, -50%);
+  animation: recorrer 1.1s cubic-bezier(0.25, 0.8, 0.3, 1) both;
+}
+.vigencia-sol .icono { width: 1.5rem; height: 1.5rem; }
+.vigencia-datos { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 1.5rem; margin: 0; }
+.vigencia-datos dt { color: var(--secundario-texto); font-size: 0.92rem; }
+.vigencia-datos dd { margin: 0; font-weight: 700; }
+.vigencia-datos div:last-child { text-align: right; }
+
+.libreta-acciones { margin-top: 1.25rem; }
+.libreta .message { margin-bottom: 1rem; }
+.libreta .message p { margin-bottom: 0.25rem; }
+
+/* Sello recién confirmado: se estampa una vez y deja un aro de tinta que se disipa. */
+.sello-casilla-nuevo .sello-sellada { animation: estampar 0.75s cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
+.sello-casilla-nuevo .sello-sellada::after { animation: tinta 0.8s ease-out 0.3s both; }
+
+/* ------------------------------------------------------------------ Tablas */
+.tabla-caja { overflow-x: auto; }
+.tabla { width: 100%; border-collapse: collapse; }
+.tabla caption { padding-bottom: 0.75rem; font-family: var(--fuente-titulo); font-size: 1.3rem; font-weight: 800; text-align: left; }
+.tabla th, .tabla td { padding: 0.75rem 0.8rem; border-bottom: 2px solid var(--linea); text-align: left; vertical-align: top; overflow-wrap: break-word; }
+.tabla thead th { white-space: nowrap; }
+.tabla thead th { color: var(--secundario-texto); border-bottom-color: var(--borde); font-size: 0.95rem; }
+.tabla tbody th { font-weight: 700; font-variant-numeric: tabular-nums; }
+.tabla td { font-variant-numeric: tabular-nums; }
+.tabla .num { text-align: right; }
+.tabla-fila-rechazada th { box-shadow: inset 0.3rem 0 0 var(--error-texto); }
+.tabla-vacia { padding: 1.25rem 0.8rem; color: var(--secundario-texto); }
+
+.relacionadas { display: grid; gap: 0.6rem; margin: 0; padding: 0; list-style: none; }
+.relacionadas li { display: flex; align-items: flex-start; gap: 0.6rem; }
+.relacionadas .icono { margin-top: 0.2rem; color: var(--ladrillo); }
+
+/* ------------------------------------------------------------------ Confirmar entrega */
+.confirmar { max-width: 46rem; }
+.confirmar .libreta { margin-bottom: 1.5rem; }
+.confirmar-paciente { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 0.75rem; margin: 0 0 1.5rem; font-size: 1.15rem; }
+.confirmar-paciente strong { font-family: var(--fuente-titulo); font-size: 1.35rem; }
+.confirmar .campo { margin-bottom: 1rem; }
+.campo-casilla { display: flex; align-items: flex-start; gap: 0.75rem; }
+.campo-casilla label { margin: 0; font-weight: 700; }
+.campo-casilla input[type="checkbox"] { flex: none; width: 1.5rem; height: 1.5rem; margin: 0.05rem 0 0; accent-color: var(--ladrillo); }
+
+/* ------------------------------------------------------------------ Crear y renovar receta */
+.editor { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1.5rem; align-items: start; }
+/* La vista previa necesita JavaScript: sin él, el formulario ocupa todo el ancho. */
+.js .editor { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); }
+.vista-previa { position: sticky; top: 1rem; }
+.vista-previa .libreta { border-style: dashed; }
+.vista-previa .libreta-codigo { margin-bottom: 1rem; font-size: 1.2rem; }
+.vista-previa .sello-casilla { animation: aparecer 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.3) both; }
+.vista-previa-vacia { margin: 0 0 1rem; color: var(--secundario-texto); }
+.vista-previa-mas { align-self: center; margin: 0; font-weight: 700; }
+.vista-previa-fin { margin: 0; font-weight: 700; }
+.nota { display: flex; gap: 0.6rem; margin: 0 0 1.25rem; color: var(--secundario-texto); font-size: 0.97rem; }
+.nota .icono { margin-top: 0.15rem; color: var(--ladrillo); }
+.nota p { margin: 0; }
+
+/* ------------------------------------------------------------------ Importar: pasos y zona de carga */
+.importar { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 1.5rem; align-items: start; }
+.pasos { display: grid; gap: 1.25rem; margin: 0; padding: 0; list-style: none; counter-reset: paso; }
+.paso {
+  position: relative;
+  padding: 1.4rem 1.5rem 1.5rem 4.6rem;
+  counter-increment: paso;
+  background: var(--panel-fondo);
+  border: 2px solid var(--linea);
+  border-radius: var(--radio-panel);
+}
+.paso::before {
+  content: counter(paso);
+  position: absolute;
+  top: 1.25rem;
+  left: 1.25rem;
+  display: grid;
+  place-items: center;
+  width: 2.4rem;
+  height: 2.4rem;
+  color: var(--marca-texto);
+  background: var(--marca-fondo);
+  border-radius: 50%;
+  font-family: var(--fuente-titulo);
+  font-weight: 800;
+}
+.paso h2 { margin-bottom: 0.4rem; font-size: 1.3rem; }
+.paso > p { margin-bottom: 0.9rem; }
+.paso .campo:last-child { margin-bottom: 0; }
+.paso .campo-ayuda { margin: 0 0 1.25rem; }
+.paso h2 + .campo-casilla { margin-top: 1rem; }
+
+.dropzone {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 0.35rem;
+  margin: 0 0 1rem;
+  padding: 1.75rem 1.25rem;
+  color: var(--suave-texto);
+  background: var(--suave-fondo);
+  border: 3px dashed var(--borde);
+  border-radius: var(--radio-panel);
+  text-align: center;
+  transition: background-color 0.15s, border-color 0.15s;
+}
+.dropzone:hover, .dropzone-sobre { background: var(--trigo-fondo); border-color: var(--tinta); }
+.dropzone:focus-within { outline: 3px solid var(--tinta); outline-offset: 3px; }
+.dropzone .icono { width: 2.4rem; height: 2.4rem; color: var(--ladrillo); }
+.dropzone-titulo { font-weight: 700; }
+.dropzone-archivo { font-family: var(--fuente-titulo); font-size: 1.15rem; font-weight: 800; overflow-wrap: anywhere; }
+.dropzone-ayuda { font-size: 0.95rem; color: var(--secundario-texto); }
+.dropzone input[type="file"] { margin-top: 0.75rem; max-width: 100%; }
+/* Con JavaScript, la zona completa es el botón: el campo real queda encima, invisible pero enfocable. */
+.js .dropzone { cursor: pointer; }
+.js .dropzone input[type="file"] { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; opacity: 0; cursor: pointer; }
+.js .dropzone-archivo:empty { display: none; }
+
+.reglas { display: grid; gap: 0.7rem; margin: 0; padding: 0; list-style: none; }
+.reglas li { display: flex; align-items: flex-start; gap: 0.6rem; }
+.reglas .icono { margin-top: 0.2rem; color: var(--ladrillo); }
+
+/* ------------------------------------------------------------------ Reporte y lista de cargas */
+.reporte-cab { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.75rem 1.5rem; margin-bottom: 1.5rem; }
+.reporte-cab h1 { margin-bottom: 0.35rem; }
+.reporte-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 1.25rem; margin: 0; color: var(--secundario-texto); }
+
+.barra-carga { display: flex; height: 1.5rem; margin: 0 0 1.1rem; overflow: hidden; border: 2px solid var(--tinta); border-radius: 999px; background: var(--panel-fondo); }
+.barra-carga span { flex: var(--n) 1 0%; min-width: 0.5rem; transform-origin: left; animation: crecer-x 0.8s cubic-bezier(0.25, 0.8, 0.3, 1) both; }
+.barra-carga span + span { border-left: 2px solid var(--tinta); }
+.barra-carga[hidden] { display: none; }
+.barra-carga-chica { height: 0.85rem; margin: 0.5rem 0 0; }
+.muestra-creadas { background: var(--exito-texto); }
+.muestra-actualizadas { background: var(--naranja); }
+.muestra-sin-cambios { background: var(--arena); }
+.muestra-omitidas { background: repeating-linear-gradient(135deg, var(--trigo) 0 0.3rem, var(--arena) 0.3rem 0.6rem); }
+.muestra-rechazadas { background: var(--error-texto); }
+
+.leyenda { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12.5rem), 1fr)); gap: 0.9rem 1.5rem; margin: 0 0 1.5rem; padding: 0; list-style: none; }
+.leyenda li { display: flex; align-items: flex-start; gap: 0.6rem; min-width: 0; }
+.leyenda .muestra { flex: none; width: 1.1rem; height: 1.1rem; margin-top: 0.35rem; border: 2px solid var(--tinta); border-radius: 0.3rem; }
+.leyenda-texto { display: flex; flex-direction: column; line-height: 1.25; }
+.leyenda-texto strong { font-family: var(--fuente-titulo); font-size: 1.5rem; line-height: 1.1; }
+.leyenda-texto span { color: var(--secundario-texto); }
+
+.totales { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 0.5rem 2rem; margin: 0; }
+.totales dt { color: var(--secundario-texto); font-size: 0.95rem; }
+.totales dd { margin: 0 0 0.6rem; font-weight: 700; }
+
+.filtros { display: flex; flex-wrap: wrap; gap: 0.6rem; margin: 0 0 1rem; padding: 0; list-style: none; }
+.filtros a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.4rem 1.2rem;
+  color: var(--panel-texto);
+  background: var(--panel-fondo);
+  border: 2px solid var(--tinta);
+  border-radius: 999px;
+  font-weight: 700;
+  text-decoration: none;
+}
+.filtros a:hover { color: var(--trigo-texto); background: var(--trigo-fondo); }
+.filtros a[aria-current="true"] { color: var(--hover-texto); background: var(--hover-fondo); }
+
+.insignia-fila-creadas { color: var(--exito-texto); background: var(--exito-fondo); }
+.insignia-fila-actualizadas { color: var(--trigo-texto); background: var(--trigo-fondo); }
+.insignia-fila-sin-cambios { color: var(--suave-texto); background: var(--suave-fondo); }
+.insignia-fila-omitidas { color: var(--arena-texto); background: var(--arena-fondo); }
+.insignia-fila-rechazadas { color: var(--error-texto); background: var(--error-fondo); }
+.filas-reporte { margin-top: 2.5rem; }
+.referencia { overflow-wrap: anywhere; font-size: 0.95rem; }
+.referencia summary { cursor: pointer; font-weight: 700; }
+
+/* ------------------------------------------------------------------ Paginación por formulario (la búsqueda viaja por POST) */
+.paginacion form { margin: 0; }
+.paginacion button {
+  min-height: 2.75rem;
+  padding: 0.4rem 1.2rem;
+  color: var(--panel-texto);
+  background: var(--panel-fondo);
+  border: 2px solid var(--tinta);
+  border-radius: 999px;
+  font-weight: 700;
+}
+.paginacion button:hover { color: var(--trigo-texto); background: var(--trigo-fondo); }
+
+/* ------------------------------------------------------------------ Movimiento (solo estados finales como base) */
+@keyframes estampar {
+  0% { transform: translateY(-1.6rem) scale(1.8) rotate(-16deg); opacity: 0; }
+  55% { transform: translateY(0) scale(0.9) rotate(var(--giro, 0deg)); opacity: 1; }
+  100% { transform: translateY(0) scale(1) rotate(var(--giro, 0deg)); opacity: 1; }
+}
+@keyframes tinta { from { transform: scale(1); opacity: 0.55; } to { transform: scale(1.7); opacity: 0; } }
+@keyframes latido {
+  0%, 100% { box-shadow: 0 0 0 0 transparent; }
+  50% { box-shadow: 0 0 0 0.6rem color-mix(in srgb, var(--naranja) 55%, transparent); }
+}
+@keyframes recorrer { from { left: 0%; } }
+@keyframes crecer { from { width: 0; } }
+@keyframes crecer-x { from { transform: scaleX(0); } }
+@keyframes aparecer { from { transform: scale(0.4); opacity: 0; } }
+
+/* ------------------------------------------------------------------ Pantallas pequeñas */
+@media (max-width: 56rem) {
+  .js .editor, .importar, .rejilla-receta { grid-template-columns: minmax(0, 1fr); }
+  .vista-previa { position: static; }
+  .padron-fila {
+    grid-template-columns: minmax(0, 1fr) minmax(0, 1fr);
+    grid-template-areas: "persona libreta" "etiquetas libreta";
+    align-items: start;
+  }
+  .padron-flecha { display: none; }
+}
+@media (max-width: 44rem) {
+  .padron-cabecera-int { padding-inline: 1rem; }
+  .padron-fila { grid-template-columns: minmax(0, 1fr); grid-template-areas: "persona" "etiquetas" "libreta"; padding-inline: 1rem 0.5rem; }
+  .paso { padding: 4.2rem 1.1rem 1.25rem; }
+  .paso::before { top: 1.1rem; left: 1.1rem; }
+  .libreta { grid-template-columns: 1.1rem minmax(0, 1fr); }
+  .vacio { flex-direction: column; }
+  .busqueda .boton { flex: 1 1 100%; }
+  .tabla-apilable thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+  .tabla-apilable tr { display: grid; grid-template-columns: minmax(0, 1fr); padding: 0.75rem 0; border-bottom: 2px solid var(--linea); }
+  .tabla-apilable th, .tabla-apilable td { display: block; padding: 0.2rem 0.4rem; border: 0; text-align: left; }
+  .tabla-apilable td[data-etiqueta]::before, .tabla-apilable th[data-etiqueta]::before { content: attr(data-etiqueta) ": "; color: var(--secundario-texto); font-weight: 400; }
+  .tabla-apilable .num { text-align: left; }
+}
+
+@media (forced-colors: active) {
+  .sello, .punto, .libreta, .dropzone, .vacio { border-color: CanvasText; }
+  .sello-sellada, .punto-lleno { forced-color-adjust: none; color: CanvasText; background: Highlight; }
+  .barra-carga span, .mini-barra span, .barra-cupo span, .vigencia-recorrido { forced-color-adjust: none; background: Highlight; }
+}

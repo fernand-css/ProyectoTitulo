@@ -12,6 +12,7 @@ from django.urls import reverse
 from coreapp.tests.test_plantillas import DocumentoHTML
 from recetasapp.importacion import generar_archivo
 from recetasapp.models import EntregaReceta, ImportacionPadron, Paciente, Receta, ResultadoFilaImportacion
+from recetasapp.services import crear_receta, registrar_entrega
 from .ayudas import actores, cargar, fila
 
 
@@ -159,3 +160,117 @@ class VistasTests(TestCase):
         self.client.force_login(usuario)
         usuario.perfil.delete()
         self.assertEqual(self.client.get(self.consultas[0]).status_code, 403)
+
+    # ------------------------------------------------------------------ Libreta de control (presentación)
+    def test_lista_resume_la_receta_de_cada_paciente(self):
+        self.client.force_login(self.actores["tecnico"])
+        respuesta = self.client.get(self.consultas[0])
+        self.assertContains(respuesta, "Vigente")
+        self.assertContains(respuesta, "0 de 12 entregas")
+        self.assertContains(respuesta, "Quedan 12")
+        self.assertContains(respuesta, "Mostrando del")
+
+    def test_lista_y_ficha_muestran_el_rut_con_formato(self):
+        self.client.force_login(self.actores["tecnico"])
+        paciente = Paciente.objects.get()
+        cuerpo = paciente.rut[:-2][::-1]
+        legible = ".".join(cuerpo[i:i + 3] for i in range(0, len(cuerpo), 3))[::-1] + "-" + paciente.rut[-1]
+        for ruta in (self.consultas[0], self.consultas[1]):
+            self.assertContains(self.client.get(ruta), "RUT " + legible)
+
+    def test_busqueda_sin_resultados_explica_que_hacer(self):
+        self.client.force_login(self.actores["qf"])
+        respuesta = self.client.post(self.consultas[0], {"buscar": "zzzz", "pagina": 1})
+        self.assertContains(respuesta, "No encontramos pacientes con")
+        self.assertContains(respuesta, "Ver todo el padrón")
+
+    def test_busqueda_con_resultados_cuenta_coincidencias(self):
+        self.client.force_login(self.actores["qf"])
+        respuesta = self.client.post(self.consultas[0], {"buscar": fila()[0], "pagina": 1})
+        self.assertContains(respuesta, "coincide con")
+
+    def test_padron_vacio_invita_a_importar_solo_a_quien_puede(self):
+        for modelo in (ResultadoFilaImportacion, EntregaReceta, Receta, Paciente):
+            modelo.objects.all().delete()
+        self.client.force_login(self.actores["qf"])
+        self.assertContains(self.client.get(self.consultas[0]), "Importar padrón")
+        self.client.force_login(self.actores["tecnico"])
+        respuesta = self.client.get(self.consultas[0])
+        self.assertContains(respuesta, "El padrón está vacío")
+        self.assertNotContains(respuesta, "Importar padrón")
+
+    def test_ficha_de_receta_dibuja_casillas_con_texto_para_lectores_de_pantalla(self):
+        self.client.force_login(self.actores["tecnico"])
+        respuesta = self.client.get(self.consultas[2])
+        dias = (date(2027, 1, 1) - date(2026, 11, 2)).days
+        self.assertContains(respuesta, "Entrega 1 pendiente.")
+        self.assertContains(respuesta, "0 de 12")
+        self.assertContains(respuesta, f"Quedan {dias} días de vigencia")
+        self.assertNotContains(respuesta, "sello-casilla-nuevo")
+
+    def test_el_sello_nuevo_se_estampa_solo_justo_despues_de_confirmar(self):
+        self.client.force_login(self.actores["tecnico"])
+        respuesta = self.client.post(self.entrega, {"operacion_id": str(uuid.uuid4()), "confirmar": "on"}, follow=True)
+        self.assertContains(respuesta, "Entrega del ciclo confirmada.")
+        self.assertContains(respuesta, "sello-casilla-nuevo", count=1)
+        self.assertContains(respuesta, "Entrega 1 realizada")
+        # Al recargar, el mensaje ya se consumió y el sello queda quieto.
+        self.assertNotContains(self.client.get(self.consultas[2]), "sello-casilla-nuevo")
+
+    def test_receta_con_entregas_lista_el_historial(self):
+        registrar_entrega(self.actores["tecnico"], self.receta.pk, uuid.uuid4())
+        self.client.force_login(self.actores["qf"])
+        respuesta = self.client.get(self.consultas[2])
+        self.assertContains(respuesta, "Historial de entregas")
+        self.assertContains(respuesta, "sintetico_tecnico")
+        self.assertContains(respuesta, "1 de 12")
+
+    def test_confirmar_muestra_paciente_y_proxima_casilla(self):
+        self.client.force_login(self.actores["tecnico"])
+        respuesta = self.client.get(self.entrega)
+        self.assertContains(respuesta, Paciente.objects.get().nombres)
+        self.assertContains(respuesta, "Entrega 1 de 12")
+        self.assertContains(respuesta, "sello-proxima")
+        self.assertContains(respuesta, "Confirmar entrega")
+
+    def test_receta_agotada_no_ofrece_confirmar(self):
+        receta = crear_receta(self.actores["qf"], paciente_id=self.receta.paciente_id, codigo="AGOTA-1", fecha_inicio=date(2026, 1, 1), vigencia_meses=12, max_entregas=1)
+        registrar_entrega(self.actores["tecnico"], receta.pk, uuid.uuid4())
+        self.client.force_login(self.actores["tecnico"])
+        respuesta = self.client.get(reverse("recetasapp:entrega_confirmar", args=[receta.pk]))
+        self.assertContains(respuesta, "No se puede confirmar una entrega con esta receta.")
+        self.assertNotContains(respuesta, "Confirmo que esta entrega")
+        self.assertNotContains(respuesta, "sello-proxima")
+        detalle = self.client.get(reverse("recetasapp:receta_detalle", args=[receta.pk]))
+        self.assertContains(detalle, "Agotada")
+        self.assertNotContains(detalle, "Confirmar entrega")
+
+    def test_reporte_filtra_filas_rechazadas(self):
+        self.client.force_login(self.actores["qf"])
+        archivo = SimpleUploadedFile("sintetico.csv", generar_archivo("csv", [fila("DEMO-0002"), ["VALOR PRIVADO"]]))
+        self.client.post(reverse("recetasapp:importacion_nueva"), {"formato": "csv", "sintetico": "on", "archivo": archivo})
+        carga = ImportacionPadron.objects.latest("pk")
+        ruta = reverse("recetasapp:importacion_detalle", args=[carga.referencia])
+        todas = self.client.get(ruta)
+        self.assertContains(todas, "Fila confirmada sin errores")
+        self.assertContains(todas, "Solo rechazadas (1)")
+        solo = self.client.get(ruta + "?estado=rechazada")
+        self.assertContains(solo, "Rechazada")
+        self.assertNotContains(solo, "Fila confirmada sin errores")
+        self.assertNotContains(solo, "VALOR PRIVADO")
+        vacio = self.client.get(reverse("recetasapp:importacion_detalle", args=[self.carga.referencia]) + "?estado=rechazada")
+        self.assertContains(vacio, "Ninguna fila fue rechazada en esta carga.")
+
+    def test_lista_de_cargas_muestra_estado_y_barra(self):
+        self.client.force_login(self.actores["qf"])
+        respuesta = self.client.get(reverse("recetasapp:importaciones"))
+        self.assertContains(respuesta, "Completada")
+        self.assertContains(respuesta, "barra-carga")
+        self.assertContains(respuesta, "1 filas, 0 rechazadas")
+
+    def test_formularios_declaran_su_comportamiento_y_no_traen_estilos_en_linea(self):
+        self.client.force_login(self.actores["qf"])
+        for ruta, marca in ((reverse("recetasapp:receta_nueva"), 'x-data="recetaPrevia"'), (reverse("recetasapp:importacion_nueva"), 'x-data="importacion"')):
+            html = self.client.get(ruta).content.decode()
+            self.assertIn(marca, html)
+            self.assertNotIn('style="', html.split("<main", 1)[1])
