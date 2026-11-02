@@ -8,6 +8,7 @@ Organización adaptada de `SDD (1).rar`: una carpeta por módulo o cambio y cuat
 |---|---|---|---|---|---|
 | 01 — Base del proyecto | Implementado | [spec.md](01-base-del-proyecto/spec.md) | [plan.md](01-base-del-proyecto/plan.md) | [tasks.md](01-base-del-proyecto/tasks.md) | [validation.md](01-base-del-proyecto/validation.md) |
 | 02 — Autenticación, roles y auditoría | Verificación técnica final aprobada; visual y cierre pendientes | [spec.md](02-autenticacion-roles-auditoria/spec.md) | [plan.md](02-autenticacion-roles-auditoria/plan.md) | [tasks.md](02-autenticacion-roles-auditoria/tasks.md) | [validation.md](02-autenticacion-roles-auditoria/validation.md) |
+| 03 — Padrón y recetas | Aprobado; código y verificación técnica completos; visual/móvil/axe pendientes | [spec.md](03-padron-y-recetas/spec.md) | [plan.md](03-padron-y-recetas/plan.md) | [tasks.md](03-padron-y-recetas/tasks.md) | [validation.md](03-padron-y-recetas/validation.md) |
 
 El spec 01 conserva su acuerdo: implementación en `fdaza`, documento aprobado en `fd686ec` y commits de implementación sujetos a instrucción del equipo. La verificación técnica y sus pendientes no equivalen a aceptación funcional del usuario.
 
@@ -19,7 +20,7 @@ El spec 01 conserva su acuerdo: implementación en `fdaza`, documento aprobado e
 | 11 | Modo sin conexión y caché de la PWA | Reservado; sin documento aprobado |
 | 12 | Notificaciones | Reservado; sin documento aprobado |
 
-Para una nueva spec, comprobar las carpetas, los archivos heredados y esta tabla. Si corresponde a un tema reservado, usar su número; para otros temas, usar el primer número libre sin ocupar reservas. `02` ya corresponde a autenticación, roles y auditoría; `03` es el primer número disponible para otro alcance. Las reservas no crean documentos ni autorizan implementación.
+Para una nueva spec, comprobar las carpetas, los archivos heredados y esta tabla. Si corresponde a un tema reservado, usar su número; para otros temas, usar el primer número libre sin ocupar reservas. `02` corresponde a autenticación, roles y auditoría; `03`, a padrón y recetas; `04` es el primer número disponible para otro alcance. Las reservas no crean documentos ni autorizan implementación.
 
 ## Estructura
 
@@ -39,7 +40,12 @@ specs/
 │   ├── tasks.md
 │   └── validation.md
 ├── 01-base-del-proyecto.md      Acceso compatible a la spec trasladada
-└── 02-autenticacion-roles-auditoria/
+├── 02-autenticacion-roles-auditoria/
+│   ├── spec.md
+│   ├── plan.md
+│   ├── tasks.md
+│   └── validation.md
+└── 03-padron-y-recetas/
     ├── spec.md
     ├── plan.md
     ├── tasks.md

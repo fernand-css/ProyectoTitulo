@@ -1,0 +1,8 @@
+{% extends 'recetas/base.html' %}
+{% block titulo %}Paciente · Farmacia{% endblock %}
+{% block farmacia %}
+<h1>Paciente del padrón</h1>
+{% if paciente %}<section class="panel"><h2>{{ paciente.nombres }} {{ paciente.apellidos }}</h2><dl class="ficha"><dt>RUT</dt><dd>{{ paciente.rut }}</dd><dt>Nacimiento</dt><dd>{{ paciente.fecha_nacimiento }} · {{ paciente.edad }} años</dd><dt>Crónico</dt><dd>{{ paciente.es_cronico|yesno:'Sí,No' }}</dd><dt>Postrado</dt><dd>{{ paciente.es_postrado|yesno:'Sí,No' }}</dd><dt>Teléfono</dt><dd>{{ paciente.telefono|default:'No registrado' }}</dd><dt>Dirección</dt><dd>{{ paciente.direccion|default:'No registrada' }}</dd></dl></section>{% endif %}
+<h2>Recetas e historial</h2><div class="rejilla">{% for receta in recetas %}<article class="panel"><h3>{{ receta.codigo }}</h3><p>{{ receta.entregas_completadas }} de {{ receta.max_entregas }} entregas completadas</p><a href="{% url 'recetasapp:receta_detalle' pk=receta.pk %}">Consultar receta {{ receta.codigo }}</a></article>{% empty %}<p>No hay recetas registradas.</p>{% endfor %}</div>
+{% if puede_crear %}<a class="boton" href="{% url 'recetasapp:receta_nueva' %}">Crear receta</a>{% endif %}
+{% endblock %}

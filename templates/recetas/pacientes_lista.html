@@ -1,0 +1,15 @@
+{% extends 'recetas/base.html' %}
+{% block titulo %}Padrón y recetas · Farmacia{% endblock %}
+{% block farmacia %}
+<div class="encabezado"><div><h1>Padrón y recetas</h1><p>Consulta privada del padrón sintético y las recetas de cada paciente.</p></div>
+{% if rol == 'Jefa de Farmacia' or rol == 'superusuario' %}<div class="acciones"><a class="boton" href="{% url 'recetasapp:receta_nueva' %}">Crear receta</a><a class="boton boton-secundario" href="{% url 'recetasapp:importaciones' %}">Importaciones</a></div>{% endif %}</div>
+<form method="post" class="panel">{% csrf_token %}{% include 'recetas/campos.html' %}<button class="boton" type="submit">Buscar pacientes</button></form>
+<div class="rejilla">
+{% for paciente in page_obj %}<article class="panel"><h2>{{ paciente.nombres }} {{ paciente.apellidos }}</h2><dl class="ficha"><dt>RUT</dt><dd>{{ paciente.rut }}</dd><dt>Edad</dt><dd>{{ paciente.edad }} años</dd><dt>Condición</dt><dd>{% if paciente.es_cronico %}Crónico. {% endif %}{% if paciente.es_postrado %}Postrado.{% endif %}{% if not paciente.es_cronico and not paciente.es_postrado %}Sin condición registrada.{% endif %}</dd></dl><a href="{% url 'recetasapp:paciente_detalle' pk=paciente.pk %}">Ver paciente y recetas<span class="sr-only"> de {{ paciente.nombres }} {{ paciente.apellidos }}</span></a></article>
+{% empty %}<p class="panel">No se encontraron pacientes.</p>{% endfor %}
+</div>
+{% if page_obj.has_other_pages %}<nav aria-label="Páginas del padrón"><p>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</p><div class="acciones">
+{% if page_obj.has_previous %}<form method="post">{% csrf_token %}<input type="hidden" name="buscar" value="{{ buscar }}"><button class="boton boton-secundario" name="pagina" value="{{ page_obj.previous_page_number }}">Anterior</button></form>{% endif %}
+{% if page_obj.has_next %}<form method="post">{% csrf_token %}<input type="hidden" name="buscar" value="{{ buscar }}"><button class="boton boton-secundario" name="pagina" value="{{ page_obj.next_page_number }}">Siguiente</button></form>{% endif %}
+</div></nav>{% endif %}
+{% endblock %}

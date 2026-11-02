@@ -1,0 +1,6 @@
+{% extends 'recetas/base.html' %}
+{% block titulo %}Importar padrón · Farmacia{% endblock %}
+{% block farmacia %}<h1>Importar padrón y recetas</h1><p>Usa exclusivamente datos sintéticos. Cada fila contiene un paciente y una receta opcional; para cargar solo padrón, deja vacías las cuatro columnas de receta.</p>
+<div class="acciones"><a class="boton boton-secundario" href="{% url 'recetasapp:plantilla' formato='csv' %}">Descargar plantilla CSV</a><a class="boton boton-secundario" href="{% url 'recetasapp:plantilla' formato='xlsx' %}">Descargar plantilla Excel</a></div>
+<p>Fechas como AAAA-MM-DD, indicadores 0/1 y cupos enteros positivos. No cambies los encabezados. Las filas válidas se guardan aunque otras se rechacen; el reporte explica el resultado. Las recetas con entregas conservan su vigencia y cupo.</p>
+<form method="post" enctype="multipart/form-data" class="panel">{% csrf_token %}{% include 'recetas/campos.html' %}<button class="boton" type="submit">Validar e importar archivo</button></form>{% endblock %}

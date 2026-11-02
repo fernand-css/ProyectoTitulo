@@ -120,6 +120,27 @@ Se integraron enlaces por permisos y sección activa, accesos desde el inicio y 
 
 `tools/verificar_spec_02_http.py` prepara y elimina exclusivamente una SQLite temporal, aplica 21 migraciones y recorre flujos sobre WSGI real en localhost con datos sintéticos, cookies/CSRF y correo en memoria. No usa la base local. La revisión por navegador está pendiente por indisponibilidad del host y rechazo de acceso a una ventana con contenido ajeno al proyecto. El commit final se reserva para resolver el cierre.
 
+## Spec 03 — Padrón y recetas
+
+El árbol inicial del 01 se amplía en `recetasapp` con estos componentes:
+
+| Archivo / carpeta | Responsabilidad |
+|---|---|
+| `models.py` | Paciente, Receta, EntregaReceta, ImportacionPadron y ResultadoFilaImportacion; restricciones y protección de historial. |
+| `migrations/0001_initial.py`, `0002_resultadofilaimportacion_pacientes_actualizados_and_more.py` | Esquema y conteos de objetos por fila para reconstruir bitácoras. |
+| `services.py` | Autorización, calendario, elegibilidad, creación/renovación, confirmación idempotente y aplicación atómica de fila; auditoría y reintentos por colisiones SQLite. |
+| `importacion.py` | Contrato de doce columnas, CSV/XLSX limitado, prevalidación de contradicciones, procesamiento parcial y bitácoras; generación de plantillas y archivos sintéticos. |
+| `forms.py`, `views.py`, `urls.py` | Búsqueda privada por POST, padrón, recetas, entregas y cargas protegidas por rol. Respuestas sin caché y sin referente. |
+| `admin.py` | No registra escritura de dominio; las operaciones pasan por servicios. |
+| `management/commands/generar_padron_demo.py` | Exportación explícita de 670 pacientes sintéticos reproducibles, sin modificar la base. |
+| `tests/test_modelos.py`, `test_servicios.py`, `test_importacion.py`, `test_concurrencia.py`, `test_comandos.py`, `test_vistas.py` | Integridad/migración, negocio, importación, colisiones con conexiones separadas, archivos, roles/CSRF y accesibilidad estructural. `ayudas.py` prepara exclusivamente datos sintéticos. |
+| `templates/recetas/` | Base y campos compartidos, padrón/detalle, receta/renovación, confirmación, carga, bitácora y reporte paginado. Reutilizan los estilos existentes. |
+| `tools/verificar_spec_03_http.py` | SQLite temporal, WSGI real, cookies/CSRF, importación de 670, renovación e idempotencia; medición p95 y vista HTML sintética opcional de solo lectura. |
+
+La navegación del inicio y navbar enlaza el padrón para Q.F., Técnico y superusuario; Encargado no accede. No se añaden rutas públicas de pacientes ni API con Rayén. Los formatos y comandos están en [README](../README.md#padrón-y-recetas--spec-03); evidencia y límites en [validation.md](../specs/03-padron-y-recetas/validation.md).
+
+La ejecución técnica del 03 quedó verificada con 238 pruebas y HTTP real sobre 23 migraciones nuevas. La revisión visual/móvil y axe del módulo siguen pendientes porque el host de navegador no está disponible y las ventanas de Firefox no pudieron capturarse por estar minimizadas. Las comprobaciones de presentación de specs previas no se atribuyen al 03.
+
 ## Identidad visual de la presentación
 
 Rediseño de plantillas y estilos a partir del escudo comunal: campo de gules, tres espigas de oro y un sol naciente. No cambia vistas, URLs, formularios ni servicios; solo la presentación. El login y las pantallas sin sesión comparten un panel de paisaje (sol saliendo sobre surcos que convergen en el horizonte, con las tres espigas); las pantallas con sesión usan cabecera ladrillo, migas de pan, azulejos de acceso y paneles planos.

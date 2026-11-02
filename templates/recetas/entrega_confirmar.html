@@ -1,0 +1,6 @@
+{% extends 'recetas/base.html' %}
+{% block titulo %}Confirmar entrega · Farmacia{% endblock %}
+{% block farmacia %}<h1>Confirmar entrega del ciclo</h1>{% if receta %}<p>Receta {{ receta.codigo }} · {{ estado.completadas }} de {{ estado.maximo }} completadas. Restan {{ estado.restantes }}.</p>{% endif %}
+{% for causa in estado.causas %}<p role="alert">{{ causa }}</p>{% endfor %}
+<form method="post" class="panel">{% csrf_token %}{% include 'recetas/campos.html' %}<button class="boton" type="submit">Confirmar entrega completada</button></form>
+{% endblock %}

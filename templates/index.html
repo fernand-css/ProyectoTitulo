@@ -63,6 +63,7 @@
         <p>Tu cuenta aún no tiene un perfil asignado. Solicita su asignación a la administración.</p>
       {% endif %}
     </section>
+    {% if rol == 'Jefa de Farmacia' or rol == 'Técnico en Farmacia' or rol == 'superusuario' %}<section class="panel"><h2>Padrón y recetas</h2><p>Consulta pacientes, vigencia e historial de entregas del ciclo.</p><a class="boton" href="{% url 'recetasapp:pacientes' %}">Abrir padrón y recetas</a></section>{% endif %}
     <section class="panel panel-trigo" aria-labelledby="titulo-sesion">
       <h2 id="titulo-sesion" class="panel-titulo"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-escudo-ok"/></svg>Sesión activa</h2>
       <dl class="ficha">

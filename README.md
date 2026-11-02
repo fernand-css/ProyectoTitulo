@@ -2,7 +2,7 @@
 
 PWA de la Unidad de Farmacia, con autenticación del personal, perfiles, correo verificado, recuperación de claves, administración de cuentas y auditoría. Usa Django 5.2, SQLite y Alpine.js local. El prototipo trabaja exclusivamente con datos sintéticos; la revisión visual y aceptación funcional de la spec 02 siguen pendientes.
 
-El spec 01 incorpora estructura, auditoría, utilidades, layouts PWA y login mínimo. Los módulos de recetas, turnos, entregas e indicadores tienen su app y prefijo reservados; sus funcionalidades llegan en los siguientes specs.
+El spec 01 incorpora estructura, auditoría, utilidades, layouts PWA y login mínimo. El spec 03 añade padrón sintético, importación CSV/Excel y control de vigencia y entregas de recetas. Turnos, reparto e indicadores conservan su esqueleto para los siguientes specs.
 
 ## Instalación local
 
@@ -83,9 +83,47 @@ python manage.py test usuariosapp.tests.test_login
 | `/usuarios/salir/` | Logout por POST con CSRF. |
 | `/salud/` | Pública: `{"estado": "ok"}`; devuelve 503 si no se puede abrir la conexión a la base. |
 | `/sw.js` | Service worker público, MIME JavaScript y alcance `/`. |
-| `/recetas/`, `/turnos/`, `/entregas/`, `/indicadores/` | Prefijos montados, todavía sin vistas. |
+| `/recetas/pacientes/` | Padrón privado y consulta de recetas para Q.F., Técnico y superusuario. |
+| `/recetas/importaciones/` | Bitácora y carga CSV/XLSX para Q.F. y superusuario. |
+| `/recetas/nueva/` | Creación de receta simulada para Q.F. y superusuario. |
+| `/turnos/`, `/entregas/`, `/indicadores/` | Prefijos montados, todavía sin vistas. |
 
 El manifest declara iconos PNG de 192 y 512 px. El service worker se registra, pero no intercepta solicitudes ni guarda datos en caché. La instalación depende del navegador y requiere un contexto seguro: `localhost` sirve para desarrollo. El funcionamiento sin conexión se implementará en el spec 11.
+
+## Padrón y recetas — spec 03
+
+Q.F. importa y consulta el padrón, crea recetas simuladas y registra renovaciones como recetas nuevas vinculadas a sus antecedentes. Técnico consulta y confirma entregas del ciclo (por ejemplo, «3 de 6»). La Q.F. no confirma entregas por su rol; el superusuario activo conserva acceso a ambas funciones. El Encargado no tiene acceso general al padrón en este módulo. No existen cuentas de pacientes ni prescripción clínica o inventario por medicamento.
+
+Tras aplicar las migraciones del proyecto, entra a «Padrón y recetas» y, como Q.F., a «Importaciones». Descarga una plantilla CSV o `.xlsx`. Las doce columnas, en este orden, son:
+
+```text
+rut,nombres,apellidos,fecha_nacimiento,es_cronico,es_postrado,telefono,direccion,codigo_receta,fecha_inicio,vigencia_meses,max_entregas
+```
+
+CSV: UTF-8 con BOM opcional, comas y comillas estándar. Excel: una única hoja `padron`, sin macros ni fórmulas. Fechas como texto `AAAA-MM-DD`, indicadores `0`/`1` y vigencia/cupo enteros positivos. Teléfono y dirección son opcionales. Para cargar solo padrón, dejar vacías las cuatro columnas de receta; si se completa una, completar las cuatro. Un paciente puede tener varias recetas en filas separadas con los mismos datos personales. Límites: 5 MiB y 10.000 filas; XLSX descomprimido hasta 50 MiB y 1.000 entradas. El lector usa `openpyxl` (versión probada: 3.1.5).
+
+Cada fila válida se confirma completa, con auditoría; los rechazos no detienen las válidas. Los duplicados idénticos se omiten y las identidades contradictorias dentro del archivo se rechazan. Reimportar actualiza por RUT/código sin duplicar ni borrar ausentes. Una receta con entregas conserva fechas, cupo e historial: su cambio exige renovación con código nuevo. La carga no importa contadores de entrega ni deduce vínculos de renovación. El reporte privado guarda número de fila y motivo, sin copiar valores rechazados ni conservar el archivo subido.
+
+El inicio es inclusivo y el fin exclusivo se calcula sumando meses naturales, ajustando días inexistentes al último día del mes destino. El último día válido es el anterior a ese límite. Ejemplo: inicio 2026-01-31 y un mes → límite 2026-02-28; último día válido 2026-02-27. Se bloquean entregas antes del inicio, tras vencimiento o por cupo agotado; reenviar una misma confirmación no duplica. El servicio de elegibilidad está preparado para integrarse con turnos en su propia spec.
+
+Generar un padrón reproducible de 670 pacientes sin modificar la base:
+
+```powershell
+python manage.py generar_padron_demo padron-sintetico.csv --formato csv --inicio 2026-11-02
+python manage.py generar_padron_demo padron-sintetico.xlsx --formato xlsx --inicio 2026-11-02
+```
+
+La semilla por defecto es 3; el inicio por defecto, 2026-01-01. Elegir `--inicio` de acuerdo con la fecha de la demostración. No se sobrescribe un archivo existente salvo con `--sobrescribir`. Usar una carpeta de trabajo para estas salidas; no son archivos para versionar.
+
+Verificación aislada reproducible:
+
+```powershell
+python manage.py test recetasapp --noinput
+python tools/verificar_spec_03_http.py
+python tools/verificar_spec_03_http.py --preview
+```
+
+La herramienta usa otra SQLite temporal, migraciones desde cero, credenciales efímeras y HTTP real con CSRF. Comprueba 670 pacientes en ambos formatos, repetición, renovación, entrega idempotente, historial y permisos; mide 40 consultas de detalle. `--preview` sirve en localhost doce copias HTML sintéticas de solo lectura para revisión visual; Ctrl+C cierra el servidor. No modifica `db.sqlite3`. Evidencia: [validación del spec 03](specs/03-padron-y-recetas/validation.md). Regresión actual: 238 pruebas aprobadas; revisión visual/móvil, axe del módulo y aceptación del usuario pendientes por acceso al navegador.
 
 ## Convenciones compartidas
 

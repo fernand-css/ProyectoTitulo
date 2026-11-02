@@ -1,0 +1,5 @@
+{% extends 'recetas/base.html' %}
+{% block titulo %}Importaciones · Farmacia{% endblock %}
+{% block farmacia %}<div class="encabezado"><h1>Importaciones del padrón</h1><a class="boton" href="{% url 'recetasapp:importacion_nueva' %}">Nueva importación</a></div>
+{% for carga in page_obj %}<article class="panel"><h2>Carga {{ carga.referencia }}</h2><p>{{ carga.creado_en }} · {{ carga.creado_por.get_username|default:'Cuenta retirada' }} · {{ carga.get_formato_display }} · {{ carga.get_estado_display }}</p><p>{{ carga.total_filas }} filas; {{ carga.filas_rechazadas }} rechazadas.</p><a href="{% url 'recetasapp:importacion_detalle' referencia=carga.referencia %}">Consultar reporte de carga {{ carga.referencia }}</a></article>{% empty %}<p>No hay cargas registradas.</p>{% endfor %}
+{% include 'components/paginator.html' %}{% endblock %}

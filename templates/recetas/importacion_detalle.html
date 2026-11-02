@@ -1,0 +1,7 @@
+{% extends 'recetas/base.html' %}
+{% block titulo %}Reporte de importación · Farmacia{% endblock %}
+{% block farmacia %}<h1>Reporte de importación</h1>
+{% if carga %}<section class="panel"><h2>Carga {{ carga.referencia }}</h2><p>{{ carga.get_estado_display }} · {{ carga.get_formato_display }} · {{ carga.creado_en }} · {{ carga.creado_por.get_username|default:'Cuenta retirada' }}</p>{% if carga.resumen_fallo %}<p role="alert">{{ carga.resumen_fallo }}</p>{% endif %}
+<dl class="ficha"><dt>Filas de datos</dt><dd>{{ carga.total_filas }}</dd><dt>Con altas</dt><dd>{{ carga.filas_creadas }}</dd><dt>Con actualizaciones</dt><dd>{{ carga.filas_actualizadas }}</dd><dt>Sin cambios</dt><dd>{{ carga.filas_sin_cambios }}</dd><dt>Duplicadas omitidas</dt><dd>{{ carga.filas_omitidas }}</dd><dt>Rechazadas</dt><dd>{{ carga.filas_rechazadas }}</dd><dt>Pacientes creados / actualizados</dt><dd>{{ carga.pacientes_creados }} / {{ carga.pacientes_actualizados }}</dd><dt>Recetas creadas / actualizadas</dt><dd>{{ carga.recetas_creadas }} / {{ carga.recetas_actualizadas }}</dd><dt>Referencia SHA-256</dt><dd style="overflow-wrap:anywhere">{{ carga.archivo_sha256 }}</dd></dl></section>{% endif %}
+<h2>Resultados por fila</h2>{% for resultado in page_obj %}<article class="panel"><h3>Fila {{ resultado.numero_fila }} · {{ resultado.get_estado_display }}</h3><p>{{ resultado.mensaje|default:'Fila confirmada sin errores.' }}</p></article>{% empty %}<p>No hay filas procesadas para mostrar.</p>{% endfor %}{% include 'components/paginator.html' %}
+{% endblock %}

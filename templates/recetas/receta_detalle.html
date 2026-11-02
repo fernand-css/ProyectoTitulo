@@ -1,0 +1,9 @@
+{% extends 'recetas/base.html' %}
+{% block titulo %}Receta · Farmacia{% endblock %}
+{% block farmacia %}<h1>Receta simulada</h1>
+{% if receta %}<section class="panel"><h2>{{ receta.codigo }}</h2><p><a href="{% url 'recetasapp:paciente_detalle' pk=receta.paciente_id %}">{{ receta.paciente.nombres }} {{ receta.paciente.apellidos }}</a></p><dl class="ficha"><dt>Vigencia</dt><dd>{{ estado.fecha_inicio }} a {{ estado.ultimo_dia_valido }}</dd><dt>Entregas completadas</dt><dd>{{ estado.completadas }} de {{ estado.maximo }}</dd><dt>Entregas restantes</dt><dd>{{ estado.restantes }}</dd><dt>Estado</dt><dd>{% if estado.elegible %}Vigente con cupo disponible{% else %}{% for causa in estado.causas %}<p>{{ causa }}</p>{% endfor %}{% endif %}</dd></dl>
+{% if receta.receta_anterior_id %}<p>Renovación de <a href="{% url 'recetasapp:receta_detalle' pk=receta.receta_anterior_id %}">{{ receta.receta_anterior.codigo }}</a>.</p>{% endif %}
+<div class="acciones">{% if puede_crear %}<a class="boton" href="{% url 'recetasapp:receta_renovar' pk=receta.pk %}">Registrar renovación</a>{% endif %}{% if puede_entregar and estado.elegible %}<a class="boton" href="{% url 'recetasapp:entrega_confirmar' pk=receta.pk %}">Confirmar entrega del ciclo</a>{% endif %}</div></section>{% endif %}
+<h2>Historial de entregas</h2>{% for entrega in entregas %}<p class="panel">Entrega {{ entrega.numero }} · {{ entrega.creado_en }} · {{ entrega.creado_por.get_username|default:'Cuenta retirada' }}</p>{% empty %}<p>No hay entregas confirmadas.</p>{% endfor %}
+{% if receta %}<h2>Renovaciones vinculadas</h2>{% for nueva in receta.renovaciones.all %}<p><a href="{% url 'recetasapp:receta_detalle' pk=nueva.pk %}">{{ nueva.codigo }}</a></p>{% empty %}<p>No hay renovaciones vinculadas.</p>{% endfor %}{% endif %}
+{% endblock %}

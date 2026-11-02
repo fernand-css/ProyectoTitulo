@@ -24,7 +24,7 @@ Guía para Claude Code en este repositorio. La fuente de verdad del proyecto es 
 
 ## Base implementada y comandos
 
-El proyecto es `cesfam`, con un único `cesfam/settings.py`, `auth.User` de Django y seis apps: `coreapp`, `usuariosapp`, `recetasapp`, `turnosapp`, `entregasapp` e `indicadoresapp`. Las cuatro últimas conservan el esqueleto y sus rutas vacías hasta su spec.
+El proyecto es `cesfam`, con un único `cesfam/settings.py`, `auth.User` de Django y seis apps: `coreapp`, `usuariosapp`, `recetasapp`, `turnosapp`, `entregasapp` e `indicadoresapp`. Turnos, entregas e indicadores conservan el esqueleto y sus rutas vacías hasta su spec.
 
 `coreapp` centraliza roles, `RolRequeridoMixin`, auditoría, contexto, filtros y utilidades RUT. `usuariosapp` usa `LoginView` y `LogoutView`. La presentación comparte `templates/components/Layout/base.html`, su variante pública y estáticos locales. La lógica futura de negocio va en `<app>/services.py`.
 
@@ -45,6 +45,8 @@ python manage.py makemigrations --check --dry-run
 La instalación y las variables están en `README.md`; el árbol y los contratos, en `docs/estructura.md`. Los secretos se leen con `python-dotenv`; `SECRET_KEY` es obligatoria y `DEBUG` es falso por defecto. ASGI y WSGI siguen las plantillas estándar, sin WebSocket todavía.
 
 ## Reglas obligatorias
+
+La spec 03 incorpora `Paciente`, `Receta`, `EntregaReceta`, `ImportacionPadron` y `ResultadoFilaImportacion` en `recetasapp`, dos migraciones y servicios auditados. Q.F. importa CSV/XLSX y crea/renueva; Técnico consulta/confirma entregas. El contador se reserva con UPDATE condicional, UUID idempotente, restricciones y reintentos SQLite. La renovación crea otra receta; importación no altera fechas/cupo tras entregar. `importacion.py` aplica atomicidad por fila y reconstruye conteos desde sus resultados; archivos no se conservan. No hay escritura directa en Admin. `generar_padron_demo` produce 670 pacientes sintéticos sin tocar la base. `openpyxl` es dependencia para XLSX. Regresión: 238 pruebas; `tools/verificar_spec_03_http.py` valida HTTP real, 23 migraciones y padrón de 670, sin usar la base local. Visual/móvil/axe del 03 y aceptación funcional pendientes: no declarar cumplido todo RNF-04. Se implementó en `fdaza` por instrucción explícita, sin rama nueva; el cambio previo del spec 02 no pertenece a su commit.
 
 1. **Solo datos sintéticos** (RNF-01; Leyes N° 19.628, 20.584 y 21.719, esta última vigente desde el 1-12-2026).
    - Nunca uses datos reales de pacientes ni de funcionarios en código, fixtures, seeds, pruebas, logs, capturas, issues o commits.

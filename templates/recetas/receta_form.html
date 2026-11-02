@@ -1,0 +1,7 @@
+{% extends 'recetas/base.html' %}
+{% block titulo %}Registrar receta · Farmacia{% endblock %}
+{% block farmacia %}<h1>{% if anterior %}Renovar receta{% else %}Crear receta simulada{% endif %}</h1>
+<p>Control interno anexo de farmacia. Cada entrega corresponde a un ciclo, sin inventario por medicamento.</p>
+{% if anterior %}<p>Antecedente: {{ anterior.codigo }}. La nueva receta comienza con cero entregas y conserva el historial anterior.</p>{% endif %}
+<p>La vigencia termina el día anterior a la fecha obtenida al sumar los meses naturales al inicio, ajustando los meses cortos.</p>
+<form method="post" class="panel">{% csrf_token %}{% include 'recetas/campos.html' %}<button class="boton" type="submit">Guardar receta simulada</button></form>{% endblock %}
