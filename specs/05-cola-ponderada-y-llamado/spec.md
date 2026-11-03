@@ -1,6 +1,6 @@
 # SPEC 05 — Cola ponderada y llamado
 
-> **Estado:** Aprobado
+> **Estado:** Implementado
 > **Depende de:** [SPEC 01](../01-base-del-proyecto/spec.md), [SPEC 02](../02-autenticacion-roles-auditoria/spec.md), [SPEC 03](../03-padron-y-recetas/spec.md) y [SPEC 04](../04-emision-de-turnos/spec.md)
 > **Fecha:** 2026-11-02
 > **Objetivo:** Asignar automáticamente los turnos a ventanillas compatibles mediante una cola ponderada y permitir al Técnico confirmar entregas y cerrar la atención para continuar con el siguiente paciente sin duplicaciones.
