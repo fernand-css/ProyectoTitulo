@@ -11,11 +11,14 @@ Fecha de actualización: 2026-11-03. Revisión documental; sin modificación de 
 | F-03 | Inspección local registrada el 2026-10-31 | Estado entonces limpio, remoto y commit 69ad505; no describe el estado actual. |
 | F-04 | AGENTS.md anterior, referido al commit 69ad505 | Describía MVP Django y specs ausentes; no acredita implementación ni selección vigente. |
 | F-05 | Cuatro SKILL.md locales; diagnóstico del 2026-10-31 | Material auxiliar. Se conserva su diagnóstico sin ejecutar flujos ni modificarlo. |
-| F-06 | Solicitud de revisión documental de la usuaria, 2026-11-03 | Selecciona el stack base; complementos pendientes; solicita diagnóstico sin cambios. |
-| F-07 | Autorización de actualización controlada de la usuaria, 2026-11-03 | Aprueba actualizar solo los siete documentos y registrar correspondencias y pendientes. Reitera stack y complementos no aprobados; exige detenerse tras entregar. |
+| F-06 | Solicitud inicial de revisión documental de la usuaria, 2026-11-03 | Antecedente histórico: seleccionó el stack base y dejó complementos pendientes en ese momento; sustituido en ese aspecto por F-16–17. |
+| F-07 | Autorización de actualización controlada de la usuaria, 2026-11-03 | Aprueba actualizar solo los siete documentos y registrar correspondencias y pendientes. Registró el stack base y complementos no aprobados en ese momento; esa selección parcial fue ampliada por F-16–17. Exigió detenerse tras entregar. |
 | F-08 | Inspección local y revisión documental, 2026-11-03 | Rama irubio; AGENTS modificado y README, docs/ y .vscode/ sin seguimiento al inicio. Texto de cinco antecedentes y dos PNG revisados; limitaciones abajo. |
+| F-16 | Mensaje de aprobación de arquitectura tecnológica completa, 2026-11-03 | La usuaria aprueba DRF, Channels + WebSockets, Daphne y Redis junto al stack base; pide PostgreSQL como fuente de verdad y Redis auxiliar. No autoriza implementación. |
+| F-17 | Autorización de actualización exclusivamente documental del stack completo, 2026-11-03 | Autoriza solo los siete documentos, historial, responsabilidades y pendientes; prohíbe cambios de configuración, diseño detallado, código y operaciones Git de escritura. |
+| F-18 | Autorización anterior de cierre documental y verificación local del commit, 2026-11-03 | Excepción ya ejecutada: commit local cefc8e0 de los siete documentos y exclusión local de settings.json. Sin push ni referencias incorporadas; no habilita operaciones nuevas. |
 
-F-01 a F-05 conservan el registro previo; no se reconstituyen mensajes ni aprobaciones académicas ausentes. F-06 y F-07 se identifican por fecha y contenido de esta conversación, sin inventar un ID externo o una transcripción exportada.
+F-01 a F-05 conservan el registro previo; no se reconstituyen mensajes ni aprobaciones académicas ausentes. F-06, F-07 y F-16–18 se identifican por fecha y contenido de esta conversación, sin inventar un ID externo o una transcripción exportada.
 
 ## Inventario de documentos de control
 
@@ -42,21 +45,21 @@ Todos están en `docs/referencias/`, fueron revisados el 2026-11-03 y se conserv
 | F-11 | [Entrevistas_CESFAM.md](referencias/Entrevistas_CESFAM.md), entrevistas a dirección, farmacia y reparto | Sin fecha ni versión explícitas | Necesidades y proceso actual. Sin acta de validación ni contraste con registro original. La fecha atribuida en F-10 no acredita la fecha del archivo completo. |
 | F-12 | [Transcripcion_Requerimientos_CESFAM.md](referencias/Transcripcion_Requerimientos_CESFAM.md), voces rotuladas profesor/cliente y estudiante/equipo | Sin fecha ni versión explícitas | Discusión funcional y sugerencias. La sección final «Análisis Arquitectónico y Valor Agregado» es síntesis añadida, no intervención transcrita acreditada. |
 | F-13 | [Transcripción_Reunión_Proyecto_CESFAM.md](referencias/Transcripción_Reunión_Proyecto_CESFAM.md), minuta sin autoría individual explícita | Sin fecha ni versión explícitas | Revisión de arquitectura, IA, recursos, seis semanas y MVP. No permite establecer por sí sola precedencia cronológica frente a F-10. |
-| F-14 | [diagrama_modelo_de_datos.png](referencias/diagrama_modelo_de_datos.png), sin autoría visible | Sin fecha, revisión ni aprobación visibles | Modelo lógico propuesto, inspeccionado visualmente. El rótulo de normalización/alineación no prueba esas propiedades. |
-| F-15 | [diagrama_arquitectura.png](referencias/diagrama_arquitectura.png), sin autoría visible | Sin fecha, revisión ni aprobación visibles | Arquitectura propuesta, inspeccionada visualmente. Coincide con el stack seleccionado, pero no acredita aprobación de su organización interna. |
+| F-14 | [diagrama_modelo_de_datos.png](referencias/diagrama_modelo_de_datos.png), sin autoría visible | Sin fecha, revisión ni aprobación visibles | Modelo lógico propuesto, inspeccionado visualmente en la revisión anterior. Sujeto a validación, no diseño definitivo de implementación. El rótulo de normalización/alineación no prueba esas propiedades. |
+| F-15 | [diagrama_arquitectura.png](referencias/diagrama_arquitectura.png), sin autoría visible | Sin fecha, revisión ni aprobación visibles | Arquitectura propuesta, inspeccionada visualmente en la revisión anterior. Representa parte del stack y complementos entonces opcionales. F-16–17 aprueba los componentes, no este PNG ni su organización interna; no se modifica y sigue sujeto a validación. |
 
 ## Clasificación de la evidencia
 
 - **Exigencias académicas identificadas:** F-09, actividades 1 a 8, criterios 1.1.1 a 1.1.6 e indicaciones de entrega. Su vigencia debe confirmarse.
 - **Necesidades levantadas:** F-11 y diálogo de F-12; F-13 recoge orientaciones, no una aprobación verificable de todas las HU.
 - **Propuestas del equipo:** F-10, incluidos MoSCoW, métricas, arquitectura y mecanismos; F-14 y F-15 son propuestas gráficas.
-- **Decisiones aprobadas por la usuaria:** F-06 y F-07, dentro de su ámbito operativo y tecnológico. No constituyen aprobación académica ni autorización de implementación.
+- **Decisiones aprobadas por la usuaria:** F-06–07 y F-16–17, dentro de su ámbito operativo y tecnológico. No constituyen aprobación académica ni autorización de implementación.
 
-La guía identifica trabajo grupal con evaluación individual. El prototipo independiente descrito por la usuaria no debe confundirse con una exención académica del trabajo grupal.
+El Informe N.º 1 y sus anexos son antecedentes de referencia que permanecen intactos. El Informe N.º 2 no se ha comenzado; no se atribuyen avances, resultados ni entregables. La guía identifica trabajo grupal con evaluación individual. El prototipo independiente descrito por la usuaria no debe confundirse con una exención académica del trabajo grupal.
 
 ## Inconsistencias documentales por validar
 
-Los ID INC son observaciones de revisión, no requisitos ni decisiones resueltas.
+Los ID INC son observaciones de revisión, no requisitos aprobados. INC-07 tiene resuelta la selección de componentes por F-16–17; conserva pendientes la discrepancia con el PNG, los detalles de comunicación y su verificación. Los demás conflictos no se resuelven por suposición.
 
 | ID | Evidencia y contradicción | Validación pendiente |
 | --- | --- | --- |
@@ -66,13 +69,21 @@ Los ID INC son observaciones de revisión, no requisitos ni decisiones resueltas
 | INC-04 | F-10 HU-01, HU-20, §§5.1.1 y 6.3: jefatura, dirección, técnico, conductor, TENS y encargado con responsabilidades no uniformes; RACI sin R en diseño y despacho | Roles, permisos y responsabilidades aplicables al prototipo independiente |
 | INC-05 | F-10 §5.2.3 anuncia seis indicadores y muestra cuatro; 20 %, 85 % y 1,74 % sin respaldo suficiente en F-11; HU-20 equipara ausencia sin retiro con merma | Fuentes, fórmulas, períodos y diferencia entre ausencia, no retiro y merma efectiva |
 | INC-06 | F-10 HU-23, RNF-07, §§5.2.1 y 5.3 describen exportaciones de Rayén; F-07 exige datos sintéticos y ninguna integración | Contrato de importación sintética y delimitación de HU-23/RNF-07. No usar exportaciones reales |
-| INC-07 | F-10 §§5.1.1 y 7.1 fija API REST/WebSockets; F-15 propone plantillas Django y consulta periódica; F-07 deja complementos no aprobados | Mecanismo de comunicación, medición de latencia y eventual justificación de complementos |
+| INC-07 | F-10 §§5.1.1 y 7.1 fija API REST/WebSockets; F-15 propone plantillas Django y consulta periódica. F-07 dejó complementos pendientes históricamente; F-16–17 aprueba DRF, Channels + WebSockets, Daphne y Redis | Selección resuelta por D-12. Quedan discrepancias del PNG, contratos, configuración, latencia y reconexión; un eventual respaldo mediante polling no está aprobado. Las plantillas pueden coexistir con API REST y su uso sigue por definir |
 | INC-08 | F-10 RNF-03, RNF-09, NS05 y §7.1 requieren PWA/offline; F-15 no representa almacenamiento local ni sincronización diferida | Alcance instalable, operación sin señal y manejo de sincronización; pendientes, sin diseño nuevo |
 | INC-09 | F-10 HU-07 bloquea turno presencial a ciertos pacientes; HU-09 alterna número/ventanilla con número/nombre; HU-10 incorpora urgencia y crónicos | Reglas y categorías válidas, contenido público y excepciones; F-11 no acredita todas esas reglas |
 | INC-10 | F-10 §§3.3 y 5.3 propone metas técnicas, disponibilidad mensual y set de 670 pacientes | Condiciones de prueba y aprobación de umbrales. 70 postrados + 600 mayores no acredita 670 personas distintas |
 | INC-11 | F-10 §§3.3 y 5.2.4 conserva marcadores de citación y «3.X»; marco teórico/bibliografía difieren en Chan/Chang y fecha W3C | Revisar fuentes originales y referencias internas sin inventar citas o vigencias normativas |
 
-La discrepancia del antiguo control documental con el stack quedó actualizada por F-07; las inconsistencias del informe y los diagramas siguen abiertas. No se encontró React o SQLite como selección de la arquitectura actual; Node.js figura en una referencia bibliográfica. No se realizó comparación técnica de alternativas.
+La discrepancia del antiguo control documental con el stack base fue actualizada por F-07; F-16–17 amplía ahora la selección y sustituye el estado anterior de D-10. Se conservan las inconsistencias académicas y los detalles técnicos pendientes del informe y los diagramas, con la resolución parcial indicada para INC-07. No se encontró React o SQLite como selección de la arquitectura actual; Node.js figura en una referencia bibliográfica. No se realizó comparación técnica de alternativas.
+
+## Responsabilidades tecnológicas aprobadas y límites
+
+D-12 registra HTML5 + Alpine.js + JavaScript, Python + Django, Django REST Framework (DRF) para API REST, Django Channels + WebSockets para tiempo real, Daphne como servidor ASGI, Redis para mensajería y caché, y PostgreSQL como base de datos.
+
+D-13 establece PostgreSQL como fuente de verdad para persistencia e integridad de los datos del negocio y Redis como infraestructura auxiliar. Los mensajes o entradas de caché no constituyen el único registro de turnos, recetas o entregas. No se aprueba un esquema de datos, algoritmo de concurrencia o política de caché por esta descripción.
+
+Versiones y compatibilidad, configuración, estructura de aplicaciones, contratos de API/eventos, autenticación y permisos, esquemas, caducidad e invalidación de caché y recuperación siguen pendientes. PWA, operación sin conexión y sincronización se conservan como requisitos o propuestas académicas por precisar; WebSockets y Redis no acreditan por sí solos ese funcionamiento. El desglose lógico se registra en el documento 03 sin modificar los PNG.
 
 ## Observaciones del modelo lógico F-14
 
@@ -125,4 +136,4 @@ Revisión registrada el 2026-10-31 (F-05), sin nueva ejecución ni modificación
 | [spec-impl](../.agents/skills/spec-impl/SKILL.md) | Puede crear/cambiar ramas por defecto; incompatible con irubio exclusivo |
 | [web-design-guidelines](../.agents/skills/web-design-guidelines/SKILL.md) | Descarga pautas y revisa UI; no existe UI ni se autoriza ese flujo |
 
-Las skills no son fuentes académicas ni amplían F-07. No se creó configuración para adaptar sus automatismos.
+Las skills no son fuentes académicas ni amplían F-17. No se creó configuración para adaptar sus automatismos.

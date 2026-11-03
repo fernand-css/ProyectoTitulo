@@ -4,14 +4,14 @@ Fecha de actualización: 2026-11-03. Estado: **trazabilidad preliminar; alcance 
 
 ## Reglas y clases de registro
 
-Las fuentes F-01–F-15 se identifican en [01-fuentes-y-diagnostico.md](01-fuentes-y-diagnostico.md). F-07 autoriza ampliar la documentación, no aprobar los requisitos del informe. Los RF-P siguen siendo identificadores locales; las HU, RNF y NS conservan los identificadores de F-10.
+Las fuentes F-01–F-18 se identifican en [01-fuentes-y-diagnostico.md](01-fuentes-y-diagnostico.md). F-17 autoriza registrar el stack completo aprobado y actualizar la documentación; F-07 es el antecedente de la ampliación previa. Ninguna de estas autorizaciones aprueba automáticamente los requisitos del informe. Los RF-P siguen siendo identificadores locales; las HU, RNF y NS conservan los identificadores de F-10.
 
 | Clase | Evidencia | Estado y tratamiento |
 | --- | --- | --- |
 | Académica | F-09, actividades y criterios de evaluación | Exigencia identificada en copia recibida; vigencia por confirmar |
 | Necesidad levantada | F-11 y diálogo de F-12 | Antecedente de necesidad; fecha, alcance y validación por confirmar |
 | Propuesta del equipo | F-10, F-14, F-15 y síntesis final de F-12 | No aprobada automáticamente para este prototipo |
-| Decisión de la usuaria | F-06 y F-07; acuerdos históricos registrados en 04 | Aprobada solo dentro del alcance explícito |
+| Decisión de la usuaria | F-06–07 y F-16–17; acuerdos históricos registrados en 04 | Aprobada solo dentro del alcance explícito |
 | Evidencia de implementación | Ninguna en esta etapa | Sin implementación ni pruebas de aplicación |
 
 Estados del registro: **por validar**, **en revisión**, **aprobado**, **descartado**. Las prioridades MoSCoW y los umbrales se atribuyen al informe, sin aprobarlos por transcripción. El estado de implementación y la verificación se mantienen separados.
@@ -74,19 +74,33 @@ Los RNF proceden de F-10 §3.3 y los NS de §5.2.4. La siguiente tabla registra 
 
 ## Decisiones tecnológicas y restricciones operativas
 
-La selección base es una decisión explícita, distinta de los requisitos anteriores.
+La selección del stack completo (D-12) y los papeles de PostgreSQL/Redis (D-13) son decisiones explícitas, distintas de la validación funcional o del cumplimiento de los RNF/NS. No aprueban por sí solas los diagramas de referencia.
 
 | ID | Restricción o decisión vigente | Fuente / decisión | Comprobación documental |
 | --- | --- | --- | --- |
-| RT-01 | Solo irubio; sin operaciones de ramas | F-07; D-02 y D-08 | Rama inicial/final e informe de acciones |
-| RT-02 | Solo datos sintéticos; sin datos clínicos ni integración Rayén | F-07; D-03 y D-08 | Ejemplos y descripciones limitados; INC-06 abierto |
-| RT-03 | HTML5 + Alpine.js + JavaScript; Python + Django; PostgreSQL | F-06–07; D-09 | Stack coherente en los siete documentos; sustituye la suspensión tecnológica previa |
-| RT-04 | Sin código, dependencias, migraciones, commits ni push | F-07; D-06 y D-08 | Informe de acciones y comparación de archivos |
-| RT-05 | Solo siete documentos; antecedentes, PNG, skills y configuraciones intactos | F-07; D-08 | Comparación de contenidos inicial/final |
-| RT-06 | Detención tras entrega; diseño e implementación requieren aprobación | F-07; D-07 y D-08 | Entrega documental y detención |
-| RT-07 | DRF, Channels, Daphne y Redis no aprobados | F-07; D-10 | No declararlos seleccionados ni instalarlos |
+| RT-01 | Solo irubio; sin operaciones de ramas ni Git de escritura | F-17; D-02 y D-14 | Rama inicial/final e informe de acciones |
+| RT-02 | Solo datos sintéticos; sin datos clínicos ni integración Rayén | F-17; D-03 y D-14 | Ejemplos y descripciones limitados; INC-06 abierto |
+| RT-03 | HTML5 + Alpine.js + JavaScript; Python + Django; DRF; Channels + WebSockets; Daphne; Redis; PostgreSQL | F-16–17; D-12 amplía D-09 | Stack completo aprobado, coherente en los siete documentos; versiones y configuración pendientes |
+| RT-04 | Sin código, dependencias, migraciones, commits, push ni otras escrituras Git | F-17; D-06 y D-14 | Informe de acciones y comparación de archivos |
+| RT-05 | Solo siete documentos; antecedentes, PNG, skills y configuraciones intactos; no iniciar Informe N.º 2 | F-17; D-14 | Comparación de contenidos inicial/final |
+| RT-06 | Detención tras entrega; diseño detallado, configuración e implementación requieren aprobación | F-17; D-07 y D-14 | Entrega documental y detención |
+| RT-07 | PostgreSQL fuente de verdad; Redis auxiliar de mensajería y caché | F-16–17; D-13 | No atribuir a Redis el único registro de datos del negocio; políticas de caché pendientes |
 
-RT-03 conserva su ID pero cambia su formulación por decisión nueva, sin atribuir esta selección al acuerdo del 2026-10-31.
+RT-03 conserva su ID y amplía la selección base de D-09 mediante D-12. RT-07 sustituye su formulación anterior sobre complementos no aprobados: ese antecedente queda conservado en D-10 como histórico sustituido. No atribuir estas decisiones a F-02/F-07 ni a una aprobación institucional.
+
+## Correspondencias tecnológicas de apoyo
+
+Estas relaciones registran responsabilidades de componentes aprobados, no resultados, contratos ni configuraciones implementadas.
+
+| Componente aprobado | Necesidad o referencia relacionada | Detalle todavía pendiente |
+| --- | --- | --- |
+| HTML5 + Alpine.js + JavaScript | Interfaces de RF-P-01–06; RNF-04, RNF-09 | Vistas, interacción, accesibilidad y alcance PWA |
+| Python + Django y DRF | Operaciones de los RF-P y propuesta de API REST de F-10 §7.1 | Estructura de aplicaciones, endpoints, validaciones, autenticación y permisos |
+| Channels + WebSockets y Daphne | RF-P-03; RNF-05; NS03 | Configuración ASGI, eventos, autorización, reconexión, carga y medición de latencia |
+| PostgreSQL | Datos de RF-P-01–06; RNF-02, RNF-08; NS04, NS06, NS08 | Esquemas, restricciones, transacciones y recuperación. Fuente de verdad por D-13 |
+| Redis | Apoyo a mensajería de tiempo real y caché | Conexiones, backend de mensajería, claves, caducidad, invalidación, aislamiento y manejo de fallos. No sustituye PostgreSQL |
+
+RNF-03, RNF-09 y NS05 mantienen sus criterios PWA/offline/sincronización por precisar según F-10. La selección de estos componentes no demuestra funcionamiento sin conexión ni define almacenamiento local o resolución de conflictos.
 
 ## Plantilla de detalle para validación posterior
 

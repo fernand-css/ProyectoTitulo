@@ -15,12 +15,12 @@ El antiguo AGENTS.md describía un MVP Django y seis specs ausentes de esta rama
 - Trabajar exclusivamente en `irubio`. Verificar rama y estado de Git antes de actuar. Si la rama activa es otra, detenerse e informar; no cambiarla.
 - No crear, cambiar, fusionar ni eliminar ramas.
 - Solicitar autorización explícita antes de cambios sustanciales. Presentar alcance, archivos afectados y plan breve; una autorización existente cubre solamente las actividades aprobadas.
-- La autorización del 2026-11-03 cubre actualizar únicamente este archivo, `README.md` y `docs/00-indice-y-estado.md` a `docs/04-registro-de-decisiones.md`: inventario, decisiones, trazabilidad y registro de inconsistencias.
+- La autorización vigente del 2026-11-03 (F-17) cubre actualizar únicamente este archivo, `README.md` y `docs/00-indice-y-estado.md` a `docs/04-registro-de-decisiones.md`: registrar el stack completo aprobado, sus responsabilidades, la evolución histórica y las configuraciones pendientes.
 - No modificar los antecedentes de `docs/referencias/`, documentos académicos originales, diagramas PNG, skills, recursos, configuraciones ni otros archivos.
-- No crear código, instalar dependencias, ejecutar migraciones, realizar commits ni push.
+- No crear código, instalar dependencias, ejecutar migraciones, realizar commits, push ni otras operaciones Git de escritura. El cierre local anterior fue una excepción expresamente autorizada y ya ejecutada; no habilita nuevos commits.
 - Registrar las contradicciones como pendientes; no corregir requisitos por suposición ni ampliar automáticamente el alcance funcional.
 - Detenerse después de entregar la actualización documental. Diseño e implementación requieren aprobación posterior.
-- Aprobar documentación, requisitos o tecnologías no autoriza su implementación.
+- Aprobar documentación, requisitos o tecnologías no autoriza su implementación. No modificar el Informe N.º 1 ni sus anexos originales; no comenzar ni redactar el Informe N.º 2.
 
 ## Datos y autonomía del prototipo
 
@@ -32,13 +32,25 @@ Las otras ramas corresponden a prototipos independientes del equipo, según la u
 
 ## Tecnologías seleccionadas
 
-Decisión explícita de la usuaria del 2026-11-03, reiterada en la autorización documental:
+Decisión explícita de la usuaria del 2026-11-03 (F-16), reiterada en F-17:
 
-- Frontend: HTML5 + Alpine.js + JavaScript.
-- Backend: Python + Django.
-- Base de datos: PostgreSQL.
+| Componente | Tecnología aprobada |
+| --- | --- |
+| Frontend | HTML5 + Alpine.js + JavaScript |
+| Backend | Python + Django |
+| API REST | Django REST Framework (DRF) |
+| Comunicación en tiempo real | Django Channels + WebSockets |
+| Servidor ASGI | Daphne |
+| Mensajería y caché | Redis |
+| Base de datos | PostgreSQL |
 
-Django REST Framework, Django Channels, Daphne y Redis son complementos **no aprobados**, pendientes de validación. No seleccionarlos ni instalarlos. Las versiones de software, API REST, WebSockets, polling, PWA/offline, monolito modular, alojamiento y despliegue no quedan aprobados por seleccionar el stack. React, SQLite y las menciones bibliográficas a Node.js no son decisiones vigentes.
+PostgreSQL es la fuente de verdad para la persistencia e integridad de los datos del negocio. Redis es infraestructura auxiliar de mensajería y caché; no constituye el único registro de estados de turnos, recetas o entregas.
+
+Todos estos componentes están aprobados. Las antiguas referencias a DRF, Channels, Daphne y Redis como no aprobados se conservan solo como antecedentes sustituidos por D-12; no describen el estado vigente.
+
+Quedan pendientes versiones y compatibilidad, configuración ASGI y conexiones, estructura de aplicaciones, contratos de API y eventos, autenticación y permisos, esquemas de datos, políticas de caché, recuperación y despliegue. No adoptar configuraciones o arquitectura detallada sin autorización. Un eventual respaldo mediante polling tampoco está decidido.
+
+PWA, funcionamiento sin conexión y sincronización permanecen como requisitos o propuestas por precisar según las fuentes académicas; no se deducen de la selección de componentes. Los dos PNG siguen siendo propuestas técnicas sujetas a validación, aunque reflejen tecnologías seleccionadas. React, SQLite y las menciones bibliográficas a Node.js no son decisiones vigentes.
 
 ## Requisitos y decisiones
 
