@@ -17,6 +17,7 @@ from coreapp.mixins import tiene_rol
 from coreapp.roles import JEFA, TECNICO
 from recetasapp.models import EntregaReceta
 from recetasapp.services import _registrar_entrega_sin_reintento, ConflictoOperacion
+from .sala import registrar_anuncio
 from .cola import bloquear_cola, cerrar_esperas_anteriores, ConflictoCola, solicitar_seleccion
 from .models import (
     ConfiguracionCola, EventoTurno, OcupacionVentanilla, OperacionAtencion,
@@ -42,6 +43,8 @@ def _evento(turno, accion, instante, actor, operacion, ventanilla=None):
     secuencia = (turno.eventos.aggregate(maximo=Max("secuencia"))["maximo"] or 0) + 1
     evento = EventoTurno.objects.create(turno=turno, accion=accion, secuencia=secuencia,
         instante=instante, actor=actor, operacion=operacion, ventanilla=ventanilla)
+    if accion == "rellamado":
+        registrar_anuncio(evento, turno, ventanilla)
     registrar_accion(actor, "turno." + accion, evento)
 
 

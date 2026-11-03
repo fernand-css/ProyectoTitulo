@@ -14,6 +14,7 @@ from django.utils import timezone
 from coreapp.auditoria import registrar_accion
 from coreapp.mixins import tiene_rol
 from coreapp.roles import TECNICO
+from .sala import registrar_anuncio
 from .models import (
     ConfiguracionCola, EstadoColaDiaria, EventoTurno, OcupacionVentanilla,
     OperacionAtencion, PendienteSeleccion, Turno, Ventanilla,
@@ -152,6 +153,7 @@ def _procesar(pendiente_id):
         secuencia = (turno.eventos.aggregate(maximo=Max("secuencia"))["maximo"] or 0) + 1
         evento = EventoTurno.objects.create(turno=turno, secuencia=secuencia, accion="llamado",
             instante=instante, actor=operador, ventanilla=ventanilla, operacion=operacion)
+        registrar_anuncio(evento, turno, ventanilla)
         operacion.resultado = {"turno": turno.pk, "ventanilla": ventanilla.pk, "evento": str(evento.pk)}
         operacion.save(update_fields=["resultado"])
         registrar_accion(operador, "turno.llamado", evento)

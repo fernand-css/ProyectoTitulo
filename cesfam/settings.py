@@ -36,6 +36,8 @@ ALLOWED_HOSTS = [
 ]
 
 INSTALLED_APPS = [
+    "daphne",
+    "channels",
     "django.contrib.admin",
     "django.contrib.auth",
     "django.contrib.contenttypes",
@@ -80,6 +82,17 @@ TEMPLATES = [
 ]
 
 WSGI_APPLICATION = "cesfam.wsgi.application"
+ASGI_APPLICATION = "cesfam.asgi.application"
+CHANNEL_LAYERS = {"default": {"BACKEND": "channels.layers.InMemoryChannelLayer"}}
+
+# Un vigilante por proceso; no se requiere Redis para observar otros procesos.
+SALA_INTERVALO = 0.5
+SALA_LATIDO = 15
+SALA_MAX_CONEXIONES = 20
+SALA_MAX_POR_DIRECCION = 5
+SALA_MAX_MENSAJE = 4096
+DAPHNE_WEBSOCKET_MAX_MESSAGE_SIZE = SALA_MAX_MENSAJE
+DAPHNE_WEBSOCKET_MAX_FRAME_SIZE = SALA_MAX_MENSAJE
 
 # PostgreSQL es la base del proyecto. Solo se usa el ORM de Django, sin SQL crudo.
 # Las pruebas crean test_<DB_NAME>, por lo que el rol necesita el permiso CREATEDB.

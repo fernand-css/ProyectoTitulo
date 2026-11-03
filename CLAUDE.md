@@ -16,7 +16,7 @@ Guía para Claude Code en este repositorio. La fuente de verdad del proyecto es 
 |------|------------|-------|
 | Presentación | PWA con **Alpine.js** | Vistas por perfil: tótem, ventanilla, pantalla de sala de espera, conductor/TENS, panel de la Jefatura y enlace directo del paciente o cuidador. |
 | Lógica de negocio | **Python + Django**, API REST | Encolamiento ponderado, asignación de ventanilla, estimación de espera, vigencia de recetas, orden de visita y notificaciones. |
-| Tiempo real | **WebSocket** | Sincroniza las ventanillas con la pantalla de sala. Librería por definir (el informe no la nombra). |
+| Tiempo real | **WebSocket** | Channels 4.3.2 y Daphne 4.2.3 desde el 06; vigilancia de base entre procesos, sin Redis. El informe exige el transporte pero no fija librería. |
 | Datos | **PostgreSQL** | Cambio posterior a la spec 05: el prototipo ya corre sobre PostgreSQL, como apunta el informe (§7.1). Variables `DB_*` en `.env`; driver `psycopg2-binary`. Usa solo el ORM de Django, sin SQL crudo. Las herramientas `tools/verificar_spec_0X_http.py` siguen usando una SQLite temporal aislada para no tocar la base real. |
 | Sin conexión | **Service Worker** + almacenamiento local | Módulo de reparto; sincronización diferida al recuperar la señal. |
 | Servicios externos | SMS o push web; cartografía | Proveedores por definir. |
@@ -42,7 +42,7 @@ python manage.py test
 python manage.py makemigrations --check --dry-run
 ```
 
-La instalación y las variables están en `README.md`; el árbol y los contratos, en `docs/estructura.md`. Los secretos se leen con `python-dotenv`; `SECRET_KEY` es obligatoria y `DEBUG` es falso por defecto. ASGI y WSGI siguen las plantillas estándar, sin WebSocket todavía.
+La instalación y las variables están en `README.md`; el árbol y los contratos, en `docs/estructura.md`. Los secretos se leen con `python-dotenv`; `SECRET_KEY` es obligatoria y `DEBUG` es falso por defecto. Desde el 06, ASGI atiende HTTP y WebSocket de sala con Channels/Daphne; WSGI conserva HTTP.
 
 ## Reglas obligatorias
 
@@ -111,8 +111,14 @@ Resumen de §3.2 del informe. **Lee los criterios de aceptación completos en `d
 ## Flujo de trabajo
 
 - El desarrollo es spec-driven: cada funcionalidad tiene su carpeta `specs/NN-slug/`, con números de dos dígitos. `spec.md` contiene el contrato funcional y las decisiones; `plan.md`, el diseño técnico y los pasos; `tasks.md`, las tareas y su avance; y `validation.md`, las verificaciones y su evidencia. La definición se trabaja con `/spec` y la implementación con `/spec-impl` (en `.agents/skills/`). Por defecto hay una rama por spec; el acuerdo del spec 01 reemplaza esa rama por un commit del documento aprobado y la implementación sobre `fdaza`.
-- `/spec` y `/spec-impl` viven en `.agents/skills/`: lee su `SKILL.md` y sigue las instrucciones junto con la autorización vigente del equipo. El índice canónico es `specs/README.md`; `specs/00-indice.md` conserva el acceso anterior. Las cuatro plantillas están en `specs/_templates/`. La base implementada se consulta en `specs/01-base-del-proyecto/spec.md`; se conservan las reservas 02 (autenticación), 06 (WebSocket), 11 (sin conexión) y 12 (notificaciones).
+- `/spec` y `/spec-impl` viven en `.agents/skills/`: lee su `SKILL.md` y sigue las instrucciones junto con la autorización vigente del equipo. El índice canónico es `specs/README.md`; `specs/00-indice.md` conserva el acceso anterior. Las cuatro plantillas están en `specs/_templates/`. La base implementada se consulta en `specs/01-base-del-proyecto/spec.md`; el 06 ya tiene código de pantalla/voz y conserva pendientes de aceptación. Quedan las reservas 11 (sin conexión) y 12 (notificaciones).
 - Subagente `django-architect` (`.claude/agents/django-architect.md`): planifica sin escribir código cuando el flujo del agente permita delegar. Respeta las seis apps `*app`, un solo `settings.py`, `auth.User` y las decisiones del spec aprobado.
 - Subagente `django-builder` (`.claude/agents/django-builder.md`): implementa el plan de `django-architect` (modelos, servicios, vistas, plantillas, comandos y pruebas). Las pruebas usan el ejecutor de Django; `pytest-django` no está en el stack.
 - La interfaz, la documentación y los mensajes de commit van en español de Chile.
 - Si una decisión de implementación se aparta del informe, déjala anotada en el spec que la tomó, con su motivo.
+
+## Pantalla de sala — spec 06
+
+El 06 incorpora `AnuncioSala` (migración turnos 0003), registrado dentro del llamado/re-llamado del 05, un anuncio por evento. `/turnos/sala/` y `/turnos/sala/estado/` son públicos de solo lectura, sin datos privados, cookies ni caché. `SalaConsumer` valida origen y limita conexiones; un vigilante por proceso consulta la base cada 0,5 s y conserva repaso de 30 s para ids que confirman tarde. No publicar directamente desde el servicio ni agregar Redis para este prototipo. El panel privado sigue consultando HTTP.
+
+`sala.js` deduplica por jornada, reconecta con respaldo HTTP, usa hora del servidor y voz española con gesto, dos repeticiones, tono y cinco avisos pendientes. `sala.css` reutiliza la paleta y el control de tamaño de texto, sin animaciones. Channels 4.3.2/Daphne 4.2.3 son dependencias de la aplicación; websockets 16.1.1 es opcional, solo para `tools/verificar_spec_06_http.py`. La medición aislada incluye 100 llamados con cuatro puestos, dos pantallas y 670 pacientes: p95 444,12 ms, máximo 536,66 ms (loopback; no dibujado/voz real). El spec conserva Aprobado: navegador/axe bloqueados por el host, hardware, usabilidad y aceptación pendientes. No se migró la base del proyecto ni se incorporan cambios ajenos al commit del 06.

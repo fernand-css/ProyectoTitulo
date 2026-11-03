@@ -218,6 +218,24 @@ En la base elegida para la demostración, aplicar primero las migraciones y prep
 
 Prueba aislada: `python tools/verificar_spec_05_http.py` crea y elimina su SQLite temporal (sin tocar PostgreSQL) y 670 pacientes sintéticos, mide HTTP y recupera un pendiente desde otro proceso. Evidencia y pendientes: [validación del 05](specs/05-cola-ponderada-y-llamado/validation.md). Las pruebas no equivalen a aceptación funcional ni validación de accesibilidad en navegador.
 
+## Pantalla de sala y voz (spec 06)
+
+Después de instalar `requirements.txt`, `python manage.py runserver` sirve HTTP y WebSocket con **Daphne 4.2.3 y Channels 4.3.2**. El punto ASGI es `cesfam.asgi:application`; WSGI conserva HTTP y las herramientas anteriores. Antes de usar el 06 en la base de demostración hay que aplicar `python manage.py migrate`: `turnosapp/0003_anuncio_sala` agrega una tabla sin modificar turnos históricos. Esta implementación solo aplicó migraciones en bases temporales/de pruebas, sin migrar la base del proyecto.
+
+Abre `/turnos/sala/` en el equipo de la sala. Es pública y de solo lectura: muestra números y ventanillas, recientes, espera y hora de Chile, sin identidad ni recetas. Técnico, Q.F. y superusuario tienen «Pantalla de sala» en el menú, que abre otra pestaña. Pulsa **Activar sonido** una vez y usa **Probar sonido** para comprobar el equipo. Cada aviso tiene tono y voz dos veces; si no existe voz española, lo informa y mantiene el tono/aviso visual. El equipo requiere navegador actualizado, altavoces y una voz española instalada; comprobarlos antes de la demostración. El modo quiosco no sustituye esa comprobación ni garantiza reproducción sin gesto.
+
+El canal `/ws/sala/` vigila la base cada 0,5 s, por lo que recibe también lo que emite `procesar_cola --continuo` desde otro proceso. Tiene límites de 20 conexiones por proceso y 5 por dirección, y valida el origen contra `ALLOWED_HOSTS`. El panel privado conserva su consulta cada segundo. Tras tres fallos del canal, la sala consulta `/turnos/sala/estado/` cada segundo hasta recuperarlo; si el servidor no responde, conserva el contenido y advierte que puede estar desactualizado. HTTP público usa `no-store` y no crea cookies. El sonido requiere activación local y no se persiste el estado de pacientes en el navegador.
+
+Verificación aislada (la dependencia `websockets` es solo para esta herramienta, no para servir la aplicación):
+
+```powershell
+python -m pip install websockets==16.1.1
+python tools/verificar_spec_06_http.py
+node --test turnosapp/tests/*.test.cjs
+```
+
+La herramienta crea/elimina SQLite temporal y 670 pacientes/turnos sintéticos; usa un proceso ASGI aparte, dos clientes WebSocket, cuatro ventanillas y sondeo de cuatro paneles privados. Mide 100 llamados y 96 cierres con entrega/selección posterior; informa p50, p95 y máximo, HTTP y servicio del 05. La medición final dio **p95 444,12 ms** hasta recibir en ambas pantallas (máximo 536,66 ms). Es recepción por loopback, sin medir dibujo/voz en navegador ni la red del CESFAM. [Evidencia y pendientes del 06](specs/06-pantalla-sala-y-voz/validation.md): revisión visual/axe bloqueada por el host de Windows, voz real, cinco personas y aceptación pendientes. El spec conserva **Aprobado**, sin declarar aceptación completa.
+
 ## Recursos de Alpine.js
 
 Se distribuye **Alpine.js 3.14.9** en `static/js/alpine.min.js`, descargado del [paquete con versión fija](https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js), siguiendo su [instalación por script](https://alpinejs.dev/essentials/installation). La [licencia MIT original](https://github.com/alpinejs/alpine/blob/v3.14.9/LICENSE.md) se conserva en `static/js/alpine.LICENSE.md`. El navegador carga todos los recursos desde este proyecto.
@@ -233,4 +251,4 @@ El índice central está en [specs/README.md](specs/README.md); [specs/00-indice
 - `tasks.md`: tareas y seguimiento de su ejecución.
 - `validation.md`: verificaciones, resultados y límites de la evidencia.
 
-La base implementada está en [specs/01-base-del-proyecto/spec.md](specs/01-base-del-proyecto/spec.md). La [spec 02 de autenticación, roles y auditoría](specs/02-autenticacion-roles-auditoria/spec.md) tiene código y verificación técnica final completados; revisión visual y cierre pendientes. Las plantillas están en `specs/_templates/`. Se mantienen las reservas 06 para WebSocket, 11 para funcionamiento sin conexión y 12 para notificaciones.
+La base implementada está en [specs/01-base-del-proyecto/spec.md](specs/01-base-del-proyecto/spec.md). La [spec 02 de autenticación, roles y auditoría](specs/02-autenticacion-roles-auditoria/spec.md) tiene código y verificación técnica final completados; revisión visual y cierre pendientes. Las plantillas están en `specs/_templates/`. El 06 incorpora pantalla/voz con WebSocket y conserva los pendientes de aceptación de su validación. Se mantienen las reservas 11 para funcionamiento sin conexión y 12 para notificaciones.

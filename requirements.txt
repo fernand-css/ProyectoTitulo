@@ -2,3 +2,5 @@ Django>=5.2,<5.3
 python-dotenv
 openpyxl>=3.1,<4
 psycopg2-binary>=2.9,<3
+channels==4.3.2
+daphne==4.2.3

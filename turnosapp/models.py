@@ -204,6 +204,26 @@ class EventoTurno(models.Model):
         ]
 
 
+class AnuncioSala(models.Model):
+    """Copia pública e inmutable del llamado; no contiene identidad del paciente."""
+
+    id = models.BigAutoField(primary_key=True)
+    fecha = models.DateField()
+    numero = models.PositiveIntegerField()
+    ventanilla_numero = models.PositiveIntegerField()
+    accion = models.CharField(max_length=10, choices=[("llamado", "Llamado"), ("rellamado", "Re-llamado")])
+    instante = models.DateTimeField()
+    evento = models.OneToOneField(EventoTurno, on_delete=models.PROTECT, related_name="anuncio_sala")
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(condition=Q(numero__gte=1), name="sala_numero_positivo"),
+            models.CheckConstraint(condition=Q(ventanilla_numero__gte=1), name="sala_ventanilla_positiva"),
+            models.CheckConstraint(condition=Q(accion__in=["llamado", "rellamado"]), name="sala_accion_valida"),
+        ]
+        indexes = [models.Index(fields=["fecha", "id"], name="sala_fecha_id_idx")]
+
+
 class CierreAtencion(models.Model):
     turno = models.OneToOneField(Turno, on_delete=models.PROTECT, related_name="cierre_atencion")
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="cierres_atencion")

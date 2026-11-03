@@ -6,6 +6,8 @@ from . import vistas_operacion as personal
 app_name = "turnosapp"
 
 urlpatterns = [
+    path("sala/", views.sala, name="sala"),
+    path("sala/estado/", views.sala_estado, name="sala_estado"),
     path("panel/", personal.PanelView.as_view(), name="panel"),
     path("estado/", personal.EstadoView.as_view(), name="estado"),
     path("gestion/", personal.GestionView.as_view(), name="gestion"),

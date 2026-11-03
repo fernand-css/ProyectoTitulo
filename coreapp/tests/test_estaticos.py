@@ -22,6 +22,38 @@ def contraste(color_a, color_b):
 
 
 class EstaticosTests(SimpleTestCase):
+    def test_sala_usa_paleta_con_contraste_y_recursos_locales(self):
+        base = (settings.BASE_DIR / "static/css/base.css").read_text(encoding="utf-8")
+        sala = (settings.BASE_DIR / "static/css/sala.css").read_text(encoding="utf-8")
+        variables = dict(re.findall(r"--([a-z-]+):\s*(#[0-9a-fA-F]{6})\s*;", base))
+        self.assertNotRegex(sala, r"#[0-9a-fA-F]{3,8}\b|\b(?:rgb|rgba|hsl|hsla)\(")
+        definidas = set(re.findall(r"(--[a-z0-9-]+)\s*:", base))
+        self.assertFalse(set(re.findall(r"var\((--[a-z0-9-]+)", sala)) - definidas)
+        for texto, fondo in (("panel-texto", "panel-fondo"), ("suave-texto", "suave-fondo"),
+            ("trigo-texto", "trigo-fondo"), ("secundario-texto", "panel-fondo"),
+            ("accion-texto", "accion-fondo"), ("hover-texto", "hover-fondo")):
+            with self.subTest(texto=texto, fondo=fondo):
+                self.assertGreaterEqual(contraste(variables[texto], variables[fondo]), 4.5)
+        for fondo in ("panel-fondo", "suave-fondo", "trigo-fondo"):
+            self.assertGreaterEqual(contraste(variables["borde"], variables[fondo]), 3)
+            self.assertGreaterEqual(contraste(variables["tinta"], variables[fondo]), 3)
+        plantilla = (settings.BASE_DIR / "templates/turnos/sala.html").read_text(encoding="utf-8")
+        for recurso in ("css/sala.css", "js/sala.js"):
+            self.assertTrue(finders.find(recurso))
+            self.assertIn(recurso, plantilla)
+
+    def test_sala_respeta_movimiento_reducido_foco_zoom_y_elementos_ocultos(self):
+        sala = (settings.BASE_DIR / "static/css/sala.css").read_text(encoding="utf-8")
+        self.assertIn("prefers-reduced-motion: reduce", sala)
+        self.assertIn("animation: none !important", sala)
+        self.assertNotIn("@keyframes", sala)
+        self.assertIn(".boton:focus-visible", sala)
+        self.assertIn("outline: 3px solid", sala)
+        self.assertIn("[hidden] { display: none !important; }", sala)
+        self.assertIn("font-size: clamp(5rem", sala)
+        self.assertNotRegex(sala, r"(?:font-size|height|min-height|max-height):\s*\d+px")
+        self.assertIn("max-width: 30rem", sala)
+
     def test_todas_las_parejas_de_color_cumplen_contraste_aa(self):
         css = (settings.BASE_DIR / "static/css/base.css").read_text(encoding="utf-8")
         variables = dict(re.findall(r"--([a-z-]+):\s*(#[0-9a-fA-F]{6})\s*;", css))

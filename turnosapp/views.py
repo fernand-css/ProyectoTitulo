@@ -14,9 +14,23 @@ from django.views.decorators.http import require_http_methods, require_POST
 
 from .forms import EmisionTurnoForm
 from .services import emitir_turno
+from .sala import estado_sala
 
 CLAVE = "turnos_totem"
 logger = logging.getLogger(__name__)
+
+
+@never_cache
+@require_http_methods(["GET", "HEAD"])
+def sala(request):
+    estado = estado_sala()
+    return render(request, "turnos/sala.html", {"estado": estado})
+
+
+@never_cache
+@require_http_methods(["GET", "HEAD"])
+def sala_estado(request):
+    return JsonResponse(estado_sala())
 
 
 def _nuevo(request):
