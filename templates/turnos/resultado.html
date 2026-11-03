@@ -1,0 +1,20 @@
+{% extends 'components/Layout/base_publica.html' %}
+{% load static %}
+{% block titulo %}Tu número · Farmacia{% endblock %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/turnos.css' %}">
+<noscript><meta http-equiv="refresh" content="30;url={% url 'turnosapp:totem' %}"></noscript>{% endblock %}
+{% block contenido %}
+<section class="totem totem-resultado" data-totem data-resultado data-segundos="{{ segundos }}" data-inicio="{% url 'turnosapp:totem' %}" data-continuar="{% url 'turnosapp:continuar' %}">
+<h1>Tu número de atención</h1>
+<div role="status"><p class="totem-numero">{{ resultado.numero }}</p>
+<p>{% if resultado.recuperado %}Este es tu turno registrado.{% else %}Tu llegada quedó registrada.{% endif %}</p></div>
+<p>Espera el llamado de tu número.</p>
+<p>{{ resultado.fecha|date:'d/m/Y' }} · {{ resultado.creado_en|date:'H:i' }}</p>
+<button class="boton boton-bloque" type="button" data-imprimir hidden>Imprimir número</button>
+<p>Si el papel no sale, puedes volver a imprimir el mismo número.</p>
+<noscript><p>Para imprimir tu número, usa la opción Imprimir de tu navegador.</p></noscript>
+{% include 'turnos/tiempo.html' %}
+<form method="post" action="{% url 'turnosapp:finalizar' %}" data-finalizar>{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ operacion }}"><button class="boton boton-bloque" type="submit">Nueva atención</button></form>
+</section>
+{% endblock %}
+{% block scripts %}{% include 'turnos/comprobante.html' %}<script defer src="{% static 'js/totem.js' %}"></script>{% endblock %}

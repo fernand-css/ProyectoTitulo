@@ -1,0 +1,27 @@
+{% extends 'components/Layout/base_publica.html' %}
+{% load static %}
+{% block titulo %}Obtén tu número · Farmacia{% endblock %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/turnos.css' %}">
+<noscript><meta http-equiv="refresh" content="120;url={% url 'turnosapp:totem' %}"></noscript>{% endblock %}
+{% block contenido %}
+<section class="totem" data-totem data-segundos="{{ segundos }}" data-inicio="{% url 'turnosapp:totem' %}" data-continuar="{% url 'turnosapp:continuar' %}">
+<h1>Obtén tu número</h1>
+<p class="acceso-intro">Ingresa tu RUT para registrar tu llegada a Farmacia.</p>
+<div id="rut-error" {% if mensaje %}class="message message-error" role="alert"{% endif %}>{{ mensaje }}</div>
+<form method="post" action="{% url 'turnosapp:totem' %}" data-emision>
+{% csrf_token %}{{ form.operacion_id }}
+<div class="campo"><label for="{{ form.rut.id_for_label }}">Tu RUT</label>
+{{ form.rut }}<p id="rut-ayuda">Incluye el dígito después del guion. Si termina en K, usa la tecla K.</p></div>
+<div class="totem-teclado" aria-label="Teclado para ingresar RUT" hidden>
+{% for tecla in teclas %}<button type="button" data-tecla="{{ tecla }}">{{ tecla }}</button>{% endfor %}
+<button type="button" data-borrar aria-label="Borrar último carácter">Borrar</button>
+<button type="button" data-limpiar class="totem-limpiar">Limpiar RUT</button>
+</div>
+<button class="boton boton-bloque" type="submit">Obtener número</button>
+</form>
+<p>Si necesitas atención preferencial por otra condición, consulta con el personal.</p>
+{% include 'turnos/tiempo.html' %}
+<form method="post" action="{% url 'turnosapp:finalizar' %}" data-finalizar>{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ operacion }}"><button class="boton boton-secundario" type="submit">Nueva atención</button></form>
+</section>
+{% endblock %}
+{% block scripts %}<script defer src="{% static 'js/totem.js' %}"></script>{% endblock %}

@@ -1,5 +1,19 @@
 # Estructura del proyecto
 
+## Turnos — spec 04
+
+`turnosapp` incorpora `ContadorTurnosDiario`, `Turno` y `TurnoReceta`, con migración `0001_initial` dependiente de recetas 0002. Unicidad diaria del número, activo por paciente/fecha y UUID de operación; relaciones protegidas. `services.emitir_turno` reserva el correlativo con UPDATE condicional, reintenta colisiones y confirma vínculos/auditoría en la misma transacción. Reutiliza `evaluar_elegibilidad`; no consume ni reserva entregas. Recuperar conserva selección y categoría originales.
+
+`forms.py` valida RUT y UUID; las vistas `/turnos/totem/`, `/turnos/totem/finalizar/` y `/turnos/totem/continuar/` aplican contexto temporal, CSRF y `no-store`. El contexto guarda UUID, vencimiento, huella HMAC y señal de resultado, sin RUT en claro ni ficha. Solo las claves del tótem se limpian, preservando una sesión del personal. Las entradas se marcan sensibles para trazas y los fallos públicos no muestran excepciones.
+
+`templates/turnos/` contiene entrada, resultado, aviso de tiempo y comprobante. `static/js/totem.js` controla teclado, limpieza, ampliación e impresión sin almacenamiento local. `static/css/turnos.css` reutiliza la paleta y prepara un comprobante de 72 mm útiles en rollo nominal de 80 mm; la altura y papel los define el controlador, sin altura fija en CSS. Solo se imprime el fragmento mínimo, sin tipo de atención ni identidad. El cierre del diálogo no confirma papel. No hay endpoint público para enumerar turnos o recetas.
+
+Pruebas: `turnosapp/tests/` cubre esquema, migración, servicios, cinco escenarios concurrentes, HTTP/CSRF y estructura semántica. `impresion.test.cjs` usa Node para probar el JavaScript con diálogo simulado. `tools/verificar_spec_04_http.py` aplica 24 migraciones en SQLite temporal, genera 670 pacientes sintéticos y valida HTTP real y p95 por escenario. No usa la base local.
+
+Pendientes de aceptación: navegador/móvil/teclado, vista previa, auditoría WCAG A/AA, impresora física y cinco usuarios representativos. El host de navegador y el control nativo no estuvieron disponibles durante la validación del 04. El spec conserva Aprobado; llamados, ventanillas, urgencia, discapacidad y logística real siguen fuera de alcance.
+
+## Base y módulos anteriores
+
 El spec 01 crea esta base. Se usa un único `cesfam/settings.py`; `asgi.py` y `wsgi.py` conservan las plantillas de Django. El usuario es `auth.User`, sin `AUTH_USER_MODEL` propio.
 
 ```text

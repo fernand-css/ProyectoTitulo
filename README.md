@@ -2,7 +2,7 @@
 
 PWA de la Unidad de Farmacia, con autenticación del personal, perfiles, correo verificado, recuperación de claves, administración de cuentas y auditoría. Usa Django 5.2, SQLite y Alpine.js local. El prototipo trabaja exclusivamente con datos sintéticos; la revisión visual y aceptación funcional de la spec 02 siguen pendientes.
 
-El spec 01 incorpora estructura, auditoría, utilidades, layouts PWA y login mínimo. El spec 03 añade padrón sintético, importación CSV/Excel y control de vigencia y entregas de recetas. Turnos, reparto e indicadores conservan su esqueleto para los siguientes specs.
+El spec 01 incorpora estructura, auditoría, utilidades, layouts PWA y login mínimo. El spec 03 añade padrón sintético, importación CSV/Excel y control de vigencia y entregas de recetas. El spec 04 incorpora emisión en tótem y comprobante térmico; reparto e indicadores conservan su esqueleto.
 
 ## Instalación local
 
@@ -86,7 +86,8 @@ python manage.py test usuariosapp.tests.test_login
 | `/recetas/pacientes/` | Padrón privado y consulta de recetas para Q.F., Técnico y superusuario. |
 | `/recetas/importaciones/` | Bitácora y carga CSV/XLSX para Q.F. y superusuario. |
 | `/recetas/nueva/` | Creación de receta simulada para Q.F. y superusuario. |
-| `/turnos/`, `/entregas/`, `/indicadores/` | Prefijos montados, todavía sin vistas. |
+| `/turnos/totem/` | Emisión pública por RUT y recuperación del turno activo. |
+| `/entregas/`, `/indicadores/` | Prefijos montados, todavía sin vistas. |
 
 El manifest declara iconos PNG de 192 y 512 px. El service worker se registra, pero no intercepta solicitudes ni guarda datos en caché. La instalación depende del navegador y requiere un contexto seguro: `localhost` sirve para desarrollo. El funcionamiento sin conexión se implementará en el spec 11.
 
@@ -187,7 +188,15 @@ Se registran login exitoso/fallido y logout mediante señales conectadas una vez
 
 Si falla auditar un login, la sesión preparada se elimina y la operación falla. Si falla auditar un logout, el cierre continúa y se emite un aviso técnico fijo, sin detalles privados. Perfil, correo, claves, panel y Admin se auditan en sus transacciones, incluidas las relaciones de grupos y permisos.
 
-## Alpine.js y estructura
+## Tótem y comprobante térmico (spec 04)
+
+Abrir `/turnos/totem/`. La base debe tener el padrón y recetas sintéticas del spec 03. El tótem valida RUT y recetas, reúne todas las elegibles en un turno y no descuenta entregas. Repetir el RUT recupera su turno activo del día. Postrados y mayores de 80 reciben orientación para consultar su despacho; no hay consulta real de logística. Discapacidad y urgencia no se clasifican en este módulo.
+
+Para imprimir, instalar la térmica en el equipo, elegir papel de 80 mm en su controlador, desactivar encabezados/pies del navegador y usar «Imprimir número». El comprobante prepara un área útil de 72 mm con márgenes de 4 mm y altura libre. Cancelar o reimprimir conserva el mismo número; el sistema no certifica salida física ni detecta papel. La compatibilidad y los márgenes deben verificarse con la impresora disponible; todavía no hay prueba física.
+
+Validación aislada: `python tools/verificar_spec_04_http.py` crea 670 pacientes sintéticos y SQLite temporal, recorre HTTP/CSRF y mide 100 solicitudes por escenario, y al cerrar elimina su base. No modifica la SQLite local. `node --test turnosapp/tests/impresion.test.cjs` verifica el control del diálogo simulado. Ver [evidencia y límites](specs/04-emision-de-turnos/validation.md): navegador, WCAG integral, papel y usabilidad pendientes; no declarar el spec completamente aceptado.
+
+## Recursos de Alpine.js
 
 Se distribuye **Alpine.js 3.14.9** en `static/js/alpine.min.js`, descargado del [paquete con versión fija](https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js), siguiendo su [instalación por script](https://alpinejs.dev/essentials/installation). La [licencia MIT original](https://github.com/alpinejs/alpine/blob/v3.14.9/LICENSE.md) se conserva en `static/js/alpine.LICENSE.md`. El navegador carga todos los recursos desde este proyecto.
 

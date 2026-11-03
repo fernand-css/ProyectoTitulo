@@ -1,0 +1,7 @@
+{% comment %}Fragmento del resultado autorizado; no tiene endpoint público propio.{% endcomment %}
+<section class="comprobante" aria-label="Comprobante de turno">
+  <h2>Tu número de atención</h2>
+  <p class="comprobante-numero">{{ resultado.numero }}</p>
+  <p>{{ resultado.fecha|date:'d/m/Y' }}<br>{{ resultado.creado_en|date:'H:i' }}</p>
+  <p>Espera el llamado de tu número.</p>
+</section>

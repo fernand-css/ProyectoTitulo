@@ -1,3 +1,1 @@
-from django.contrib import admin
-
-# Register your models here.
+"""Turnos no se registran en Admin: toda escritura requiere servicios auditados."""

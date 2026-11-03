@@ -24,7 +24,7 @@ Guía para Claude Code en este repositorio. La fuente de verdad del proyecto es 
 
 ## Base implementada y comandos
 
-El proyecto es `cesfam`, con un único `cesfam/settings.py`, `auth.User` de Django y seis apps: `coreapp`, `usuariosapp`, `recetasapp`, `turnosapp`, `entregasapp` e `indicadoresapp`. Turnos, entregas e indicadores conservan el esqueleto y sus rutas vacías hasta su spec.
+El proyecto es `cesfam`, con un único `cesfam/settings.py`, `auth.User` de Django y seis apps: `coreapp`, `usuariosapp`, `recetasapp`, `turnosapp`, `entregasapp` e `indicadoresapp`. Entregas e indicadores conservan el esqueleto y sus rutas vacías hasta su spec. El 04 incorpora tótem público en `/turnos/totem/`, sin llamados ni ventanillas.
 
 `coreapp` centraliza roles, `RolRequeridoMixin`, auditoría, contexto, filtros y utilidades RUT. `usuariosapp` usa `LoginView` y `LogoutView`. La presentación comparte `templates/components/Layout/base.html`, su variante pública y estáticos locales. La lógica futura de negocio va en `<app>/services.py`.
 
@@ -45,6 +45,8 @@ python manage.py makemigrations --check --dry-run
 La instalación y las variables están en `README.md`; el árbol y los contratos, en `docs/estructura.md`. Los secretos se leen con `python-dotenv`; `SECRET_KEY` es obligatoria y `DEBUG` es falso por defecto. ASGI y WSGI siguen las plantillas estándar, sin WebSocket todavía.
 
 ## Reglas obligatorias
+
+El spec 04 implementa emisión pública en `turnosapp`, correlativo compartido por fecha, selección de todas las recetas elegibles sin descontar entregas, recuperación idempotente y comprobante térmico de 80 mm con diálogo. No agrega discapacidad al padrón; clasifica por edad/crónico, bloquea postrados y mayores de 80 con orientación al personal. La sesión del tótem guarda UUID/huella HMAC/vencimiento, sin identidad; CSRF y `no-store`. El servicio usa UPDATE condicional y restricciones, con auditoría nula para autoservicio y rollback; Admin no registra sus modelos. La herramienta HTTP del 04 usa SQLite temporal con 670 pacientes y 24 migraciones. Navegador/axe/papel/usabilidad pendientes por host indisponible: no marcar Implementado ni aceptación completa. Se trabaja en `fdaza`, sin rama nueva y un único commit al cierre técnico, manteniendo cambios ajenos del 01/02/03.
 
 La spec 03 incorpora `Paciente`, `Receta`, `EntregaReceta`, `ImportacionPadron` y `ResultadoFilaImportacion` en `recetasapp`, dos migraciones y servicios auditados. Q.F. importa CSV/XLSX y crea/renueva; Técnico consulta/confirma entregas. El contador se reserva con UPDATE condicional, UUID idempotente, restricciones y reintentos SQLite. La renovación crea otra receta; importación no altera fechas/cupo tras entregar. `importacion.py` aplica atomicidad por fila y reconstruye conteos desde sus resultados; archivos no se conservan. No hay escritura directa en Admin. `generar_padron_demo` produce 670 pacientes sintéticos sin tocar la base. `openpyxl` es dependencia para XLSX. Regresión: 278 pruebas; `tools/verificar_spec_03_http.py` valida HTTP real, 23 migraciones y padrón de 670, sin usar la base local. Las pantallas del 03 tienen la identidad «libreta de control» (`recetasapp/presentacion.py`, `static/css/recetas.css`; ver `docs/estructura.md`) y su revisión visual/móvil/axe se hizo el 2-11-2026; aceptación funcional, navegación manual por teclado y prueba de usabilidad pendientes: no declarar cumplido todo RNF-04. Se implementó en `fdaza` por instrucción explícita, sin rama nueva; el cambio previo del spec 02 no pertenece a su commit.
 
