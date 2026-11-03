@@ -1,6 +1,6 @@
 # SPEC 04 — Emisión de turnos
 
-> **Estado:** Aprobado
+> **Estado:** Implementado
 > **Depende de:** [SPEC 01 — Base del proyecto](../01-base-del-proyecto/spec.md), [SPEC 02 — Autenticación, roles y auditoría](../02-autenticacion-roles-auditoria/spec.md) y [SPEC 03 — Padrón y recetas](../03-padron-y-recetas/spec.md)
 > **Fecha:** 2026-11-02
 > **Objetivo:** Permitir que el paciente ingrese su RUT en el tótem y obtenga un único turno presencial diario activo para sus recetas elegibles, con número en pantalla y comprobante para impresora térmica.

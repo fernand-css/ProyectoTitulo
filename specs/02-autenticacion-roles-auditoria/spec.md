@@ -1,6 +1,6 @@
 # SPEC 02 — Autenticación, roles y auditoría
 
-> **Estado:** Aprobado
+> **Estado:** Implementado
 > **Depende de:** [SPEC 01 — Base del proyecto](../01-base-del-proyecto/spec.md)
 > **Fecha:** 2026-11-01
 > **Objetivo:** Permitir el acceso del personal según su rol, la recuperación y edición segura de su cuenta y la administración de usuarios por la Q.F., dejando registro de sus operaciones.

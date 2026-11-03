@@ -6,6 +6,14 @@ Entorno ejecutado: Windows, Python 3.13.15 del venv, Django 5.2.18 y SQLite temp
 
 ## Matriz inicial de comprobaciones previstas
 
+### Revisión de pendientes — 2026-11-03
+
+Se revisó el rendimiento y se repitió `tools/verificar_spec_05_http.py`: **aprobado**, con 670 pacientes sintéticos, cuatro ventanillas y 100 muestras por operación. p95 de emisión **52,37 ms**, estado privado **42,68 ms** y cierre con entrega **314,02 ms**; las tres operaciones quedan por debajo de 2 s en la carga secuencial local medida. Los tres escenarios HTTP concurrentes y la recuperación del pendiente en un proceso nuevo también pasaron. Servidor cerrado y SQLite temporal eliminada; la base local no se modificó. El intérprete requirió ejecución autorizada fuera del sandbox tras un rechazo de acceso.
+
+**Pendiente de rendimiento:** medir p95 durante carga concurrente sostenida de varias ventanillas y tótem. La herramienta actual mide latencia secuencial y comprueba integridad concurrente por separado; por ello, ni la evidencia anterior ni esta repetición completan ese requisito de RNF-05. También falta la medición de la experiencia en Edge; estos tiempos HTTP no incluyen renderizado del navegador.
+
+Se intentó usar Edge por petición del usuario. `cua.getBrowser({id: "edge"})` devolvió «The browser access host is unavailable» y `cua.listWindows()` devolvió «Computer Use native pipe is unavailable», con error de archivo no encontrado (os error 2). No fue posible acceder al navegador ni realizar acciones en su ventana. Quedan pendientes Edge, axe, teclado, zoom, móvil, usabilidad con cinco personas y aceptación funcional. Se conserva el estado Aprobado.
+
 La tabla conserva la planificación inicial. Sus resultados actuales están en las evidencias de T-05-01 a T-05-06: RF-05-01 a RF-05-12 con comprobaciones automatizadas aprobadas; RNF-02 con pruebas concurrentes y RNF-05 con medición local aprobada. RNF-04 y aceptación siguen pendientes. No interpretar «No ejecutado» de esta tabla histórica como el resultado final.
 
 | RF | Prueba prevista | Esperado | Obtenido | Estado |

@@ -1,6 +1,6 @@
 # SPEC 03 — Padrón y recetas
 
-> **Estado:** Aprobado
+> **Estado:** Implementado
 > **Depende de:** [SPEC 01 — Base del proyecto](../01-base-del-proyecto/spec.md) y [SPEC 02 — Autenticación, roles y auditoría](../02-autenticacion-roles-auditoria/spec.md)
 > **Fecha:** 2026-11-01
 > **Objetivo:** Permitir a la Q.F. importar el padrón sintético y sus recetas vigentes y crear recetas simuladas, y al Técnico consultar su vigencia y registrar las entregas del ciclo conservando el historial.
