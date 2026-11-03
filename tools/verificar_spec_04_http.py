@@ -34,7 +34,7 @@ from django.conf import settings
 
 def main():
     with tempfile.TemporaryDirectory(prefix="cesfam-spec04-") as temporal:
-        settings.DATABASES["default"]["NAME"] = str(Path(temporal) / "qa.sqlite3")
+        settings.DATABASES["default"] = {"ENGINE": "django.db.backends.sqlite3", "NAME": str(Path(temporal) / "qa.sqlite3")}
         settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
         import django
         django.setup()

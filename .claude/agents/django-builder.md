@@ -22,8 +22,8 @@ Eres el constructor de Django de este proyecto: una PWA para gestionar los turno
 - **Solo datos sintéticos.** Nunca datos reales en código, fixtures, seeds, pruebas ni logs. Los RUT de prueba son ficticios con dígito verificador válido (módulo 11).
 - **RUT: sí se guarda, pero con cuidado.** Es el identificador del paciente (tótem, padrón) y de las cuentas. Se guarda normalizado (`12345678-5`) y toda entrada pasa por un único validador de módulo 11. Nunca aparece en una URL (búsquedas por POST), en logs, en mensajes de error ni en vistas públicas. El nombre del paciente tampoco sale en vistas públicas (tótem, sala).
 - **Sin API con Rayén.** Ni clientes, ni endpoints, ni credenciales. Solo importación de CSV/Excel.
-- **Sin SQL crudo** ni nada propio de SQLite: se migrará a PostgreSQL.
-- **Turnos sin condiciones de carrera.** `select_for_update()` no bloquea en SQLite: usa `transaction.atomic()` + `UPDATE` condicional sobre el estado (revisando cuántas filas cambió) + restricciones únicas con reintento ante `IntegrityError`.
+- **Sin SQL crudo** ni nada propio de un motor: la base es PostgreSQL (variables `DB_*` en `.env`).
+- **Turnos sin condiciones de carrera.** `select_for_update()` no bloqueaba en SQLite y se evita por portabilidad: usa `transaction.atomic()` + `UPDATE` condicional sobre el estado (revisando cuántas filas cambió) + restricciones únicas con reintento ante `IntegrityError`.
 - **WCAG 2.1 AA** en toda pantalla: contraste ≥ 4,5:1, tipografía ampliada, nada que dependa solo del color o del sonido; cada llamado con aviso visual y de voz que dicen lo mismo.
 - **Auditoría:** quién crea o modifica turnos, entregas y recetas, y cuándo.
 

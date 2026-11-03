@@ -93,7 +93,7 @@ El índice central de funcionalidades es [specs/README.md](../specs/README.md); 
 | `README.md`, este archivo, `verificacion-spec-01.md`, `specs/README.md`, `specs/00-indice.md` | 01 y organización documental | Instalación, arquitectura, evidencia y mapa de specs. |
 | `docs/Informe.md`, guías y skills | Anteriores al 01 | Fuentes del proyecto; el 01 alinea las guías con el árbol acordado. |
 
-`venv/`, `.env`, `db.sqlite3`, `media/` y `staticfiles/` se generan localmente y no se versionan.
+`venv/`, `.env`, `db.sqlite3` (base antigua), `media/` y `staticfiles/` se generan localmente y no se versionan.
 
 ## Modelo–Vista–Controlador en Django
 

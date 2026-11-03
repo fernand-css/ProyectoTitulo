@@ -41,7 +41,7 @@ En Django el patrón se llama MTV. Aquí se corresponde así con MVC, y los spec
 
 **Dentro:**
 
-- Proyecto `cesfam/` con un único `settings.py`: `es-cl`, `America/Santiago`, SQLite, secretos desde `.env` con `python-dotenv`, `asgi.py` y `wsgi.py` tal como los genera Django.
+- Proyecto `cesfam/` con un único `settings.py`: `es-cl`, `America/Santiago`, SQLite (reemplazada después por PostgreSQL, ver README), secretos desde `.env` con `python-dotenv`, `asgi.py` y `wsgi.py` tal como los genera Django.
 - Seis apps registradas: `coreapp`, `usuariosapp`, `recetasapp`, `turnosapp`, `entregasapp`, `indicadoresapp`. Solo `coreapp` y `usuariosapp` llevan contenido; las otras cuatro quedan vacías, con su `urls.py` montado.
 - `coreapp` con contenido real y probado: `roles.py`, `mixins.py`, `models.py` (`ModeloAuditado` y `RegistroAuditoria`), `auditoria.py`, `context_processors.py`, `templatetags/core_tags.py`, `views.py` (inicio, `/sw.js`, `/salud/`) y `utils/` (`rut.py`, `sinteticos.py`).
 - Login mínimo de Django en `usuariosapp` (entrar y salir), para poder recorrer el esqueleto con una cuenta de `createsuperuser`.

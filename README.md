@@ -1,6 +1,6 @@
 # Farmacia · CESFAM San Nicolás
 
-PWA de la Unidad de Farmacia, con autenticación del personal, perfiles, correo verificado, recuperación de claves, administración de cuentas y auditoría. Usa Django 5.2, SQLite y Alpine.js local. El prototipo trabaja exclusivamente con datos sintéticos; la revisión visual y aceptación funcional de la spec 02 siguen pendientes.
+PWA de la Unidad de Farmacia, con autenticación del personal, perfiles, correo verificado, recuperación de claves, administración de cuentas y auditoría. Usa Django 5.2, PostgreSQL y Alpine.js local. El prototipo trabaja exclusivamente con datos sintéticos; la revisión visual y aceptación funcional de la spec 02 siguen pendientes.
 
 El spec 01 incorpora estructura, auditoría, utilidades, layouts PWA y login mínimo. El spec 03 añade padrón sintético, importación CSV/Excel y control de vigencia y entregas de recetas. El spec 04 incorpora emisión en tótem y comprobante térmico; reparto e indicadores conservan su esqueleto.
 
@@ -17,6 +17,17 @@ python -c "import secrets; print(secrets.token_urlsafe(64))"
 ```
 
 Copia la clave generada en `SECRET_KEY` dentro de `.env`. Para desarrollo local, conserva `DEBUG=True` y los hosts de `.env.example`. `.env` y la base local están excluidos de Git.
+
+### Base de datos (PostgreSQL)
+
+Requiere un servidor PostgreSQL accesible. Crea un rol y una base vacía (la contraseña es un ejemplo; elige la tuya) y completa las variables `DB_*` de `.env`:
+
+```sql
+CREATE ROLE cesfam LOGIN PASSWORD 'cambiar-esta-clave' CREATEDB;
+CREATE DATABASE cesfam OWNER cesfam ENCODING 'UTF8';
+```
+
+`CREATEDB` es necesario porque `python manage.py test` crea y elimina la base `test_<DB_NAME>`. Si falta `DB_NAME`, Django no arranca. Con `DB_HOST` o `DB_PORT` vacíos se usan `localhost` y `5432`. El controlador es `psycopg2-binary`, ya incluido en `requirements.txt`.
 
 Si Python no está en el PATH, usa la ruta de tu instalación para crear el venv; en el equipo donde se verificó el proyecto es `C:\Users\HP\AppData\Local\Programs\Python\Python313\python.exe`. También puedes ejecutar todos los comandos con `.\venv\Scripts\python.exe` sin activar el entorno.
 
@@ -37,6 +48,9 @@ Las variables del proceso prevalecen sobre `.env`.
 | Variable | Uso y valor por defecto |
 |---|---|
 | `SECRET_KEY` | Obligatoria; una clave local aleatoria. Una clave ausente, vacía o de solo espacios impide arrancar. |
+| `DB_NAME` | Obligatoria; nombre de la base PostgreSQL. |
+| `DB_USER`, `DB_PASSWORD` | Credenciales del rol de PostgreSQL; vacías por defecto. |
+| `DB_HOST`, `DB_PORT` | `localhost` y `5432`. |
 | `DEBUG` | `False`; con `True` se usa correo a consola y cookies para desarrollo HTTP local. |
 | `ALLOWED_HOSTS` | Hosts separados por comas; lista vacía por defecto. |
 | `EMAIL_HOST`, `EMAIL_PORT` | SMTP fuera de desarrollo; `localhost` y `587`. |
@@ -61,7 +75,7 @@ La comprobación de servidor real se puede repetir con:
 python tools/verificar_spec_02_http.py
 ```
 
-Esta herramienta crea una base temporal nueva, aplica las migraciones, genera credenciales sintéticas y recorre los flujos sobre un servidor WSGI en localhost con cookies/CSRF reales. Usa correo en memoria y cierra/elimina su entorno temporal; no modifica `db.sqlite3`. La suite final tiene 185 pruebas aprobadas y la herramienta verificó 21 migraciones desde cero. Evidencia y límites en [validation.md de la spec 02](specs/02-autenticacion-roles-auditoria/validation.md).
+Esta herramienta crea una base SQLite temporal nueva (nunca se conecta a PostgreSQL), aplica las migraciones, genera credenciales sintéticas y recorre los flujos sobre un servidor WSGI en localhost con cookies/CSRF reales. Usa correo en memoria y cierra/elimina su entorno temporal; no modifica la base PostgreSQL del proyecto. La suite final tiene 185 pruebas aprobadas y la herramienta verificó 21 migraciones desde cero. Evidencia y límites en [validation.md de la spec 02](specs/02-autenticacion-roles-auditoria/validation.md).
 
 Se usa el ejecutor de Django, con una base temporal independiente. Las pruebas cubren RUT, datos reproducibles, auditoría, roles, configuración, filtros, renderizado y accesibilidad estructural, contraste WCAG, manifest e iconos, salud, páginas de error, login, redirecciones y CSRF.
 
@@ -124,7 +138,7 @@ python tools/verificar_spec_03_http.py
 python tools/verificar_spec_03_http.py --preview
 ```
 
-La herramienta usa otra SQLite temporal, migraciones desde cero, credenciales efímeras y HTTP real con CSRF. Comprueba 670 pacientes en ambos formatos, repetición, renovación, entrega idempotente, historial y permisos; mide 40 consultas de detalle. `--preview` sirve en localhost doce copias HTML sintéticas de solo lectura para revisión visual; Ctrl+C cierra el servidor. No modifica `db.sqlite3`. Evidencia: [validación del spec 03](specs/03-padron-y-recetas/validation.md). Regresión actual: 238 pruebas aprobadas; revisión visual/móvil, axe del módulo y aceptación del usuario pendientes por acceso al navegador.
+La herramienta usa otra SQLite temporal, migraciones desde cero, credenciales efímeras y HTTP real con CSRF. Comprueba 670 pacientes en ambos formatos, repetición, renovación, entrega idempotente, historial y permisos; mide 40 consultas de detalle. `--preview` sirve en localhost doce copias HTML sintéticas de solo lectura para revisión visual; Ctrl+C cierra el servidor. No modifica la base PostgreSQL del proyecto. Evidencia: [validación del spec 03](specs/03-padron-y-recetas/validation.md). Regresión actual: 238 pruebas aprobadas; revisión visual/móvil, axe del módulo y aceptación del usuario pendientes por acceso al navegador.
 
 ## Convenciones compartidas
 
@@ -194,7 +208,7 @@ Abrir `/turnos/totem/`. La base debe tener el padrón y recetas sintéticas del 
 
 Para imprimir, instalar la térmica en el equipo, elegir papel de 80 mm en su controlador, desactivar encabezados/pies del navegador y usar «Imprimir número». El comprobante prepara un área útil de 72 mm con márgenes de 4 mm y altura libre. Cancelar o reimprimir conserva el mismo número; el sistema no certifica salida física ni detecta papel. La compatibilidad y los márgenes deben verificarse con la impresora disponible; todavía no hay prueba física.
 
-Validación aislada: `python tools/verificar_spec_04_http.py` crea 670 pacientes sintéticos y SQLite temporal, recorre HTTP/CSRF y mide 100 solicitudes por escenario, y al cerrar elimina su base. No modifica la SQLite local. `node --test turnosapp/tests/impresion.test.cjs` verifica el control del diálogo simulado. Ver [evidencia y límites](specs/04-emision-de-turnos/validation.md): navegador, WCAG integral, papel y usabilidad pendientes; no declarar el spec completamente aceptado.
+Validación aislada: `python tools/verificar_spec_04_http.py` crea 670 pacientes sintéticos en una SQLite temporal, recorre HTTP/CSRF y mide 100 solicitudes por escenario, y al cerrar elimina su base. No modifica la base PostgreSQL del proyecto. `node --test turnosapp/tests/impresion.test.cjs` verifica el control del diálogo simulado. Ver [evidencia y límites](specs/04-emision-de-turnos/validation.md): navegador, WCAG integral, papel y usabilidad pendientes; no declarar el spec completamente aceptado.
 
 ## Atención y cola ponderada (spec 05)
 
@@ -202,7 +216,7 @@ Panel privado: `/turnos/panel/`. Q.F. configura ventanillas y pesos en `/turnos/
 
 En la base elegida para la demostración, aplicar primero las migraciones y preparar las cuatro ventanillas con `python manage.py preparar_ventanillas` (idempotente, sin iniciar llamados). Mantener en otro terminal `python manage.py procesar_cola --continuo --intervalo 1` para recuperar pendientes y cerrar esperas de jornadas anteriores; volver a iniciarlo tras reiniciar el equipo. Cada Técnico debe activar la jornada nueva. No ejecutar estos comandos sobre datos reales para probar.
 
-Prueba aislada: `python tools/verificar_spec_05_http.py` crea y elimina su SQLite temporal y 670 pacientes sintéticos, mide HTTP y recupera un pendiente desde otro proceso. Evidencia y pendientes: [validación del 05](specs/05-cola-ponderada-y-llamado/validation.md). Las pruebas no equivalen a aceptación funcional ni validación de accesibilidad en navegador.
+Prueba aislada: `python tools/verificar_spec_05_http.py` crea y elimina su SQLite temporal (sin tocar PostgreSQL) y 670 pacientes sintéticos, mide HTTP y recupera un pendiente desde otro proceso. Evidencia y pendientes: [validación del 05](specs/05-cola-ponderada-y-llamado/validation.md). Las pruebas no equivalen a aceptación funcional ni validación de accesibilidad en navegador.
 
 ## Recursos de Alpine.js
 

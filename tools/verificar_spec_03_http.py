@@ -31,7 +31,7 @@ os.environ.update(DJANGO_SETTINGS_MODULE="cesfam.settings", SECRET_KEY=secrets.t
 from django.conf import settings
 
 temporal = tempfile.TemporaryDirectory(prefix="cesfam-spec03-")
-settings.DATABASES["default"]["NAME"] = str(Path(temporal.name) / "qa.sqlite3")
+settings.DATABASES["default"] = {"ENGINE": "django.db.backends.sqlite3", "NAME": str(Path(temporal.name) / "qa.sqlite3")}
 settings.EMAIL_BACKEND = "django.core.mail.backends.locmem.EmailBackend"
 import django
 django.setup()

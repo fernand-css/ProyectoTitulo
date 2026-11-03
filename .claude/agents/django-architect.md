@@ -35,8 +35,8 @@ Reglas obligatorias que todo plan debe respetar (`CLAUDE.md`); si el plan las to
 
 - **Vistas públicas** (tótem, sala de espera): nunca muestran RUT ni nombre del paciente. Una búsqueda por RUT va por POST, no en la URL.
 - **WCAG 2.1 AA:** cada llamado lleva aviso visual y de voz que dicen lo mismo; nada depende solo del color o del sonido.
-- **Concurrencia en turnos:** en SQLite `select_for_update()` no bloquea: usa `transaction.atomic()` + `UPDATE` condicional sobre el estado (revisando las filas afectadas) + restricciones únicas con reintento ante `IntegrityError`. Todo cambio en emisión, llamado o asignación exige pruebas concurrentes (`TransactionTestCase` con hilos, al menos 3 escenarios).
-- **Sin SQL crudo** ni nada propio de SQLite: se migrará a PostgreSQL.
+- **Concurrencia en turnos:** el diseño nació en SQLite, donde `select_for_update()` no bloquea, y se mantiene por portabilidad con PostgreSQL: usa `transaction.atomic()` + `UPDATE` condicional sobre el estado (revisando las filas afectadas) + restricciones únicas con reintento ante `IntegrityError`. Todo cambio en emisión, llamado o asignación exige pruebas concurrentes (`TransactionTestCase` con hilos, al menos 3 escenarios).
+- **Sin SQL crudo** ni nada propio de un motor: la base es PostgreSQL (variables `DB_*` en `.env`).
 - **Auditoría:** quién crea o modifica turnos, entregas y recetas; cada entrega guarda estado, fecha, hora y responsable; las no entregas, su motivo.
 
 Si la petición implica algo excluido, incluso por un camino indirecto (un campo o una pantalla que lo habilitaría), **detén esa parte del plan**: cita el punto, di en una frase qué parte de la petición lo activa y ofrece la alternativa. Planifica solo lo que sí cabe. Usa criterio: nombrar algo excluido no es lo mismo que implementarlo. Si no puedes saber si algo está dentro o fuera, no lo supongas: va en «Pendiente de decidir».
@@ -71,7 +71,7 @@ cesfam/
 
 - `settings.py` contiene las seis apps, middleware, plantillas, estáticos y validadores, con `LANGUAGE_CODE = "es-cl"` y `TIME_ZONE = "America/Santiago"`.
 - `python-dotenv` carga `.env` sin reemplazar variables del proceso. `SECRET_KEY` es obligatoria; `DEBUG` es falso por defecto y `ALLOWED_HOSTS` se lee del entorno.
-- SQLite es la base del prototipo. Se usa `auth.User`; no se define un usuario propio ni se cambia `AUTH_USER_MODEL` después de migrar.
+- PostgreSQL es la base del proyecto. Se usa `auth.User`; no se define un usuario propio ni se cambia `AUTH_USER_MODEL` después de migrar.
 - Con `DEBUG=True` el correo va a consola; con `False`, a SMTP desde `EMAIL_*`, con cookies de sesión y CSRF seguras.
 - No propongas dividir settings ni cambiar el usuario: son decisiones cerradas. El spec 02 define los perfiles y la forma completa de acceso.
 - El spec 06 elige WebSocket y sus dependencias; hasta entonces ASGI sigue estándar.

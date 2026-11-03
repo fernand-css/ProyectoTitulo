@@ -13,7 +13,7 @@ os.environ.update(DJANGO_SETTINGS_MODULE='cesfam.settings', SECRET_KEY=secrets.t
 from django.conf import settings
 qa_root = Path(tempfile.mkdtemp(prefix='cesfam-spec02-')).resolve()
 db = qa_root / 'qa.sqlite3'
-settings.DATABASES['default']['NAME'] = str(db)
+settings.DATABASES["default"] = {"ENGINE": "django.db.backends.sqlite3", "NAME": str(db)}
 settings.EMAIL_BACKEND = 'django.core.mail.backends.locmem.EmailBackend'
 import django
 django.setup()

@@ -29,7 +29,7 @@ from django.conf import settings
 
 
 def ejecutar(base_datos, solo_procesar=False):
-    settings.DATABASES["default"]["NAME"] = str(base_datos)
+    settings.DATABASES["default"] = {"ENGINE": "django.db.backends.sqlite3", "NAME": str(base_datos)}
     import django
     django.setup()
     from django.contrib.auth import get_user_model

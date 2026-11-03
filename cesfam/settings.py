@@ -81,10 +81,22 @@ TEMPLATES = [
 
 WSGI_APPLICATION = "cesfam.wsgi.application"
 
+# PostgreSQL es la base del proyecto. Solo se usa el ORM de Django, sin SQL crudo.
+# Las pruebas crean test_<DB_NAME>, por lo que el rol necesita el permiso CREATEDB.
+DB_NAME = os.getenv("DB_NAME", "").strip()
+if not DB_NAME:
+    raise ImproperlyConfigured(
+        "Debes definir DB_NAME (y DB_USER, DB_PASSWORD, DB_HOST, DB_PORT) en el archivo .env."
+    )
+
 DATABASES = {
     "default": {
-        "ENGINE": "django.db.backends.sqlite3",
-        "NAME": BASE_DIR / "db.sqlite3",
+        "ENGINE": "django.db.backends.postgresql",
+        "NAME": DB_NAME,
+        "USER": os.getenv("DB_USER", "").strip(),
+        "PASSWORD": os.getenv("DB_PASSWORD", ""),
+        "HOST": os.getenv("DB_HOST", "").strip() or "localhost",
+        "PORT": os.getenv("DB_PORT", "").strip() or "5432",
     }
 }
 

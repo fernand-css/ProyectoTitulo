@@ -1,3 +1,4 @@
 Django>=5.2,<5.3
 python-dotenv
 openpyxl>=3.1,<4
+psycopg2-binary>=2.9,<3
