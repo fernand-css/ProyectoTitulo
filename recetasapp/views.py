@@ -124,20 +124,28 @@ class ConfirmarEntregaView(FarmaciaView):
     def get(self, request, pk):
         receta = get_object_or_404(Receta.objects.select_related("paciente"), pk=pk)
         presentacion.preparar_receta(receta, proxima=True)
-        return self.render("entrega_confirmar.html", {"receta": receta, "estado": receta.estado, "form": EntregaForm(initial={"operacion_id": uuid.uuid4()})})
+        from .confirmacion import preparar_contexto
+        operacion = uuid.uuid4()
+        return self.render("entrega_confirmar.html", {"receta": receta, "estado": receta.estado,
+            "form": EntregaForm(initial={"operacion_id": operacion, "contexto": preparar_contexto(request.user, receta, operacion)})})
 
     def post(self, request, pk):
         receta = get_object_or_404(Receta.objects.select_related("paciente"), pk=pk)
         form = EntregaForm(request.POST)
         if form.is_valid():
             try:
-                registrar_entrega(request.user, receta.pk, form.cleaned_data["operacion_id"])
+                from .confirmacion import leer_contexto
+                contexto = leer_contexto(request.user, receta, form.cleaned_data["operacion_id"], form.cleaned_data["contexto"])
+                entrega = registrar_entrega(request.user, receta.pk, form.cleaned_data["operacion_id"], **contexto)
             except ValidationError as error:
                 form.add_error(None, error)
             except DatabaseError:
                 form.add_error(None, "La entrega no fue confirmada. Reintenta con este mismo formulario.")
             else:
-                messages.success(request, "Entrega del ciclo confirmada.", extra_tags="entrega-sellada")
+                if entrega.operacion_id == form.cleaned_data["operacion_id"]:
+                    messages.success(request, "Entrega del ciclo confirmada.", extra_tags="entrega-sellada")
+                else:
+                    messages.info(request, "La entrega de esta atención ya estaba registrada. No se descontó otra entrega.")
                 return redirect("recetasapp:receta_detalle", pk=pk)
         receta.refresh_from_db()
         presentacion.preparar_receta(receta, proxima=True)

@@ -53,7 +53,7 @@
       {% elif rol == 'Técnico en Farmacia' %}
         <h2 id="titulo-perfil" class="panel-titulo"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-capsula"/></svg>{{ nombre_rol }}</h2>
         <p>Este es el punto de acceso a tus herramientas de atención en ventanilla.</p>
-        <p class="suave">Los turnos y el llamado de pacientes se sumarán en las próximas versiones del prototipo.</p>
+        <a class="boton" href="{% url 'turnosapp:panel' %}">Abrir atención y cola</a>
       {% elif rol == 'Encargado de entrega' %}
         <h2 id="titulo-perfil" class="panel-titulo"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ubicacion"/></svg>{{ nombre_rol }}</h2>
         <p>Este es el punto de acceso a tus herramientas de entrega en terreno.</p>

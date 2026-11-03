@@ -1,0 +1,7 @@
+{% extends 'turnos/base_personal.html' %}{% load static %}
+{% block titulo %}Atención y cola · Farmacia{% endblock %}
+{% block turnos %}<header class="cola-cabecera"><div><h1>Atención y cola</h1><p>Jornada del {{ hoy|date:'d/m/Y' }}. Los avisos de sala aún no están disponibles en este prototipo.</p></div>{% if puede_gestionar %}<a class="boton boton-secundario" href="{% url 'turnosapp:gestion' %}">Configurar atención</a>{% endif %}</header>
+<div class="cola-refresco"><label><input type="checkbox" data-automatico checked> Actualizar automáticamente</label><button class="boton boton-secundario" type="button" data-actualizar hidden>Actualizar estado</button><a href="{% url 'turnosapp:panel' %}">Recargar panel</a><p role="status" data-mensaje-estado></p></div>
+<div data-estado data-url="{% url 'turnosapp:estado' %}?pagina={{ pagina_cola.number }}">{% include 'turnos/_estado.html' %}</div>
+{% endblock %}
+{% block scripts %}<script defer src="{% static 'js/cola.js' %}"></script>{% endblock %}

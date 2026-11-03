@@ -34,6 +34,7 @@ class RecetaForm(forms.Form):
 
 class EntregaForm(forms.Form):
     operacion_id = forms.UUIDField(widget=forms.HiddenInput)
+    contexto = forms.CharField(required=False, max_length=2048, widget=forms.HiddenInput)
     confirmar = forms.BooleanField(label="Confirmo que esta entrega del ciclo fue completada")
 
 

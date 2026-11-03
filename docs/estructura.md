@@ -1,5 +1,13 @@
 # Estructura del proyecto
 
+## Atención — spec 05
+
+`turnosapp/cola.py` serializa selección y cursor global, respeta compatibilidad/FIFO, pesos configurables y prioridad por espera de 15 minutos. `atencion.py` concentra ocupación, inicio/pausa, ausencias/retorno y cierre atómico; UUID de operación ligados al actor y parámetros impiden repetir efectos. `PendienteSeleccion` sobrevive al cierre y permite recuperar el siguiente llamado sin revertir entregas. `preparar_ventanillas` prepara cuatro puestos explícitamente; `procesar_cola --continuo` recupera pendientes y cierra esperas de jornadas anteriores. No hay escrituras desde GET ni arranque implícito en migraciones.
+
+`panel.py` proyecta solo lectura; `vistas_operacion.py` y formularios aplican roles/CSRF y mantienen UUID ante errores. Plantillas privadas de `templates/turnos/`, `cola.css` y `cola.js` presentan puesto, cola, configuración, cierre e historial. La consulta cada segundo preserva controles con foco y elimina el fragmento privado si se revoca la sesión. `/turnos/panel/` admite Técnico/Q.F.; `/turnos/gestion/`, Q.F. Las entregas reutilizan el servicio del 03 y su contexto firmado en `recetasapp/confirmacion.py`.
+
+Migraciones: recetas 0003 y turnos 0002; conservan datos históricos, sin fabricar vínculos de entrega. Verificación: 411 pruebas Django, siete JavaScript y `tools/verificar_spec_05_http.py` con 670 pacientes sintéticos, cuatro puestos, tres escenarios concurrentes y recuperación en proceso nuevo. Navegador, axe y aceptación pendientes; la pantalla pública y voz quedan para 06. No se migró la base local durante esta implementación.
+
 ## Turnos — spec 04
 
 `turnosapp` incorpora `ContadorTurnosDiario`, `Turno` y `TurnoReceta`, con migración `0001_initial` dependiente de recetas 0002. Unicidad diaria del número, activo por paciente/fecha y UUID de operación; relaciones protegidas. `services.emitir_turno` reserva el correlativo con UPDATE condicional, reintenta colisiones y confirma vínculos/auditoría en la misma transacción. Reutiliza `evaluar_elegibilidad`; no consume ni reserva entregas. Recuperar conserva selección y categoría originales.

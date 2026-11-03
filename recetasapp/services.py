@@ -1,6 +1,7 @@
 """Operaciones de farmacia autorizadas, transaccionales y auditadas."""
 
 import calendar
+import hashlib
 import time
 from datetime import timedelta
 from functools import wraps
@@ -110,10 +111,14 @@ def crear_receta(actor, *, paciente_id, codigo, fecha_inicio, vigencia_meses, ma
         raise ValidationError("El código de receta ya existe o sus datos no son válidos.") from None
 
 
-@reintentar_conflictos
-@transaction.atomic
-def registrar_entrega(actor, receta_id, operacion_id):
+_CONTEXTO_AUTOMATICO = object()
+
+
+def _registrar_entrega_sin_reintento(actor, receta_id, operacion_id, *,
+        turno_receta_id=_CONTEXTO_AUTOMATICO, contador_esperado=None, fecha=None):
+    """Requiere atomic y cola reservada. El llamador reintenta la unidad completa."""
     autorizar(actor, TECNICO)
+    from turnosapp.models import TurnoReceta
     try:
         operacion_id = UUID(str(operacion_id))
     except (ValueError, TypeError, AttributeError):
@@ -122,12 +127,33 @@ def registrar_entrega(actor, receta_id, operacion_id):
     if previa:
         if previa.receta_id != receta_id or previa.creado_por_id != actor.pk:
             raise ValidationError("La confirmación no corresponde a esta operación.")
+        if turno_receta_id is not _CONTEXTO_AUTOMATICO and previa.turno_receta_id != turno_receta_id:
+            raise ValidationError("La confirmación no corresponde a esta atención.")
         return previa
+    activo = TurnoReceta.objects.filter(receta_id=receta_id, turno__estado="llamado").first()
+    if turno_receta_id is _CONTEXTO_AUTOMATICO:
+        vinculo = activo
+    elif turno_receta_id is None:
+        if activo:
+            raise ValidationError("La atención cambió. Abre nuevamente la confirmación.")
+        vinculo = None
+    else:
+        vinculo = TurnoReceta.objects.select_related("turno").filter(pk=turno_receta_id, receta_id=receta_id).first()
+        if vinculo is None:
+            raise ValidationError("La receta no corresponde a esta atención.")
+    if vinculo:
+        asociada = EntregaReceta.objects.filter(turno_receta=vinculo).first()
+        if asociada:
+            return asociada  # Conservar actor/fecha reales, sin otro descuento.
+        if vinculo.turno.estado != "llamado":
+            raise ValidationError("La atención ya no está vigente. Revisa su resultado.")
     receta = Receta.objects.get(pk=receta_id)
-    estado = evaluar_elegibilidad(receta)
+    if contador_esperado is not None and receta.entregas_completadas != contador_esperado:
+        raise ValidationError("La receta cambió. Revisa las entregas antes de confirmar.")
+    hoy = fecha or timezone.localdate()
+    estado = evaluar_elegibilidad(receta, hoy)
     if not estado["elegible"]:
         raise ValidationError(estado["causas"])
-    hoy = timezone.localdate()
     actualizadas = Receta.objects.filter(
         pk=receta.pk, entregas_completadas=receta.entregas_completadas,
         entregas_completadas__lt=F("max_entregas"),
@@ -140,10 +166,45 @@ def registrar_entrega(actor, receta_id, operacion_id):
             entrega = EntregaReceta.objects.create(
                 receta=receta, numero=receta.entregas_completadas + 1,
                 operacion_id=operacion_id, creado_por=actor, modificado_por=actor,
+                turno_receta=vinculo,
             )
     except IntegrityError:
         raise ConflictoOperacion("La confirmación ya está siendo procesada.") from None
     auditar(actor, "receta.entrega", entrega)
+    return entrega
+
+
+@reintentar_conflictos
+@transaction.atomic
+def registrar_entrega(actor, receta_id, operacion_id, *, turno_receta_id=_CONTEXTO_AUTOMATICO, contador_esperado=None):
+    from turnosapp.cola import bloquear_cola, ConflictoCola
+    from turnosapp.models import OperacionAtencion
+    autorizar(actor, TECNICO)
+    try:
+        bloquear_cola(timezone.localdate())
+    except ConflictoCola:
+        raise ConflictoOperacion("La atención cambió durante la confirmación.") from None
+    try:
+        identidad = UUID(str(operacion_id))
+    except (ValueError, TypeError, AttributeError):
+        raise ValidationError("La confirmación de entrega no es válida.") from None
+    operacion = OperacionAtencion.objects.filter(pk=identidad).first()
+    if operacion:
+        datos = operacion.resultado
+        if operacion.tipo != "entrega_receta" or operacion.actor_id != actor.pk or datos.get("receta") != receta_id:
+            raise ValidationError("La confirmación no corresponde a esta operación.")
+        if turno_receta_id is not _CONTEXTO_AUTOMATICO and datos.get("turno_receta") != turno_receta_id:
+            raise ValidationError("La confirmación no corresponde a esta atención.")
+        return EntregaReceta.objects.get(pk=datos["entrega"])
+    entrega = _registrar_entrega_sin_reintento(actor, receta_id, identidad,
+        turno_receta_id=turno_receta_id, contador_esperado=contador_esperado)
+    if entrega.turno_receta_id:
+        vinculo = entrega.turno_receta
+        operacion = OperacionAtencion.objects.create(id=identidad, actor=actor, tipo="entrega_receta",
+            turno_id=vinculo.turno_id, huella=hashlib.sha256(f"{receta_id}:{vinculo.pk}".encode()).hexdigest(),
+            resultado={"entrega": entrega.pk, "receta": receta_id, "turno_receta": vinculo.pk})
+        if entrega.operacion_id != identidad:
+            auditar(actor, "receta.entrega_recuperada", operacion)
     return entrega
 
 

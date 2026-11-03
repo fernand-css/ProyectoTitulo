@@ -29,6 +29,8 @@
   <form method="post" class="panel">
     {% csrf_token %}
     {{ form.operacion_id }}
+    {{ form.contexto }}
+    {% if form.contexto.errors %}<div class="campo-error" role="alert">{{ form.contexto.errors }}</div>{% endif %}
     {% if form.operacion_id.errors %}<div class="campo-error" role="alert">{{ form.operacion_id.errors }}</div>{% endif %}
     <div class="campo campo-casilla">
       {{ form.confirmar }}

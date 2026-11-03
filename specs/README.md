@@ -10,6 +10,7 @@ Organización adaptada de `SDD (1).rar`: una carpeta por módulo o cambio y cuat
 | 02 — Autenticación, roles y auditoría | Verificación técnica final aprobada; visual y cierre pendientes | [spec.md](02-autenticacion-roles-auditoria/spec.md) | [plan.md](02-autenticacion-roles-auditoria/plan.md) | [tasks.md](02-autenticacion-roles-auditoria/tasks.md) | [validation.md](02-autenticacion-roles-auditoria/validation.md) |
 | 03 — Padrón y recetas | Aprobado; código y verificación técnica completos; visual/móvil/axe pendientes | [spec.md](03-padron-y-recetas/spec.md) | [plan.md](03-padron-y-recetas/plan.md) | [tasks.md](03-padron-y-recetas/tasks.md) | [validation.md](03-padron-y-recetas/validation.md) |
 | 04 — Emisión de turnos | Aprobado; código y verificación técnica completos; navegador/impresión/aceptación pendientes; `fdaza` | [spec.md](04-emision-de-turnos/spec.md) | [plan.md](04-emision-de-turnos/plan.md) | [tasks.md](04-emision-de-turnos/tasks.md) | [validation.md](04-emision-de-turnos/validation.md) |
+| 05 — Cola ponderada y llamado | Aprobado; seis pasos técnicos completos, HTTP y recuperación verificados; navegador/axe/usabilidad y aceptación pendientes; `fdaza` | [spec.md](05-cola-ponderada-y-llamado/spec.md) | [plan.md](05-cola-ponderada-y-llamado/plan.md) | [tasks.md](05-cola-ponderada-y-llamado/tasks.md) | [validation.md](05-cola-ponderada-y-llamado/validation.md) |
 
 El spec 01 conserva su acuerdo: implementación en `fdaza`, documento aprobado en `fd686ec` y commits de implementación sujetos a instrucción del equipo. La verificación técnica y sus pendientes no equivalen a aceptación funcional del usuario.
 
@@ -21,7 +22,7 @@ El spec 01 conserva su acuerdo: implementación en `fdaza`, documento aprobado e
 | 11 | Modo sin conexión y caché de la PWA | Reservado; sin documento aprobado |
 | 12 | Notificaciones | Reservado; sin documento aprobado |
 
-Para una nueva spec, comprobar las carpetas, los archivos heredados y esta tabla. Si corresponde a un tema reservado, usar su número; para otros temas, usar el primer número libre sin ocupar reservas. `02` corresponde a autenticación, roles y auditoría; `03`, a padrón y recetas; `04`, a emisión de turnos; `05` es el primer número disponible para otro alcance. Las reservas no crean documentos ni autorizan implementación.
+Para una nueva spec, comprobar las carpetas, los archivos heredados y esta tabla. Si corresponde a un tema reservado, usar su número; para otros temas, usar el primer número libre sin ocupar reservas. `02` corresponde a autenticación, roles y auditoría; `03`, a padrón y recetas; `04`, a emisión de turnos; `05`, a cola ponderada y llamado. `06` sigue reservado para WebSocket y sincronización (pantalla/voz previstas al definir el 05); `07` es el primer número libre no reservado. Las reservas no crean documentos ni autorizan implementación.
 
 ## Estructura
 
@@ -51,7 +52,12 @@ specs/
 │   ├── plan.md
 │   ├── tasks.md
 │   └── validation.md
-└── 04-emision-de-turnos/
+├── 04-emision-de-turnos/
+│   ├── spec.md
+│   ├── plan.md
+│   ├── tasks.md
+│   └── validation.md
+└── 05-cola-ponderada-y-llamado/
     ├── spec.md
     ├── plan.md
     ├── tasks.md

@@ -1,0 +1,7 @@
+{% extends 'turnos/base_personal.html' %}{% load core_tags %}
+{% block titulo %}Finalizar atención · Farmacia{% endblock %}
+{% block turnos %}<h1>Finalizar atención {{ turno.numero }}</h1>
+{% if turno %}<p><strong>{{ turno.paciente.nombres }} {{ turno.paciente.apellidos }}</strong> · RUT {{ turno.paciente.rut|rut }}</p>{% endif %}
+<p>Marca únicamente las recetas entregadas ahora. Las ya registradas se conservan y no se descuentan de nuevo. Indica por qué no se entregaron las restantes.</p>
+<form class="panel cola-formulario" method="post">{% csrf_token %}{% include 'turnos/_campos.html' %}<button class="boton" type="submit">Finalizar y confirmar entregas</button> <a href="{% url 'turnosapp:panel' %}">Volver sin finalizar</a></form>
+<p>Después del cierre se llamará al siguiente turno compatible si la ventanilla sigue en automático.</p>{% endblock %}

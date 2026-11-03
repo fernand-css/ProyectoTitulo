@@ -24,7 +24,7 @@ Guía para Claude Code en este repositorio. La fuente de verdad del proyecto es 
 
 ## Base implementada y comandos
 
-El proyecto es `cesfam`, con un único `cesfam/settings.py`, `auth.User` de Django y seis apps: `coreapp`, `usuariosapp`, `recetasapp`, `turnosapp`, `entregasapp` e `indicadoresapp`. Entregas e indicadores conservan el esqueleto y sus rutas vacías hasta su spec. El 04 incorpora tótem público en `/turnos/totem/`, sin llamados ni ventanillas.
+El proyecto es `cesfam`, con un único `cesfam/settings.py`, `auth.User` de Django y seis apps: `coreapp`, `usuariosapp`, `recetasapp`, `turnosapp`, `entregasapp` e `indicadoresapp`. Entregas e indicadores conservan el esqueleto y sus rutas vacías hasta su spec. El 04 incorpora tótem público en `/turnos/totem/`. El 05 agrega `/turnos/panel/`, `/turnos/gestion/`, `cola.py` (planificador) y `atencion.py` (operación/cierre), con pesos 2/1/1 configurables, rescate a 15 minutos y selección automática. Preparación explícita `preparar_ventanillas`; respaldo durable `procesar_cola --continuo`. GET nunca procesa pendientes. Cierre/entregas son atómicos; selección posterior recuperable. El formulario de recetas firma el contexto para no duplicar entregas entre 03/05. No modificar esos contratos sin sus pruebas concurrentes. Pantalla pública/voz pertenece al 06. El 05 tiene 411 pruebas Django aprobadas; evidencia final y límites en su `validation.md`, sin aceptación visual/funcional implícita.
 
 `coreapp` centraliza roles, `RolRequeridoMixin`, auditoría, contexto, filtros y utilidades RUT. `usuariosapp` usa `LoginView` y `LogoutView`. La presentación comparte `templates/components/Layout/base.html`, su variante pública y estáticos locales. La lógica futura de negocio va en `<app>/services.py`.
 

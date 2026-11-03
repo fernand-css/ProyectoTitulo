@@ -196,6 +196,14 @@ Para imprimir, instalar la térmica en el equipo, elegir papel de 80 mm en su co
 
 Validación aislada: `python tools/verificar_spec_04_http.py` crea 670 pacientes sintéticos y SQLite temporal, recorre HTTP/CSRF y mide 100 solicitudes por escenario, y al cerrar elimina su base. No modifica la SQLite local. `node --test turnosapp/tests/impresion.test.cjs` verifica el control del diálogo simulado. Ver [evidencia y límites](specs/04-emision-de-turnos/validation.md): navegador, WCAG integral, papel y usabilidad pendientes; no declarar el spec completamente aceptado.
 
+## Atención y cola ponderada (spec 05)
+
+Panel privado: `/turnos/panel/`. Q.F. configura ventanillas y pesos en `/turnos/gestion/`; cada Técnico ocupa una ventanilla e inicia su atención automática. Al finalizar confirma las recetas efectivamente entregadas; el sistema registra los descuentos una sola vez y llama al siguiente compatible. Pausar detiene nuevos llamados y conserva la atención vigente. Cerrar la pestaña no pausa la ventanilla. La pantalla pública y la voz quedan para el spec 06.
+
+En la base elegida para la demostración, aplicar primero las migraciones y preparar las cuatro ventanillas con `python manage.py preparar_ventanillas` (idempotente, sin iniciar llamados). Mantener en otro terminal `python manage.py procesar_cola --continuo --intervalo 1` para recuperar pendientes y cerrar esperas de jornadas anteriores; volver a iniciarlo tras reiniciar el equipo. Cada Técnico debe activar la jornada nueva. No ejecutar estos comandos sobre datos reales para probar.
+
+Prueba aislada: `python tools/verificar_spec_05_http.py` crea y elimina su SQLite temporal y 670 pacientes sintéticos, mide HTTP y recupera un pendiente desde otro proceso. Evidencia y pendientes: [validación del 05](specs/05-cola-ponderada-y-llamado/validation.md). Las pruebas no equivalen a aceptación funcional ni validación de accesibilidad en navegador.
+
 ## Recursos de Alpine.js
 
 Se distribuye **Alpine.js 3.14.9** en `static/js/alpine.min.js`, descargado del [paquete con versión fija](https://cdn.jsdelivr.net/npm/alpinejs@3.14.9/dist/cdn.min.js), siguiendo su [instalación por script](https://alpinejs.dev/essentials/installation). La [licencia MIT original](https://github.com/alpinejs/alpine/blob/v3.14.9/LICENSE.md) se conserva en `static/js/alpine.LICENSE.md`. El navegador carga todos los recursos desde este proyecto.

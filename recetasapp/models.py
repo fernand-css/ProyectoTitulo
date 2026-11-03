@@ -96,6 +96,9 @@ class Receta(ModeloAuditado):
 
 
 class EntregaReceta(ModeloAuditado):
+    turno_receta = models.OneToOneField(
+        "turnosapp.TurnoReceta", null=True, blank=True, on_delete=models.PROTECT, related_name="entrega",
+    )
     receta = models.ForeignKey(Receta, on_delete=models.PROTECT, related_name="entregas")
     numero = models.PositiveIntegerField(validators=[MinValueValidator(1)])
     operacion_id = models.UUIDField(default=uuid.uuid4, unique=True, editable=False)
@@ -109,6 +112,11 @@ class EntregaReceta(ModeloAuditado):
 
     def __str__(self):
         return f"Entrega de receta {self.pk}"
+
+    def clean(self):
+        super().clean()
+        if self.turno_receta_id and self.receta_id != self.turno_receta.receta_id:
+            raise ValidationError({"turno_receta": "El vínculo no corresponde a esta receta."})
 
 
 class ImportacionPadron(ModeloAuditado):

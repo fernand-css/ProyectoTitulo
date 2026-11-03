@@ -1,0 +1,30 @@
+/* Mesa de atención: puesto a la izquierda y fila a la derecha, con identidad local. */
+.cola-personal { width: 100%; }
+.cola-cabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; margin-bottom: 1.5rem; }
+.cola-cabecera p, .cola-formulario + p { max-width: 70ch; }
+.cola-mesa { display: grid; grid-template-columns: minmax(18rem, 1fr) minmax(0, 1.6fr); gap: 2rem; margin: 1.5rem 0 2rem; }
+.cola-puesto { border: 2px solid var(--borde); border-top: .5rem solid var(--marca-fondo); padding: 1.5rem; align-self: start; }
+.cola-situacion { font-weight: 700; background: var(--trigo-fondo); color: var(--trigo-texto); padding: .6rem; }
+.cola-numero { font: 800 4rem/1.1 var(--fuente-texto); margin: .8rem 0; font-variant-numeric: tabular-nums; }
+.cola-acciones, .cola-refresco { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin: 1rem 0; }
+.cola-ocupar { display: grid; gap: .5rem; padding: .75rem 0; border-bottom: 1px solid var(--borde); }
+.cola-tabla { max-width: 100%; overflow-x: auto; }
+.cola-tabla table { width: 100%; border-collapse: collapse; }
+.cola-tabla caption { text-align: left; font-weight: 700; padding: .75rem; }
+.cola-tabla th, .cola-tabla td { padding: .9rem .7rem; text-align: left; border-bottom: 1px solid var(--borde); vertical-align: top; }
+.cola-tabla thead { background: var(--suave-fondo); color: var(--suave-texto); }
+.cola-tabla .cola-aviso { background: var(--aviso-fondo); color: var(--aviso-texto); }
+.cola-tabla .cola-prioridad { background: var(--error-fondo); color: var(--error-texto); }
+.cola-total { font-family: var(--fuente-texto); font-size: 1rem; }
+.cola-paginacion { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; }
+.cola-pendientes, .cola-regla { border-left: .35rem solid var(--borde); padding: 1rem 1.5rem; background: var(--suave-fondo); color: var(--suave-texto); margin: 1.5rem 0; }
+.cola-pendientes form { margin: .75rem 0; }
+.cola-ausentes { display: flex; flex-wrap: wrap; gap: .8rem 2rem; }
+.cola-historial li { margin-bottom: 1rem; }
+.cola-formulario { max-width: 48rem; }
+.cola-formulario fieldset { min-width: 0; padding: 1rem; border: 1px solid var(--borde); }
+.cola-formulario legend { font-weight: 700; }
+.cola-formulario input[type=checkbox], .cola-refresco input[type=checkbox] { width: 1.3rem; height: 1.3rem; vertical-align: middle; margin-right: .5rem; }
+.cola-formulario [disabled] { opacity: 1; color: var(--secundario-texto); }
+.cola-refresco [hidden] { display: none; }
+@media (max-width: 60rem) { .cola-mesa { grid-template-columns: 1fr; } .cola-cabecera { flex-direction: column; } }

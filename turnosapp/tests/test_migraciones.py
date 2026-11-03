@@ -15,7 +15,10 @@ class MigracionTurnosTests(TransactionTestCase):
     def test_actualizacion_y_reaplicacion_conservan_dominio_anterior(self):
         executor = MigrationExecutor(connection)
         finales = executor.loader.graph.leaf_nodes()
-        anteriores = [nodo for nodo in finales if nodo[0] != "turnosapp"] + [("turnosapp", None)]
+        # Recetas 0003 depende de turnos 0001: la base anterior al 04 usa 0002.
+        anteriores = [nodo for nodo in finales if nodo[0] not in {"turnosapp", "recetasapp"}] + [
+            ("turnosapp", None), ("recetasapp", "0002_resultadofilaimportacion_pacientes_actualizados_and_more"),
+        ]
         try:
             executor.migrate(anteriores)
             apps = executor.loader.project_state([nodo for nodo in anteriores if nodo[1] is not None]).apps

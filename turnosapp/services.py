@@ -1,6 +1,7 @@
 """Emisión pública transaccional; no confirma ni reserva entregas."""
 
 import time
+import uuid
 from random import uniform
 from dataclasses import dataclass
 from datetime import date, datetime
@@ -8,7 +9,7 @@ from uuid import UUID
 
 from django.core.exceptions import ValidationError
 from django.db import IntegrityError, OperationalError, transaction
-from django.db.models import F
+from django.db.models import F, Q
 from django.utils import timezone
 
 from coreapp.auditoria import registrar_accion
@@ -49,8 +50,10 @@ def _anterior(paciente, fecha, operacion):
     if turno is not None:
         if turno.paciente_id != paciente.pk:
             raise ErrorEmision("operacion_invalida", "La operación no es válida. Inicia una nueva atención.")
+        if turno.estado not in ("esperando", "llamado"):
+            raise ErrorEmision("operacion_cerrada", "Esta solicitud ya está cerrada. Inicia una nueva atención.")
         return turno
-    return Turno.objects.filter(paciente=paciente, fecha=fecha, estado=Turno.Estado.ESPERANDO).first()
+    return Turno.objects.filter(Q(estado="esperando", fecha=fecha) | Q(estado="llamado"), paciente=paciente).first()
 
 
 def clasificar_atencion(paciente, fecha):
@@ -65,7 +68,11 @@ def clasificar_atencion(paciente, fecha):
 
 @transaction.atomic
 def _emitir(rut, operacion):
-    fecha = timezone.localdate()
+    from .cola import bloquear_cola, cerrar_esperas_anteriores
+    instante = timezone.now()
+    fecha = timezone.localdate(instante)
+    bloquear_cola(fecha)
+    cerrar_esperas_anteriores(instante)
     paciente = Paciente.objects.filter(rut=rut).first()
     if paciente is None:
         raise ErrorEmision("no_registrado", "Consulta con el personal para obtener atención.")
@@ -106,6 +113,8 @@ def _emitir(rut, operacion):
         raise
     except Exception:
         raise RuntimeError("No se pudo registrar la emisión del turno.") from None
+    from .cola import solicitar_seleccion
+    solicitar_seleccion("emision", uuid.uuid5(turno.operacion_id, "seleccion"))
     return _resultado(turno, False)
 
 
@@ -120,12 +129,13 @@ def emitir_turno(rut, operacion_id):
         operacion = UUID(str(operacion_id))
     except (ValueError, TypeError, AttributeError):
         raise ErrorEmision("operacion_invalida", "La operación no es válida. Inicia una nueva atención.") from None
+    from .cola import ConflictoCola
     for intento in range(12):
         try:
             return _emitir(rut, operacion)
         except _Recuperado as recuperado:
             return _resultado(recuperado.turno, True)
-        except _Conflicto:
+        except (_Conflicto, ConflictoCola):
             pass
         except OperationalError as error:
             if not any(marca in str(error).lower() for marca in ("locked", "busy")):
@@ -138,6 +148,7 @@ def emitir_turno(rut, operacion_id):
                 "turnosapp_turno.paciente_id", "turnosapp_turno.operacion_id",
                 "turno_numero_diario_unico", "turno_activo_paciente_dia_unico",
                 "turnosapp_turno_operacion_id_", "turnosapp_contadorturnosdiario_fecha_",
+                "turnosapp_estadocoladiaria.fecha", "turnosapp_estadocoladiaria_fecha_",
             )):
                 raise
         if intento < 11:

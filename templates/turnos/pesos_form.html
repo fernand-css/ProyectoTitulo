@@ -1,0 +1,3 @@
+{% extends 'turnos/base_personal.html' %}
+{% block titulo %}Pesos de atención · Farmacia{% endblock %}
+{% block turnos %}<h1>Pesos de atención</h1><p>El ciclo es compartido entre todas las ventanillas. Los grupos vacíos se saltan; desde 15 minutos prevalece la antigüedad del turno compatible.</p><form class="panel cola-formulario" method="post">{% csrf_token %}{% include 'turnos/_campos.html' %}<button class="boton" type="submit">Guardar pesos</button> <a href="{% url 'turnosapp:gestion' %}">Volver a gestión</a></form>{% endblock %}

@@ -1,0 +1,3 @@
+{% extends 'turnos/base_personal.html' %}
+{% block titulo %}Configurar ventanilla · Farmacia{% endblock %}
+{% block turnos %}<h1>{% if ventanilla %}Configurar ventanilla {{ ventanilla.numero }}{% else %}Agregar ventanilla{% endif %}</h1><p>Deshabilitar o retirar impide nuevos llamados y permite terminar una atención vigente. Volver a habilitar requiere que el Técnico inicie nuevamente el automático.</p><form class="panel cola-formulario" method="post">{% csrf_token %}{% include 'turnos/_campos.html' %}<button class="boton" type="submit">Guardar ventanilla</button> <a href="{% url 'turnosapp:gestion' %}">Volver a gestión</a></form>{% endblock %}

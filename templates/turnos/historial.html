@@ -1,0 +1,8 @@
+{% extends 'turnos/base_personal.html' %}{% load core_tags %}
+{% block titulo %}Historial de turno · Farmacia{% endblock %}
+{% block turnos %}<h1>Turno {{ turno.numero }} del {{ turno.fecha|date:'d/m/Y' }}</h1><p>{{ turno.get_estado_display }}</p>
+{% if turno %}<p><strong>{{ turno.paciente.nombres }} {{ turno.paciente.apellidos }}</strong> · RUT {{ turno.paciente.rut|rut }}</p>{% endif %}
+{% if puede_operar and turno.estado == 'ausente' and turno.fecha == hoy %}<form method="post" action="{% url 'turnosapp:accion_turno' pk=turno.pk accion='reincorporar' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ nonce_reincorporar }}"><button class="boton" type="submit">Reincorporar al final de su categoría</button></form><p>Solo se permite si no existe otro turno activo del paciente. Conserva su número e inicia un nuevo tramo de espera.</p>{% endif %}
+<ol class="cola-historial">{% for evento in eventos %}<li><strong>{{ evento.etiqueta }}</strong><br>{{ evento.instante|date:'d/m/Y H:i:s' }}{% if evento.ventanilla %} · Ventanilla {{ evento.ventanilla.numero }}{% endif %}<br>{% if evento.actor %}{{ evento.actor.get_username }}{% else %}Sistema{% endif %}</li>{% empty %}<li>No hay eventos de atención registrados.</li>{% endfor %}</ol>
+{% if cierre %}<section><h2>Resultado de la atención</h2><p>{{ cierre.get_resultado_display }}{% if cierre.motivo %}: {{ cierre.motivo }}{% endif %}</p><ul>{% for detalle in cierre.detalles.all %}<li>{{ detalle.turno_receta.receta.codigo }}: {% if detalle.entregada %}Entrega registrada{% else %}No entregada — {{ detalle.motivo }}{% endif %}</li>{% endfor %}</ul></section>{% endif %}
+<a href="{% url 'turnosapp:panel' %}">Volver al panel</a>{% endblock %}
