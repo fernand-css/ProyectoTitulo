@@ -2,7 +2,7 @@
 
 PWA de la Unidad de Farmacia, con autenticación del personal, perfiles, correo verificado, recuperación de claves, administración de cuentas y auditoría. Usa Django 5.2, PostgreSQL y Alpine.js local. El prototipo trabaja exclusivamente con datos sintéticos; la revisión visual y aceptación funcional de la spec 02 siguen pendientes.
 
-El spec 01 incorpora estructura, auditoría, utilidades, layouts PWA y login mínimo. El spec 03 añade padrón sintético, importación CSV/Excel y control de vigencia y entregas de recetas. El spec 04 incorpora emisión en tótem y comprobante térmico; reparto e indicadores conservan su esqueleto.
+El spec 01 incorpora estructura, auditoría, utilidades, layouts PWA y login mínimo. El spec 03 añade padrón sintético, importación CSV/Excel y control de vigencia y entregas de recetas. El spec 04 incorpora emisión en tótem y comprobante térmico; el 05, cola y atención; el 06, pantalla de sala y voz; y el 07, preparación, retiro posterior y estimación de espera. Reparto e indicadores conservan su esqueleto.
 
 ## Instalación local
 
@@ -236,6 +236,16 @@ node --test turnosapp/tests/*.test.cjs
 ```
 
 La herramienta crea/elimina SQLite temporal y 670 pacientes/turnos sintéticos; usa un proceso ASGI aparte, dos clientes WebSocket, cuatro ventanillas y sondeo de cuatro paneles privados. Mide 100 llamados y 96 cierres con entrega/selección posterior; informa p50, p95 y máximo, HTTP y servicio del 05. La medición final dio **p95 444,12 ms** hasta recibir en ambas pantallas (máximo 536,66 ms). Es recepción por loopback, sin medir dibujo/voz en navegador ni la red del CESFAM. [Evidencia y pendientes del 06](specs/06-pantalla-sala-y-voz/validation.md): revisión visual/axe bloqueada por el host de Windows, voz real, cinco personas y aceptación pendientes. El spec conserva **Aprobado**, sin declarar aceptación completa.
+
+## Preparación y tiempos de espera (spec 07)
+
+En **Recetas › Preparación**, el personal autorizado ve las recetas de turnos activos de hoy y las marca «Lista». La pestaña **Pendientes de retiro** permite buscar por RUT o apellido y registrar la entrega de una receta ya preparada cuando el turno terminó sin entregarla. El retiro usa el vínculo del turno original, evalúa vigencia a la fecha de preparación y vuelve a comprobar el cupo actual. Las marcas y retiros son POST con CSRF; las páginas son privadas y no se guardan en caché.
+
+El tótem, su comprobante y el panel del 05 comparten una frase aproximada calculada a partir de recetas pendientes, el promedio móvil de trabajo (14 días, con cinco muestras o más) y las ventanillas activas. La sección Preparación consulta cambios cada cinco segundos. HU-18 queda cubierta parcialmente: el cálculo se actualiza para el personal, y el resultado del tótem, el papel y la pantalla pública de sala no se actualizan continuamente.
+
+En la base de demostración elegida, aplicar `python manage.py migrate` antes de usar el módulo; `recetasapp/0004_preparacionreceta` agrega el registro de preparación. La revisión técnica de esta tarea solo aplicó migraciones en bases temporales/de pruebas, sin migrar la base del proyecto.
+
+Verificación aislada: `python tools/verificar_spec_07_http.py` crea y elimina SQLite temporal, usa 670 pacientes sintéticos y cuatro ventanillas, y mide 100 solicitudes por escenario para emisión con estimación, lista, marca, ausencia, consulta de pendientes, retiro y panel. La medición final quedó bajo 2 s de p95 en todos los escenarios. [Evidencia y límites](specs/07-preparacion-y-tiempos-de-espera/validation.md): la revisión visual/axe, usabilidad con cinco personas y aceptación funcional siguen pendientes; el spec conserva **Aprobado**, no Implementado.
 
 ## Recursos de Alpine.js
 

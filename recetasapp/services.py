@@ -7,15 +7,16 @@ from datetime import timedelta
 from functools import wraps
 from uuid import UUID
 
+from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import IntegrityError, OperationalError, transaction
-from django.db.models import F
+from django.db.models import F, Max
 from django.utils import timezone
 
 from coreapp.auditoria import registrar_accion
 from coreapp.mixins import tiene_rol
 from coreapp.roles import JEFA, TECNICO
-from .models import EntregaReceta, Paciente, Receta
+from .models import EntregaReceta, Paciente, PreparacionReceta, Receta
 
 
 class ConflictoOperacion(ValidationError):
@@ -115,9 +116,10 @@ _CONTEXTO_AUTOMATICO = object()
 
 
 def _registrar_entrega_sin_reintento(actor, receta_id, operacion_id, *,
-        turno_receta_id=_CONTEXTO_AUTOMATICO, contador_esperado=None, fecha=None):
+        turno_receta_id=_CONTEXTO_AUTOMATICO, contador_esperado=None, fecha=None,
+        desde_preparado=None):
     """Requiere atomic y cola reservada. El llamador reintenta la unidad completa."""
-    autorizar(actor, TECNICO)
+    autorizar(actor, JEFA, TECNICO) if desde_preparado is not None else autorizar(actor, TECNICO)
     from turnosapp.models import TurnoReceta
     try:
         operacion_id = UUID(str(operacion_id))
@@ -141,11 +143,19 @@ def _registrar_entrega_sin_reintento(actor, receta_id, operacion_id, *,
         vinculo = TurnoReceta.objects.select_related("turno").filter(pk=turno_receta_id, receta_id=receta_id).first()
         if vinculo is None:
             raise ValidationError("La receta no corresponde a esta atención.")
+    if desde_preparado is not None and (
+        desde_preparado.turno_receta_id != getattr(vinculo, "pk", None)
+        or desde_preparado.lista_en is None
+        or vinculo.turno.estado not in ("ausente", "sin_atencion_cierre", "atendido", "cerrado_sin_entrega")
+    ):
+        raise ValidationError("La preparación ya no está pendiente de retiro.")
     if vinculo:
         asociada = EntregaReceta.objects.filter(turno_receta=vinculo).first()
         if asociada:
+            if desde_preparado is not None:
+                raise ValidationError("La receta ya fue entregada.")
             return asociada  # Conservar actor/fecha reales, sin otro descuento.
-        if vinculo.turno.estado != "llamado":
+        if vinculo.turno.estado != "llamado" and desde_preparado is None:
             raise ValidationError("La atención ya no está vigente. Revisa su resultado.")
     receta = Receta.objects.get(pk=receta_id)
     if contador_esperado is not None and receta.entregas_completadas != contador_esperado:
@@ -205,6 +215,141 @@ def registrar_entrega(actor, receta_id, operacion_id, *, turno_receta_id=_CONTEX
             resultado={"entrega": entrega.pk, "receta": receta_id, "turno_receta": vinculo.pk})
         if entrega.operacion_id != identidad:
             auditar(actor, "receta.entrega_recuperada", operacion)
+    return entrega
+
+
+def _preparacion_activa(preparacion_id, hoy):
+    preparacion = PreparacionReceta.objects.select_related("turno_receta__turno").filter(pk=preparacion_id).first()
+    if preparacion is None:
+        raise ValidationError("La preparación ya no está disponible.")
+    turno = preparacion.turno_receta.turno
+    if turno.fecha != hoy or turno.estado not in ("esperando", "llamado"):
+        raise ValidationError("La atención ya no está activa en esta jornada.")
+    return preparacion
+
+
+@reintentar_conflictos
+@transaction.atomic
+def marcar_lista(actor, preparacion_id):
+    """Marca una preparación una vez y conserva el intervalo medido."""
+    from turnosapp.cola import bloquear_cola, ConflictoCola
+
+    autorizar(actor, JEFA, TECNICO)
+    actor = get_user_model().objects.get(pk=actor.pk)
+    ahora = timezone.now()
+    hoy = timezone.localdate(ahora)
+    try:
+        bloquear_cola(hoy)
+    except ConflictoCola:
+        raise ConflictoOperacion("La cola cambió. Vuelve a cargar la preparación.") from None
+    preparacion = _preparacion_activa(preparacion_id, hoy)
+    if preparacion.lista_en is not None:
+        return preparacion
+
+    anterior = PreparacionReceta.objects.filter(
+        lista_por=actor, lista_en__date=hoy,
+    ).exclude(pk=preparacion.pk).aggregate(ultimo=Max("lista_en"))["ultimo"]
+    inicio = max(preparacion.recibida_en, anterior) if anterior else preparacion.recibida_en
+    duracion = max(0, int((ahora - inicio).total_seconds()))
+    actualizadas = PreparacionReceta.objects.filter(
+        pk=preparacion.pk, lista_en__isnull=True,
+    ).update(
+        lista_en=ahora, lista_por=actor, inicio_medido=inicio,
+        duracion_segundos=duracion, modificado_por=actor, modificado_en=ahora,
+    )
+    if not actualizadas:
+        preparacion.refresh_from_db()
+        if preparacion.lista_en is not None:
+            return preparacion
+        raise ConflictoOperacion("La preparación cambió durante la operación.")
+    preparacion.refresh_from_db()
+    auditar(actor, "preparacion.lista", preparacion)
+    return preparacion
+
+
+@reintentar_conflictos
+@transaction.atomic
+def deshacer_lista(actor, preparacion_id):
+    """Corrige una marca solo mientras el turno siga activo y sin entrega."""
+    from turnosapp.cola import bloquear_cola, ConflictoCola
+
+    autorizar(actor, JEFA, TECNICO)
+    actor = get_user_model().objects.get(pk=actor.pk)
+    ahora = timezone.now()
+    hoy = timezone.localdate(ahora)
+    try:
+        bloquear_cola(hoy)
+    except ConflictoCola:
+        raise ConflictoOperacion("La cola cambió. Vuelve a cargar la preparación.") from None
+    preparacion = _preparacion_activa(preparacion_id, hoy)
+    if preparacion.lista_en is None:
+        raise ValidationError("La preparación aún no está marcada como lista.")
+    if EntregaReceta.objects.filter(turno_receta_id=preparacion.turno_receta_id).exists():
+        raise ValidationError("La receta ya se entregó y no se puede corregir la preparación.")
+    actualizadas = PreparacionReceta.objects.filter(
+        pk=preparacion.pk, lista_en__isnull=False,
+    ).update(
+        lista_en=None, lista_por=None, inicio_medido=None,
+        duracion_segundos=None, modificado_por=actor, modificado_en=ahora,
+    )
+    if not actualizadas:
+        raise ConflictoOperacion("La preparación cambió durante la operación.")
+    preparacion.refresh_from_db()
+    auditar(actor, "preparacion.marca_corregida", preparacion)
+    return preparacion
+
+
+@reintentar_conflictos
+@transaction.atomic
+def retirar_preparado(actor, preparacion_id, operacion_id):
+    """Registra una sola entrega histórica sin reabrir ni reencolar el turno."""
+    from turnosapp.cola import bloquear_cola, ConflictoCola
+    from turnosapp.models import OperacionAtencion
+
+    autorizar(actor, JEFA, TECNICO)
+    actor = get_user_model().objects.get(pk=actor.pk)
+    try:
+        identidad = UUID(str(operacion_id))
+    except (ValueError, TypeError, AttributeError):
+        raise ValidationError("La operación de retiro no es válida.") from None
+    hoy = timezone.localdate()
+    try:
+        bloquear_cola(hoy)
+    except ConflictoCola:
+        raise ConflictoOperacion("La cola cambió. Vuelve a cargar el pendiente.") from None
+
+    huella = hashlib.sha256(f"retiro-preparado:{preparacion_id}".encode()).hexdigest()
+    previa = OperacionAtencion.objects.filter(pk=identidad).first()
+    if previa:
+        if previa.actor_id != actor.pk or previa.tipo != "retiro_preparado" or previa.huella != huella:
+            raise ValidationError("La operación no corresponde a este retiro.")
+        return EntregaReceta.objects.get(pk=previa.resultado["entrega"])
+
+    preparacion = PreparacionReceta.objects.select_related(
+        "turno_receta__turno", "turno_receta__receta",
+    ).filter(pk=preparacion_id).first()
+    if preparacion is None or preparacion.lista_en is None:
+        raise ValidationError("La preparación ya no está pendiente de retiro.")
+    if preparacion.turno_receta.turno.estado not in (
+        "ausente", "sin_atencion_cierre", "atendido", "cerrado_sin_entrega",
+    ):
+        raise ValidationError("El turno todavía está activo o fue reincorporado.")
+    if EntregaReceta.objects.filter(turno_receta_id=preparacion.turno_receta_id).exists():
+        raise ValidationError("La receta ya fue entregada.")
+
+    fecha_preparacion = timezone.localdate(preparacion.lista_en)
+    entrega = _registrar_entrega_sin_reintento(
+        actor, preparacion.turno_receta.receta_id, identidad,
+        turno_receta_id=preparacion.turno_receta_id,
+        fecha=fecha_preparacion, desde_preparado=preparacion,
+    )
+    OperacionAtencion.objects.create(
+        id=identidad, actor=actor, tipo="retiro_preparado",
+        turno_id=preparacion.turno_receta.turno_id,
+        huella=huella,
+        resultado={"entrega": entrega.pk, "preparacion": preparacion.pk},
+    )
+    auditar(actor, "preparacion.retirada", preparacion)
     return entrega
 
 

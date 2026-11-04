@@ -1,0 +1,36 @@
+<section class="preparacion-lista" data-autorefresh aria-label="Recetas activas por preparar">
+  {% if preparaciones %}
+  <ol class="preparacion-filas">
+    {% for item in preparaciones %}
+    <li class="preparacion-fila">
+      <div class="preparacion-turno">
+        <strong>Turno {{ item.turno_receta.turno.numero }}</strong>
+        <span>{{ item.turno_receta.turno.get_tipo_atencion_display }}</span>
+        <span>Espera {{ item.espera_transcurrida }}</span>
+      </div>
+      <div class="preparacion-receta">
+        <strong>Receta {{ item.turno_receta.receta.codigo }}</strong>
+        <span>Entrega {{ item.numero_entrega }} de {{ item.maximo_entregas }}</span>
+      </div>
+      <div class="preparacion-estado">
+        {% if item.lista_en %}
+          <p>Lista a las {{ item.lista_en|time:"H:i" }}{% if item.lista_por %} por {{ item.lista_por.get_full_name|default:item.lista_por.username }}{% endif %}</p>
+          <form method="post" action="{% url 'recetasapp:preparacion_deshacer' item.pk %}">
+            {% csrf_token %}<button class="boton boton-secundario" type="submit">Corregir marca</button>
+          </form>
+        {% else %}
+          <form method="post" action="{% url 'recetasapp:preparacion_lista' item.pk %}">
+            {% csrf_token %}<button class="boton" type="submit">Marcar lista</button>
+          </form>
+        {% endif %}
+      </div>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <div class="preparacion-vacia">
+    <h2>No hay recetas por preparar</h2>
+    <p>Las recetas de los turnos activos aparecerán aquí al emitir nuevos turnos.</p>
+  </div>
+  {% endif %}
+</section>

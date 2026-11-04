@@ -13,7 +13,7 @@ from django.test import TestCase
 
 from coreapp.models import RegistroAuditoria
 from coreapp.utils.sinteticos import generar_ruts
-from recetasapp.models import Paciente, Receta, EntregaReceta
+from recetasapp.models import Paciente, PreparacionReceta, Receta, EntregaReceta
 from turnosapp.models import Turno, TurnoReceta, ContadorTurnosDiario
 from turnosapp.services import emitir_turno, ErrorEmision
 
@@ -50,7 +50,8 @@ class EmisionTests(TestCase):
         self.receta.refresh_from_db()
         self.assertEqual(self.receta.entregas_completadas, 0)
         self.assertFalse(EntregaReceta.objects.exists())
-        self.assertEqual(set(asdict(resultado)), {"numero", "fecha", "creado_en", "recuperado"})
+        self.assertEqual(set(asdict(resultado)), {"numero", "fecha", "creado_en", "recuperado", "espera"})
+        self.assertIn("No podemos estimar", resultado.espera)
 
     def test_recupera_mismo_uuid_y_distinto_sin_modificar_seleccion(self):
         operacion = uuid.uuid4()
@@ -79,6 +80,7 @@ class EmisionTests(TestCase):
                 if esperado:
                     self.emitir()
                     self.assertEqual(Turno.objects.get().tipo_atencion, esperado)
+                    PreparacionReceta.objects.all().delete()
                     TurnoReceta.objects.all().delete()
                     Turno.objects.all().delete()
                 else:

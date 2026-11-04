@@ -255,3 +255,18 @@ Cambios que acompañaron al paso a PostgreSQL y conviene conocer:
 No se agrega un servicio de mensajes: la base durable comunica procesos y la capa de canales en memoria distribuye solo en el proceso web propio. No exponer el evento/UUID interno en serialización pública. Mantener `procesar_cola --continuo` según el 05; el GET y el vigilante nunca recuperan ni escriben pendientes.
 
 Medición final aislada: p95 confirmación → recepción en ambas pantallas **444,12 ms**, máximo **536,66 ms**; 100 muestras por pantalla. HTTP de la sala (medido antes de retirar `/turnos/sala/estado/`) y panel privado también bajo 2 s. Ver `specs/06-pantalla-sala-y-voz/validation.md` para carga, regresión y límites. La voz/televisor reales, navegador/axe, usabilidad y aceptación siguen pendientes; no se declara Implementado ni se migra automáticamente la base del proyecto.
+
+## Preparación y tiempos de espera — spec 07
+
+| Archivo | Responsabilidad |
+|---|---|
+| `recetasapp/models.py`, `migrations/0004_preparacionreceta.py` | `PreparacionReceta`, una por cada `TurnoReceta`, con recepción, marca, actor e intervalo de trabajo. La relación protege el historial. |
+| `turnosapp/services.py` | Crea la preparación dentro de la misma transacción de emisión; los reintentos recuperados no duplican. El resultado incluye la frase de espera recalculada. |
+| `recetasapp/services.py` | Marcar/corregir «Lista», retiro posterior idempotente y auditoría. El retiro conserva el vínculo y cierre originales; valida vigencia a la fecha de preparación y cupo actual. |
+| `recetasapp/preparacion.py` | Cola de preparación y pendientes de retiro derivados; promedio de intervalos de trabajo, con ventana de 14 días, mínimo 5 muestras y descarte sobre 30 minutos. |
+| `turnosapp/espera.py`, `turnosapp/panel.py` | Estimación compartida en minutos, frase única y conteo de ventanillas activas; el panel expone pendientes, promedio/muestras y enlace a Recetas. |
+| `recetasapp/views.py`, `forms.py`, `urls.py`, `templates/recetas/preparacion*.html` | Páginas privadas de preparación y retiro, búsqueda de pendientes por POST, formularios CSRF y respuestas `no-store`. |
+| `static/css/preparacion.css`, `static/js/preparacion.js` | Estados de texto y filas adaptables; consulta cada 5 s y reemplaza solo el fragmento de lista si cambió. |
+| `tools/verificar_spec_07_http.py` | SQLite temporal, HTTP real en loopback, 670 pacientes sintéticos, cuatro ventanillas y 100 recorridos de emisión, marca, ausencia y retiro; p50/p95/máximo por acción y panel. |
+
+La sección vive en Recetas y no agrega entrada al menú. La cifra de trabajo mide tiempo desde la recepción o la marca anterior del mismo usuario ese día, la que sea posterior; no equivale al tiempo total de espera del paciente. HU-18 se cubre parcialmente: la estimación actualiza la interfaz del personal, pero no la sala, el tótem ya emitido ni el comprobante impreso. El p95 HTTP de loopback con SQLite sintética fue menor de 110 ms en cada escenario; ver `specs/07-preparacion-y-tiempos-de-espera/validation.md` para valores detallados y límites. Revisión visual/axe y usabilidad siguen pendientes; no declarar el spec Implementado ni migrar la base del proyecto automáticamente.

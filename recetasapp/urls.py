@@ -17,4 +17,9 @@ urlpatterns = [
     path("importaciones/nueva/", views.NuevaImportacionView.as_view(), name="importacion_nueva"),
     path("importaciones/<uuid:referencia>/", views.ImportacionView.as_view(), name="importacion_detalle"),
     path("plantillas/<str:formato>/", views.PlantillaView.as_view(), name="plantilla"),
+    path("preparacion/", views.PreparacionView.as_view(), name="preparacion"),
+    path("preparacion/pendientes/", views.PendientesRetiroView.as_view(), name="preparacion_pendientes"),
+    path("preparacion/<int:pk>/lista/", views.MarcarPreparacionView.as_view(), name="preparacion_lista"),
+    path("preparacion/<int:pk>/deshacer/", views.CorregirPreparacionView.as_view(), name="preparacion_deshacer"),
+    path("preparacion/<int:pk>/retirar/", views.RetirarPreparadoView.as_view(), name="preparacion_retirar"),
 ]

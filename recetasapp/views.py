@@ -18,11 +18,17 @@ from django.views.decorators.debug import sensitive_post_parameters
 from coreapp.mixins import RolRequeridoMixin, tiene_rol
 from coreapp.roles import JEFA, TECNICO
 from coreapp.utils.rut import normalizar_rut
-from .forms import BusquedaPacienteForm, BusquedaRecetaForm, EntregaForm, ImportacionForm, RecetaForm
+from .forms import (
+    BusquedaPacienteForm, BusquedaPreparacionForm, BusquedaRecetaForm,
+    EntregaForm, ImportacionForm, RecetaForm, RetiroPreparadoForm,
+)
 from .importacion import filas_demo, generar_archivo, importar_padron
-from . import consultas, presentacion, tablero
+from . import consultas, preparacion as consultas_preparacion, presentacion, tablero
 from .models import ImportacionPadron, Paciente, Receta
-from .services import crear_receta, registrar_entrega
+from .services import (
+    crear_receta, deshacer_lista, marcar_lista, registrar_entrega,
+    retirar_preparado,
+)
 
 
 @method_decorator(never_cache, name="dispatch")
@@ -259,3 +265,105 @@ class PlantillaView(FarmaciaView):
         respuesta["Content-Disposition"] = f'attachment; filename="plantilla-padron-sintetico.{formato}"'
         respuesta["Cache-Control"] = "no-store"
         return respuesta
+
+
+class PreparacionView(FarmaciaView):
+    def contexto(self):
+        ahora = timezone.now()
+        items = list(consultas_preparacion.por_preparar(timezone.localdate(ahora)))
+        for item in items:
+            turno = item.turno_receta.turno
+            segundos = max(0, int((ahora - turno.entrada_cola).total_seconds()))
+            item.espera_transcurrida = f"{segundos // 60:02d}:{segundos % 60:02d}"
+            receta = item.turno_receta.receta
+            item.numero_entrega = receta.entregas_completadas + 1
+            item.maximo_entregas = receta.max_entregas
+        from turnosapp.espera import estimar_espera
+        estimacion = estimar_espera(ahora)
+        return {
+            "preparaciones": items, "estimacion": estimacion,
+            "promedio_minutos": estimacion.promedio_segundos / 60,
+        }
+
+    def get(self, request):
+        contexto = self.contexto()
+        if request.GET.get("fragmento") == "1":
+            return self.render("preparacion_lista.html", contexto)
+        return self.render("preparacion.html", contexto)
+
+
+class PendientesRetiroView(FarmaciaView):
+    def mostrar(self, request, form):
+        buscar, pagina = "", 1
+        if form.is_bound:
+            if form.is_valid():
+                buscar = form.cleaned_data["buscar"]
+                pagina = form.cleaned_data["pagina"] or 1
+        hoy = timezone.localdate()
+        page_obj = Paginator(consultas_preparacion.pendientes_retiro(buscar), 50).get_page(pagina)
+        page_obj.object_list = list(page_obj.object_list)
+        for item in page_obj.object_list:
+            turno = item.turno_receta.turno
+            if turno.estado == "ausente":
+                item.motivo_retiro = "Paciente ausente"
+            elif turno.estado == "sin_atencion_cierre":
+                item.motivo_retiro = "Cierre de jornada sin llamado"
+            else:
+                detalle = getattr(item.turno_receta, "detalle_cierre", None)
+                item.motivo_retiro = detalle.motivo if detalle else "Atención cerrada sin entrega"
+            item.preparada_el = timezone.localtime(item.lista_en).date()
+            item.dias_transcurridos = max(0, (hoy - item.preparada_el).days)
+            item.retiro_form = RetiroPreparadoForm(initial={"operacion_id": uuid.uuid4()})
+        return self.render("preparacion_pendientes.html", {
+            "form": form, "page_obj": page_obj, "buscar": buscar,
+        })
+
+    def get(self, request):
+        return self.mostrar(request, BusquedaPreparacionForm())
+
+    def post(self, request):
+        return self.mostrar(request, BusquedaPreparacionForm(request.POST))
+
+
+class AccionPreparacionView(FarmaciaView):
+    accion = None
+
+    def post(self, request, pk):
+        try:
+            self.accion(request.user, pk)
+        except ValidationError as error:
+            messages.error(request, error.messages[0] if error.messages else "No se pudo actualizar la preparación.")
+        except DatabaseError:
+            messages.error(request, "No se pudo completar la operación. Vuelve a cargar la preparación.")
+        else:
+            messages.success(request, self.mensaje)
+        return redirect(self.destino)
+
+
+class MarcarPreparacionView(AccionPreparacionView):
+    accion = staticmethod(marcar_lista)
+    mensaje = "Preparación marcada como lista."
+    destino = "recetasapp:preparacion"
+
+
+class CorregirPreparacionView(AccionPreparacionView):
+    accion = staticmethod(deshacer_lista)
+    mensaje = "Se corrigió la marca de preparación."
+    destino = "recetasapp:preparacion"
+
+
+class RetirarPreparadoView(FarmaciaView):
+    def post(self, request, pk):
+        form = RetiroPreparadoForm(request.POST)
+        if form.is_valid():
+            try:
+                retirar_preparado(request.user, pk, form.cleaned_data["operacion_id"])
+            except ValidationError as error:
+                messages.error(request, error.messages[0] if error.messages else "No se pudo registrar el retiro.")
+            except DatabaseError:
+                messages.error(request, "No se pudo completar el retiro. Vuelve a cargar los pendientes.")
+            else:
+                messages.success(request, "Retiro registrado.")
+        else:
+            messages.error(request, "La confirmación de retiro no es válida.")
+        return redirect("recetasapp:preparacion_pendientes")

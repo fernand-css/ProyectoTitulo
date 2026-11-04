@@ -1,0 +1,29 @@
+{% extends 'recetas/base.html' %}
+{% load static %}
+{% block titulo %}Preparación · Recetas{% endblock %}
+{% block estilos %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/preparacion.css' %}">{% endblock %}
+{% block migas %}<li><a href="{% url 'recetasapp:recetas' %}">Recetas</a></li><li><span aria-current="page">Preparación</span></li>{% endblock %}
+{% block farmacia %}
+<header class="preparacion-cabecera">
+  <div>
+    <h1>Preparación</h1>
+    <p>Ordena las recetas que esperan su preparación y registra cuándo quedan listas.</p>
+  </div>
+  <nav class="preparacion-pestanas" aria-label="Secciones de preparación">
+    <a href="{% url 'recetasapp:preparacion' %}" aria-current="page">Por preparar <span>{{ preparaciones|length }}</span></a>
+    <a href="{% url 'recetasapp:preparacion_pendientes' %}">Pendientes de retiro</a>
+  </nav>
+</header>
+
+<section class="preparacion-resumen" aria-label="Estimación de espera de hoy">
+  <p class="preparacion-estimacion">{{ estimacion.frase }}</p>
+  <p>{{ estimacion.pendientes }} receta{{ estimacion.pendientes|pluralize }} por preparar
+    · promedio {% if estimacion.usa_valor_predeterminado %}predeterminado de {% endif %}{{ promedio_minutos|floatformat:0 }} min
+    ({{ estimacion.muestras }} muestra{{ estimacion.muestras|pluralize }})
+    · {{ estimacion.ventanillas }} ventanilla{{ estimacion.ventanillas|pluralize }} en atención
+  </p>
+</section>
+
+{% include 'recetas/preparacion_lista.html' %}
+{% endblock %}
+{% block scripts %}<script defer src="{% static 'js/preparacion.js' %}"></script>{% endblock %}

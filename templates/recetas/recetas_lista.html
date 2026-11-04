@@ -17,14 +17,15 @@
         <h1 id="titulo-recetas">Recetas</h1>
         <p>Cuántas recetas siguen vigentes, cuáles vencen pronto y cómo van las entregas. Abajo está la lista completa.</p>
       </div>
-      {% if rol == 'Jefa de Farmacia' or rol == 'superusuario' %}
       <div class="acciones">
+        {% if rol == 'Jefa de Farmacia' or rol == 'superusuario' %}
         <a class="boton" href="{% url 'recetasapp:receta_nueva' %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-mas"/></svg>Crear receta</a>
+        {% endif %}
+        {% if rol == 'Jefa de Farmacia' or rol == 'Técnico en Farmacia' or rol == 'superusuario' %}
+        <a class="boton boton-secundario" href="{% url 'recetasapp:preparacion' %}">Preparación</a>
+        {% endif %}
         <a class="boton boton-secundario" href="#listado">Ir a la lista</a>
       </div>
-      {% else %}
-      <div class="acciones"><a class="boton boton-secundario" href="#listado">Ir a la lista</a></div>
-      {% endif %}
     </div>
   </div>
 </section>

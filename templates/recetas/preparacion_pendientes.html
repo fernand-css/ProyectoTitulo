@@ -1,0 +1,68 @@
+{% extends 'recetas/base.html' %}
+{% load static %}
+{% block titulo %}Pendientes de retiro · Preparación{% endblock %}
+{% block estilos %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/preparacion.css' %}">{% endblock %}
+{% block migas %}<li><a href="{% url 'recetasapp:recetas' %}">Recetas</a></li><li><a href="{% url 'recetasapp:preparacion' %}">Preparación</a></li><li><span aria-current="page">Pendientes de retiro</span></li>{% endblock %}
+{% block farmacia %}
+<header class="preparacion-cabecera">
+  <div>
+    <h1>Pendientes de retiro</h1>
+    <p>Preparaciones listas que no se entregaron al cerrar el turno.</p>
+  </div>
+  <nav class="preparacion-pestanas" aria-label="Secciones de preparación">
+    <a href="{% url 'recetasapp:preparacion' %}">Por preparar</a>
+    <a href="{% url 'recetasapp:preparacion_pendientes' %}" aria-current="page">Pendientes de retiro <span>{{ page_obj.paginator.count }}</span></a>
+  </nav>
+</header>
+
+<form class="preparacion-busqueda" method="post" role="search">
+  {% csrf_token %}
+  <label for="{{ form.buscar.id_for_label }}">{{ form.buscar.label }}</label>
+  <div class="preparacion-busqueda-caja">
+    {{ form.buscar }}
+    <button class="boton" type="submit">Buscar</button>
+    {% if buscar %}<a class="boton boton-secundario" href="{% url 'recetasapp:preparacion_pendientes' %}">Limpiar</a>{% endif %}
+  </div>
+  {{ form.pagina }}
+  {% if form.buscar.errors %}<div class="message message-error" role="alert">{{ form.buscar.errors }}</div>{% endif %}
+</form>
+
+{% if page_obj.object_list %}
+<div class="preparacion-tabla-contenedor">
+  <table class="preparacion-tabla">
+    <caption>{{ page_obj.paginator.count }} preparación{{ page_obj.paginator.count|pluralize }} pendiente{{ page_obj.paginator.count|pluralize }} de retiro</caption>
+    <thead><tr><th scope="col">Paciente</th><th scope="col">Receta</th><th scope="col">Turno</th><th scope="col">Motivo</th><th scope="col">Preparada el</th><th scope="col">Días</th><th scope="col"><span class="sr-only">Acción</span></th></tr></thead>
+    <tbody>
+      {% for item in page_obj %}
+      <tr>
+        <td data-title="Paciente"><strong>{{ item.turno_receta.turno.paciente.apellidos }}, {{ item.turno_receta.turno.paciente.nombres }}</strong><span>RUT {{ item.turno_receta.turno.paciente.rut }}</span></td>
+        <td data-title="Receta">{{ item.turno_receta.receta.codigo }}</td>
+        <td data-title="Turno">N° {{ item.turno_receta.turno.numero }} · {{ item.turno_receta.turno.fecha|date:"d/m/Y" }}</td>
+        <td data-title="Motivo">{{ item.motivo_retiro }}</td>
+        <td data-title="Preparada el">{{ item.preparada_el|date:"d/m/Y" }}</td>
+        <td data-title="Días">{{ item.dias_transcurridos }}</td>
+        <td data-title="Acción">
+          <form method="post" action="{% url 'recetasapp:preparacion_retirar' item.pk %}">
+            {% csrf_token %}{{ item.retiro_form.operacion_id }}
+            <button class="boton" type="submit">Registrar retiro</button>
+          </form>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if page_obj.has_other_pages %}
+<nav class="paginacion" aria-label="Páginas de pendientes">
+  {% if page_obj.has_previous %}<form method="post">{% csrf_token %}<input type="hidden" name="buscar" value="{{ buscar }}"><button class="boton boton-secundario" name="pagina" value="{{ page_obj.previous_page_number }}">Anterior</button></form>{% endif %}
+  <span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<form method="post">{% csrf_token %}<input type="hidden" name="buscar" value="{{ buscar }}"><button class="boton boton-secundario" name="pagina" value="{{ page_obj.next_page_number }}">Siguiente</button></form>{% endif %}
+</nav>
+{% endif %}
+{% else %}
+<div class="preparacion-vacia">
+  <h2>{% if buscar %}No encontramos pendientes con esa búsqueda{% else %}No hay retiros pendientes{% endif %}</h2>
+  <p>{% if buscar %}Revisa el RUT o apellido e inténtalo otra vez.{% else %}Las recetas listas sin entregar aparecerán aquí cuando se cierre un turno.{% endif %}</p>
+</div>
+{% endif %}
+{% endblock %}

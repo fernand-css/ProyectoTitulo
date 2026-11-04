@@ -52,6 +52,21 @@ class EntregaForm(forms.Form):
     confirmar = forms.BooleanField(label="Confirmo que esta entrega del ciclo fue completada")
 
 
+class BusquedaPreparacionForm(forms.Form):
+    buscar = forms.CharField(
+        label="Buscar por RUT o apellido", max_length=150, required=False,
+        widget=forms.TextInput(attrs={
+            "type": "search", "autocomplete": "off", "spellcheck": "false",
+            "enterkeyhint": "search", "placeholder": "RUT o apellido",
+        }),
+    )
+    pagina = forms.IntegerField(min_value=1, initial=1, required=False, widget=forms.HiddenInput)
+
+
+class RetiroPreparadoForm(forms.Form):
+    operacion_id = forms.UUIDField(widget=forms.HiddenInput)
+
+
 class ImportacionForm(forms.Form):
     formato = forms.ChoiceField(label="Formato del archivo", choices=ImportacionPadron.Formato.choices)
     archivo = forms.FileField(label="Archivo sintético", help_text="CSV UTF-8 o Excel .xlsx. Máximo 5 MiB y 10.000 filas; usa una plantilla descargable.")

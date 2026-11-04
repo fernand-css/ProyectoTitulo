@@ -2,6 +2,7 @@
 
 import uuid
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.validators import MinValueValidator, RegexValidator
 from django.db import models
@@ -193,3 +194,43 @@ class ResultadoFilaImportacion(ModeloAuditado):
 
     def __str__(self):
         return f"Resultado de carga {self.importacion_id}, fila {self.numero_fila}"
+
+
+class PreparacionReceta(ModeloAuditado):
+    """Recepción y medición de preparación de una receta emitida en un turno."""
+
+    turno_receta = models.OneToOneField(
+        "turnosapp.TurnoReceta", on_delete=models.PROTECT, related_name="preparacion",
+    )
+    recibida_en = models.DateTimeField()
+    lista_en = models.DateTimeField(null=True, blank=True)
+    lista_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT,
+        related_name="preparaciones_marcadas",
+    )
+    inicio_medido = models.DateTimeField(null=True, blank=True)
+    duracion_segundos = models.PositiveIntegerField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.CheckConstraint(
+                condition=(
+                    Q(lista_en__isnull=True, lista_por__isnull=True,
+                      inicio_medido__isnull=True, duracion_segundos__isnull=True)
+                    | Q(lista_en__isnull=False, lista_por__isnull=False,
+                        inicio_medido__isnull=False, duracion_segundos__isnull=False)
+                ),
+                name="preparacion_lista_campos_coherentes",
+            ),
+            models.CheckConstraint(
+                condition=Q(lista_en__isnull=True) | Q(inicio_medido__lte=F("lista_en")),
+                name="preparacion_intervalo_ordenado",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["lista_en"], name="preparacion_lista_en_idx"),
+            models.Index(fields=["recibida_en"], name="preparacion_recibida_idx"),
+        ]
+
+    def __str__(self):
+        return f"Preparación de vínculo {self.turno_receta_id}"

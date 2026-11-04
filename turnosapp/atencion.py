@@ -21,7 +21,7 @@ from .sala import registrar_anuncio
 from .cola import bloquear_cola, cerrar_esperas_anteriores, ConflictoCola, solicitar_seleccion
 from .models import (
     ConfiguracionCola, EventoTurno, OcupacionVentanilla, OperacionAtencion,
-    TipoAtencionVentanilla, Turno, Ventanilla, CierreAtencion, DetalleCierre,
+    TipoAtencionVentanilla, Turno, TurnoReceta, Ventanilla, CierreAtencion, DetalleCierre,
 )
 
 
@@ -182,6 +182,9 @@ def _operar(actor, tipo, destino, identidad, datos, huella):
     elif tipo == "reincorporar":
         if turno.estado != "ausente" or turno.fecha != hoy:
             raise ValidationError("Solo puedes reincorporar un ausente de la jornada actual.")
+        vinculos = TurnoReceta.objects.filter(turno=turno)
+        if vinculos.exists() and not vinculos.filter(entrega__isnull=True).exists():
+            raise ValidationError("Todas las recetas de este turno ya se retiraron; no se puede reincorporar.")
         if Turno.objects.filter(paciente_id=turno.paciente_id, estado__in=["esperando", "llamado"]).exclude(pk=turno.pk).exists():
             raise ValidationError("El paciente ya tiene otro turno activo.")
         from .services import clasificar_atencion

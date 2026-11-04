@@ -1,8 +1,8 @@
 # Plan técnico — 07 / Preparación y tiempos de espera
 
 Spec: [spec.md](spec.md). Tareas: [tasks.md](tasks.md). Evidencia: [validation.md](validation.md).
-Fecha: 2026-11-03. Estado: propuesta; sin código.
-Autorización de implementación: pendiente.
+Fecha: 2026-11-03. Estado: implementación, verificación técnica y documentación completas. Revisión visual/usabilidad y aceptación pendientes.
+Autorización de implementación: otorgada por el usuario el 2026-11-03.
 
 ## Inspección de la base
 

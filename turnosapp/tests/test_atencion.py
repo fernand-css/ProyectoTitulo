@@ -12,7 +12,7 @@ from turnosapp.atencion import (
     configurar_ventanilla, configurar_pesos, crear_ventanilla, rellamar, marcar_ausente, reincorporar,
 )
 from turnosapp.cola import cerrar_jornada_anterior, procesar_pendiente
-from turnosapp.models import ConfiguracionCola, ContadorTurnosDiario, EventoTurno, OcupacionVentanilla, OperacionAtencion, Turno, Ventanilla
+from turnosapp.models import ConfiguracionCola, ContadorTurnosDiario, EventoTurno, OcupacionVentanilla, OperacionAtencion, Turno, TurnoReceta, Ventanilla
 from turnosapp.services import emitir_turno
 from .datos_cola import DatosCola
 
@@ -171,6 +171,41 @@ class AtencionTests(DatosCola, TestCase):
         self.assertEqual(nuevo.numero, 2)
         with self.assertRaises(ValidationError):
             reincorporar(self.personal["tecnico"], turno.pk, uuid.uuid4())
+
+    def test_no_reincorpora_si_todas_las_recetas_ya_se_retiraron(self):
+        turno = self.turno()
+        Turno.objects.filter(pk=turno.pk).update(estado="ausente", cerrado_en=self.ahora)
+        recetas = [Receta.objects.create(
+            paciente=turno.paciente, codigo=f"RETIRADA-{indice}", fecha_inicio=self.fecha,
+            fecha_fin_exclusiva=self.fecha + timedelta(days=30), vigencia_meses=1, max_entregas=2,
+            entregas_completadas=1,
+        ) for indice in (1, 2)]
+        for receta in recetas:
+            vinculo = TurnoReceta.objects.create(turno=turno, receta=receta)
+            EntregaReceta.objects.create(receta=receta, numero=1, turno_receta=vinculo)
+
+        with self.assertRaisesMessage(ValidationError, "Todas las recetas de este turno ya se retiraron"):
+            reincorporar(self.personal["tecnico"], turno.pk, uuid.uuid4())
+
+    def test_reincorpora_ausente_con_alguna_receta_aun_sin_entregar(self):
+        turno = self.turno()
+        Turno.objects.filter(pk=turno.pk).update(estado="ausente", cerrado_en=self.ahora)
+        receta = Receta.objects.create(
+            paciente=turno.paciente, codigo="PARCIALMENTE-RETIRADA", fecha_inicio=self.fecha,
+            fecha_fin_exclusiva=self.fecha + timedelta(days=30), vigencia_meses=1, max_entregas=2,
+            entregas_completadas=1,
+        )
+        vinculo = TurnoReceta.objects.create(turno=turno, receta=receta)
+        EntregaReceta.objects.create(receta=receta, numero=1, turno_receta=vinculo)
+        receta_pendiente = Receta.objects.create(
+            paciente=turno.paciente, codigo="AUN-PENDIENTE", fecha_inicio=self.fecha,
+            fecha_fin_exclusiva=self.fecha + timedelta(days=30), vigencia_meses=1, max_entregas=2,
+        )
+        TurnoReceta.objects.create(turno=turno, receta=receta_pendiente)
+
+        self.hacer(reincorporar, self.personal["tecnico"], turno.pk, uuid.uuid4())
+        turno.refresh_from_db()
+        self.assertEqual(turno.estado, "esperando")
 
     def test_configuracion_pesos_y_creacion_solo_por_qf(self):
         configurar_pesos(self.personal["qf"], uuid.uuid4(), preferencial=3, cronicos=2, general=1)

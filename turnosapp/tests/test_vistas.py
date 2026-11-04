@@ -143,6 +143,8 @@ class TotemVistasTests(TestCase):
         papel = comprobante(primera)
         self.assertEqual(papel, comprobante(segunda))
         self.assertIn('class="comprobante-numero">1</p>', papel)
+        self.assertIn(primera.context["resultado"].espera, papel)
+        self.assertIn(primera.context["resultado"].espera, primera.content.decode())
         self.assertNotIn("input", papel)
         self.assertNotIn("csrf", papel)
         self.assertNotIn(self.paciente.rut, papel)

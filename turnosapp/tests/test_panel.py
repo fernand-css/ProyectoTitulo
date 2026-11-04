@@ -66,6 +66,8 @@ class PanelTests(DatosCierre, TestCase):
         self.client.force_login(self.personal["qf"])
         respuesta = self.client.get(self.url("panel"))
         self.assertContains(respuesta, "Gestionar ventanillas y pesos")
+        self.assertContains(respuesta, "Preparación de recetas")
+        self.assertContains(respuesta, "Abrir Preparación")
         self.assertNotContains(respuesta, "Finalizar y confirmar entregas")
         self.assertEqual(self.client.post(self.url("finalizar_atencion", pk=self.actual.pk), self.cierre()).status_code, 403)
         self.assertEqual(self.client.get(self.url("gestion")).status_code, 200)

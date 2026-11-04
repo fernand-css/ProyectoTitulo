@@ -14,7 +14,7 @@ from django.utils import timezone
 
 from coreapp.auditoria import registrar_accion
 from coreapp.utils.rut import normalizar_rut
-from recetasapp.models import Paciente
+from recetasapp.models import Paciente, PreparacionReceta
 from recetasapp.services import evaluar_elegibilidad
 from .models import ContadorTurnosDiario, Turno, TurnoReceta
 
@@ -39,10 +39,15 @@ class ResultadoEmision:
     fecha: date
     creado_en: datetime
     recuperado: bool
+    espera: str
 
 
 def _resultado(turno, recuperado):
-    return ResultadoEmision(turno.numero, turno.fecha, turno.creado_en, recuperado)
+    from .espera import estimar_espera
+    return ResultadoEmision(
+        turno.numero, turno.fecha, turno.creado_en, recuperado,
+        estimar_espera().frase,
+    )
 
 
 def _anterior(paciente, fecha, operacion):
@@ -107,6 +112,10 @@ def _emitir(rut, operacion):
         vinculo = TurnoReceta(turno=turno, receta=receta)
         vinculo.full_clean()
         vinculo.save()
+        PreparacionReceta.objects.create(
+            turno_receta=vinculo,
+            recibida_en=turno.creado_en,
+        )
     try:
         registrar_accion(None, "turno.emitido", turno)
     except OperationalError:

@@ -28,3 +28,12 @@
 .cola-formulario [disabled] { opacity: 1; color: var(--secundario-texto); }
 .cola-refresco [hidden] { display: none; }
 @media (max-width: 60rem) { .cola-mesa { grid-template-columns: 1fr; } .cola-cabecera { flex-direction: column; } }
+.cola-preparacion {
+  margin: 0 0 1rem;
+  padding: 1rem 1.2rem;
+  color: var(--trigo-texto);
+  background: var(--trigo-fondo);
+  border-left: 0.55rem solid var(--ladrillo);
+}
+.cola-preparacion h2 { margin: 0 0 0.35rem; font-family: var(--fuente-titulo); font-size: 1.2rem; }
+.cola-preparacion p { margin: 0.3rem 0; }

@@ -1,6 +1,14 @@
 {% load core_tags %}
 {% if not configuracion %}<p class="message message-warning">Las ventanillas aún no tienen configuración inicial. Solicita su preparación a la administración.</p>{% endif %}
 {% for tipo in sin_cobertura %}<p class="message message-warning">No hay ventanillas habilitadas para {{ tipo }}. La fila de ese tipo seguirá esperando.</p>{% endfor %}
+{% if puede_operar or puede_gestionar %}
+<section class="cola-preparacion" aria-labelledby="cola-preparacion-titulo">
+  <h2 id="cola-preparacion-titulo">Preparación de recetas</h2>
+  <p>{{ estimacion_preparacion.pendientes }} receta{{ estimacion_preparacion.pendientes|pluralize }} por preparar · {{ estimacion_preparacion.frase }}</p>
+  <p>Promedio {% if estimacion_preparacion.usa_valor_predeterminado %}predeterminado de {% endif %}{{ estimacion_preparacion.promedio_segundos|floatformat:0 }} s por receta · {{ estimacion_preparacion.muestras }} muestra{{ estimacion_preparacion.muestras|pluralize }}.</p>
+  <a class="boton boton-secundario" href="{% url 'recetasapp:preparacion' %}">Abrir Preparación</a>
+</section>
+{% endif %}
 <div class="cola-mesa">
 <section class="cola-puesto" aria-labelledby="puesto-titulo">
 {% if puede_operar %}

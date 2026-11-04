@@ -26,11 +26,14 @@ def contexto_panel(usuario, pagina=1):
         turno.espera = espera_turno(turno, ahora)
     habilitados = {tipo.codigo for vent in ventanillas if vent.habilitada and not vent.retirada for tipo in vent.tipos.all()}
     sin_cobertura = [etiqueta for codigo, etiqueta in Turno.TipoAtencion.choices if codigo not in habilitados and espera.filter(tipo_atencion=codigo).exists()]
+    from .espera import estimar_espera
+    estimacion_preparacion = estimar_espera(ahora)
     return {"ventanillas": ventanillas, "propia": propia, "vigente": vigente, "pagina_cola": pagina_cola,
         "puede_operar": operar, "puede_gestionar": gestionar, "configuracion": ConfiguracionCola.objects.filter(pk=1).first(),
         "ausentes": Turno.objects.filter(fecha=hoy, estado="ausente").order_by("numero")[:100],
         "pendientes": PendienteSeleccion.objects.filter(estado="pendiente").order_by("creado_en")[:20],
         "sin_cobertura": sin_cobertura, "hoy": hoy, "ahora": ahora,
+        "estimacion_preparacion": estimacion_preparacion,
         "puede_ausente": bool(vigente and ahora >= vigente.ultimo_llamado + timedelta(seconds=60)),
         "nonce_iniciar": uuid.uuid4(), "nonce_pausar": uuid.uuid4(), "nonce_liberar": uuid.uuid4(),
         "nonce_rellamar": uuid.uuid4(), "nonce_ausente": uuid.uuid4()}

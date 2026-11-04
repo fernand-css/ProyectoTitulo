@@ -9,6 +9,7 @@
 <div role="status"><p class="totem-numero">{{ resultado.numero }}</p>
 <p>{% if resultado.recuperado %}Este es tu turno registrado.{% else %}Tu llegada quedó registrada.{% endif %}</p></div>
 <p>Espera el llamado de tu número.</p>
+<p class="totem-espera">{{ resultado.espera }}</p>
 <p>{{ resultado.fecha|date:'d/m/Y' }} · {{ resultado.creado_en|date:'H:i' }}</p>
 <button class="boton boton-bloque" type="button" data-imprimir hidden>Imprimir número</button>
 <p>Si el papel no sale, puedes volver a imprimir el mismo número.</p>

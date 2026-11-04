@@ -1,12 +1,12 @@
 # SPEC 07 — Preparación y tiempos de espera
 
-> **Estado:** Aprobado
+> **Estado:** Implementado
 > **Depende de:** [SPEC 01](../01-base-del-proyecto/spec.md), [SPEC 02](../02-autenticacion-roles-auditoria/spec.md), [SPEC 03](../03-padron-y-recetas/spec.md), [SPEC 04](../04-emision-de-turnos/spec.md) y [SPEC 05](../05-cola-ponderada-y-llamado/spec.md)
 > **Fecha:** 2026-11-03
 > **Objetivo:** Registrar cuándo queda lista la preparación de cada receta de un turno, permitir retirar después los medicamentos preparados de quien no se presentó y mostrar un tiempo estimado de espera calculado con los tiempos reales de preparación.
 
 Módulo: `recetasapp` (preparación y retiro) con integración en `turnosapp` (emisión, tótem, comprobante y panel). Fuente: HU-06, HU-17, HU-18, HU-21, RNF-01/02/04/05 del [informe](../../docs/Informe.md) y las respuestas del usuario en esta sesión.
-Implementación autorizada: NO. Revisión del usuario: pendiente.
+Implementación autorizada por el usuario el 2026-11-03 al solicitar la implementación y confirmar el inicio de T-07-01. Aceptación funcional: pendiente.
 
 Documentos: [plan.md](plan.md), [tasks.md](tasks.md), [validation.md](validation.md), [índice](../README.md).
 
