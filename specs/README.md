@@ -12,6 +12,7 @@ Organización adaptada de `SDD (1).rar`: una carpeta por módulo o cambio y cuat
 | 04 — Emisión de turnos | Aprobado; código y verificación técnica completos; navegador/impresión/aceptación pendientes; `fdaza` | [spec.md](04-emision-de-turnos/spec.md) | [plan.md](04-emision-de-turnos/plan.md) | [tasks.md](04-emision-de-turnos/tasks.md) | [validation.md](04-emision-de-turnos/validation.md) |
 | 05 — Cola ponderada y llamado | Aprobado; seis pasos técnicos completos, HTTP y recuperación verificados; navegador/axe/usabilidad y aceptación pendientes; `fdaza` | [spec.md](05-cola-ponderada-y-llamado/spec.md) | [plan.md](05-cola-ponderada-y-llamado/plan.md) | [tasks.md](05-cola-ponderada-y-llamado/tasks.md) | [validation.md](05-cola-ponderada-y-llamado/validation.md) |
 | 06 — Pantalla de sala y voz | Aprobado; código técnico completo, 100 llamados a dos pantallas con p95 444 ms; navegador/axe, hardware, usabilidad y aceptación pendientes; `fdaza` | [spec.md](06-pantalla-sala-y-voz/spec.md) | [plan.md](06-pantalla-sala-y-voz/plan.md) | [tasks.md](06-pantalla-sala-y-voz/tasks.md) | [validation.md](06-pantalla-sala-y-voz/validation.md) |
+| 07 — Preparación y tiempos de espera | Borrador; sin código ni autorización de implementación | [spec.md](07-preparacion-y-tiempos-de-espera/spec.md) | [plan.md](07-preparacion-y-tiempos-de-espera/plan.md) | [tasks.md](07-preparacion-y-tiempos-de-espera/tasks.md) | [validation.md](07-preparacion-y-tiempos-de-espera/validation.md) |
 
 El spec 01 conserva su acuerdo: implementación en `fdaza`, documento aprobado en `fd686ec` y commits de implementación sujetos a instrucción del equipo. La verificación técnica y sus pendientes no equivalen a aceptación funcional del usuario.
 
@@ -22,7 +23,7 @@ El spec 01 conserva su acuerdo: implementación en `fdaza`, documento aprobado e
 | 11 | Modo sin conexión y caché de la PWA | Reservado; sin documento aprobado |
 | 12 | Notificaciones | Reservado; sin documento aprobado |
 
-Para una nueva spec, comprobar las carpetas, los archivos heredados y esta tabla. Si corresponde a un tema reservado, usar su número; para otros temas, usar el primer número libre sin ocupar reservas. `02` corresponde a autenticación, roles y auditoría; `03`, a padrón y recetas; `04`, a emisión de turnos; `05`, a cola ponderada y llamado; `06`, a pantalla de sala y voz con WebSocket, aprobado e implementado técnicamente con aceptación pendiente. `07` es el primer número libre no reservado. Las reservas no crean documentos ni autorizan implementación.
+Para una nueva spec, comprobar las carpetas, los archivos heredados y esta tabla. Si corresponde a un tema reservado, usar su número; para otros temas, usar el primer número libre sin ocupar reservas. `02` corresponde a autenticación, roles y auditoría; `03`, a padrón y recetas; `04`, a emisión de turnos; `05`, a cola ponderada y llamado; `06`, a pantalla de sala y voz con WebSocket, aprobado e implementado técnicamente con aceptación pendiente. `07`, a preparación de medicamentos, retiro de preparados pendientes y tiempos de espera (HU-06/17/18; Borrador, sin aprobación ni código; su preparación vive en `recetasapp`). `08` es el primer número libre no reservado. Las reservas no crean documentos ni autorizan implementación.
 
 ## Estructura
 
@@ -62,7 +63,12 @@ specs/
 │   ├── plan.md
 │   ├── tasks.md
 │   └── validation.md
-└── 06-pantalla-sala-y-voz/
+├── 06-pantalla-sala-y-voz/
+│   ├── spec.md
+│   ├── plan.md
+│   ├── tasks.md
+│   └── validation.md
+└── 07-preparacion-y-tiempos-de-espera/
     ├── spec.md
     ├── plan.md
     ├── tasks.md

@@ -1,6 +1,6 @@
 # SPEC 06 — Pantalla de sala y voz
 
-> **Estado:** Aprobado
+> **Estado:** Implementado
 > **Depende de:** [SPEC 01](../01-base-del-proyecto/spec.md), [SPEC 02](../02-autenticacion-roles-auditoria/spec.md), [SPEC 04](../04-emision-de-turnos/spec.md) y [SPEC 05](../05-cola-ponderada-y-llamado/spec.md)
 > **Fecha:** 2026-11-03
 > **Objetivo:** Mostrar en una pantalla pública de la sala de espera cada llamado y re-llamado del 05, con su número y ventanilla, un aviso visual y una voz que dicen lo mismo, a no más de 2 segundos de que el Técnico lo confirma.
