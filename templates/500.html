@@ -4,7 +4,7 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <meta name="theme-color" content="#bc4f4f">
+  <meta name="theme-color" content="#1F5FAE">
   <title>Problema temporal · Farmacia</title>
   <link rel="icon" type="image/png" href="{% static 'icons/icon-192.png' %}">
   <link rel="stylesheet" href="{% static 'css/base.css' %}">
@@ -12,62 +12,89 @@
 <body>
   <a class="skip-link" href="#contenido">Saltar al contenido</a>
   {# Esta página no extiende ninguna otra ni incluye parciales: debe poder mostrarse aunque falle lo demás. #}
-  <div class="acceso">
-    <header class="paisaje">
-      <a class="marca" href="/">
-        <svg class="marca-svg" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
-          <clipPath id="recorte-500"><rect width="48" height="48" rx="12"/></clipPath>
-          <g clip-path="url(#recorte-500)">
-            <rect width="48" height="48" fill="#BC4F4F"/>
-            <path d="M24 21V15M31 22.9l3-5.2M36.1 28l5.2-3M17 22.9l-3-5.2M11.9 28l-5.2-3" stroke="#FEF2A0" stroke-width="3" stroke-linecap="round" fill="none"/>
-            <path d="M14 35a10 10 0 0 1 20 0z" fill="#FEF2A0"/>
-            <rect y="35" width="48" height="13" fill="#E98B50"/>
-            <path d="M24 35 0 48h10zM24 35l-5 13h10zM24 35l14 13h10z" fill="#F3CD97"/>
-          </g>
+  <div class="entrada">
+    <div class="entrada-tarjeta">
+      <div class="entrada-formulario">
+        <a class="marca" href="/">
+          <svg class="marca-svg" viewBox="0 0 48 48" aria-hidden="true" focusable="false">
+            <rect width="48" height="48" rx="12" fill="#1F5FAE"/>
+            <path d="M20 11h8v9h9v8h-9v9h-8v-9h-9v-8h9z" fill="#FFFFFF"/>
+          </svg>
+          <span class="marca-texto"><strong>Farmacia</strong><span>CESFAM San Nicolás</span></span>
+        </a>
+        <main id="contenido" class="acceso-contenido" tabindex="-1">
+          <h1 id="titulo-error">Ocurrió un problema temporal</h1>
+          <p class="acceso-intro">Intenta nuevamente en unos momentos. Si el problema continúa, avisa a la administración.</p>
+          <div class="acciones">
+            <a class="boton" href="/">Volver al inicio</a>
+          </div>
+          <p class="acceso-codigo">Código del error: 500</p>
+        </main>
+      </div>
+      <div class="entrada-arte">
+        <p class="entrada-lema">Departamento de Salud Municipal<br>San Nicolás, Región de Ñuble</p>
+        <svg class="entrada-ilustracion" viewBox="0 0 600 520" preserveAspectRatio="xMidYMax meet" aria-hidden="true" focusable="false">
+          <defs>
+            <symbol id="farmacia-mostrador" viewBox="0 0 600 520">
+          <circle cx="300" cy="250" r="240" fill="#CFE0F4"/>
+          <rect x="100" y="10" width="400" height="352" rx="22" fill="#BDD3EE"/>
+          <rect x="120" y="30" width="170" height="160" rx="6" fill="#F4F8FD"/>
+          <rect x="310" y="30" width="170" height="160" rx="6" fill="#F4F8FD"/>
+          <rect x="120" y="206" width="170" height="130" rx="6" fill="#F4F8FD"/>
+          <rect x="310" y="206" width="170" height="130" rx="6" fill="#F4F8FD"/>
+          <rect x="120" y="184" width="170" height="6" fill="#9EBCE0"/>
+          <rect x="310" y="184" width="170" height="6" fill="#9EBCE0"/>
+          <rect x="140" y="104" width="40" height="80" rx="6" fill="#6F98CF"/>
+          <rect x="140" y="92" width="40" height="16" rx="5" fill="#A9C3E4"/>
+          <rect x="147" y="134" width="26" height="12" rx="2" fill="#F4F8FD"/>
+          <rect x="190" y="128" width="32" height="56" rx="4" fill="#E3EDF9"/>
+          <rect x="196" y="140" width="20" height="4" fill="#6F98CF"/>
+          <rect x="196" y="150" width="14" height="4" fill="#6F98CF"/>
+          <rect x="238" y="122" width="40" height="62" rx="7" fill="#123F78"/>
+          <rect x="244" y="108" width="28" height="18" rx="5" fill="#0C2F5E"/>
+          <rect x="246" y="146" width="24" height="12" rx="2" fill="#F4F8FD"/>
+          <rect x="326" y="126" width="72" height="58" rx="4" fill="#E3EDF9"/>
+          <rect x="326" y="126" width="72" height="14" rx="4" fill="#8DB0DD"/>
+          <rect x="336" y="154" width="34" height="4" fill="#6F98CF"/>
+          <rect x="336" y="164" width="24" height="4" fill="#6F98CF"/>
+          <rect x="410" y="62" width="40" height="122" rx="6" fill="#6F98CF"/>
+          <rect x="410" y="48" width="40" height="18" rx="5" fill="#DE9230"/>
+          <rect x="417" y="110" width="26" height="34" rx="2" fill="#F4F8FD"/>
+          <rect x="421" y="120" width="18" height="4" fill="#6F98CF"/>
+          <rect x="421" y="130" width="12" height="4" fill="#6F98CF"/>
+          <rect x="456" y="142" width="20" height="42" rx="4" fill="#A9C3E4"/>
+          <rect x="130" y="248" width="88" height="88" rx="4" fill="#E3EDF9"/>
+          <rect x="130" y="248" width="88" height="18" rx="4" fill="#8DB0DD"/>
+          <rect x="142" y="282" width="50" height="5" fill="#6F98CF"/>
+          <rect x="142" y="294" width="34" height="5" fill="#6F98CF"/>
+          <rect x="228" y="266" width="50" height="70" rx="4" fill="#D3E2F5"/>
+          <rect x="326" y="276" width="38" height="60" rx="7" fill="#123F78"/>
+          <rect x="333" y="298" width="24" height="12" rx="2" fill="#F4F8FD"/>
+          <rect x="376" y="238" width="34" height="98" rx="6" fill="#A9C3E4"/>
+          <rect x="376" y="226" width="34" height="16" rx="5" fill="#6F98CF"/>
+          <rect x="422" y="270" width="48" height="66" rx="4" fill="#E3EDF9"/>
+          <rect x="422" y="270" width="48" height="12" rx="4" fill="#DE9230"/>
+          <rect x="430" y="296" width="30" height="4" fill="#6F98CF"/>
+          <rect x="206" y="288" width="44" height="26" rx="8" fill="none" stroke="#0F3A6E" stroke-width="6"/>
+          <rect x="186" y="306" width="84" height="30" rx="6" fill="#6F98CF"/>
+          <rect x="204" y="316" width="48" height="8" rx="2" fill="#F4F8FD"/>
+          <rect x="70" y="336" width="460" height="28" rx="8" fill="#0F3A6E"/>
+          <rect x="100" y="364" width="400" height="130" fill="#FFFFFF"/>
+          <rect x="100" y="364" width="400" height="12" fill="#E3EDF9"/>
+          <rect x="60" y="494" width="480" height="4" rx="2" fill="#9EBCE0"/>
+          <path d="M236 402h28v22h22v28h-22v22h-28v-22h-22v-28h22z" fill="#0F3A6E"/>
+          <path d="M346 326h54v96l-6.75-6-6.75 6-6.75-6-6.75 6-6.75-6-6.75 6-6.75-6-6.75 6z" fill="#F4F8FD" stroke="#6F98CF" stroke-width="2"/>
+          <rect x="356" y="342" width="34" height="4" fill="#6F98CF"/>
+          <rect x="356" y="354" width="26" height="4" fill="#6F98CF"/>
+          <rect x="356" y="366" width="34" height="4" fill="#6F98CF"/>
+          <rect x="356" y="382" width="22" height="4" fill="#DE9230"/>
+          <rect x="356" y="394" width="30" height="4" fill="#6F98CF"/>
+    </symbol>
+          </defs>
+          <use href="#farmacia-mostrador"/>
         </svg>
-        <span class="marca-texto"><strong>Farmacia</strong><span>CESFAM San Nicolás</span></span>
-      </a>
-      <p class="paisaje-lema">Departamento de Salud Municipal<br>San Nicolás, Región de Ñuble</p>
-      <svg class="paisaje-arte" viewBox="0 0 600 800" preserveAspectRatio="xMidYMax meet" aria-hidden="true" focusable="false">
-        <circle cx="360" cy="540" r="330" fill="#C25555"/>
-        <circle cx="360" cy="540" r="252" fill="#C86060"/>
-        <g transform="translate(360 540) scale(0.92)">
-          <path fill="#FEF2A0" d="M-104 -3L-234.7 -24.7L-102.3 -18.6Z M-67.3 -79.3L-138.7 -190.9L-54.6 -88.5Z M13.9 -103.1L49.1 -230.8L29.2 -99.8Z M-29.2 -99.8L-49.1 -230.8L-13.9 -103.1Z M54.6 -88.5L138.7 -190.9L67.3 -79.3Z M102.3 -18.6L234.7 -24.7L104 -3Z M-93.7 -45.1L-204.4 -118L-85.9 -58.6Z M85.9 -58.6L204.4 -118L93.7 -45.1Z"/>
-          <path fill="#E98B50" d="M-101 -24.6L-186.4 -60.6L-96.2 -39.5Z M-82.3 -63.6L-145.7 -131.1L-71.8 -75.2Z M-49.3 -91.6L-79.7 -179.1L-35 -97.9Z M-7.8 -103.7L0 -196L7.8 -103.7Z M35 -97.9L79.7 -179.1L49.3 -91.6Z M71.8 -75.2L145.7 -131.1L82.3 -63.6Z M96.2 -39.5L186.4 -60.6L101 -24.6Z"/>
-          <path fill="#FEF2A0" d="M-92 0A92 92 0 0 1 92 0Z"/>
-          <path fill="#E98B50" d="M-62 0A62 62 0 0 1 62 0Z"/>
-          <path fill="#FEF2A0" d="M-32 0A32 32 0 0 1 32 0Z"/>
-        </g>
-        <rect x="-1200" y="540" width="3000" height="400" fill="#E98B50"/>
-        <path fill="#F3CD97" d="M360 540L-2100 840L-1910 840Z M360 540L-1720 840L-1530 840Z M360 540L-1340 840L-1150 840Z M360 540L-960 840L-770 840Z M360 540L-580 840L-390 840Z M360 540L-200 840L-10 840Z M360 540L180 840L370 840Z M360 540L560 840L750 840Z M360 540L940 840L1130 840Z M360 540L1320 840L1510 840Z M360 540L1700 840L1890 840Z M360 540L2080 840L2270 840Z M360 540L2460 840L2650 840Z"/>
-        <rect x="-1200" y="536" width="3000" height="8" fill="#8F3434"/>
-      </svg>
-      <svg class="paisaje-arte-movil" viewBox="0 0 600 300" preserveAspectRatio="xMidYMax meet" aria-hidden="true" focusable="false">
-        <circle cx="470" cy="235" r="190" fill="#C25555"/>
-        <circle cx="470" cy="235" r="145" fill="#C86060"/>
-        <g transform="translate(470 235) scale(0.52)">
-          <path fill="#FEF2A0" d="M-104 -3L-234.7 -24.7L-102.3 -18.6Z M-67.3 -79.3L-138.7 -190.9L-54.6 -88.5Z M13.9 -103.1L49.1 -230.8L29.2 -99.8Z M-29.2 -99.8L-49.1 -230.8L-13.9 -103.1Z M54.6 -88.5L138.7 -190.9L67.3 -79.3Z M102.3 -18.6L234.7 -24.7L104 -3Z M-93.7 -45.1L-204.4 -118L-85.9 -58.6Z M85.9 -58.6L204.4 -118L93.7 -45.1Z"/>
-          <path fill="#E98B50" d="M-101 -24.6L-186.4 -60.6L-96.2 -39.5Z M-82.3 -63.6L-145.7 -131.1L-71.8 -75.2Z M-49.3 -91.6L-79.7 -179.1L-35 -97.9Z M-7.8 -103.7L0 -196L7.8 -103.7Z M35 -97.9L79.7 -179.1L49.3 -91.6Z M71.8 -75.2L145.7 -131.1L82.3 -63.6Z M96.2 -39.5L186.4 -60.6L101 -24.6Z"/>
-          <path fill="#FEF2A0" d="M-92 0A92 92 0 0 1 92 0Z"/>
-          <path fill="#E98B50" d="M-62 0A62 62 0 0 1 62 0Z"/>
-          <path fill="#FEF2A0" d="M-32 0A32 32 0 0 1 32 0Z"/>
-        </g>
-        <rect x="-1200" y="235" width="3000" height="300" fill="#E98B50"/>
-        <path fill="#F3CD97" d="M470 235L-1500 520L-1350 520Z M470 235L-1200 520L-1050 520Z M470 235L-900 520L-750 520Z M470 235L-600 520L-450 520Z M470 235L-300 520L-150 520Z M470 235L0 520L150 520Z M470 235L300 520L450 520Z M470 235L600 520L750 520Z M470 235L900 520L1050 520Z M470 235L1200 520L1350 520Z M470 235L1500 520L1650 520Z M470 235L1800 520L1950 520Z M470 235L2100 520L2250 520Z"/>
-        <rect x="-1200" y="231" width="3000" height="8" fill="#8F3434"/>
-      </svg>
-    </header>
-    <div class="acceso-panel">
-      <main id="contenido" class="acceso-contenido" tabindex="-1">
-        <h1 id="titulo-error">Ocurrió un problema temporal</h1>
-        <p class="acceso-intro">Intenta nuevamente en unos momentos. Si el problema continúa, avisa a la administración.</p>
-        <div class="acciones">
-          <a class="boton" href="/">Volver al inicio</a>
-        </div>
-        <p class="acceso-codigo">Código del error: 500</p>
-      </main>
+      </div>
     </div>
   </div>
-  <div class="banda" aria-hidden="true"><span></span><span></span><span></span><span></span></div>
 </body>
 </html>

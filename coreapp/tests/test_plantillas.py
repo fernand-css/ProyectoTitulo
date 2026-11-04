@@ -13,6 +13,7 @@ from django.core.paginator import Paginator
 from django.template import Context, Template
 from django.template.loader import render_to_string
 from django.test import RequestFactory, SimpleTestCase, TestCase
+from django.urls import reverse
 
 from coreapp.context_processors import rol_actual
 from coreapp.roles import ENCARGADO, ETIQUETAS_ROLES, JEFA, TECNICO
@@ -113,7 +114,7 @@ class PlantillasTests(TestCase):
                     self.assertTrue(self.renderizar(nombre, **datos).strip())
 
     def test_layouts_con_idioma_salto_y_un_solo_main(self):
-        for nombre in ("components/Layout/base.html", "components/Layout/base_publica.html",
+        for nombre in ("components/Layout/base.html", "components/Layout/base_publica.html", "components/Layout/base_acceso.html",
                        "index.html", "403.html", "404.html", "500.html", "registration/login.html"):
             with self.subTest(plantilla=nombre):
                 html = self.renderizar(nombre, form=AuthenticationForm(self.request))
@@ -128,7 +129,7 @@ class PlantillasTests(TestCase):
                 self.assertEqual(len(ids), len(set(ids)))
 
     def test_navegacion_por_perfil_sin_enlaces_a_vistas_futuras(self):
-        for rol, texto in ((JEFA, "Inicio de farmacia"), (TECNICO, "Atención en ventanilla"), (ENCARGADO, "Entregas en terreno")):
+        for rol, texto in ((JEFA, "Ventanillas y pesos"), (TECNICO, "Atención"), (ENCARGADO, "Entregas en terreno")):
             with self.subTest(rol=rol):
                 self.usuario.groups.set([Group.objects.create(name=rol)])
                 html = self.renderizar("components/navbar.html")
@@ -153,3 +154,52 @@ class PlantillasTests(TestCase):
 
     def test_500_no_depende_de_una_plantilla_padre(self):
         self.assertNotRegex((settings.BASE_DIR / "templates/500.html").read_text(encoding="utf-8"), r"{%\s*extends\b")
+
+
+class AccesoConTarjetaTests(TestCase):
+    """Inicio de sesión y pantallas de acceso: una tarjeta con el formulario a la izquierda y la ilustración a la derecha."""
+
+    def pagina(self, nombre):
+        return self.client.get(reverse(nombre)).content.decode()
+
+    def test_login_y_recuperacion_ponen_el_formulario_antes_que_la_ilustracion(self):
+        for nombre in ("usuariosapp:login", "usuariosapp:recuperar_clave"):
+            with self.subTest(pagina=nombre):
+                html = self.pagina(nombre)
+                self.assertIn('class="entrada-tarjeta"', html)
+                self.assertLess(html.index('class="entrada-formulario"'), html.index('<main id="contenido"'))
+                self.assertLess(html.index('<main id="contenido"'), html.index('class="entrada-arte"'))
+                self.assertEqual(html.count("<main"), 1)
+                self.assertNotIn('class="acceso"', html)
+
+    def test_la_ilustracion_es_decorativa_la_direccion_se_lee_y_la_marca_enlaza_al_inicio(self):
+        html = self.pagina("usuariosapp:login")
+        self.assertRegex(html, r'<svg class="entrada-ilustracion"[^>]*aria-hidden="true"')
+        self.assertIn("Departamento de Salud Municipal", html)
+        self.assertEqual(html.count('class="marca"'), 1)
+        self.assertIn(f'<a class="marca" href="{reverse("coreapp:inicio")}">', html)
+
+    def test_el_login_conserva_sus_campos_el_boton_de_mostrar_clave_y_la_ayuda(self):
+        html = self.pagina("usuariosapp:login")
+        for texto in ("Inicia sesión", "Nombre de usuario", "Contraseña", "Entrar", "¿Olvidaste tu contraseña?", "¿No puedes entrar?"):
+            with self.subTest(texto=texto):
+                self.assertIn(texto, html)
+        self.assertIn('class="campo-clave-ver"', html)
+        self.assertIn('aria-label="Mostrar contraseña"', html)
+
+    def test_el_totem_conserva_su_propio_layout(self):
+        html = self.pagina("turnosapp:totem")
+        self.assertIn('class="acceso"', html)
+        self.assertNotIn("entrada-tarjeta", html)
+
+    def test_los_avisos_comparten_la_tarjeta_y_el_500_la_trae_sin_depender_de_otra_plantilla(self):
+        for nombre in ("403.html", "404.html", "500.html"):
+            with self.subTest(plantilla=nombre):
+                html = render_to_string(nombre)
+                self.assertIn('class="entrada-tarjeta"', html)
+                self.assertEqual(html.count("<main"), 1)
+
+    def test_la_tarjeta_pasa_a_una_columna_sin_depender_del_ancho_de_la_ventana(self):
+        """Con texto muy ampliado las dos columnas no caben: la rejilla las apila sola, sin un corte fijo."""
+        css = (settings.BASE_DIR / "static/css/base.css").read_text(encoding="utf-8")
+        self.assertRegex(css, r"\.entrada-tarjeta \{[^}]*grid-template-columns: repeat\(auto-fit, minmax\(min\(100%, 24rem\), 1fr\)\)")

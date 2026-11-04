@@ -1,32 +1,3 @@
-.preparacion-cabecera {
-  display: flex;
-  flex-wrap: wrap;
-  align-items: flex-end;
-  justify-content: space-between;
-  gap: 1rem 2rem;
-  margin: 1.5rem 0 1.25rem;
-  padding: 0 0 1.15rem;
-  border-bottom: 3px solid var(--tinta);
-}
-.preparacion-cabecera h1 { margin: 0 0 0.35rem; font-family: var(--fuente-titulo); font-size: clamp(1.8rem, 4vw, 2.8rem); }
-.preparacion-cabecera p { max-width: 44rem; margin: 0; color: var(--secundario-texto); font-size: 1.05rem; }
-.preparacion-pestanas { display: flex; flex-wrap: wrap; gap: 0.5rem; }
-.preparacion-pestanas a {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 2.8rem;
-  padding: 0.45rem 0.9rem;
-  color: var(--panel-texto);
-  background: var(--panel-fondo);
-  border: 2px solid var(--borde);
-  border-radius: 999px;
-  font-weight: 700;
-  text-decoration: none;
-}
-.preparacion-pestanas a:hover { background: var(--suave-fondo); border-color: var(--tinta); }
-.preparacion-pestanas a[aria-current="page"] { color: var(--trigo-texto); background: var(--trigo-fondo); border-color: var(--tinta); text-decoration: underline; text-underline-offset: 0.2em; }
-.preparacion-pestanas span { min-width: 1.55rem; padding: 0.05rem 0.35rem; color: var(--panel-texto); background: var(--panel-fondo); border-radius: 999px; text-align: center; font-variant-numeric: tabular-nums; }
 .preparacion-resumen { margin: 1.25rem 0 1.5rem; padding: 1rem 1.2rem; color: var(--trigo-texto); background: var(--trigo-fondo); border-left: 0.55rem solid var(--ladrillo); }
 .preparacion-resumen p { margin: 0.2rem 0; }
 .preparacion-estimacion { font-family: var(--fuente-titulo); font-size: 1.25rem; font-weight: 700; }
@@ -66,10 +37,9 @@
 .preparacion-tabla form { margin: 0; }
 .preparacion-tabla .boton { white-space: nowrap; }
 .preparacion-lista:focus-within, .preparacion-tabla a:focus-visible, .preparacion-tabla button:focus-visible { outline: 3px solid var(--tinta); outline-offset: 3px; }
-.preparacion-pestanas a:focus-visible, .preparacion-tabla button:focus-visible { outline: 3px solid var(--tinta); outline-offset: 3px; }
+.preparacion-tabla button:focus-visible { outline: 3px solid var(--tinta); outline-offset: 3px; }
 
 @media (max-width: 760px) {
-  .preparacion-cabecera { align-items: flex-start; }
   .preparacion-fila { grid-template-columns: minmax(0, 1fr); gap: 0.45rem; }
   .preparacion-estado { justify-content: flex-start; }
   .preparacion-tabla thead { position: absolute; width: 1px; height: 1px; padding: 0; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; clip-path: inset(50%); }
@@ -82,6 +52,6 @@
 }
 
 @media (forced-colors: active) {
-  .preparacion-pestanas a[aria-current="page"], .preparacion-resumen { border: 2px solid CanvasText; }
+  .preparacion-resumen { border: 2px solid CanvasText; }
   .preparacion-fila, .preparacion-tabla tr { border-color: CanvasText; }
 }

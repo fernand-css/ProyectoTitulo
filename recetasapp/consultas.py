@@ -11,7 +11,6 @@ from django.db.models import Count, F, Q
 from django.db.models.functions import TruncDate
 from django.utils import timezone
 
-from .graficos import sumar_meses
 from .models import EntregaReceta, ImportacionPadron, Paciente, Receta
 
 DIAS_POR_VENCER = 30
@@ -86,27 +85,17 @@ def entregas_por_dia(dias, hoy=None):
     return [(desde + timedelta(days=i), cuentas.get(desde + timedelta(days=i), 0)) for i in range(dias)]
 
 
-def entregas_del_mes(hoy=None):
-    """Entregas confirmadas en el mes de `hoy` y en el mes anterior."""
-    hoy = hoy or timezone.localdate()
-    este, anterior = hoy.replace(day=1), sumar_meses(hoy.replace(day=1), -1)
-    return EntregaReceta.objects.aggregate(
-        este=Count("pk", filter=Q(creado_en__date__gte=este, creado_en__date__lte=hoy)),
-        anterior=Count("pk", filter=Q(creado_en__date__gte=anterior, creado_en__date__lt=este)),
-    )
+def vencimientos_por_dia(desde, hasta, hoy=None):
+    """Recetas vigentes cuyo último día válido cae en cada día de `desde` a `hasta` (ambos incluidos).
 
-
-def vencimientos_por_mes(hoy=None, meses=6):
-    """Recetas vigentes cuyo último día válido cae en cada uno de los próximos `meses` meses, desde el actual.
-
-    El último día válido es el anterior a `fecha_fin_exclusiva`, así que un mes cuenta las recetas cuya fecha de
-    fin exclusiva está entre el día 2 de ese mes y el día 1 del siguiente.
+    El último día válido es el anterior a `fecha_fin_exclusiva`. Devuelve `{fecha: cantidad}` solo con los días
+    que tienen alguna; las que ya vencieron o aún no admiten entregas no cuentan.
     """
-    hoy = hoy or timezone.localdate()
-    primeros = [sumar_meses(hoy.replace(day=1), i) for i in range(meses + 1)]
     uno = timedelta(days=1)
-    cuentas = Receta.objects.filter(condiciones(hoy)["vigente"]).aggregate(**{
-        f"m{i}": Count("pk", filter=Q(fecha_fin_exclusiva__gte=primeros[i] + uno, fecha_fin_exclusiva__lt=primeros[i + 1] + uno))
-        for i in range(meses)
-    })
-    return [(primeros[i], cuentas[f"m{i}"]) for i in range(meses)]
+    filas = (
+        Receta.objects.filter(
+            condiciones(hoy)["vigente"], fecha_fin_exclusiva__gte=desde + uno, fecha_fin_exclusiva__lte=hasta + uno,
+        )
+        .values("fecha_fin_exclusiva").annotate(n=Count("pk"))
+    )
+    return {fila["fecha_fin_exclusiva"] - uno: fila["n"] for fila in filas}

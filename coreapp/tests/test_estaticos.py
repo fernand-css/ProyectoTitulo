@@ -63,7 +63,7 @@ class EstaticosTests(SimpleTestCase):
         self.assertTrue(textos)
         self.assertEqual(textos, fondos, "Cada color de texto debe declarar su fondo.")
         pares = [(variables[nombre + "-texto"], variables[nombre + "-fondo"]) for nombre in textos]
-        # Enlaces y texto secundario también aparecen sobre los fondos de acento (portada, azulejos, paneles).
+        # Enlaces y texto secundario también aparecen sobre los fondos de acento (franja, tarjetas, paneles).
         pares += [(variables["enlace-texto"], variables["pagina-fondo"]),
                   (variables["panel-texto"], variables["panel-fondo"])]
         pares += [(variables[texto], variables[fondo]) for texto in ("enlace-texto", "secundario-texto")
@@ -85,14 +85,14 @@ class EstaticosTests(SimpleTestCase):
         """recetas.css no declara colores propios: todo sale de base.css, donde se verifica el contraste."""
         base = (settings.BASE_DIR / "static/css/base.css").read_text(encoding="utf-8")
         # El tablero (tablero.css) y el menú (menu.css) siguen la misma regla que la libreta.
-        for nombre in ("recetas.css", "tablero.css", "menu.css", "noticias.css"):
+        for nombre in ("recetas.css", "tablero.css", "menu.css", "inicio.css"):
             with self.subTest(hoja=nombre):
                 recetas = (settings.BASE_DIR / "static/css" / nombre).read_text(encoding="utf-8")
                 self.assertNotRegex(recetas, r"#[0-9a-fA-F]{3,8}\b")
                 self.assertNotRegex(recetas, r"\b(?:rgb|rgba|hsl|hsla)\(")
                 definidas = set(re.findall(r"(--[a-z0-9-]+)\s*:", base + recetas))
                 # Las plantillas inyectan valores numéricos: porcentaje, posición de «hoy», cantidad de la barra,
-                # altura de una barra del tablero y orden de aparición de un arco del anillo o de una barra.
+                # ancho relativo de una parte de la barra de situación, altura de una barra y orden de aparición.
                 inyectadas = {"--p", "--hoy", "--n", "--h", "--i"}
                 usadas = set(re.findall(r"var\((--[a-z0-9-]+)", recetas))
                 self.assertEqual(usadas - definidas - inyectadas, set())
@@ -100,17 +100,35 @@ class EstaticosTests(SimpleTestCase):
     def test_graficos_de_la_libreta_cumplen_contraste_de_componentes(self):
         """WCAG 1.4.11: sellos, casillas y barras se distinguen del fondo con al menos 3:1."""
         css = (settings.BASE_DIR / "static/css/base.css").read_text(encoding="utf-8")
-        variables = dict(re.findall(r"--([a-z-]+):\s*(#[0-9a-fA-F]{6})\s*;", css))
+        variables = dict(re.findall(r"--([a-z0-9-]+):\s*(#[0-9a-fA-F]{6})\s*;", css))
         pares = [
             ("ladrillo", "trigo-fondo"), ("ladrillo", "suave-fondo"), ("ladrillo", "panel-fondo"),  # sello, aro y lomo
             ("borde", "suave-fondo"), ("borde", "panel-fondo"),  # casilla vacía y punto sin sellar
             ("tinta", "trigo-fondo"),  # próxima casilla
-            ("exito-texto", "panel-fondo"), ("error-texto", "panel-fondo"),  # tramos de la barra de carga y del anillo
-            ("tinta", "naranja"),  # el arco naranja del anillo y la barra del mes actual van delimitados por tinta
+            ("exito-texto", "panel-fondo"), ("error-texto", "panel-fondo"),  # tramos de la barra de carga
+            ("serie-1", "panel-fondo"), ("serie-2", "panel-fondo"),  # columnas, línea del promedio y tendencia
+            ("neutro-1", "panel-fondo"), ("neutro-2", "panel-fondo"), ("neutro-3", "panel-fondo"),  # partes de la barra de situación
+            ("rampa-4", "panel-fondo"),  # contorno de las casillas coloreadas del calendario de calor
         ]
         for primero, segundo in pares:
             with self.subTest(primero=primero, segundo=segundo):
                 self.assertGreaterEqual(contraste(variables[primero], variables[segundo]), 3)
+
+    def test_el_calendario_de_calor_tiene_texto_legible_en_cada_tono(self):
+        """El número de cada día va sobre su tono: tinta sobre los dos claros, blanco sobre los tres oscuros (4,5:1)."""
+        css = (settings.BASE_DIR / "static/css/base.css").read_text(encoding="utf-8")
+        variables = dict(re.findall(r"--([a-z0-9-]+):\s*(#[0-9a-fA-F]{6})\s*;", css))
+        tablero = (settings.BASE_DIR / "static/css/tablero.css").read_text(encoding="utf-8")
+        for tono, texto in ((1, "panel-texto"), (2, "panel-texto"), (3, "panel-fondo"), (4, "panel-fondo"), (5, "panel-fondo")):
+            with self.subTest(tono=tono):
+                regla = re.search(rf"\.calor-t{tono} \{{ color: var\(--([a-z-]+)\); background: var\(--([a-z0-9-]+)\); \}}", tablero)
+                self.assertIsNotNone(regla)
+                self.assertEqual((regla.group(1), regla.group(2)), (texto, f"rampa-{tono}"))
+                self.assertGreaterEqual(contraste(variables[regla.group(1)], variables[regla.group(2)]), 4.5)
+        # Los cinco tonos se ordenan de claro a oscuro y el más claro se distingue del fondo con al menos 2:1.
+        luces = [luminancia(variables[f"rampa-{tono}"]) for tono in range(1, 6)]
+        self.assertEqual(luces, sorted(luces, reverse=True))
+        self.assertGreaterEqual(contraste(variables["rampa-1"], variables["panel-fondo"]), 2)
 
     def test_menu_cumple_contraste_de_texto_y_de_componentes(self):
         """La píldora de la opción activa, la cápsula del celular y sus bordes se distinguen con al menos 3:1;
@@ -174,11 +192,11 @@ class EstaticosTests(SimpleTestCase):
         """Cambiar un .css o .js cambia su URL, así el navegador no sigue usando una hoja vieja."""
         from django.templatetags.static import static
 
-        for recurso in ("css/base.css", "css/menu.css", "css/recetas.css", "css/tablero.css", "js/menu.js"):
+        for recurso in ("css/base.css", "css/menu.css", "css/recetas.css", "css/tablero.css", "js/menu.js", "js/graficos.js"):
             with self.subTest(recurso=recurso):
                 self.assertRegex(static(recurso), rf"^/static/{re.escape(recurso)}\?v=\d+$")
         # Las fuentes y los iconos conservan su URL: el CSS las pide sin versión y una URL distinta las descargaría dos veces.
-        self.assertEqual(static("fonts/bitter-latin-wght-normal.woff2"), "/static/fonts/bitter-latin-wght-normal.woff2")
+        self.assertEqual(static("fonts/figtree-latin-wght-normal.woff2"), "/static/fonts/figtree-latin-wght-normal.woff2")
         self.assertEqual(static("icons/marca.svg"), "/static/icons/marca.svg")
         # Un archivo inexistente no rompe la página: se entrega sin versión.
         self.assertEqual(static("css/no-existe.css"), "/static/css/no-existe.css")
@@ -197,19 +215,20 @@ class EstaticosTests(SimpleTestCase):
         self.assertEqual(static("css/tablero.css"), antes)
 
     def test_tablero_y_menu_plegable_existen_y_estan_enlazados(self):
-        pagina = (settings.BASE_DIR / "templates/recetas/recetas_lista.html").read_text(encoding="utf-8")
+        pagina = (settings.BASE_DIR / "templates/recetas/recetas_resumen.html").read_text(encoding="utf-8")
         layout = (settings.BASE_DIR / "templates/components/Layout/base.html").read_text(encoding="utf-8")
         self.assertIn("css/tablero.css", pagina)
+        self.assertIn("js/graficos.js", pagina)
         self.assertIn("js/menu.js", layout)
         self.assertIn("css/menu.css", layout)
-        for recurso in ("css/tablero.css", "css/menu.css", "js/menu.js"):
+        for recurso in ("css/tablero.css", "css/menu.css", "js/menu.js", "js/graficos.js"):
             with self.subTest(recurso=recurso):
                 self.assertTrue(finders.find(recurso))
 
     def test_animaciones_del_tablero_parten_de_su_estado_final_y_se_apagan_con_reducir_movimiento(self):
         """Sin animación el tablero debe verse completo: estas animaciones solo declaran el estado de partida («from»)."""
         css = (settings.BASE_DIR / "static/css/tablero.css").read_text(encoding="utf-8")
-        for nombre in ("trazar", "dibujar", "velo", "subir"):
+        for nombre in ("dibujar", "subir"):
             with self.subTest(animacion=nombre):
                 linea = next(linea for linea in css.splitlines() if linea.startswith(f"@keyframes {nombre} "))
                 self.assertRegex(linea, r"\{ from \{[^}]*\} \}")
@@ -227,7 +246,7 @@ class EstaticosTests(SimpleTestCase):
                 self.assertEqual((carpeta / nombre).read_bytes()[:4], b"wOF2")
         licencia = (carpeta / "LICENSE.md").read_text(encoding="utf-8")
         self.assertIn("SIL OPEN FONT LICENSE", licencia)
-        for fuente in ("Bitter", "Atkinson Hyperlegible Next"):
+        for fuente in ("Figtree", "Atkinson Hyperlegible Next"):
             self.assertIn(fuente, licencia)
 
     def test_manifest_e_iconos_reales_de_los_tamanos_declarados(self):

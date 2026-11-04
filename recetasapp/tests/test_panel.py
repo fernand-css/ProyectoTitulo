@@ -1,4 +1,4 @@
-"""Tablero de recetas, lista con filtros, filtro del padrón y menú separado de Padrón y Recetas."""
+"""Resumen de recetas con sus gráficos, pestañas de la sección, lista con filtros, filtro de pacientes y menú."""
 
 import re
 from datetime import date, datetime
@@ -60,100 +60,179 @@ class PanelTests(TestCase):
     def tablero(self, **parametros):
         return self.client.get(reverse("recetasapp:recetas"), parametros).context["tablero"]
 
-    # --- Tablero: cifras -----------------------------------------------------------------------------------
+    # --- Resumen: cifras ----------------------------------------------------------------------------------
     def test_las_cifras_principales_enlazan_a_su_lista(self):
         self.escenario()
         self.entrar()
         respuesta = self.client.get(reverse("recetasapp:recetas"))
         kpis = {k["clave"]: k for k in respuesta.context["tablero"]["kpis"]}
         self.assertEqual([kpis[c]["valor"] for c in ("vigentes", "por-vencer", "sin-vigente", "entregas")], [3, 1, 3, 0])
-        lista = reverse("recetasapp:recetas")
-        self.assertEqual(kpis["vigentes"]["enlace"], f"{lista}?situacion=vigente#listado")
-        self.assertEqual(kpis["por-vencer"]["enlace"], f"{lista}?situacion=por_vencer#listado")
+        lista = reverse("recetasapp:recetas_lista")
+        self.assertEqual(kpis["vigentes"]["enlace"], f"{lista}?situacion=vigente")
+        self.assertEqual(kpis["por-vencer"]["enlace"], f"{lista}?situacion=por_vencer")
         self.assertEqual(kpis["sin-vigente"]["enlace"], f"{reverse('recetasapp:pacientes')}?filtro=sin_vigente")
+        self.assertEqual(kpis["entregas"]["enlace"], "")
         for clave in ("vigentes", "por-vencer", "sin-vigente"):
             self.assertContains(respuesta, f'href="{kpis[clave]["enlace"]}"')
         self.assertTrue(kpis["por-vencer"]["atencion"])
         self.assertEqual(respuesta["Cache-Control"].find("no-store") >= 0, True)
+        # Las tres cifras con enlace llevan flecha; la que no se puede pulsar no.
+        self.assertEqual(respuesta.content.decode().count("kpi-ir"), 3)
 
-    def test_entregas_del_mes_comparan_con_el_mes_anterior(self):
+    def test_las_entregas_de_la_semana_se_comparan_con_los_siete_dias_anteriores(self):
         self.escenario()
         receta = self.recetas["Holgada"]
-        self.entregas(receta, momento(1), momento(2), momento(20, mes=10), momento(31, mes=10), momento(30, mes=9))
+        # Esta semana (27 oct a 2 nov): tres. La anterior (20 a 26 oct): una. Fuera de las dos: no cuentan.
+        self.entregas(receta, momento(2), momento(1), momento(27, mes=10), momento(26, mes=10), momento(19, mes=10))
         self.entrar()
         kpi = {k["clave"]: k for k in self.tablero()["kpis"]}["entregas"]
-        self.assertEqual(kpi["valor"], 2)
-        self.assertEqual(kpi["nota"], "2 el mes pasado")
+        self.assertEqual((kpi["valor"], kpi["sentido"]), (3, "sube"))
+        self.assertEqual(kpi["nota"], "2 más que en los 7 días anteriores")
+        self.assertEqual(len(kpi["tendencia"]["ruta"].split("L")), 14)  # una línea de 14 días
+        html = self.client.get(reverse("recetasapp:recetas")).content.decode()
+        self.assertIn("▲", html)  # el sentido se ve en un símbolo y se lee en la frase, no solo en el color
 
-    # --- Tablero: anillo -----------------------------------------------------------------------------------
-    def test_el_anillo_reparte_las_recetas_y_sus_porcentajes_suman_cien(self):
+    def test_la_comparacion_dice_si_baja_o_si_es_igual(self):
+        self.escenario()
+        receta = self.recetas["Holgada"]
+        self.entregas(receta, momento(2), momento(26, mes=10), momento(25, mes=10))
+        self.entrar()
+        kpi = {k["clave"]: k for k in self.tablero()["kpis"]}["entregas"]
+        self.assertEqual((kpi["sentido"], kpi["nota"]), ("baja", "1 menos que en los 7 días anteriores"))
+        EntregaReceta.objects.all().delete()
+        self.entregas(receta, momento(2), momento(26, mes=10))
+        kpi = {k["clave"]: k for k in self.tablero()["kpis"]}["entregas"]
+        self.assertEqual((kpi["sentido"], kpi["nota"]), ("igual", "Igual que en los 7 días anteriores"))
+
+    # --- Resumen: situación (barra segmentada) --------------------------------------------------------------
+    def test_la_barra_reparte_las_recetas_y_sus_porcentajes_suman_cien(self):
         self.escenario()
         self.entrar()
-        anillo = self.tablero()["anillo"]
-        self.assertEqual([(p["clave"], p["cantidad"]) for p in anillo["partes"]], [("vigente", 3), ("futura", 1), ("agotada", 1), ("vencida", 1)])
-        self.assertEqual(anillo["total"], 6)
-        self.assertEqual(sum(p["porcentaje"] for p in anillo["partes"]), 100)
+        partes = self.tablero()["situacion"]
+        self.assertEqual([(p["clave"], p["cantidad"]) for p in partes], [("vigente", 3), ("futura", 1), ("agotada", 1), ("vencida", 1)])
+        self.assertEqual(sum(p["porcentaje"] for p in partes), 100)
         respuesta = self.client.get(reverse("recetasapp:recetas"))
         for clave in ("vigente", "futura", "agotada", "vencida"):
-            self.assertContains(respuesta, f'href="{reverse("recetasapp:recetas")}?situacion={clave}#listado"')
-        # La cifra va en texto, no solo en el dibujo.
+            self.assertContains(respuesta, f'href="{reverse("recetasapp:recetas_lista")}?situacion={clave}"')
+        # La cifra va en texto (leyenda y tooltip), no solo en el dibujo.
         self.assertContains(respuesta, "<strong>3</strong>")
+        self.assertContains(respuesta, 'data-tip="Vigentes: 3 (50 %)"')
+        self.assertContains(respuesta, 'class="segmentos"')
 
-    def test_los_atributos_svg_usan_punto_decimal_aunque_la_configuracion_regional_use_coma(self):
-        self.escenario()
+    def test_la_barra_no_dibuja_las_partes_en_cero_pero_la_leyenda_las_nombra(self):
+        self.receta("Holgada", date(2026, 1, 1), meses=12)
         self.entrar()
         html = self.client.get(reverse("recetasapp:recetas")).content.decode()
-        for atributo in re.findall(r'(?:stroke-dasharray|stroke-dashoffset|cx|cy|x1|x2|y1|y2|x|y)="([^"]*)"', html):
-            self.assertNotIn(",", atributo)
-        self.assertRegex(html, r'stroke-dasharray="[0-9.]+ 100"')
+        self.assertEqual(html.count('class="segmento '), 1)
+        self.assertIn("Vencidas", html)
+        self.assertIn("<strong>0</strong>", html)
 
-    # --- Tablero: entregas por día -------------------------------------------------------------------------
-    def test_la_linea_cuenta_entregas_por_dia_con_ceros_y_ofrece_los_datos_en_tabla(self):
+    def test_cada_numero_de_un_atributo_svg_usa_punto_decimal_aunque_la_configuracion_regional_use_coma(self):
+        self.escenario()
+        self.entregas(self.recetas["Holgada"], momento(2), momento(2, hora=18), momento(1), momento(25, mes=10))
+        self.entrar()
+        html = self.client.get(reverse("recetasapp:recetas")).content.decode()
+        html = html[html.index('class="tablero"'):]  # el resto de la página trae íconos ajenos a esta regla
+        for atributo in re.findall(r'\b(?:x|y|x1|x2|y1|y2|cx|cy|width|height|viewBox|d)="([^"]*)"', html):
+            self.assertNotIn(",", atributo)
+        self.assertRegex(html, r'<path class="columna" d="M[0-9. ]+V')
+
+    # --- Resumen: entregas por día (columnas con promedio) --------------------------------------------------
+    def test_las_columnas_cuentan_entregas_por_dia_con_ceros_y_ofrecen_los_datos_en_tabla(self):
         self.escenario()
         self.entregas(self.recetas["Holgada"], momento(2), momento(2, hora=18), momento(1), momento(25, mes=10))
         self.entrar()
         respuesta = self.client.get(reverse("recetasapp:recetas"))
-        linea = respuesta.context["tablero"]["linea"]
-        por_dia = {p["fecha"]: p["valor"] for p in linea["puntos"]}
+        grafico = respuesta.context["tablero"]["entregas"]
+        por_dia = {c["fecha"]: c["valor"] for c in grafico["columnas"]}
         self.assertEqual(len(por_dia), 30)
         self.assertEqual((por_dia[date(2026, 11, 2)], por_dia[date(2026, 11, 1)], por_dia[date(2026, 10, 25)], por_dia[date(2026, 10, 30)]), (2, 1, 1, 0))
-        self.assertEqual((linea["total"], linea["maximo"], linea["dia_maximo"]), (4, 2, date(2026, 11, 2)))
-        self.assertContains(respuesta, '<svg class="linea"')
+        self.assertEqual((grafico["total"], grafico["maximo"], grafico["dia_maximo"]), (4, 2, date(2026, 11, 2)))
+        self.assertContains(respuesta, '<svg class="columnas"')
         self.assertContains(respuesta, "Ver los datos en una tabla")
         self.assertContains(respuesta, "4 entregas en 30 días")
+        # Hay una ranura con el texto del dato por cada día, y la leyenda nombra las dos marcas.
+        self.assertEqual(respuesta.content.decode().count('class="ranura"'), 30)
+        self.assertContains(respuesta, "Entregas del día")
+        self.assertContains(respuesta, "Promedio de 7 días")
+        self.assertContains(respuesta, 'data-tip="lunes 2 de noviembre: 2 entregas · promedio de 7 días: ')
+
+    def test_el_promedio_de_siete_dias_incluye_los_dias_anteriores_al_periodo(self):
+        self.escenario()
+        # Con 14 días se muestra del 20 de octubre al 2 de noviembre; el 17 de octubre queda fuera del gráfico
+        # pero entra en el promedio de los siete días que terminan el 20 y el 23.
+        self.entregas(self.recetas["Holgada"], *([momento(17, mes=10)] * 7))
+        self.entrar()
+        grafico = self.tablero(periodo=14)["entregas"]
+        self.assertEqual((grafico["n"], grafico["total"]), (14, 0))
+        self.assertTrue(all(c["promedio"] is not None for c in grafico["columnas"]))
+        por_dia = {c["fecha"]: c["promedio"] for c in grafico["columnas"]}
+        self.assertEqual((por_dia[date(2026, 10, 20)], por_dia[date(2026, 10, 23)], por_dia[date(2026, 10, 24)]), (1.0, 1.0, 0.0))
 
     def test_el_periodo_se_elige_por_la_url_y_un_valor_invalido_vuelve_a_treinta_dias(self):
         self.escenario()
-        self.entregas(self.recetas["Holgada"], momento(2), momento(25, mes=10))
+        self.entregas(self.recetas["Holgada"], momento(2), momento(25, mes=10), momento(10, mes=9))
         self.entrar()
-        self.assertEqual(self.tablero(periodo=7)["periodo"], 7)
-        self.assertEqual(len(self.tablero(periodo=7)["linea"]["puntos"]), 7)
-        self.assertEqual(self.tablero(periodo=7)["linea"]["total"], 1)
-        self.assertEqual(self.tablero(periodo=90)["linea"]["total"], 2)
-        for invalido in ("999", "abc", "-7", ""):
+        self.assertEqual(self.tablero(periodo=14)["periodo"], 14)
+        self.assertEqual(len(self.tablero(periodo=14)["entregas"]["columnas"]), 14)
+        self.assertEqual(self.tablero(periodo=14)["entregas"]["total"], 2)
+        self.assertEqual(self.tablero(periodo=90)["entregas"]["total"], 3)
+        for invalido in ("999", "abc", "-7", "7", ""):
             with self.subTest(periodo=invalido):
                 self.assertEqual(self.tablero(periodo=invalido)["periodo"], 30)
-        respuesta = self.client.get(reverse("recetasapp:recetas"), {"periodo": 7})
-        self.assertContains(respuesta, '<a href="?periodo=7#entregas" aria-current="true">7 días</a>')
+        respuesta = self.client.get(reverse("recetasapp:recetas"), {"periodo": 14})
+        self.assertContains(respuesta, '<a href="?periodo=14#entregas" aria-current="true">14 días</a>')
+
+    def test_con_noventa_dias_hay_una_ranura_por_dia(self):
+        self.escenario()
+        self.entregas(self.recetas["Holgada"], momento(2))
+        self.entrar()
+        html = self.client.get(reverse("recetasapp:recetas"), {"periodo": 90}).content.decode()
+        self.assertEqual(html.count('class="ranura"'), 90)
 
     def test_sin_entregas_el_grafico_se_reemplaza_por_una_explicacion(self):
         self.escenario()
         self.entrar()
         respuesta = self.client.get(reverse("recetasapp:recetas"))
         self.assertContains(respuesta, "Todavía no hay entregas confirmadas en este periodo.")
-        self.assertNotContains(respuesta, '<svg class="linea"')
+        self.assertNotContains(respuesta, '<svg class="columnas"')
 
-    # --- Tablero: vencimientos, ranking y carga ------------------------------------------------------------
-    def test_las_barras_cuentan_vigentes_por_mes_de_su_ultimo_dia(self):
+    # --- Resumen: calendario de vencimientos, ranking y carga -----------------------------------------------
+    def test_el_calendario_cuenta_vigentes_por_su_ultimo_dia_valido(self):
         self.escenario()
         self.entrar()
-        barras = self.tablero()["barras"]
-        self.assertEqual([(b["etiqueta"], b["valor"]) for b in barras["barras"]][:2], [("nov", 1), ("dic", 2)])
-        self.assertEqual(barras["total"], 3)
-        self.assertEqual(barras["barras"][1]["altura"], "100")
-        self.assertEqual(barras["barras"][0]["altura"], "50")
+        calor = self.tablero()["calor"]
+        dias = {d["fecha"]: d["valor"] for semana in calor["semanas"] for d in semana["dias"] if d["valor"]}
+        # Urgente termina el 19 nov, Pronta el 19 dic y Holgada el 31 dic; las demás no son vigentes.
+        self.assertEqual(dias, {date(2026, 11, 19): 1, date(2026, 12, 19): 1, date(2026, 12, 31): 1})
+        self.assertEqual(calor["total"], 3)
         respuesta = self.client.get(reverse("recetasapp:recetas"))
-        self.assertContains(respuesta, "noviembre de 2026")
+        self.assertContains(respuesta, "Cuándo vencen las vigentes")
+        self.assertContains(respuesta, 'data-tip="jueves 19 de noviembre: 1 receta vence"')
+        self.assertContains(respuesta, 'data-tip="viernes 20 de noviembre: ninguna receta vence"')
+        # La tabla alternativa solo lista los días con vencimientos.
+        self.assertContains(respuesta, "Ver los días con vencimientos en una tabla")
+        self.assertEqual(len(calor["con_vencimientos"]), 3)
+
+    def test_el_calendario_marca_hoy_y_deja_en_blanco_lo_anterior_a_hoy(self):
+        self.escenario()
+        self.entrar()
+        primera = self.tablero()["calor"]["semanas"][0]
+        self.assertEqual(primera["texto"], "Esta semana")
+        self.assertEqual([d["es_hoy"] for d in primera["dias"]], [True] + [False] * 6)  # hoy es lunes
+        html = self.client.get(reverse("recetasapp:recetas")).content.decode()
+        self.assertEqual(html.count("calor-hoy"), 1)
+        # Con hoy a mitad de semana, lo anterior queda sin número ni texto de ayuda.
+        from recetasapp import graficos
+        calor = graficos.mapa_calor({}, date(2026, 11, 4))
+        self.assertEqual([d["pasado"] for d in calor["semanas"][0]["dias"]], [True, True] + [False] * 5)
+
+    def test_el_calendario_se_reemplaza_por_una_explicacion_si_nada_vence(self):
+        self.receta("Futura", date(2027, 1, 1))
+        self.entrar()
+        respuesta = self.client.get(reverse("recetasapp:recetas"))
+        self.assertContains(respuesta, "Ninguna receta vigente vence en las próximas 12 semanas.")
+        self.assertNotContains(respuesta, 'class="calor"')
 
     def test_el_ranking_ordena_por_la_que_vence_primero_y_cuenta_los_dias(self):
         self.escenario()
@@ -165,7 +244,7 @@ class PanelTests(TestCase):
         self.assertEqual([(r.paciente.nombres, r.dias) for r in filas], [("Manana", 1), ("Cercana", 8), ("Urgente", 18)])
         self.assertContains(respuesta, "Vence mañana")
         self.assertContains(respuesta, "En 8 días")
-        self.assertContains(respuesta, "Ver las 3 por vencer")
+        self.assertContains(respuesta, f'href="{reverse("recetasapp:recetas_lista")}?situacion=por_vencer">Ver las 3 por vencer</a>')
 
     def test_el_ranking_muestra_a_lo_sumo_seis_y_enlaza_al_resto(self):
         for i in range(8):
@@ -197,21 +276,68 @@ class PanelTests(TestCase):
         self.assertNotContains(respuesta, reporte)
         self.assertNotContains(respuesta, reverse("recetasapp:importacion_nueva"))
 
-    def test_sin_datos_el_tablero_explica_en_vez_de_dibujar_graficos_vacios(self):
+    def test_sin_datos_el_resumen_explica_en_vez_de_dibujar_graficos_vacios(self):
         self.entrar()
         respuesta = self.client.get(reverse("recetasapp:recetas"))
         self.assertContains(respuesta, "Todavía no hay recetas que mostrar.")
         self.assertContains(respuesta, "Todavía no se ha cargado ningún archivo.")
-        self.assertContains(respuesta, "Ninguna receta vigente vence en los próximos seis meses.")
-        self.assertNotContains(respuesta, '<svg class="anillo"')
+        self.assertContains(respuesta, "Ninguna receta vigente vence en las próximas 12 semanas.")
+        self.assertNotContains(respuesta, '<ol class="segmentos"')
+
+    def test_el_resumen_carga_el_script_de_ayuda_y_la_lista_no(self):
+        self.entrar()
+        html = self.client.get(reverse("recetasapp:recetas")).content.decode()
+        self.assertIn("js/graficos.js", html)
+        self.assertIn("css/tablero.css", html)
+        self.assertNotIn("js/graficos.js", self.client.get(reverse("recetasapp:recetas_lista")).content.decode())
+
+    # --- Pestañas de la sección -----------------------------------------------------------------------------
+    def pestanas(self, ruta):
+        html = self.client.get(ruta).content.decode()
+        inicio = html.index('aria-label="Secciones de Recetas"')
+        bloque = html[inicio:html.index("</nav>", inicio)]
+        return [(m.group(1), 'aria-current="page"' in m.group(0)) for m in re.finditer(r'<a href="([^"]+)"[^>]*>', bloque)], bloque
+
+    def test_las_cuatro_pantallas_de_recetas_comparten_pestanas_y_marcan_la_abierta(self):
+        self.escenario()
+        resumen, lista = reverse("recetasapp:recetas"), reverse("recetasapp:recetas_lista")
+        preparar, retiro = reverse("recetasapp:preparacion"), reverse("recetasapp:preparacion_pendientes")
+        self.entrar()
+        for ruta in (resumen, lista, preparar, retiro):
+            with self.subTest(ruta=ruta):
+                enlaces, _ = self.pestanas(ruta)
+                self.assertEqual([href for href, _ in enlaces], [resumen, lista, preparar, retiro])
+                self.assertEqual([href for href, actual in enlaces if actual], [ruta])
+
+    def test_las_pestanas_traen_las_cantidades_que_ayudan_a_decidir(self):
+        self.escenario()
+        self.entrar()
+        _, bloque = self.pestanas(reverse("recetasapp:recetas"))
+        self.assertRegex(bloque, r'Todas las recetas <span class="pestana-cantidad">6</span>')
+        self.assertRegex(bloque, r'Por preparar <span class="pestana-cantidad">0</span>')
+        self.assertRegex(bloque, r'Pendientes de retiro <span class="pestana-cantidad">0</span>')
+        self.assertNotRegex(bloque, r'Resumen <span')
+
+    def test_el_tecnico_ve_las_cuatro_pantallas_y_el_encargado_ninguna(self):
+        nombres = ("recetas", "recetas_lista", "preparacion", "preparacion_pendientes")
+        self.entrar("tecnico")
+        for nombre in nombres:
+            self.assertEqual(self.client.get(reverse(f"recetasapp:{nombre}")).status_code, 200)
+        self.entrar("encargado")
+        for nombre in nombres:
+            self.assertEqual(self.client.get(reverse(f"recetasapp:{nombre}")).status_code, 403)
+
+    def test_el_resumen_ya_no_acepta_busquedas_por_post(self):
+        self.entrar()
+        self.assertEqual(self.client.post(reverse("recetasapp:recetas"), {"buscar": "x"}).status_code, 405)
 
     # --- Lista de recetas ----------------------------------------------------------------------------------
-    def test_lista_filtra_por_situacion_y_cada_pestana_trae_su_cantidad(self):
+    def test_lista_filtra_por_situacion_y_cada_filtro_trae_su_cantidad(self):
         self.escenario()
         self.entrar("tecnico")
-        ruta = reverse("recetasapp:recetas")
+        ruta = reverse("recetasapp:recetas_lista")
         respuesta = self.client.get(ruta)
-        self.assertEqual({p["clave"]: p["cantidad"] for p in respuesta.context["pestanas"]},
+        self.assertEqual({f["clave"]: f["cantidad"] for f in respuesta.context["filtros"]},
                          {"": 6, "vigente": 3, "por_vencer": 1, "futura": 1, "agotada": 1, "vencida": 1})
         esperadas = {"vigente": 3, "futura": 1, "agotada": 1, "vencida": 1, "por_vencer": 1}
         for clave, cantidad in esperadas.items():
@@ -225,22 +351,22 @@ class PanelTests(TestCase):
     def test_filas_traen_insignia_con_texto_y_las_entregas_que_quedan(self):
         self.escenario()
         self.entrar()
-        respuesta = self.client.get(reverse("recetasapp:recetas"), {"situacion": "vigente"})
+        respuesta = self.client.get(reverse("recetasapp:recetas_lista"), {"situacion": "vigente"})
         self.assertContains(respuesta, "0 de 6 entregas")
         self.assertContains(respuesta, "Quedan 6")
-        respuesta = self.client.get(reverse("recetasapp:recetas"), {"situacion": "vencida"})
+        respuesta = self.client.get(reverse("recetasapp:recetas_lista"), {"situacion": "vencida"})
         self.assertContains(respuesta, "No admite entregas")
 
     def test_lista_vigente_va_con_las_que_vencen_primero_arriba(self):
         self.escenario()
         self.entrar()
-        respuesta = self.client.get(reverse("recetasapp:recetas"), {"situacion": "vigente"})
+        respuesta = self.client.get(reverse("recetasapp:recetas_lista"), {"situacion": "vigente"})
         self.assertEqual([r.paciente.nombres for r in respuesta.context["page_obj"]], ["Urgente", "Pronta", "Holgada"])
 
     def test_busqueda_por_rut_nombre_y_codigo_viaja_por_post_y_no_queda_en_la_url(self):
         self.escenario()
         self.entrar()
-        ruta = reverse("recetasapp:recetas")
+        ruta = reverse("recetasapp:recetas_lista")
         rut = self.pacientes["Pronta"].rut
         for buscar, esperado in ((rut, ["Pronta"]), ("urgente", ["Urgente"]), ("P-Vencida", ["Vencida"]), ("zzzz", [])):
             with self.subTest(buscar=buscar):
@@ -254,7 +380,7 @@ class PanelTests(TestCase):
     def test_situacion_desconocida_no_lista_nada_y_avisa(self):
         self.escenario()
         self.entrar()
-        respuesta = self.client.get(reverse("recetasapp:recetas"), {"situacion": "inventada"})
+        respuesta = self.client.get(reverse("recetasapp:recetas_lista"), {"situacion": "inventada"})
         self.assertEqual(respuesta.status_code, 200)
         self.assertEqual(respuesta.context["page_obj"].paginator.count, 0)
         self.assertContains(respuesta, 'role="alert"')
@@ -262,7 +388,7 @@ class PanelTests(TestCase):
     def test_el_boton_buscar_conserva_la_situacion_y_la_paginacion_la_reenvia(self):
         self.escenario()
         self.entrar()
-        ruta = reverse("recetasapp:recetas")
+        ruta = reverse("recetasapp:recetas_lista")
         html = self.client.get(ruta, {"situacion": "vigente"}).content.decode()
         # «Buscar» es el primer botón de envío de la lista: Enter en el campo conserva la situación elegida.
         envios = re.findall(r'<button class="(?:boton|filtro)" type="submit" name="situacion" value="([a-z_]*)"', html)
@@ -273,53 +399,41 @@ class PanelTests(TestCase):
         html = self.client.post(ruta, {"situacion": "vigente", "buscar": "Paginada", "pagina": 1}).content.decode()
         self.assertIn('<input type="hidden" name="situacion" value="vigente">', html)
         self.assertIn('<input type="hidden" name="buscar" value="Paginada">', html)
-        # Tras buscar o paginar, el navegador vuelve a la lista y no al comienzo del tablero.
-        self.assertIn('action="#listado"', html)
 
     def test_los_filtros_se_explican_y_se_pueden_quitar(self):
         self.escenario()
         self.entrar()
-        ruta = reverse("recetasapp:recetas")
+        ruta = reverse("recetasapp:recetas_lista")
         sin_filtro = self.client.get(ruta).content.decode()
         self.assertIn("Mostrar:", sin_filtro)
         self.assertNotIn("Quitar filtros", sin_filtro)
         # Cada cantidad va en su propia insignia, separada del texto del botón.
         self.assertRegex(sin_filtro, r'Vigentes <span class="filtro-cantidad">3</span>')
         for filtrado in (self.client.get(ruta, {"situacion": "vencida"}), self.client.post(ruta, {"buscar": "Pronta", "pagina": 1, "situacion": ""})):
-            self.assertContains(filtrado, f'<a class="quitar-filtros" href="{ruta}#listado">Quitar filtros</a>')
+            self.assertContains(filtrado, f'<a class="quitar-filtros" href="{ruta}">Quitar filtros</a>')
         padron = reverse("recetasapp:pacientes")
         self.assertNotContains(self.client.get(padron), "Quitar filtros")
         self.assertContains(self.client.get(padron, {"filtro": "sin_vigente"}), f'<a class="quitar-filtros" href="{padron}">Quitar filtros</a>')
 
-    def test_la_pagina_ofrece_un_atajo_a_la_lista_y_las_cifras_con_enlace_lo_indican(self):
-        self.escenario()
-        for actor in ("qf", "tecnico"):
-            with self.subTest(actor=actor):
-                self.entrar(actor)
-                respuesta = self.client.get(reverse("recetasapp:recetas"))
-                self.assertContains(respuesta, '<a class="boton boton-secundario" href="#listado">Ir a la lista</a>')
-        # Las tres cifras con enlace llevan flecha; la que no se puede pulsar no.
-        html = self.client.get(reverse("recetasapp:recetas")).content.decode()
-        self.assertEqual(html.count("kpi-ir"), 3)
-
     def test_lista_vacia_sin_datos_invita_a_importar_solo_a_quien_puede(self):
         self.entrar()
-        self.assertContains(self.client.get(reverse("recetasapp:recetas")), "Todavía no hay recetas</h3>")
-        self.assertContains(self.client.get(reverse("recetasapp:recetas")), reverse("recetasapp:importacion_nueva"))
+        self.assertContains(self.client.get(reverse("recetasapp:recetas_lista")), "Todavía no hay recetas</h3>")
+        self.assertContains(self.client.get(reverse("recetasapp:recetas_lista")), reverse("recetasapp:importacion_nueva"))
         self.entrar("tecnico")
-        respuesta = self.client.get(reverse("recetasapp:recetas"))
+        respuesta = self.client.get(reverse("recetasapp:recetas_lista"))
         self.assertContains(respuesta, "Pide a la Jefa de Farmacia")
         self.assertNotContains(respuesta, reverse("recetasapp:importacion_nueva"))
 
-    def test_crear_receta_vive_en_recetas_y_ya_no_en_el_padron(self):
+    def test_crear_receta_vive_en_recetas_y_ya_no_en_pacientes(self):
         self.entrar()
         nueva = reverse("recetasapp:receta_nueva")
-        self.assertContains(self.client.get(reverse("recetasapp:recetas")), f'href="{nueva}"')
+        for nombre in ("recetas", "recetas_lista", "preparacion", "preparacion_pendientes"):
+            self.assertContains(self.client.get(reverse(f"recetasapp:{nombre}")), f'href="{nueva}"')
         self.assertNotContains(self.client.get(reverse("recetasapp:pacientes")), f'href="{nueva}"')
         self.entrar("tecnico")
         self.assertNotContains(self.client.get(reverse("recetasapp:recetas")), f'href="{nueva}"')
 
-    # --- Padrón con filtro ---------------------------------------------------------------------------------
+    # --- Pacientes: lista con filtro -----------------------------------------------------------------------
     def test_padron_filtra_a_los_pacientes_sin_receta_vigente(self):
         self.escenario()
         self.entrar()
@@ -398,6 +512,7 @@ class PanelTests(TestCase):
             # Preparación vive dentro de Recetas: no tiene entrada propia, así que marca Recetas.
             reverse("recetasapp:preparacion"): recetas,
             reverse("recetasapp:preparacion_pendientes"): recetas,
+            reverse("recetasapp:recetas_lista"): recetas,
         }
         self.entrar()
         for ruta, actual in casos.items():
@@ -409,14 +524,16 @@ class PanelTests(TestCase):
         marcadas = {href for href, marcada in self.enlaces(entrega).items() if marcada and href.startswith("/recetas/")}
         self.assertEqual(marcadas, {recetas})
 
-    def test_inicio_ofrece_recetas_y_padron_por_separado_a_quien_corresponde(self):
+    def test_inicio_ofrece_recetas_y_pacientes_a_quien_corresponde(self):
+        recetas, pacientes = reverse("recetasapp:recetas"), reverse("recetasapp:pacientes")
         for actor in ("qf", "tecnico"):
             with self.subTest(actor=actor):
                 self.entrar(actor)
                 html = self.client.get(reverse("coreapp:inicio")).content.decode()
-                self.assertIn(f'href="{reverse("recetasapp:recetas")}">Recetas</a>', html)
-                self.assertIn(f'href="{reverse("recetasapp:pacientes")}">Padrón</a>', html)
+                self.assertIn(f'href="{recetas}">Recetas</a>', html)
+                # La Jefa lo tiene en su bloque principal; el Técnico, como acceso propio.
+                self.assertIn(f'href="{pacientes}">Pacientes</a>' if actor == "qf" else f'href="{pacientes}"', html)
                 self.assertNotIn("Abrir resumen", html)
         self.entrar("encargado")
         html = self.client.get(reverse("coreapp:inicio")).content.decode()
-        self.assertNotIn(f'href="{reverse("recetasapp:recetas")}">Recetas</a>', html)
+        self.assertNotIn(f'href="{recetas}">Recetas</a>', html)

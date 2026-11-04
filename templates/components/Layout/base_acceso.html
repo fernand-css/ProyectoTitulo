@@ -1,0 +1,27 @@
+{% extends 'components/Layout/base.html' %}
+{% comment %}
+  Pantallas de acceso sin sesión (inicio de sesión, recuperación de clave, verificación de correo y avisos 403 y 404):
+  una tarjeta con el formulario a la izquierda y la ilustración del mostrador a la derecha. En pantallas angostas, o con
+  el texto muy ampliado, la ilustración pasa debajo del formulario. El tótem usa otro layout (base_publica.html).
+{% endcomment %}
+{% block franja_global %}{% include 'components/franja.html' %}{% endblock %}
+{% block cuerpo %}
+<div class="entrada">
+  <div class="entrada-tarjeta">
+    <div class="entrada-formulario">
+      <a class="marca" href="{% url 'coreapp:inicio' %}">
+        <svg class="marca-svg" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><use href="#marca"/></svg>
+        <span class="marca-texto"><strong>Farmacia</strong><span>CESFAM San Nicolás</span></span>
+      </a>
+      <main id="contenido" class="acceso-contenido" tabindex="-1">
+        {% include 'components/mensajes.html' %}
+        {% block contenido %}{% endblock %}
+      </main>
+    </div>
+    <div class="entrada-arte">
+      <p class="entrada-lema">Departamento de Salud Municipal<br>San Nicolás, Región de Ñuble</p>
+      <svg class="entrada-ilustracion" viewBox="0 0 600 520" preserveAspectRatio="xMidYMax meet" aria-hidden="true" focusable="false"><use href="#farmacia-mostrador"/></svg>
+    </div>
+  </div>
+</div>
+{% endblock %}

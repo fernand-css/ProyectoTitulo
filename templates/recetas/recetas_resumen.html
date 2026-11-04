@@ -1,0 +1,11 @@
+{% extends 'recetas/base.html' %}
+{% load static %}
+{% block titulo %}Resumen de recetas · Farmacia{% endblock %}
+{% block estilos %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/tablero.css' %}">{% endblock %}
+{# Resumen: lo que hay, lo que vence y cómo van las entregas. La lista completa y la preparación son pestañas aparte. #}
+{% block migas_contenedor %}{% endblock %}
+{% block farmacia %}
+{% include 'recetas/_cabecera.html' with titulo='Recetas' texto='Cuántas recetas siguen vigentes, cuáles vencen pronto y cómo van las entregas.' %}
+{% include 'recetas/_tablero.html' %}
+{% endblock %}
+{% block scripts %}<script defer src="{% static 'js/graficos.js' %}"></script>{% endblock %}

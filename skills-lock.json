@@ -1,6 +1,12 @@
 {
   "version": 1,
   "skills": {
+    "codebase-design": {
+      "source": "mattpocock/skills",
+      "sourceType": "github",
+      "skillPath": "skills/engineering/codebase-design/SKILL.md",
+      "computedHash": "417e3ea96ab3fbe2b7a4279ce3e59202fb7106ad688c12f2d577c9219803de8d"
+    },
     "frontend-design": {
       "source": "anthropics/skills",
       "sourceType": "github",

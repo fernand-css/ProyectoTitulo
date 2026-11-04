@@ -1,5 +1,5 @@
-{# Panel de identidad de las pantallas de acceso: el campo de gules del escudo, con sol naciente, surcos y tres espigas. #}
-{# Dos composiciones del mismo paisaje: la alta (escritorio) y la ancha (celular), para que el logotipo nunca se monte sobre el sol. #}
+{# Panel de identidad de las pantallas de acceso: marca, lema y la ilustración de un mostrador de farmacia. #}
+{# Dos composiciones de la misma escena: la alta (escritorio) y la ancha (celular), para que la marca nunca se monte sobre ella. #}
 <header class="paisaje">
   <a class="marca" href="{% url 'coreapp:inicio' %}">
     <svg class="marca-svg" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><use href="#marca"/></svg>
@@ -7,22 +7,9 @@
   </a>
   <p class="paisaje-lema">Departamento de Salud Municipal<br>San Nicolás, Región de Ñuble</p>
   <svg class="paisaje-arte" viewBox="0 0 600 800" preserveAspectRatio="xMidYMax meet" aria-hidden="true" focusable="false">
-    <circle cx="360" cy="540" r="330" fill="#C25555"/>
-    <circle cx="360" cy="540" r="252" fill="#C86060"/>
-    <g class="sol-sale"><use href="#sol-naciente" transform="translate(360 540) scale(0.92)"/></g>
-    <use href="#espiga" transform="translate(80 592) rotate(-9) scale(0.9)"/>
-    <use href="#espiga" transform="translate(138 598) rotate(1) scale(1.05)"/>
-    <use href="#espiga" transform="translate(194 592) rotate(10) scale(0.83)"/>
-    <rect x="-1200" y="540" width="3000" height="400" fill="#E98B50"/>
-    <path fill="#F3CD97" d="M360 540L-2100 840L-1910 840Z M360 540L-1720 840L-1530 840Z M360 540L-1340 840L-1150 840Z M360 540L-960 840L-770 840Z M360 540L-580 840L-390 840Z M360 540L-200 840L-10 840Z M360 540L180 840L370 840Z M360 540L560 840L750 840Z M360 540L940 840L1130 840Z M360 540L1320 840L1510 840Z M360 540L1700 840L1890 840Z M360 540L2080 840L2270 840Z M360 540L2460 840L2650 840Z"/>
-    <rect x="-1200" y="536" width="3000" height="8" fill="#8F3434"/>
+    <use href="#farmacia-mostrador" x="0" y="250" width="600" height="520"/>
   </svg>
-  <svg class="paisaje-arte-movil" viewBox="0 0 600 300" preserveAspectRatio="xMidYMax meet" aria-hidden="true" focusable="false">
-    <circle cx="470" cy="235" r="190" fill="#C25555"/>
-    <circle cx="470" cy="235" r="145" fill="#C86060"/>
-    <g class="sol-sale"><use href="#sol-naciente" transform="translate(470 235) scale(0.52)"/></g>
-    <rect x="-1200" y="235" width="3000" height="300" fill="#E98B50"/>
-    <path fill="#F3CD97" d="M470 235L-1500 520L-1350 520Z M470 235L-1200 520L-1050 520Z M470 235L-900 520L-750 520Z M470 235L-600 520L-450 520Z M470 235L-300 520L-150 520Z M470 235L0 520L150 520Z M470 235L300 520L450 520Z M470 235L600 520L750 520Z M470 235L900 520L1050 520Z M470 235L1200 520L1350 520Z M470 235L1500 520L1650 520Z M470 235L1800 520L1950 520Z M470 235L2100 520L2250 520Z"/>
-    <rect x="-1200" y="231" width="3000" height="8" fill="#8F3434"/>
+  <svg class="paisaje-arte-movil" viewBox="0 0 600 440" preserveAspectRatio="xMidYMax meet" aria-hidden="true" focusable="false">
+    <use href="#farmacia-mostrador" x="240" y="120" width="360" height="312"/>
   </svg>
 </header>

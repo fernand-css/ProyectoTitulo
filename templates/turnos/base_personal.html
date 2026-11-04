@@ -2,6 +2,6 @@
 {% load static %}
 {% block estilos %}<link rel="stylesheet" href="{% static 'css/cola.css' %}">{% endblock %}
 {% block contenido %}<div class="contenedor pagina cola-personal">
-<nav class="migas" aria-label="Ruta de navegación"><ol><li><a href="{% url 'coreapp:inicio' %}">Inicio</a></li><li><a href="{% url 'turnosapp:panel' %}">Turnos</a></li></ol></nav>
+<nav class="migas" aria-label="Ruta de navegación"><ol><li><a href="{% url 'coreapp:inicio' %}">Inicio</a></li><li><a href="{% url 'turnosapp:panel' %}">Atención</a></li></ol></nav>
 {% block turnos %}{% endblock %}
 </div>{% endblock %}

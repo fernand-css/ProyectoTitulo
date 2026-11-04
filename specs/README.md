@@ -14,7 +14,7 @@ Organización adaptada de `SDD (1).rar`: una carpeta por módulo o cambio y cuat
 | 06 — Pantalla de sala y voz | Aprobado; código técnico completo, 100 llamados a dos pantallas con p95 444 ms; navegador/axe, hardware, usabilidad y aceptación pendientes; `fdaza` | [spec.md](06-pantalla-sala-y-voz/spec.md) | [plan.md](06-pantalla-sala-y-voz/plan.md) | [tasks.md](06-pantalla-sala-y-voz/tasks.md) | [validation.md](06-pantalla-sala-y-voz/validation.md) |
 | 07 — Preparación y tiempos de espera | Aprobado; código y verificación técnica completos; navegador/axe/usabilidad y aceptación pendientes; HU-18 parcial; `fdaza` | [spec.md](07-preparacion-y-tiempos-de-espera/spec.md) | [plan.md](07-preparacion-y-tiempos-de-espera/plan.md) | [tasks.md](07-preparacion-y-tiempos-de-espera/tasks.md) | [validation.md](07-preparacion-y-tiempos-de-espera/validation.md) |
 
-| 08 — Inicio con noticias de San Nicolás | Implementado técnicamente; aceptación, axe y autorización de fotos pendientes; `fdaza` | [spec.md](08-inicio-con-noticias/spec.md) | [plan.md](08-inicio-con-noticias/plan.md) | [tasks.md](08-inicio-con-noticias/tasks.md) | [validation.md](08-inicio-con-noticias/validation.md) |
+
 
 El spec 01 conserva su acuerdo: implementación en `fdaza`, documento aprobado en `fd686ec` y commits de implementación sujetos a instrucción del equipo. La verificación técnica y sus pendientes no equivalen a aceptación funcional del usuario.
 
@@ -25,7 +25,7 @@ El spec 01 conserva su acuerdo: implementación en `fdaza`, documento aprobado e
 | 11 | Modo sin conexión y caché de la PWA | Reservado; sin documento aprobado |
 | 12 | Notificaciones | Reservado; sin documento aprobado |
 
-Para una nueva spec, comprobar las carpetas, los archivos heredados y esta tabla. Si corresponde a un tema reservado, usar su número; para otros temas, usar el primer número libre sin ocupar reservas. `02` corresponde a autenticación, roles y auditoría; `03`, a padrón y recetas; `04`, a emisión de turnos; `05`, a cola ponderada y llamado; `06`, a pantalla de sala y voz con WebSocket; `07`, a preparación de medicamentos, retiro de preparados pendientes y tiempos de espera (HU-06/17/18; aprobado, con verificación técnica y aceptación pendiente; su preparación vive en `recetasapp`). HU-18 queda cubierta parcialmente porque la estimación continua solo se muestra al personal. `08`, al inicio con noticias de San Nicolás (`coreapp`; lee el sitio municipal con `actualizar_noticias`). `09` es el primer número libre no reservado. Las reservas no crean documentos ni autorizan implementación.
+Para una nueva spec, comprobar las carpetas, los archivos heredados y esta tabla. Si corresponde a un tema reservado, usar su número; para otros temas, usar el primer número libre sin ocupar reservas. `02` corresponde a autenticación, roles y auditoría; `03`, a padrón y recetas; `04`, a emisión de turnos; `05`, a cola ponderada y llamado; `06`, a pantalla de sala y voz con WebSocket; `07`, a preparación de medicamentos, retiro de preparados pendientes y tiempos de espera (HU-06/17/18; aprobado, con verificación técnica y aceptación pendiente; su preparación vive en `recetasapp`). HU-18 queda cubierta parcialmente porque la estimación continua solo se muestra al personal. `08` es el primer número libre no reservado. Las reservas no crean documentos ni autorizan implementación.
 
 ## Estructura
 

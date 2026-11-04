@@ -1,47 +1,129 @@
-/* Mesa de atención: puesto a la izquierda y fila a la derecha, con identidad local. */
+/*
+  Atención y cola: la persona que se atiende y sus recetas a un lado, la fila y las ventanillas al otro.
+  Solo usa las variables de base.css. El contenido de [data-estado] se reemplaza cada segundo (static/js/cola.js).
+*/
 .cola-personal { width: 100%; }
-.cola-cabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; margin-bottom: 1.5rem; }
+.cola-cabecera { display: flex; align-items: flex-start; justify-content: space-between; gap: 1.5rem; margin-bottom: 1.25rem; }
+.cola-cabecera h1 { margin-bottom: 0.3rem; }
 .cola-cabecera p, .cola-formulario + p { max-width: 70ch; }
-.cola-mesa { display: grid; grid-template-columns: minmax(18rem, 1fr) minmax(0, 1.6fr); gap: 2rem; margin: 1.5rem 0 2rem; }
-.cola-puesto { border: 2px solid var(--borde); border-top: .5rem solid var(--marca-fondo); padding: 1.5rem; align-self: start; }
-.cola-situacion { font-weight: 700; background: var(--trigo-fondo); color: var(--trigo-texto); padding: .6rem; }
-.cola-numero { font: 800 4rem/1.1 var(--fuente-texto); margin: .8rem 0; font-variant-numeric: tabular-nums; }
-.cola-acciones, .cola-refresco { display: flex; flex-wrap: wrap; align-items: center; gap: .75rem; margin: 1rem 0; }
-.cola-ocupar { display: grid; gap: .5rem; padding: .75rem 0; border-bottom: 1px solid var(--borde); }
+.cola-acciones, .cola-refresco { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin: 1rem 0; }
+.cola-refresco { margin-top: 0; padding: 0.6rem 0.9rem; color: var(--trigo-texto); background: var(--trigo-fondo); border-radius: 0.8rem; }
+.cola-refresco p { margin: 0; }
+.cola-refresco [hidden] { display: none; }
+.cola-ayuda { margin: 0.4rem 0 0; font-size: 0.95rem; }
+
+/* Resumen de preparación: una franja baja con la estimación y la entrada a Preparación. */
+.cola-preparacion {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  margin: 0 0 1.25rem;
+  padding: 1rem 1.4rem;
+  color: var(--panel-texto);
+  background: var(--panel-fondo);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-panel);
+}
+.cola-preparacion h2 { margin: 0 0 0.2rem; font-size: 1.15rem; }
+.cola-preparacion p { margin: 0.15rem 0; }
+
+/* La mesa: el puesto va primero en el orden de lectura y se dibuja a la derecha. */
+.cola-mesa { display: grid; grid-template-columns: minmax(17rem, 22rem) minmax(0, 1fr); grid-template-areas: "lateral puesto"; gap: 1.5rem; align-items: start; margin: 0 0 2rem; }
+.cola-puesto { grid-area: puesto; min-width: 0; padding: 1.5rem; background: var(--panel-fondo); border: 1px solid var(--linea); border-radius: 1.5rem; }
+.cola-puesto-activo { border: 2px solid var(--marca-fondo); padding: 0; overflow: hidden; }
+.cola-puesto-activo > :not(.cola-puesto-cab):not(.cola-ahora):not(.cola-controles) { margin-inline: 1.5rem; }
+.cola-lateral { grid-area: lateral; display: flex; flex-direction: column; gap: 1.25rem; min-width: 0; }
+.cola-puesto-cab { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; margin-bottom: 1rem; }
+.cola-puesto-activo .cola-puesto-cab { margin: 0; padding: 1.1rem 1.5rem; background: var(--trigo-fondo); }
+.cola-puesto-cab h2 { margin: 0; font-size: 1.3rem; }
+.cola-situacion { margin: 0; padding: 0.15rem 0.8rem; color: var(--trigo-texto); background: var(--panel-fondo); border: 1px solid var(--linea); border-radius: 999px; font-size: 0.95rem; font-weight: 700; }
+.cola-puesto:not(.cola-puesto-activo) .cola-situacion { background: var(--trigo-fondo); border-color: var(--trigo-fondo); }
+.cola-sin-atencion { margin: 0 0 0.5rem; font-size: 1.15rem; font-weight: 700; }
+
+/* Quien se atiende ahora */
+.cola-ahora { padding: 1.25rem 1.5rem 1.5rem; }
+.cola-ahora-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.5rem; }
+.cola-numero { margin: 0; font: 700 4.2rem/1 var(--fuente-titulo); font-variant-numeric: tabular-nums; }
+.cola-paciente { min-width: 0; }
+.cola-paciente p { margin: 0; }
+.cola-paciente-nombre { font-family: var(--fuente-titulo); font-size: 1.5rem; line-height: 1.2; }
+.cola-ahora .cola-acciones { margin: 1rem 0 0; }
+
+/* Recetas del turno */
+.cola-recetas { margin: 1.25rem 0 0; padding-top: 1.1rem; border-top: 1px solid var(--linea); }
+.cola-recetas h3 { margin: 0 0 0.7rem; font-size: 1.2rem; }
+.cola-recetas ul { display: grid; gap: 0.7rem; margin: 0; padding: 0; list-style: none; }
+.cola-recetas li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.6rem 1rem; padding: 0.9rem 1.1rem; border: 1px solid var(--linea); border-radius: 1rem; }
+.cola-recetas li > div { display: grid; flex: 1 1 12rem; }
+.cola-recetas li > div span { color: var(--secundario-texto); }
+.cola-recetas form, .cola-recetas p { margin: 0; }
+.cola-receta-estado { display: inline-flex; align-items: center; gap: 0.4rem; padding: 0.1rem 0.8rem 0.1rem 0.6rem; border-radius: 999px; font-size: 0.95rem; font-weight: 700; }
+.cola-receta-estado .icono { width: 1.1em; height: 1.1em; }
+.cola-receta-pendiente { color: var(--aviso-texto); background: var(--aviso-fondo); }
+.cola-receta-lista { background: var(--suave-fondo); }
+.cola-receta-lista .cola-receta-estado { color: var(--exito-texto); background: var(--exito-fondo); }
+
+.cola-cierre { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.75rem 1.5rem; margin-top: 1.25rem; padding-top: 1.1rem; border-top: 1px solid var(--linea); }
+.cola-cierre a:not(.boton) { font-weight: 700; }
+.cola-controles { padding: 1rem 1.5rem 1.25rem; border-top: 1px solid var(--linea); }
+.cola-controles .cola-acciones { margin-top: 0; }
+.cola-puesto:not(.cola-puesto-activo) .cola-controles { padding: 0.5rem 0 0; border-top: 0; }
+.cola-ocupar { display: grid; gap: 0.5rem; padding: 0.75rem 0; border-bottom: 1px solid var(--linea); }
+
+/* Fila de espera */
+.cola-espera, .cola-ventanillas { padding: 1.25rem 1.25rem 1rem; background: var(--panel-fondo); border: 1px solid var(--linea); border-radius: 1.25rem; }
+.cola-espera h2, .cola-ventanillas h2 { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.2rem 0.75rem; margin: 0 0 0.4rem; font-size: 1.25rem; }
+.cola-total { color: var(--secundario-texto); font-family: var(--fuente-texto); font-size: 0.95rem; font-weight: 500; }
+.cola-ciclo { margin: 0 0 0.5rem; color: var(--secundario-texto); font-size: 0.95rem; }
+.cola-fila { margin: 0; padding: 0; list-style: none; }
+.cola-turno { display: flex; align-items: flex-start; gap: 0.9rem; margin-inline: -0.5rem; padding: 0.8rem 0.5rem; border-top: 1px solid var(--linea); border-radius: 0.7rem; }
+.cola-turno-numero { min-width: 3.4rem; color: var(--panel-texto); font: 700 1.5rem/1.2 var(--fuente-titulo); font-variant-numeric: tabular-nums; text-decoration: none; }
+.cola-turno-numero:hover { text-decoration: underline; }
+.cola-turno-datos { display: flex; flex-direction: column; min-width: 0; line-height: 1.3; }
+.cola-turno-tipo { font-weight: 700; }
+.cola-turno-detalle { color: var(--secundario-texto); font-size: 0.95rem; }
+.cola-turno-nota { margin-top: 0.15rem; font-size: 0.95rem; }
+.cola-aviso { color: var(--aviso-texto); background: var(--aviso-fondo); }
+.cola-aviso .cola-turno-detalle, .cola-aviso .cola-turno-numero { color: var(--aviso-texto); }
+.cola-prioridad { color: var(--error-texto); background: var(--error-fondo); }
+.cola-prioridad .cola-turno-detalle, .cola-prioridad .cola-turno-numero { color: var(--error-texto); }
+.cola-vacia { padding: 0.9rem 0; border-top: 1px solid var(--linea); color: var(--secundario-texto); }
+.cola-paginacion { display: flex; flex-wrap: wrap; gap: 0.5rem 1rem; margin-top: 0.75rem; }
+.cola-paginacion span { color: var(--secundario-texto); }
+
+.cola-ventanillas ul { margin: 0; padding: 0; list-style: none; }
+.cola-ventanillas li { display: flex; flex-direction: column; padding: 0.7rem 0; border-top: 1px solid var(--linea); line-height: 1.3; }
+.cola-ventanillas li span { color: var(--secundario-texto); }
+
+/* Otras secciones y pantallas del personal (gestión, historial, cierre) */
 .cola-tabla { max-width: 100%; overflow-x: auto; }
 .cola-tabla table { width: 100%; border-collapse: collapse; }
 .cola-tabla caption { text-align: left; font-weight: 700; padding: .75rem; }
-.cola-tabla th, .cola-tabla td { padding: .9rem .7rem; text-align: left; border-bottom: 1px solid var(--borde); vertical-align: top; }
+.cola-tabla th, .cola-tabla td { padding: .9rem .7rem; text-align: left; border-bottom: 1px solid var(--linea); vertical-align: top; }
 .cola-tabla thead { background: var(--suave-fondo); color: var(--suave-texto); }
-.cola-tabla .cola-aviso { background: var(--aviso-fondo); color: var(--aviso-texto); }
-.cola-tabla .cola-prioridad { background: var(--error-fondo); color: var(--error-texto); }
-.cola-total { font-family: var(--fuente-texto); font-size: 1rem; }
-.cola-paginacion { display: flex; gap: 1rem; flex-wrap: wrap; margin-top: 1rem; }
-.cola-pendientes, .cola-regla { border-left: .35rem solid var(--borde); padding: 1rem 1.5rem; background: var(--suave-fondo); color: var(--suave-texto); margin: 1.5rem 0; }
+.cola-pendientes, .cola-regla { padding: 1rem 1.5rem; margin: 1.5rem 0; color: var(--suave-texto); background: var(--suave-fondo); border: 1px solid var(--linea); border-radius: var(--radio-panel); }
 .cola-pendientes form { margin: .75rem 0; }
 .cola-ausentes { display: flex; flex-wrap: wrap; gap: .8rem 2rem; }
 .cola-historial li { margin-bottom: 1rem; }
 .cola-formulario { max-width: 48rem; }
-.cola-formulario fieldset { min-width: 0; padding: 1rem; border: 1px solid var(--borde); }
+.cola-formulario fieldset { min-width: 0; padding: 1rem; border: 1px solid var(--borde); border-radius: 0.8rem; }
 .cola-formulario legend { font-weight: 700; }
 .cola-formulario input[type=checkbox], .cola-refresco input[type=checkbox] { width: 1.3rem; height: 1.3rem; vertical-align: middle; margin-right: .5rem; }
 .cola-formulario [disabled] { opacity: 1; color: var(--secundario-texto); }
-.cola-refresco [hidden] { display: none; }
-@media (max-width: 60rem) { .cola-mesa { grid-template-columns: 1fr; } .cola-cabecera { flex-direction: column; } }
-.cola-preparacion {
-  margin: 0 0 1rem;
-  padding: 1rem 1.2rem;
-  color: var(--trigo-texto);
-  background: var(--trigo-fondo);
-  border-left: 0.55rem solid var(--ladrillo);
+
+@media (max-width: 60rem) {
+  .cola-mesa { grid-template-columns: minmax(0, 1fr); grid-template-areas: "puesto" "lateral"; }
+  .cola-cabecera { flex-direction: column; }
 }
-.cola-recetas { margin: 1rem 0; padding-top: 1rem; border-top: 1px solid var(--borde); }
-.cola-recetas h3 { margin: 0 0 .6rem; font-family: var(--fuente-titulo); font-size: 1.1rem; }
-.cola-recetas ul { display: grid; gap: .6rem; margin: 0; padding: 0; list-style: none; }
-.cola-recetas li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1rem; padding: .7rem .8rem; border: 1px solid var(--borde); }
-.cola-recetas li > div { display: grid; }
-.cola-recetas form, .cola-recetas p { margin: 0; }
-.cola-recetas .cola-receta-lista { background: var(--suave-fondo); }
-.cola-recetas .cola-receta-lista p { font-weight: 700; }
-.cola-preparacion h2 { margin: 0 0 0.35rem; font-family: var(--fuente-titulo); font-size: 1.2rem; }
-.cola-preparacion p { margin: 0.3rem 0; }
+@media (max-width: 40rem) {
+  .cola-numero { font-size: 3.4rem; }
+  .cola-puesto { padding: 1.1rem; }
+  .cola-puesto-activo { padding: 0; }
+  .cola-ahora, .cola-controles { padding-inline: 1.1rem; }
+  .cola-puesto-activo .cola-puesto-cab { padding-inline: 1.1rem; }
+}
+@media (forced-colors: active) {
+  .cola-puesto, .cola-espera, .cola-ventanillas, .cola-preparacion { border: 2px solid CanvasText; }
+}

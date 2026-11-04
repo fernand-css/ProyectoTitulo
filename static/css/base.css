@@ -1,14 +1,13 @@
 /*
-  Identidad visual de la Unidad de Farmacia · CESFAM San Nicolás.
-  Parte del escudo comunal: campo de gules (rojo), tres espigas de oro y un sol naciente.
-  Fuentes locales (static/fonts): Bitter para títulos y Atkinson Hyperlegible Next para todo lo demás.
+  Identidad visual de la Unidad de Farmacia · CESFAM San Nicolás (azul institucional).
+  Fuentes locales (static/fonts): Figtree para títulos y Atkinson Hyperlegible Next para todo lo demás.
 */
 @font-face {
-  font-family: "Bitter";
+  font-family: "Figtree";
   font-style: normal;
-  font-weight: 100 900;
+  font-weight: 300 900;
   font-display: swap;
-  src: url("../fonts/bitter-latin-wght-normal.woff2") format("woff2");
+  src: url("../fonts/figtree-latin-wght-normal.woff2") format("woff2");
 }
 @font-face {
   font-family: "Atkinson Hyperlegible Next";
@@ -21,52 +20,76 @@
 :root {
   color-scheme: light;
 
-  /* Esmaltes del escudo (paleta entregada por el equipo). */
-  --trigo: #fef2a0;
-  --arena: #f3cd97;
-  --naranja: #e98b50;
-  --ladrillo: #bc4f4f;
-  --tinta: #2a1613;
-  --linea: #ead6bb;
-  --borde: #8a6e63;
+  /* Paleta azul institucional. Los nombres vienen de la primera paleta (esmaltes del escudo) y se conservan
+     para no tocar cada hoja de estilos: «trigo» es hoy el azul más claro, «arena» su tono medio, «ladrillo»
+     el azul de marca y «naranja» el ámbar, único acento cálido (gráficos y detalles). */
+  --trigo: #e3edf9;
+  --arena: #c3d6ee;
+  --naranja: #de9230;
+  --ladrillo: #1f5fae;
+  --tinta: #0b2545;
+  --linea: #d5e0ee;
+  --borde: #5b7da8;
 
   /* Cada pareja texto/fondo se verifica con la fórmula de WCAG en las pruebas (mínimo 4,5:1). */
-  --pagina-texto: #2a1613;
-  --pagina-fondo: #ffffff;
-  --panel-texto: #2a1613;
+  --pagina-texto: #0b2545;
+  --pagina-fondo: #f4f7fb;
+  --panel-texto: #0b2545;
   --panel-fondo: #ffffff;
-  --secundario-texto: #5b4640;
+  --secundario-texto: #44546a;
   --secundario-fondo: #ffffff;
   --marca-texto: #ffffff;
-  --marca-fondo: #bc4f4f;
+  --marca-fondo: #1f5fae;
   --activo-texto: #ffffff;
-  --activo-fondo: #8f3434;
-  --enlace-texto: #9a3636;
+  --activo-fondo: #0b3d7a;
+  --enlace-texto: #0b3d7a;
   --enlace-fondo: #ffffff;
-  --accion-texto: #2a1613;
-  --accion-fondo: #e98b50;
+  --accion-texto: #ffffff;
+  --accion-fondo: #1f5fae;
   --hover-texto: #ffffff;
-  --hover-fondo: #2a1613;
-  --trigo-texto: #2a1613;
-  --trigo-fondo: #fef2a0;
-  --arena-texto: #2a1613;
-  --arena-fondo: #f3cd97;
-  --suave-texto: #2a1613;
-  --suave-fondo: #fdf1e0;
+  --hover-fondo: #0b2545;
+  --trigo-texto: #0b2545;
+  --trigo-fondo: #e3edf9;
+  --arena-texto: #0b2545;
+  --arena-fondo: #c3d6ee;
+  --suave-texto: #0b2545;
+  --suave-fondo: #eef4fb;
   --error-texto: #7e2222;
   --error-fondo: #fdeceb;
   --exito-texto: #25521f;
   --exito-fondo: #e8f3df;
   --aviso-texto: #2a1613;
   --aviso-fondo: #fef2a0;
-  --pie-texto: #fff3d6;
-  --pie-fondo: #2a1613;
+  --pie-texto: #dbe7f7;
+  --pie-fondo: #0b2545;
+  /* Menú lateral: columna azul marino. Cada texto declara su fondo para que las pruebas lo midan. */
+  --menu-texto: #dbe7f7;
+  --menu-fondo: #0b2545;
+  --menu-grupo-texto: #9fb6d6;
+  --menu-grupo-fondo: #0b2545;
+  --menu-activo-texto: #ffffff;
+  --menu-activo-fondo: #1f5fae;
+  --menu-hover-texto: #ffffff;
+  --menu-hover-fondo: #173a66;
   --velo: color-mix(in srgb, var(--tinta) 55%, transparent);
+  /* Gráficos de Recetas: dos series (azul y ámbar oscuro), una rampa azul de cinco pasos para el mapa de calor
+     y tres neutros para lo que no se destaca. Se validaron con el script del skill dataviz sobre fondo blanco
+     (contraste, separación para daltonismo, pasos de luminosidad). */
+  --serie-1: #1f5fae;
+  --serie-2: #c4720a;
+  --rampa-1: #9bb9e0;
+  --rampa-2: #6f9bd1;
+  --rampa-3: #3f78bf;
+  --rampa-4: #1f5fae;
+  --rampa-5: #0b3d7a;
+  --neutro-1: #7f94b0;
+  --neutro-2: #5f7390;
+  --neutro-3: #3b4a60;
 
-  --fuente-titulo: "Bitter", "Rockwell", Georgia, serif;
+  --fuente-titulo: "Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
   --fuente-texto: "Atkinson Hyperlegible Next", "Segoe UI", system-ui, -apple-system, sans-serif;
   --ancho-contenido: 72rem;
-  --radio-panel: 1rem;
+  --radio-panel: 1.25rem;
   --radio-atajo: 1.5rem;
 }
 
@@ -98,14 +121,14 @@ a:hover { text-decoration-thickness: 0.16em; }
 h1, h2, h3 {
   margin: 0 0 0.75rem;
   font-family: var(--fuente-titulo);
-  font-weight: 800;
-  line-height: 1.14;
+  font-weight: 600;
+  line-height: 1.15;
   letter-spacing: -0.012em;
   text-wrap: balance;
 }
-h1 { font-size: clamp(2rem, 1.35rem + 2.4vw, 2.9rem); }
-h2 { font-size: 1.45rem; font-weight: 700; }
-h3 { font-size: 1.15rem; font-weight: 700; }
+h1 { font-size: clamp(2rem, 1.35rem + 2.4vw, 2.75rem); font-weight: 700; }
+h2 { font-size: 1.4rem; }
+h3 { font-size: 1.15rem; }
 p { margin: 0 0 1rem; max-width: 62ch; }
 button, input, select, textarea { font: inherit; }
 button { cursor: pointer; }
@@ -174,7 +197,7 @@ ul, ol { margin-top: 0; }
   border: 2px solid transparent;
   border-radius: 0.6rem;
   font-family: var(--fuente-titulo);
-  font-weight: 800;
+  font-weight: 700;
   line-height: 1;
 }
 .texto-control button:nth-of-type(1) { font-size: 0.9rem; }
@@ -193,7 +216,7 @@ ul, ol { margin-top: 0; }
   text-decoration: none;
 }
 .marca-texto { display: flex; flex-direction: column; line-height: 1.15; }
-.marca-texto strong { font-family: var(--fuente-titulo); font-size: 1.5rem; font-weight: 800; letter-spacing: -0.01em; }
+.marca-texto strong { font-family: var(--fuente-titulo); font-size: 1.5rem; font-weight: 700; letter-spacing: -0.01em; }
 .marca-texto span { font-size: 0.95rem; }
 
 /* ------------------------------------------------------------------ Botones */
@@ -206,8 +229,8 @@ ul, ol { margin-top: 0; }
   padding: 0.55rem 1.6rem;
   color: var(--accion-texto);
   background: var(--accion-fondo);
-  border: 2px solid var(--tinta);
-  border-radius: 999px;
+  border: 2px solid var(--accion-fondo);
+  border-radius: 0.8rem;
   font-size: 1.05rem;
   font-weight: 700;
   line-height: 1.2;
@@ -215,10 +238,10 @@ ul, ol { margin-top: 0; }
   text-decoration: none;
   transition: background-color 0.15s, color 0.15s;
 }
-.boton:hover { color: var(--hover-texto); background: var(--hover-fondo); }
+.boton:hover { color: var(--hover-texto); background: var(--hover-fondo); border-color: var(--hover-fondo); }
 .boton:active { transform: translateY(1px); }
-.boton-secundario { color: var(--panel-texto); background: var(--panel-fondo); }
-.boton-secundario:hover { color: var(--trigo-texto); background: var(--trigo-fondo); }
+.boton-secundario { color: var(--enlace-texto); background: var(--panel-fondo); border-color: var(--marca-fondo); }
+.boton-secundario:hover { color: var(--trigo-texto); background: var(--trigo-fondo); border-color: var(--marca-fondo); }
 .boton-peligro { color: var(--enlace-texto); background: var(--enlace-fondo); border-color: var(--enlace-texto); }
 .boton-peligro:hover { color: var(--error-texto); background: var(--error-fondo); }
 .boton-bloque { display: flex; width: 100%; }
@@ -283,80 +306,6 @@ ul, ol { margin-top: 0; }
 .insignia-activa { color: var(--exito-texto); background: var(--exito-fondo); }
 .insignia-inactiva { color: var(--arena-texto); background: var(--arena-fondo); }
 
-/* Portada del inicio: banda trigo con el sol y las espigas del escudo sobre un horizonte de surcos. */
-.portada { position: relative; overflow: hidden; color: var(--trigo-texto); background: var(--trigo-fondo); }
-.portada::after {
-  content: "";
-  position: absolute;
-  z-index: 2;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 1.5rem;
-  background: linear-gradient(to bottom, var(--activo-fondo) 0 0.22rem, var(--naranja) 0.22rem 0.9rem, var(--arena) 0.9rem 100%);
-}
-.portada-int { position: relative; max-width: var(--ancho-contenido); min-height: 16rem; margin: auto; padding: 2.75rem 1.5rem 4rem; }
-.portada h1 { max-width: 40rem; margin-bottom: 0.9rem; }
-.portada p { max-width: 30rem; font-size: 1.15rem; }
-.portada-rol {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  margin-bottom: 1.25rem !important;
-  padding: 0.25rem 0.9rem 0.25rem 0.7rem;
-  color: var(--hover-texto);
-  background: var(--hover-fondo);
-  border-radius: 999px;
-  font-size: 1rem !important;
-  font-weight: 700;
-}
-.portada-arte {
-  position: absolute;
-  z-index: 1;
-  right: 1.5rem;
-  bottom: 1.5rem;
-  width: min(31rem, 62%);
-  height: auto;
-  --grano: #e98b50;
-  --tallo: #bc4f4f;
-  --contorno: #fef2a0;
-  --rayo-a: #e98b50;
-  --rayo-b: #f3cd97;
-  --disco: #bc4f4f;
-  --disco-2: #fef2a0;
-}
-
-.atajos { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 19rem), 1fr)); gap: 1.25rem; margin: 0.5rem 0 2rem; padding: 0; list-style: none; }
-.atajo {
-  display: flex;
-  align-items: center;
-  gap: 1rem;
-  height: 100%;
-  padding: 1.25rem 1.4rem;
-  color: var(--suave-texto);
-  background: var(--suave-fondo);
-  border: 2px solid var(--arena);
-  border-radius: var(--radio-atajo);
-  text-decoration: none;
-  transition: background-color 0.15s, border-color 0.15s;
-}
-.atajo:hover { background: var(--trigo-fondo); border-color: var(--tinta); }
-.atajo-icono {
-  flex: none;
-  display: grid;
-  place-items: center;
-  width: 3.5rem;
-  height: 3.5rem;
-  color: var(--marca-texto);
-  background: var(--marca-fondo);
-  border-radius: 50%;
-}
-.atajo-icono .icono { width: 1.7rem; height: 1.7rem; }
-.atajo-texto { display: flex; flex: 1; flex-direction: column; min-width: 0; line-height: 1.3; }
-.atajo-texto strong { font-family: var(--fuente-titulo); font-size: 1.2rem; }
-.atajo-texto span { margin-top: 0.2rem; color: var(--secundario-texto); font-size: 0.97rem; }
-.atajo-flecha { width: 1.6rem; height: 1.6rem; color: var(--tinta); transition: transform 0.15s; }
-.atajo:hover .atajo-flecha { transform: translateX(0.25rem); }
 
 /* ------------------------------------------------------------------ Cuentas del equipo */
 .cuenta { display: flex; flex-direction: column; }
@@ -372,7 +321,7 @@ ul, ol { margin-top: 0; }
   border-radius: 50%;
   font-family: var(--fuente-titulo);
   font-size: 1.25rem;
-  font-weight: 800;
+  font-weight: 700;
   text-transform: uppercase;
 }
 .cuenta h2 { margin: 0; font-size: 1.25rem; }
@@ -488,8 +437,8 @@ form .acciones { margin-top: 0.5rem; }
 .banda { display: grid; grid-template-columns: repeat(4, 1fr); height: 0.5rem; }
 .banda span:nth-child(1) { background: var(--trigo); }
 .banda span:nth-child(2) { background: var(--arena); }
-.banda span:nth-child(3) { background: var(--naranja); }
-.banda span:nth-child(4) { background: var(--ladrillo); }
+.banda span:nth-child(3) { background: var(--ladrillo); }
+.banda span:nth-child(4) { background: var(--activo-fondo); }
 .pie-int {
   max-width: var(--ancho-contenido);
   margin: auto;
@@ -531,8 +480,8 @@ form .acciones { margin-top: 0.5rem; }
   gap: 1.25rem;
   min-height: 34rem;
   padding: clamp(1.5rem, 4vw, 3rem);
-  color: var(--marca-texto);
-  background: var(--marca-fondo);
+  color: var(--trigo-texto);
+  background: var(--trigo-fondo);
 }
 .paisaje .marca, .paisaje-lema { position: relative; z-index: 1; }
 .paisaje .marca-svg { width: 3.6rem; height: 3.6rem; border-radius: 1rem; }
@@ -541,11 +490,6 @@ form .acciones { margin-top: 0.5rem; }
 .paisaje-lema { margin: 0; font-size: 1rem; }
 .paisaje-arte, .paisaje-arte-movil { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .paisaje-arte-movil { display: none; }
-.sol-sale { animation: amanecer 1.6s cubic-bezier(0.2, 0.7, 0.25, 1) both; }
-@keyframes amanecer {
-  from { transform: translateY(170px); opacity: 0.4; }
-  to { transform: translateY(0); opacity: 1; }
-}
 .acceso-panel { display: flex; flex-direction: column; padding: clamp(1.5rem, 5vw, 4rem) clamp(1.25rem, 5vw, 4rem); }
 .acceso-contenido { width: 100%; max-width: 27rem; margin: auto; }
 .acceso-contenido h1 { font-size: clamp(2rem, 1.5rem + 1.8vw, 2.6rem); }
@@ -577,15 +521,58 @@ form .acciones { margin-top: 0.5rem; }
 .acceso-ayuda p { margin: 0; }
 .acceso-codigo { margin-top: 1.5rem; color: var(--secundario-texto); font-size: 0.95rem; }
 
+/* ------------------------------------------------------------------ Acceso: tarjeta con el formulario y la ilustración */
+/* Inicio de sesión, recuperación de clave, verificación de correo y avisos 403 y 404 (layout base_acceso.html).
+   El tótem sigue usando .acceso y .paisaje. */
+.entrada { flex: 1; display: grid; place-items: center; padding: clamp(1rem, 4vw, 3rem) clamp(0.75rem, 4vw, 2rem) clamp(1.5rem, 5vw, 3.5rem); }
+.entrada-tarjeta {
+  width: min(100%, 68rem);
+  min-height: 30rem;
+  display: grid;
+  /* Dos columnas mientras cada una conserve 24 rem; si no (celular, texto muy ampliado) la ilustración baja. */
+  grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
+  overflow: hidden;
+  background: var(--panel-fondo);
+  border-radius: 2rem;
+  box-shadow: 0 1.25rem 3.5rem color-mix(in srgb, var(--tinta) 14%, transparent);
+}
+.entrada-formulario { display: flex; flex-direction: column; gap: 2.25rem; min-width: 0; padding: clamp(1.5rem, 4vw, 3rem); }
+.entrada-formulario .marca-svg { width: 2.6rem; height: 2.6rem; border-radius: 0.75rem; }
+.entrada-formulario .marca-texto strong { font-size: 1.25rem; }
+.entrada-formulario .marca-texto span { font-size: 0.85rem; }
+.entrada .acceso-contenido { max-width: 28rem; margin: 0; }
+.entrada .acceso-contenido h1 { margin-bottom: 0.6rem; font-weight: 800; letter-spacing: -0.02em; }
+.entrada .acceso-intro { margin-bottom: 1.6rem; font-size: 1.02rem; }
+.entrada .campo { margin-bottom: 1.15rem; }
+.entrada .campo label { font-size: 0.95rem; }
+.entrada .campo input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]) { padding-inline: 1.3rem; border-radius: 999px; }
+.entrada .campo-clave-ver { right: 0.4rem; border-radius: 50%; }
+.entrada .boton { border-radius: 999px; }
+.entrada .boton-bloque { min-height: 3.25rem; font-size: 1.05rem; }
+.entrada .formulario-pie { margin-top: 1.1rem; }
+.entrada .acceso-ayuda { margin-top: 1.5rem; }
+.entrada .acceso-codigo { margin-bottom: 0; }
+
+.entrada-arte { --relleno: clamp(1.25rem, 3vw, 2.5rem); display: flex; flex-direction: column; min-height: 20rem; padding: var(--relleno); color: var(--trigo-texto); background: var(--trigo-fondo); }
+.entrada-lema { align-self: flex-end; margin: 0 0 0.75rem; font-size: 0.95rem; line-height: 1.5; text-align: right; }
+/* La ilustración ocupa el espacio que deja la dirección y se ajusta a él sin pasar por encima del texto; su base
+   baja hasta el borde de la tarjeta, donde queda apoyado el mostrador. */
+.entrada-ilustracion { flex: 1 1 0; min-height: 0; width: 100%; margin-bottom: calc(var(--relleno) * -1); }
+@media (max-width: 44rem) {
+  .entrada-tarjeta { border-radius: 1.5rem; }
+  .entrada-formulario { gap: 1.75rem; }
+}
+@media (forced-colors: active) {
+  .entrada-tarjeta { border: 2px solid CanvasText; }
+}
+
 /* ------------------------------------------------------------------ Adaptación a pantallas pequeñas */
 @media (max-width: 52rem) {
   .rejilla-2 { grid-template-columns: minmax(0, 1fr); }
-  .portada-int { min-height: 0; padding: 2rem 1rem 8.5rem; }
-  .portada-arte { right: 1rem; width: min(22rem, 78%); }
 }
 @media (max-width: 44rem) {
   .acceso { grid-template-columns: minmax(0, 1fr); }
-  .paisaje { min-height: 12.5rem; padding: 1.25rem 1.25rem 1.5rem; }
+  .paisaje { min-height: 17.5rem; padding: 1.25rem 1.25rem 1.5rem; }
   .paisaje .marca-svg { width: 3rem; height: 3rem; }
   .paisaje .marca-texto strong { font-size: 1.6rem; }
   .paisaje-lema, .paisaje-arte { display: none; }
@@ -602,6 +589,6 @@ form .acciones { margin-top: 0.5rem; }
   *, *::before, *::after { animation: none !important; transition: none !important; }
 }
 @media (forced-colors: active) {
-  .boton, .atajo, .panel { border-color: ButtonText; }
+  .boton, .panel { border-color: ButtonText; }
   .texto-control button[aria-pressed="true"] { outline: 3px solid Highlight; }
 }

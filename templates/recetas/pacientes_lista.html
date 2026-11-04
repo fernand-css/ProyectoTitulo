@@ -1,6 +1,6 @@
 {% extends 'recetas/base.html' %}
 {% load core_tags %}
-{% block titulo %}Padrón · Farmacia{% endblock %}
+{% block titulo %}Pacientes · Farmacia{% endblock %}
 {# La banda de búsqueda es lo primero que se ve: el trabajo de ventanilla empieza buscando a una persona. #}
 {% block migas_contenedor %}{% endblock %}
 {% block cabecera_pagina %}
@@ -8,12 +8,12 @@
   <div class="padron-cabecera-int">
     <nav class="migas" aria-label="Ruta de navegación"><ol>
       <li><a href="{% url 'coreapp:inicio' %}">Inicio</a></li>
-      <li><span aria-current="page">Padrón</span></li>
+      <li><span aria-current="page">Pacientes</span></li>
     </ol></nav>
     <div class="padron-titulo">
       <div>
-        <h1 id="titulo-padron">Padrón</h1>
-        <p>Busca a un paciente para ver su ficha y cuántas entregas le quedan.</p>
+        <h1 id="titulo-padron">Pacientes</h1>
+        <p>Busca a una persona por RUT o apellido para ver su ficha, sus recetas y cuántas entregas le quedan.</p>
       </div>
       {% if rol == 'Jefa de Farmacia' or rol == 'superusuario' %}
       <div class="acciones">
@@ -51,7 +51,7 @@
   {% elif filtro %}<strong>{{ page_obj.paginator.count }}</strong> paciente{{ page_obj.paginator.count|pluralize }} sin receta vigente: hoy no pueden retirar medicamentos.{% if page_obj.has_other_pages %} Mostrando del {{ page_obj.start_index }} al {{ page_obj.end_index }}.{% endif %}
   {% else %}Mostrando del <strong>{{ page_obj.start_index }}</strong> al <strong>{{ page_obj.end_index }}</strong> de <strong>{{ page_obj.paginator.count }}</strong> pacientes, por apellido.{% endif %}
 </p>
-<ul class="padron" aria-label="Pacientes del padrón">
+<ul class="padron" aria-label="Pacientes">
   {% for paciente in page_obj %}{% with resumen=paciente.resumen %}
   <li class="padron-fila">
     <div class="padron-persona">
@@ -84,7 +84,7 @@
   {% endwith %}{% endfor %}
 </ul>
 {% if page_obj.has_other_pages %}
-<nav class="paginacion" aria-label="Páginas del padrón">
+<nav class="paginacion" aria-label="Páginas de pacientes">
   {% if page_obj.has_previous %}<form method="post">{% csrf_token %}<input type="hidden" name="buscar" value="{{ buscar }}"><input type="hidden" name="filtro" value="{{ filtro }}"><button type="submit" name="pagina" value="{{ page_obj.previous_page_number }}">Página anterior</button></form>{% endif %}
   <span aria-current="page">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
   {% if page_obj.has_next %}<form method="post">{% csrf_token %}<input type="hidden" name="buscar" value="{{ buscar }}"><input type="hidden" name="filtro" value="{{ filtro }}"><button type="submit" name="pagina" value="{{ page_obj.next_page_number }}">Página siguiente</button></form>{% endif %}
@@ -96,7 +96,7 @@
   <div>
     <h2>No encontramos pacientes con «{{ buscar }}»{% if filtro %} sin receta vigente{% endif %}</h2>
     <p>Revisa el RUT (sirve con o sin puntos) o prueba solo con el apellido.</p>
-    <div class="acciones"><a class="boton boton-secundario" href="{% url 'recetasapp:pacientes' %}">Ver todo el padrón</a></div>
+    <div class="acciones"><a class="boton boton-secundario" href="{% url 'recetasapp:pacientes' %}">Ver todos los pacientes</a></div>
   </div>
 </div>
 {% elif filtro %}
@@ -105,7 +105,7 @@
   <div>
     <h2>Todos los pacientes tienen una receta vigente</h2>
     <p>No hay nadie sin receta que admita entregas hoy.</p>
-    <div class="acciones"><a class="boton boton-secundario" href="{% url 'recetasapp:pacientes' %}">Ver todo el padrón</a></div>
+    <div class="acciones"><a class="boton boton-secundario" href="{% url 'recetasapp:pacientes' %}">Ver todos los pacientes</a></div>
   </div>
 </div>
 {% elif not form.errors %}

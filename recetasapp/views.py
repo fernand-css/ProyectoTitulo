@@ -1,4 +1,4 @@
-"""Pantallas privadas del padrón y recetas simuladas."""
+"""Pantallas privadas de pacientes, recetas simuladas y su preparación."""
 
 import uuid
 
@@ -23,8 +23,8 @@ from .forms import (
     EntregaForm, ImportacionForm, RecetaForm, RetiroPreparadoForm,
 )
 from .importacion import filas_demo, generar_archivo, importar_padron
-from . import consultas, preparacion as consultas_preparacion, presentacion, tablero
-from .models import ImportacionPadron, Paciente, Receta
+from . import consultas, pestanas, preparacion as consultas_preparacion, presentacion, tablero
+from .models import EntregaReceta, ImportacionPadron, Paciente, Receta
 from .services import (
     crear_receta, deshacer_lista, marcar_lista, registrar_entrega,
     retirar_preparado,
@@ -83,16 +83,28 @@ class PacientesView(FarmaciaView):
 
 
 class RecetasView(FarmaciaView):
-    """Tablero de recetas (cifras, gráficos y ranking) y, debajo, todas las recetas con su situación."""
+    """Resumen de Recetas: cifras, entregas por día, situación, calendario de vencimientos y ranking."""
+
+    def get(self, request):
+        hoy = timezone.localdate()
+        # El periodo del gráfico de entregas viaja en la URL: no es un dato personal.
+        panel = tablero.armar(hoy, tablero.periodo_valido(request.GET.get("periodo")))
+        return self.render("recetas_resumen.html", {
+            "tablero": panel, "pestanas": pestanas.recetas("resumen", total=panel["total"]),
+        })
+
+
+class RecetasListaView(FarmaciaView):
+    """Todas las recetas con su situación, con búsqueda y filtro por situación."""
 
     def get(self, request):
         datos = {"situacion": request.GET["situacion"]} if "situacion" in request.GET else None
-        return self.mostrar(BusquedaRecetaForm(datos), request)
+        return self.mostrar(BusquedaRecetaForm(datos))
 
     def post(self, request):
-        return self.mostrar(BusquedaRecetaForm(request.POST), request)
+        return self.mostrar(BusquedaRecetaForm(request.POST))
 
-    def mostrar(self, form, request):
+    def mostrar(self, form):
         hoy = timezone.localdate()
         recetas = Receta.objects.select_related("paciente")
         pagina, buscar, situacion = 1, "", ""
@@ -115,21 +127,33 @@ class RecetasView(FarmaciaView):
         page_obj = Paginator(recetas.order_by(*orden), 20).get_page(pagina)
         page_obj.object_list = [presentacion.preparar_fila_receta(receta, hoy) for receta in page_obj.object_list]
         conteos = consultas.contar_recetas(hoy)
-        pestanas = [{"clave": "", "texto": "Todas", "cantidad": conteos["total"]}]
-        pestanas += [{"clave": clave, "texto": texto, "cantidad": conteos[clave]} for clave, texto in consultas.FILTROS_RECETA]
-        # El periodo del gráfico de entregas viaja en la URL: no es un dato personal.
-        panel = tablero.armar(hoy, tablero.periodo_valido(request.GET.get("periodo")))
+        filtros = [{"clave": "", "texto": "Todas", "cantidad": conteos["total"]}]
+        filtros += [{"clave": clave, "texto": texto, "cantidad": conteos[clave]} for clave, texto in consultas.FILTROS_RECETA]
         return self.render("recetas_lista.html", {
-            "form": form, "page_obj": page_obj, "buscar": buscar, "situacion": situacion, "pestanas": pestanas, "tablero": panel,
+            "form": form, "page_obj": page_obj, "buscar": buscar, "situacion": situacion, "filtros": filtros,
+            "pestanas": pestanas.recetas("lista", total=conteos["total"]),
         })
 
 
 class PacienteView(FarmaciaView):
+    """Ficha de un paciente en tres pestañas (?pestana=): sus recetas, sus entregas y sus datos."""
+
     def get(self, request, pk):
         paciente = get_object_or_404(Paciente, pk=pk)
+        actual = pestanas.pestana_de_ficha(request.GET.get("pestana"))
         recetas = [presentacion.preparar_receta(receta) for receta in paciente.recetas.order_by("-fecha_inicio", "-pk")]
         recetas.sort(key=lambda receta: receta.situacion["clave"] != "vigente")
-        return self.render("paciente_detalle.html", {"paciente": paciente, "recetas": recetas, "puede_crear": tiene_rol(request.user, JEFA)})
+        entregas = EntregaReceta.objects.filter(receta__paciente=paciente)
+        contexto = {
+            "paciente": paciente, "pestana": actual, "puede_crear": tiene_rol(request.user, JEFA),
+            "pestanas": pestanas.ficha(paciente, actual, len(recetas), entregas.count()),
+            "vigentes": sum(receta.situacion["clave"] == "vigente" for receta in recetas),
+        }
+        if actual == "recetas":
+            contexto["recetas"] = recetas
+        elif actual == "entregas":
+            contexto["entregas"] = list(entregas.select_related("receta", "creado_por").order_by("-creado_en", "-pk")[:200])
+        return self.render("paciente_detalle.html", contexto)
 
 
 class RecetaView(FarmaciaView):
@@ -289,6 +313,7 @@ class PreparacionView(FarmaciaView):
         contexto = self.contexto()
         if request.GET.get("fragmento") == "1":
             return self.render("preparacion_lista.html", contexto)
+        contexto["pestanas"] = pestanas.recetas("preparar")
         return self.render("preparacion.html", contexto)
 
 
@@ -315,7 +340,7 @@ class PendientesRetiroView(FarmaciaView):
             item.dias_transcurridos = max(0, (hoy - item.preparada_el).days)
             item.retiro_form = RetiroPreparadoForm(initial={"operacion_id": uuid.uuid4()})
         return self.render("preparacion_pendientes.html", {
-            "form": form, "page_obj": page_obj, "buscar": buscar,
+            "form": form, "page_obj": page_obj, "buscar": buscar, "pestanas": pestanas.recetas("retiro"),
         })
 
     def get(self, request):

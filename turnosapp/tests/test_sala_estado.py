@@ -196,16 +196,16 @@ class EstadoSalaTests(DatosCola, TestCase):
                 self.assertEqual(enlaces[0]["target"], "_blank")
                 self.assertIn("noopener", enlaces[0]["rel"].split())
         self.client.logout()
-        self.assertNotContains(self.client.get(reverse("usuariosapp:login")), "Pantalla de sala", status_code=200)
+        self.assertNotContains(self.client.get(reverse("usuariosapp:login")), "Sala de espera", status_code=200)
 
     def test_menu_revalida_el_rol_pero_la_sala_sigue_publica(self):
         from django.contrib.auth.models import Group
         from coreapp.roles import ENCARGADO
         tecnico = self.personal["tecnico"]
         self.client.force_login(tecnico)
-        self.assertContains(self.client.get("/"), "Pantalla de sala")
+        self.assertContains(self.client.get("/"), "Sala de espera")
         tecnico.groups.set([Group.objects.get(name=ENCARGADO)])
-        self.assertNotContains(self.client.get("/"), "Pantalla de sala")
+        self.assertNotContains(self.client.get("/"), "Sala de espera")
         self.assertEqual(self.client.get(reverse("turnosapp:sala")).status_code, 200)
 
     def test_sala_tiene_estructura_accesible_sin_navegacion_privada(self):

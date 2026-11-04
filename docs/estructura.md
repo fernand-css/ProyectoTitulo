@@ -54,7 +54,7 @@ proyecto/
 ├── templates/
 │   ├── index.html            403.html            404.html        500.html
 │   ├── components/
-│   │   ├── Layout/           base.html           base_publica.html
+│   │   ├── Layout/           base.html           base_publica.html   base_acceso.html
 │   │   ├── navbar.html       barra_superior.html dock.html       _menu_enlace.html
 │   │   └── footer.html       paginator.html      mensajes.html
 │   ├── registration/         login.html
@@ -167,22 +167,22 @@ La ejecución técnica del 03 quedó verificada con 238 pruebas y HTTP real sobr
 
 ## Identidad visual de la presentación
 
-Rediseño de plantillas y estilos a partir del escudo comunal: campo de gules, tres espigas de oro y un sol naciente. No cambia vistas, URLs, formularios ni servicios; solo la presentación. El login y las pantallas sin sesión comparten un panel de paisaje (sol saliendo sobre surcos que convergen en el horizonte, con las tres espigas); las pantallas con sesión usan un menú lateral (tarjeta clara con cabecera ladrillo; barra superior y dock inferior en celular), migas de pan, azulejos de acceso y paneles planos.
+Rediseño de plantillas y estilos con una paleta azul institucional, la marca de cruz de farmacia y una ilustración de mostrador en las pantallas de acceso; los nombres de las variables CSS (trigo, arena, naranja, ladrillo) vienen de la paleta anterior y se conservaron para no tocar cada hoja. No cambia vistas, URLs, formularios ni servicios; solo la presentación. El login, la recuperación de clave, la verificación de correo y los avisos 403, 404 y 500 son una tarjeta con el formulario a la izquierda y la ilustración de un mostrador de farmacia (estantes con frascos, bolsa, cruz y recibo) a la derecha; en pantallas angostas o con el texto muy ampliado la ilustración baja bajo el formulario. El tótem conserva su layout de dos paneles; las pantallas con sesión usan un menú lateral (columna azul marino con los grupos Trabajo y Equipo; barra superior y dock inferior en celular), migas de pan, azulejos de acceso y paneles planos.
 
 | Archivo | Responsabilidad |
 |---|---|
-| `static/css/base.css` | Tokens y componentes. Paleta del equipo: trigo `#FEF2A0`, arena `#F3CD97`, naranja `#E98B50`, ladrillo `#BC4F4F`, más tinta `#2A1613`. Cada pareja `--x-texto`/`--x-fondo` se verifica en `coreapp/tests/test_estaticos.py` (mínimo 4,5:1). |
-| `static/fonts/` | Bitter (títulos) y Atkinson Hyperlegible Next (texto y formularios), WOFF2 locales con licencia OFL (`LICENSE.md`). Sin CDN: la prueba de plantillas lo prohíbe y el reparto debe cargar sin señal. |
+| `static/css/base.css` | Tokens y componentes. Paleta azul institucional: `--trigo` azul muy claro `#E3EDF9`, `--arena` `#C3D6EE`, `--ladrillo` azul de marca `#1F5FAE`, `--naranja` ámbar `#DE9230` (único acento cálido), tinta `#0B2545`, fondo de página `#F4F7FB`; `--serie-*`, `--rampa-*` y `--neutro-*` son los colores de los gráficos. El aviso sigue amarillo. Cada pareja `--x-texto`/`--x-fondo` se verifica en `coreapp/tests/test_estaticos.py` (mínimo 4,5:1). |
+| `static/fonts/` | Figtree (títulos) y Atkinson Hyperlegible Next (texto y formularios), WOFF2 locales con licencia OFL (`LICENSE.md`). Sin CDN: la prueba de plantillas lo prohíbe y el reparto debe cargar sin señal. |
 | `static/js/preferencias.js` | Control de tamaño de texto (normal, grande, muy grande: 18, 21 y 24 px) guardado solo en `localStorage`; sin datos personales. Se carga sin `defer` para no producir un salto al pintar. |
 | `static/css/admin.css`, `templates/admin/base_site.html` | Piel de la administración de Django con las mismas variables que ella expone. |
 | `static/icons/marca.svg`, `icon-192.png`, `icon-512.png` | Marca y iconos PWA. Se regeneran con `tools/generar_iconos_pwa.py`, que necesita Pillow (no es dependencia del proyecto); deben seguir siendo PNG RGB sin transparencia. |
-| `templates/components/iconos.html` | Sprite SVG único por página: marca, sol, espiga e iconos de trazo (`<svg class="icono"><use href="#i-nombre"/></svg>`). Los iconos son decorativos: siempre acompañan a un texto. |
-| `templates/components/franja.html`, `paisaje.html`, `Layout/base_publica.html` | Aviso de entorno de demostración y tamaño de texto; panel de identidad (composición alta para escritorio y ancha para celular); layout partido de las pantallas sin sesión. |
+| `templates/components/iconos.html` | Sprite SVG único por página: marca (cruz), mostrador de farmacia e iconos de trazo (`<svg class="icono"><use href="#i-nombre"/></svg>`). Los iconos son decorativos: siempre acompañan a un texto. |
+| `templates/components/franja.html`, `paisaje.html`, `Layout/base_publica.html`, `Layout/base_acceso.html` | Aviso de entorno de demostración y tamaño de texto; panel de identidad y layout partido del tótem (`base_publica.html`, `paisaje.html`); tarjeta de acceso con formulario e ilustración (`base_acceso.html`, clases `.entrada-*` de `base.css`). `500.html` repite la tarjeta por su cuenta porque no puede depender de otras plantillas. |
 
 Reglas para las vistas que lleguen después:
 
 - Tamaños en `rem` (el control de texto escala todo hasta 150 %); texto de 1 rem como mínimo.
-- Acción principal: píldora naranja con texto y borde tinta (`.boton`); secundaria: contorno (`.boton-secundario`); destructiva: contorno ladrillo (`.boton-peligro`).
+- Acción principal: píldora azul con texto blanco (`.boton`); secundaria: contorno (`.boton-secundario`); destructiva: contorno ladrillo (`.boton-peligro`).
 - Nada depende solo del color ni del sonido: los mensajes llevan icono y texto, y los estados una insignia con icono.
 - El `id="…_error"` de un campo lo aporta el `<ul class="errorlist">` de Django; el contenedor solo lleva `role="alert"` (repetirlo duplica el id).
 - Las etiquetas del login no llevan clases (una prueba compara su HTML exacto); se estilan por contexto.
@@ -217,7 +217,7 @@ Verificación realizada (2026-11-02, Chrome headless y datos sintéticos inventa
 
 ## Recetas como tablero y Padrón aparte
 
-El menú reemplaza «Padrón y recetas» por dos entradas: **Padrón** (pacientes, ficha, importaciones y plantillas) y **Recetas** (`recetasapp:recetas`, en `/recetas/`; detalle, creación, renovación y confirmación de entrega). Cada una marca «página actual» por sí sola; `test_cada_pantalla_marca_una_sola_entrada_como_pagina_actual` recorre las pantallas. «Crear receta» está en Recetas. No hay una entrada «Resumen»: el resumen es el tablero con que abre Recetas.
+El menú reemplaza «Padrón y recetas» por dos entradas: **Pacientes** (pacientes, ficha, importaciones y plantillas) y **Recetas** (`recetasapp:recetas`, en `/recetas/`; detalle, creación, renovación y confirmación de entrega). Cada una marca «página actual» por sí sola; `test_cada_pantalla_marca_una_sola_entrada_como_pagina_actual` recorre las pantallas. «Crear receta» está en Recetas. No hay una entrada «Resumen»: el resumen es el tablero con que abre Recetas.
 
 | Archivo | Responsabilidad |
 |---|---|
@@ -296,14 +296,3 @@ Medición final aislada: p95 confirmación → recepción en ambas pantallas **4
 | `tools/verificar_spec_07_http.py` | SQLite temporal, HTTP real en loopback, 670 pacientes sintéticos, cuatro ventanillas y 100 recorridos de emisión, marca, ausencia y retiro; p50/p95/máximo por acción y panel. |
 
 La sección vive en Recetas y no agrega entrada al menú. La cifra de trabajo mide tiempo desde la recepción o la marca anterior del mismo usuario ese día, la que sea posterior; no equivale al tiempo total de espera del paciente. HU-18 se cubre parcialmente: la estimación actualiza la interfaz del personal, pero no la sala, el tótem ya emitido ni el comprobante impreso. El p95 HTTP de loopback con SQLite sintética fue menor de 110 ms en cada escenario; ver `specs/07-preparacion-y-tiempos-de-espera/validation.md` para valores detallados y límites. Revisión visual/axe y usabilidad siguen pendientes; no declarar el spec Implementado ni migrar la base del proyecto automáticamente.
-
-## Inicio con noticias — spec 08
-
-| Archivo | Responsabilidad |
-|---|---|
-| `coreapp/models.py`, `migrations/0002_noticiacomuna.py` | `NoticiaComuna`: texto, fecha, resumen, enlaces y marca de salud; sin imágenes. Las noticias sin fecha van al final. |
-| `coreapp/noticias.py` | Lector del sitio municipal (`urllib` + `html.parser`), `actualizar()` con descarga inyectable, `noticias_del_inicio()` (salud vigente a 180 días o la más reciente, más cuatro) y `ultima_actualizacion()`. Solo acepta direcciones `https` del sitio. |
-| `coreapp/management/commands/actualizar_noticias.py` | Copia las noticias; falla con mensaje y conserva lo guardado si el sitio no responde. |
-| `coreapp/views.py` (`InicioView`) | Entrega destacada y lista leyendo solo la base; nunca sale a Internet. |
-| `templates/index.html`, `static/css/noticias.css` | Opción «B compacta»: franja de saludo baja, noticia destacada con foto chica, lista con miniaturas, accesos y paneles por perfil. Sin tarjeta ni panel de Administración (sigue en el menú). |
-| `coreapp/tests/test_noticias.py` | 24 pruebas con páginas sintéticas. |

@@ -5,12 +5,12 @@ Ambas están bajo la **SIL Open Font License 1.1**, que permite usarlas, incrust
 
 | Archivo | Fuente | Autoría | Uso |
 |---|---|---|---|
-| `bitter-latin-wght-normal.woff2` | Bitter (variable, eje de peso 100–900, subconjunto latino) | The Bitter Project Authors (Sol Matas / Huerta Tipográfica) | Títulos |
+| `figtree-latin-wght-normal.woff2` | Figtree (variable, eje de peso 300–900, subconjunto latino) | The Figtree Project Authors (Erik D. Kennedy) | Títulos |
 | `atkinson-hyperlegible-next-latin-wght-normal.woff2` | Atkinson Hyperlegible Next (variable, eje de peso 200–800, subconjunto latino) | Braille Institute of America, Inc. | Texto, formularios y botones |
 
-Origen de los archivos: paquetes `@fontsource-variable/bitter` y `@fontsource-variable/atkinson-hyperlegible-next` (npm, vía jsDelivr). El subconjunto latino incluye los caracteres del español (á, é, í, ó, ú, ü, ñ, ¿, ¡).
+Origen de los archivos: paquetes `@fontsource-variable/figtree` y `@fontsource-variable/atkinson-hyperlegible-next` (npm, vía jsDelivr). El subconjunto latino incluye los caracteres del español (á, é, í, ó, ú, ü, ñ, ¿, ¡).
 
-Atkinson Hyperlegible Next se eligió porque el Braille Institute la diseñó para distinguir bien las letras que se confunden con baja visión, lo que responde al perfil de adultos mayores del CESFAM (WCAG 2.1 AA, RNF-04).
+Figtree es una sans geométrica y amable que se usa solo en títulos. Atkinson Hyperlegible Next se eligió porque el Braille Institute la diseñó para distinguir bien las letras que se confunden con baja visión, lo que responde al perfil de adultos mayores del CESFAM (WCAG 2.1 AA, RNF-04).
 
 ## Texto de la licencia
 

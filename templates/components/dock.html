@@ -7,7 +7,7 @@
 <nav class="dock" id="dock-principal" aria-label="Navegación principal">
   <ul class="dock-lista">
     {% for opcion in menu_principal.barra %}
-    <li class="dock-item"><a class="dock-enlace" href="{{ opcion.url }}"{% if opcion.activa %} aria-current="page"{% endif %}><svg class="icono" aria-hidden="true" focusable="false"><use href="#{{ opcion.icono }}"/></svg><span class="dock-texto">{{ opcion.corta|default:opcion.etiqueta }}</span></a></li>
+    <li class="dock-item"><a class="dock-enlace" href="{{ opcion.url }}"{% if opcion.activa %} aria-current="page"{% endif %}><svg class="icono" aria-hidden="true" focusable="false"><use href="#{{ opcion.icono }}"/></svg><span class="dock-texto">{{ opcion.corta|default:opcion.etiqueta }}</span>{% if opcion.insignia %}<span class="dock-insignia">{{ opcion.insignia }}<span class="sr-only"> {{ opcion.insignia_texto }}</span></span>{% endif %}</a></li>
     {% endfor %}
     <li class="dock-item">
       <details class="dock-mas{% if menu_principal.mas_activa %} dock-mas-activa{% endif %}" data-mas>

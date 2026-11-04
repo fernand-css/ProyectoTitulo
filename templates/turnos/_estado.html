@@ -3,57 +3,87 @@
 {% for tipo in sin_cobertura %}<p class="message message-warning">No hay ventanillas habilitadas para {{ tipo }}. La fila de ese tipo seguirá esperando.</p>{% endfor %}
 {% if puede_operar or puede_gestionar %}
 <section class="cola-preparacion" aria-labelledby="cola-preparacion-titulo">
-  <h2 id="cola-preparacion-titulo">Preparación de recetas</h2>
-  <p>{{ estimacion_preparacion.pendientes }} receta{{ estimacion_preparacion.pendientes|pluralize }} por preparar · {{ estimacion_preparacion.frase }}</p>
-  <p>Promedio {% if estimacion_preparacion.usa_valor_predeterminado %}predeterminado de {% endif %}{{ estimacion_preparacion.promedio_segundos|floatformat:0 }} s por receta · {{ estimacion_preparacion.muestras }} muestra{{ estimacion_preparacion.muestras|pluralize }}.</p>
+  <div>
+    <h2 id="cola-preparacion-titulo">Preparación de recetas</h2>
+    <p><strong>{{ estimacion_preparacion.pendientes }} receta{{ estimacion_preparacion.pendientes|pluralize }} por preparar.</strong> {{ estimacion_preparacion.frase }}</p>
+    <p class="suave">Promedio {% if estimacion_preparacion.usa_valor_predeterminado %}predeterminado de {% endif %}{{ estimacion_preparacion.promedio_segundos|floatformat:0 }} s por receta · {{ estimacion_preparacion.muestras }} muestra{{ estimacion_preparacion.muestras|pluralize }}.</p>
+  </div>
   <a class="boton boton-secundario" href="{% url 'recetasapp:preparacion' %}">Abrir Preparación</a>
 </section>
 {% endif %}
 <div class="cola-mesa">
-<section class="cola-puesto" aria-labelledby="puesto-titulo">
+<section class="cola-puesto{% if vigente %} cola-puesto-activo{% endif %}" aria-labelledby="puesto-titulo">
 {% if puede_operar %}
 {% if propia %}
+<header class="cola-puesto-cab">
 <h2 id="puesto-titulo">Ventanilla {{ propia.numero }}</h2>
 <p class="cola-situacion">{% if propia.retirada %}Retirada de operación{% elif not propia.habilitada %}Deshabilitada{% elif propia.activa_hoy %}Automático activo{% elif propia.fecha_activacion != hoy %}Inicia la jornada para habilitar nuevos llamados{% else %}En pausa{% endif %}</p>
+</header>
 {% if vigente %}
-<p class="cola-numero">{{ vigente.numero }}</p><p>Turno del {{ vigente.fecha|date:'d/m/Y' }}</p>
-<p><strong>{{ vigente.paciente.nombres }} {{ vigente.paciente.apellidos }}</strong><br>RUT {{ vigente.paciente.rut|rut }}</p>
-<p>Último llamado: {{ vigente.ultimo_llamado|date:'H:i:s' }}</p>
+<div class="cola-ahora">
+<div class="cola-ahora-cab">
+<p class="cola-numero"><span class="sr-only">Turno </span>{{ vigente.numero }}</p>
+<div class="cola-paciente">
+<p class="cola-paciente-nombre"><strong>{{ vigente.paciente.nombres }} {{ vigente.paciente.apellidos }}</strong></p>
+<p>{{ vigente.paciente.edad }} años · {{ vigente.get_tipo_atencion_display }} · RUT {{ vigente.paciente.rut|rut }}</p>
+<p class="suave">Turno del {{ vigente.fecha|date:'d/m/Y' }} · Último llamado: {{ vigente.ultimo_llamado|date:'H:i:s' }}</p>
+</div>
+</div>
+<div class="cola-acciones">
+<form method="post" action="{% url 'turnosapp:accion_turno' pk=vigente.pk accion='rellamar' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ nonce_rellamar }}"><button class="boton boton-secundario" type="submit">Re-llamar</button></form>
+<form method="post" action="{% url 'turnosapp:accion_turno' pk=vigente.pk accion='ausente' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ nonce_ausente }}"><button class="boton boton-secundario" type="submit"{% if not puede_ausente %} disabled{% endif %}>Marcar ausente</button></form>
+</div>
+<p class="suave cola-ayuda">Puedes marcar ausente un minuto después del último llamado. Re-llamar reinicia ese plazo.</p>
 {% if preparaciones_vigente %}
 <section class="cola-recetas" aria-labelledby="recetas-titulo">
 <h3 id="recetas-titulo">Recetas del turno</h3>
 <ul>
 {% for item in preparaciones_vigente %}<li{% if item.lista_en %} class="cola-receta-lista"{% endif %}>
 <div><strong>Receta {{ item.turno_receta.receta.codigo }}</strong><span>Entrega {{ item.numero_entrega }} de {{ item.maximo_entregas }}</span></div>
-{% if item.lista_en %}<p>Lista a las {{ item.lista_en|time:'H:i' }}</p>
+{% if item.lista_en %}<p class="cola-receta-estado"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg>Lista a las {{ item.lista_en|time:'H:i' }}</p>
 <form method="post" action="{% url 'recetasapp:preparacion_deshacer' pk=item.pk %}">{% csrf_token %}<input type="hidden" name="volver" value="panel"><button class="boton boton-secundario" type="submit" aria-label="Corregir marca de la receta {{ item.turno_receta.receta.codigo }}">Corregir marca</button></form>
-{% else %}<form method="post" action="{% url 'recetasapp:preparacion_lista' pk=item.pk %}">{% csrf_token %}<input type="hidden" name="volver" value="panel"><button class="boton" type="submit" aria-label="Marcar lista la receta {{ item.turno_receta.receta.codigo }}">Marcar lista</button></form>{% endif %}
+{% else %}<p class="cola-receta-estado cola-receta-pendiente"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-pausa"/></svg>Por preparar</p>
+<form method="post" action="{% url 'recetasapp:preparacion_lista' pk=item.pk %}">{% csrf_token %}<input type="hidden" name="volver" value="panel"><button class="boton" type="submit" aria-label="Marcar lista la receta {{ item.turno_receta.receta.codigo }}">Marcar lista</button></form>{% endif %}
 </li>{% endfor %}
 </ul>
 </section>
 {% endif %}
-<a class="boton boton-bloque" href="{% url 'turnosapp:finalizar_atencion' pk=vigente.pk %}">Finalizar y confirmar entregas</a>
-<div class="cola-acciones">
-<form method="post" action="{% url 'turnosapp:accion_turno' pk=vigente.pk accion='rellamar' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ nonce_rellamar }}"><button class="boton boton-secundario" type="submit">Re-llamar</button></form>
-<form method="post" action="{% url 'turnosapp:accion_turno' pk=vigente.pk accion='ausente' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ nonce_ausente }}"><button class="boton boton-secundario" type="submit"{% if not puede_ausente %} disabled{% endif %}>Marcar ausente</button></form>
-</div><p class="suave">Puedes marcar ausente un minuto después del último llamado. Re-llamar reinicia ese plazo.</p>
-{% else %}<p>No hay una atención en curso.</p>{% if propia.activa_hoy %}<p>El próximo turno compatible se llamará automáticamente.</p>{% endif %}{% endif %}
+<div class="cola-cierre">
+<a href="{% url 'recetasapp:paciente_detalle' pk=vigente.paciente_id %}">Ver ficha del paciente</a>
+<a class="boton" href="{% url 'turnosapp:finalizar_atencion' pk=vigente.pk %}">Finalizar y confirmar entregas</a>
+</div>
+</div>
+{% else %}<p class="cola-sin-atencion">No hay una atención en curso.</p>{% if propia.activa_hoy %}<p>El próximo turno compatible se llamará automáticamente.</p>{% endif %}{% endif %}
+<div class="cola-controles">
 <div class="cola-acciones">
 {% if propia.activa_hoy %}<form method="post" action="{% url 'turnosapp:accion_ventanilla' pk=propia.pk accion='pausar' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ nonce_pausar }}"><button class="boton boton-secundario" type="submit">Pausar nuevos llamados</button></form>
 {% elif propia.habilitada and not propia.retirada %}<form method="post" action="{% url 'turnosapp:accion_ventanilla' pk=propia.pk accion='iniciar' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ nonce_iniciar }}"><button class="boton" type="submit">Iniciar atención automática</button></form>{% endif %}
 {% if not vigente %}<form method="post" action="{% url 'turnosapp:accion_ventanilla' pk=propia.pk accion='liberar' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ nonce_liberar }}"><button class="boton boton-secundario" type="submit">Liberar ventanilla</button></form>{% endif %}
-</div><p class="suave">Pausa antes de abandonar el puesto. Cerrar esta pestaña no detiene los llamados automáticos.</p>
+</div><p class="suave cola-ayuda">Pausa antes de abandonar el puesto. Cerrar esta pestaña no detiene los llamados automáticos.</p>
+</div>
 {% else %}<h2 id="puesto-titulo">Elige una ventanilla libre</h2><p>Ocúpala e inicia la atención automática cuando estés listo.</p>
 {% for vent in ventanillas %}{% if vent.habilitada and not vent.retirada and not vent.operador_id %}<form class="cola-ocupar" method="post" action="{% url 'turnosapp:accion_ventanilla' pk=vent.pk accion='ocupar' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ vent.nonce_ocupar }}"><button class="boton" type="submit">Ocupar ventanilla {{ vent.numero }}</button><span>{{ vent.tipos_texto }}</span></form>{% endif %}{% empty %}<p>No hay ventanillas preparadas.</p>{% endfor %}{% endif %}
 {% else %}<h2 id="puesto-titulo">Supervisión de la atención</h2><p>Consulta la espera y configura las ventanillas disponibles.</p><a class="boton" href="{% url 'turnosapp:gestion' %}">Gestionar ventanillas y pesos</a>{% endif %}
 </section>
-<section class="cola-espera" aria-labelledby="espera-titulo"><h2 id="espera-titulo">En espera <span class="cola-total">{{ pagina_cola.paginator.count }}</span></h2>
-{% if configuracion %}<p>Ciclo: {{ configuracion.peso_preferencial }} preferenciales, {{ configuracion.peso_cronicos }} crónicos y {{ configuracion.peso_general }} generales.</p>{% endif %}
-<p class="suave">La asignación respeta prioridades y los tipos admitidos por cada ventanilla.</p>
-<div class="cola-tabla"><table><caption class="sr-only">Turnos esperando en la jornada actual</caption><thead><tr><th scope="col">Número</th><th scope="col">Tipo</th><th scope="col">Espera</th></tr></thead><tbody>
-{% for turno in pagina_cola %}<tr{% if turno.espera.prioridad %} class="cola-prioridad"{% elif turno.espera.advertencia %} class="cola-aviso"{% endif %}><th scope="row"><a href="{% url 'turnosapp:historial' pk=turno.pk %}">{{ turno.numero }}</a></th><td>{{ turno.get_tipo_atencion_display }}</td><td>{{ turno.espera.segundos|minutos }}{% if turno.espera.prioridad %}<br><strong>Prioridad por espera</strong>{% elif turno.espera.advertencia %}<br>Se acerca a 15 minutos{% endif %}</td></tr>{% empty %}<tr><td colspan="3">No hay turnos esperando en esta jornada.</td></tr>{% endfor %}
-</tbody></table></div>
+
+<div class="cola-lateral">
+<section class="cola-espera" aria-labelledby="espera-titulo"><h2 id="espera-titulo">Fila de espera <span class="cola-total">{{ pagina_cola.paginator.count }} persona{{ pagina_cola.paginator.count|pluralize }}</span></h2>
+{% if configuracion %}<p class="cola-ciclo">Ciclo: {{ configuracion.peso_preferencial }} preferenciales, {{ configuracion.peso_cronicos }} crónicos y {{ configuracion.peso_general }} generales.</p>{% endif %}
+<ol class="cola-fila" aria-label="Turnos esperando en la jornada actual">
+{% for turno in pagina_cola %}<li class="cola-turno{% if turno.espera.prioridad %} cola-prioridad{% elif turno.espera.advertencia %} cola-aviso{% endif %}">
+<a class="cola-turno-numero" href="{% url 'turnosapp:historial' pk=turno.pk %}">{{ turno.numero }}<span class="sr-only"> (ver historial)</span></a>
+<span class="cola-turno-datos"><span class="cola-turno-tipo">{{ turno.get_tipo_atencion_display }}</span><span class="cola-turno-detalle">Espera {{ turno.espera.segundos|minutos }}{% if turno.cantidad_recetas %} · {{ turno.cantidad_recetas }} receta{{ turno.cantidad_recetas|pluralize }}{% endif %}</span>{% if turno.espera.prioridad %}<strong class="cola-turno-nota">Prioridad por espera</strong>{% elif turno.espera.advertencia %}<span class="cola-turno-nota">Se acerca a 15 minutos</span>{% endif %}</span>
+</li>{% empty %}<li class="cola-vacia">No hay turnos esperando en esta jornada.</li>{% endfor %}
+</ol>
+<p class="suave cola-ayuda">La asignación respeta prioridades y los tipos admitidos por cada ventanilla.</p>
 <nav class="cola-paginacion" aria-label="Páginas de la cola">{% if pagina_cola.has_previous %}<a href="?pagina={{ pagina_cola.previous_page_number }}">Anterior</a>{% endif %}<span>Página {{ pagina_cola.number }} de {{ pagina_cola.paginator.num_pages }}</span>{% if pagina_cola.has_next %}<a href="?pagina={{ pagina_cola.next_page_number }}">Siguiente</a>{% endif %}</nav>
-</section></div>
+</section>
+<section class="cola-ventanillas" aria-labelledby="ventanillas-titulo"><h2 id="ventanillas-titulo">Ventanillas</h2>
+<ul>
+{% for vent in ventanillas %}<li><strong>Ventanilla {{ vent.numero }}{% if vent.es_propia %} (la tuya){% endif %}</strong><span>{% if vent.retirada %}Retirada de operación{% elif not vent.habilitada %}Deshabilitada{% elif vent.turno_actual %}Atendiendo el turno {{ vent.turno_actual }}{% elif vent.operador_id %}{% if vent.activa_hoy %}Libre, llamando{% else %}En pausa{% endif %}{% else %}Sin operador{% endif %}</span></li>{% empty %}<li>No hay ventanillas preparadas.</li>{% endfor %}
+</ul>
+</section>
+</div>
+</div>
 {% if pendientes %}<section class="cola-pendientes"><h2>Llamados pendientes de recuperar</h2><p>Las entregas confirmadas no se volverán a descontar.</p>{% for pendiente in pendientes %}<form method="post" action="{% url 'turnosapp:reintentar' referencia=pendiente.pk %}">{% csrf_token %}<span>{{ pendiente.creado_en|date:'d/m/Y H:i' }}</span> <button class="boton boton-secundario" type="submit">Reintentar selección pendiente</button></form>{% endfor %}</section>{% endif %}
-{% if ausentes %}<section><h2>Ausentes de hoy</h2><p>Abre el turno para revisar su historial antes de reincorporarlo.</p><ul class="cola-ausentes">{% for turno in ausentes %}<li><a href="{% url 'turnosapp:historial' pk=turno.pk %}">Turno {{ turno.numero }}</a></li>{% endfor %}</ul></section>{% endif %}
+{% if ausentes %}<section class="cola-ausentes-seccion"><h2>Ausentes de hoy</h2><p>Abre el turno para revisar su historial antes de reincorporarlo.</p><ul class="cola-ausentes">{% for turno in ausentes %}<li><a href="{% url 'turnosapp:historial' pk=turno.pk %}">Turno {{ turno.numero }}</a></li>{% endfor %}</ul></section>{% endif %}

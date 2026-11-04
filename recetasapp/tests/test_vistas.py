@@ -182,7 +182,7 @@ class VistasTests(TestCase):
         self.client.force_login(self.actores["qf"])
         respuesta = self.client.post(self.consultas[0], {"buscar": "zzzz", "pagina": 1})
         self.assertContains(respuesta, "No encontramos pacientes con")
-        self.assertContains(respuesta, "Ver todo el padrón")
+        self.assertContains(respuesta, "Ver todos los pacientes")
 
     def test_busqueda_con_resultados_cuenta_coincidencias(self):
         self.client.force_login(self.actores["qf"])

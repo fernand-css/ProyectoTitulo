@@ -2,45 +2,68 @@
 {# Los iconos son decorativos (aria-hidden): el texto siempre acompaña a la acción. #}
 <svg width="0" height="0" style="position:absolute" aria-hidden="true" focusable="false">
   <defs>
-    {# Marca de la Unidad: sol naciente sobre surcos, en los esmaltes del escudo comunal. #}
-    <clipPath id="marca-recorte"><rect width="48" height="48" rx="12"/></clipPath>
+    {# Marca de la Unidad: cruz de farmacia blanca sobre un cuadrado redondeado verde-azulado. #}
     <symbol id="marca" viewBox="0 0 48 48">
-      <g clip-path="url(#marca-recorte)">
-        <rect width="48" height="48" fill="#BC4F4F"/>
-        <path d="M24 21V15M31 22.9l3-5.2M36.1 28l5.2-3M17 22.9l-3-5.2M11.9 28l-5.2-3" stroke="#FEF2A0" stroke-width="3" stroke-linecap="round" fill="none"/>
-        <path d="M14 35a10 10 0 0 1 20 0z" fill="#FEF2A0"/>
-        <rect y="35" width="48" height="13" fill="#E98B50"/>
-        <path d="M24 35 0 48h10zM24 35l-5 13h10zM24 35l14 13h10z" fill="#F3CD97"/>
-      </g>
+      <rect width="48" height="48" rx="12" fill="#1F5FAE"/>
+      <path d="M20 11h8v9h9v8h-9v9h-8v-9h-9v-8h9z" fill="#FFFFFF"/>
     </symbol>
 
-    {# Sol naciente: centro en (0,0), solo la mitad superior. Los colores se cambian con variables CSS. #}
-    <g id="sol-naciente">
-      <path style="fill:var(--rayo-a,#FEF2A0)" d="M-104 -3L-234.7 -24.7L-102.3 -18.6Z M-67.3 -79.3L-138.7 -190.9L-54.6 -88.5Z M13.9 -103.1L49.1 -230.8L29.2 -99.8Z M-29.2 -99.8L-49.1 -230.8L-13.9 -103.1Z M54.6 -88.5L138.7 -190.9L67.3 -79.3Z M102.3 -18.6L234.7 -24.7L104 -3Z M-93.7 -45.1L-204.4 -118L-85.9 -58.6Z M85.9 -58.6L204.4 -118L93.7 -45.1Z"/>
-      <path style="fill:var(--rayo-b,#E98B50)" d="M-101 -24.6L-186.4 -60.6L-96.2 -39.5Z M-82.3 -63.6L-145.7 -131.1L-71.8 -75.2Z M-49.3 -91.6L-79.7 -179.1L-35 -97.9Z M-7.8 -103.7L0 -196L7.8 -103.7Z M35 -97.9L79.7 -179.1L49.3 -91.6Z M71.8 -75.2L145.7 -131.1L82.3 -63.6Z M96.2 -39.5L186.4 -60.6L101 -24.6Z"/>
-      <path style="fill:var(--disco,#FEF2A0)" d="M-92 0A92 92 0 0 1 92 0Z"/>
-      <path style="fill:var(--disco-2,#E98B50)" d="M-62 0A62 62 0 0 1 62 0Z"/>
-      <path style="fill:var(--disco,#FEF2A0)" d="M-32 0A32 32 0 0 1 32 0Z"/>
-    </g>
-
-    {# Espiga de trigo: base en (0,0), crece hacia arriba. Tres espigas, como en el escudo. #}
-    <g id="espiga">
-      <path d="M0 0V-250" style="stroke:var(--tallo,#FEF2A0)" stroke-width="5" stroke-linecap="round" fill="none"/>
-      <g style="fill:var(--grano,#FEF2A0);stroke:var(--contorno,#BC4F4F)" stroke-width="3" paint-order="stroke">
-        <ellipse cx="0" cy="-266" rx="9" ry="21"/>
-        <ellipse cx="-12" cy="-232" rx="9" ry="19" transform="rotate(-28 -12 -232)"/>
-        <ellipse cx="12" cy="-232" rx="9" ry="19" transform="rotate(28 12 -232)"/>
-        <ellipse cx="-12" cy="-204" rx="9" ry="19" transform="rotate(-28 -12 -204)"/>
-        <ellipse cx="12" cy="-204" rx="9" ry="19" transform="rotate(28 12 -204)"/>
-        <ellipse cx="-12" cy="-176" rx="9" ry="19" transform="rotate(-28 -12 -176)"/>
-        <ellipse cx="12" cy="-176" rx="9" ry="19" transform="rotate(28 12 -176)"/>
-        <ellipse cx="-12" cy="-148" rx="9" ry="19" transform="rotate(-28 -12 -148)"/>
-        <ellipse cx="12" cy="-148" rx="9" ry="19" transform="rotate(28 12 -148)"/>
-        <ellipse cx="-11" cy="-120" rx="8" ry="17" transform="rotate(-26 -11 -120)"/>
-        <ellipse cx="11" cy="-120" rx="8" ry="17" transform="rotate(26 11 -120)"/>
-      </g>
-      <path d="M0 -286V-340M-4 -283L-24 -332M4 -283L24 -332" style="stroke:var(--tallo,#FEF2A0)" stroke-width="2.6" stroke-linecap="round" fill="none"/>
-    </g>
+    {# Ilustración del mostrador de una farmacia (paneles de acceso y error 500). Es decorativa. #}
+    <symbol id="farmacia-mostrador" viewBox="0 0 600 520">
+      <circle cx="300" cy="250" r="240" fill="#CFE0F4"/>
+      <rect x="100" y="10" width="400" height="352" rx="22" fill="#BDD3EE"/>
+      <rect x="120" y="30" width="170" height="160" rx="6" fill="#F4F8FD"/>
+      <rect x="310" y="30" width="170" height="160" rx="6" fill="#F4F8FD"/>
+      <rect x="120" y="206" width="170" height="130" rx="6" fill="#F4F8FD"/>
+      <rect x="310" y="206" width="170" height="130" rx="6" fill="#F4F8FD"/>
+      <rect x="120" y="184" width="170" height="6" fill="#9EBCE0"/>
+      <rect x="310" y="184" width="170" height="6" fill="#9EBCE0"/>
+      <rect x="140" y="104" width="40" height="80" rx="6" fill="#6F98CF"/>
+      <rect x="140" y="92" width="40" height="16" rx="5" fill="#A9C3E4"/>
+      <rect x="147" y="134" width="26" height="12" rx="2" fill="#F4F8FD"/>
+      <rect x="190" y="128" width="32" height="56" rx="4" fill="#E3EDF9"/>
+      <rect x="196" y="140" width="20" height="4" fill="#6F98CF"/>
+      <rect x="196" y="150" width="14" height="4" fill="#6F98CF"/>
+      <rect x="238" y="122" width="40" height="62" rx="7" fill="#123F78"/>
+      <rect x="244" y="108" width="28" height="18" rx="5" fill="#0C2F5E"/>
+      <rect x="246" y="146" width="24" height="12" rx="2" fill="#F4F8FD"/>
+      <rect x="326" y="126" width="72" height="58" rx="4" fill="#E3EDF9"/>
+      <rect x="326" y="126" width="72" height="14" rx="4" fill="#8DB0DD"/>
+      <rect x="336" y="154" width="34" height="4" fill="#6F98CF"/>
+      <rect x="336" y="164" width="24" height="4" fill="#6F98CF"/>
+      <rect x="410" y="62" width="40" height="122" rx="6" fill="#6F98CF"/>
+      <rect x="410" y="48" width="40" height="18" rx="5" fill="#DE9230"/>
+      <rect x="417" y="110" width="26" height="34" rx="2" fill="#F4F8FD"/>
+      <rect x="421" y="120" width="18" height="4" fill="#6F98CF"/>
+      <rect x="421" y="130" width="12" height="4" fill="#6F98CF"/>
+      <rect x="456" y="142" width="20" height="42" rx="4" fill="#A9C3E4"/>
+      <rect x="130" y="248" width="88" height="88" rx="4" fill="#E3EDF9"/>
+      <rect x="130" y="248" width="88" height="18" rx="4" fill="#8DB0DD"/>
+      <rect x="142" y="282" width="50" height="5" fill="#6F98CF"/>
+      <rect x="142" y="294" width="34" height="5" fill="#6F98CF"/>
+      <rect x="228" y="266" width="50" height="70" rx="4" fill="#D3E2F5"/>
+      <rect x="326" y="276" width="38" height="60" rx="7" fill="#123F78"/>
+      <rect x="333" y="298" width="24" height="12" rx="2" fill="#F4F8FD"/>
+      <rect x="376" y="238" width="34" height="98" rx="6" fill="#A9C3E4"/>
+      <rect x="376" y="226" width="34" height="16" rx="5" fill="#6F98CF"/>
+      <rect x="422" y="270" width="48" height="66" rx="4" fill="#E3EDF9"/>
+      <rect x="422" y="270" width="48" height="12" rx="4" fill="#DE9230"/>
+      <rect x="430" y="296" width="30" height="4" fill="#6F98CF"/>
+      <rect x="206" y="288" width="44" height="26" rx="8" fill="none" stroke="#0F3A6E" stroke-width="6"/>
+      <rect x="186" y="306" width="84" height="30" rx="6" fill="#6F98CF"/>
+      <rect x="204" y="316" width="48" height="8" rx="2" fill="#F4F8FD"/>
+      <rect x="70" y="336" width="460" height="28" rx="8" fill="#0F3A6E"/>
+      <rect x="100" y="364" width="400" height="130" fill="#FFFFFF"/>
+      <rect x="100" y="364" width="400" height="12" fill="#E3EDF9"/>
+      <rect x="60" y="494" width="480" height="4" rx="2" fill="#9EBCE0"/>
+      <path d="M236 402h28v22h22v28h-22v22h-28v-22h-22v-28h22z" fill="#0F3A6E"/>
+      <path d="M346 326h54v96l-6.75-6-6.75 6-6.75-6-6.75 6-6.75-6-6.75 6-6.75-6-6.75 6z" fill="#F4F8FD" stroke="#6F98CF" stroke-width="2"/>
+      <rect x="356" y="342" width="34" height="4" fill="#6F98CF"/>
+      <rect x="356" y="354" width="26" height="4" fill="#6F98CF"/>
+      <rect x="356" y="366" width="34" height="4" fill="#6F98CF"/>
+      <rect x="356" y="382" width="22" height="4" fill="#DE9230"/>
+      <rect x="356" y="394" width="30" height="4" fill="#6F98CF"/>
+    </symbol>
 
     {# Iconos de trazo: 24 px, línea de 2, puntas redondeadas. #}
     <symbol id="i-inicio" viewBox="0 0 24 24"><path d="M3.5 11 12 3.8l8.5 7.2"/><path d="M5.5 9.5V20h13V9.5"/><path d="M10 20v-5.5h4V20"/></symbol>
@@ -76,6 +99,7 @@
     <symbol id="i-documento" viewBox="0 0 24 24"><path d="M6.5 3.5h7.8L19 8.2V19a1.5 1.5 0 0 1-1.5 1.5h-11A1.5 1.5 0 0 1 5 19V5a1.5 1.5 0 0 1 1.5-1.5z"/><path d="M14 3.5V8.5h5"/><path d="M8.5 13h7"/><path d="M8.5 16.5h7"/></symbol>
     {# Íconos del menú principal: cada destino tiene el suyo (el padrón ya no repite el de usuarios). #}
     <symbol id="i-padron" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2.5"/><circle cx="9" cy="10.8" r="2.2"/><path d="M5.6 16.2c.5-1.5 1.8-2.3 3.4-2.3s2.9.8 3.4 2.3"/><path d="M14.8 10h3.4"/><path d="M14.8 13.8h3.4"/></symbol>
+    <symbol id="i-ventanilla" viewBox="0 0 24 24"><path d="M3.5 9.5h17"/><path d="M5 9.5V6.8a1.3 1.3 0 0 1 1.3-1.3h11.4A1.3 1.3 0 0 1 19 6.8v2.7"/><path d="M5.5 9.5V19h13V9.5"/><path d="M9.5 13.5h5"/></symbol>
     <symbol id="i-sala" viewBox="0 0 24 24"><rect x="3" y="4.5" width="18" height="12" rx="2.2"/><path d="M8 20h8"/><path d="M12 16.5V20"/><path d="M9 10.5h6"/></symbol>
     <symbol id="i-puntos" viewBox="0 0 24 24"><circle cx="5.5" cy="12" r="1.2"/><circle cx="12" cy="12" r="1.2"/><circle cx="18.5" cy="12" r="1.2"/></symbol>
     <symbol id="i-chevron" viewBox="0 0 24 24"><path d="m14.5 6-6 6 6 6"/></symbol>

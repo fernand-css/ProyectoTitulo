@@ -3,12 +3,17 @@
 Una sola lista alimenta la columna lateral del computador y la barra inferior del celular. Para sumar la
 sección de una spec nueva basta con agregar una `Entrada` a `ENTRADAS`; las plantillas no cambian. Las
 reglas de permiso son de presentación: cada vista sigue validando el rol en el servidor.
+
+Las opciones se agrupan por lo que la persona hace (Trabajo, Equipo), no por el tipo de dato. Algunas llevan
+una insignia con una cantidad (la fila de espera, las recetas por preparar): `contadores_del_menu` la calcula
+solo para quien ve esa opción y solo cuando se dibuja el menú.
 """
 
 from dataclasses import dataclass
 from typing import Callable
 
 from django.urls import reverse
+from django.utils import timezone
 
 from .roles import ENCARGADO, JEFA, SUPERUSUARIO, TECNICO
 
@@ -19,6 +24,9 @@ MAXIMO_EN_BARRA = 4
 CON_ACCESO = frozenset({JEFA, TECNICO, ENCARGADO, SUPERUSUARIO})
 PERSONAL_DE_FARMACIA = frozenset({JEFA, TECNICO, SUPERUSUARIO})
 GESTION = frozenset({JEFA, SUPERUSUARIO})
+
+# Pantallas de turnosapp que configuran la atención (las usa la Jefa de Farmacia): no son «Atención».
+CONFIGURACION_DE_TURNOS = ("gestion", "ventanilla_nueva", "ventanilla_configurar", "pesos")
 
 
 def _en(app, *nombres, prefijos=()):
@@ -41,25 +49,30 @@ class Entrada:
     en_barra: bool = False         # destino de trabajo: va en la barra inferior del celular
     otra_pestana: bool = False
     etiquetas_por_rol: tuple = ()  # variantes del texto por perfil: ((rol, texto), ...)
+    contador: str = ""             # clave en `contadores_del_menu` de la cantidad que muestra como insignia
+    contador_texto: str = ""       # cómo la lee un lector de pantalla: «en espera», «por preparar»
 
 
 ENTRADAS = (
     Entrada(
         "inicio", "Inicio", "coreapp:inicio", "i-inicio", roles=None, corta="Inicio", en_barra=True,
         activa=_en("coreapp", "inicio"),
-        etiquetas_por_rol=((JEFA, "Inicio de farmacia"), (TECNICO, "Atención en ventanilla"),
-                           (ENCARGADO, "Entregas en terreno")),
+        etiquetas_por_rol=((ENCARGADO, "Entregas en terreno"),),
     ),
-    Entrada("turnos", "Turnos", "turnosapp:panel", "i-turno", grupo="Atención", roles=PERSONAL_DE_FARMACIA,
-            en_barra=True, activa=lambda app, nombre: app == "turnosapp"),
-    Entrada("sala", "Pantalla de sala", "turnosapp:sala", "i-sala", grupo="Atención", roles=PERSONAL_DE_FARMACIA,
+    Entrada(
+        "turnos", "Atención", "turnosapp:panel", "i-turno", grupo="Trabajo", roles=PERSONAL_DE_FARMACIA,
+        en_barra=True, contador="fila", contador_texto="en espera",
+        activa=lambda app, nombre: app == "turnosapp" and nombre not in (*CONFIGURACION_DE_TURNOS, "sala"),
+    ),
+    Entrada("padron", "Pacientes", "recetasapp:pacientes", "i-padron", grupo="Trabajo", roles=PERSONAL_DE_FARMACIA,
+            en_barra=True, activa=_en("recetasapp", "pacientes", "paciente_detalle", "plantilla", prefijos=("importacion",))),
+    Entrada("recetas", "Recetas", "recetasapp:recetas", "i-documento", grupo="Trabajo", roles=PERSONAL_DE_FARMACIA,
+            en_barra=True, contador="por_preparar", contador_texto="por preparar",
+            activa=_en("recetasapp", "recetas", "recetas_lista", "entrega_confirmar", prefijos=("receta_", "preparacion"))),
+    Entrada("sala", "Sala de espera", "turnosapp:sala", "i-sala", grupo="Trabajo", roles=PERSONAL_DE_FARMACIA,
             corta="Sala", otra_pestana=True),
-    Entrada("recetas", "Recetas", "recetasapp:recetas", "i-documento", grupo="Pacientes y recetas",
-            roles=PERSONAL_DE_FARMACIA, en_barra=True,
-            activa=_en("recetasapp", "recetas", "entrega_confirmar", prefijos=("receta_", "preparacion"))),
-    Entrada("padron", "Padrón", "recetasapp:pacientes", "i-padron", grupo="Pacientes y recetas",
-            roles=PERSONAL_DE_FARMACIA, en_barra=True,
-            activa=_en("recetasapp", "pacientes", "paciente_detalle", "plantilla", prefijos=("importacion",))),
+    Entrada("ventanillas", "Ventanillas y pesos", "turnosapp:gestion", "i-ventanilla", grupo="Equipo", roles=GESTION,
+            corta="Ventan.", activa=lambda app, nombre: app == "turnosapp" and nombre in CONFIGURACION_DE_TURNOS),
     Entrada("usuarios", "Usuarios", "usuariosapp:gestion_usuarios", "i-usuarios", grupo="Equipo", roles=GESTION,
             activa=_en("usuariosapp", prefijos=("gestion_",))),
     Entrada("administracion", "Administración", "admin:index", "i-ajustes", grupo="Equipo",
@@ -80,6 +93,8 @@ class Opcion:
     icono: str
     activa: bool
     otra_pestana: bool
+    insignia: int = 0
+    insignia_texto: str = ""
 
 
 @dataclass(frozen=True)
@@ -112,17 +127,19 @@ def _visible(entrada, rol):
     return rol in entrada.roles
 
 
-def _resolver(entrada, rol, app, nombre):
+def _resolver(entrada, rol, app, nombre, contadores=None):
     etiqueta = dict(entrada.etiquetas_por_rol).get(rol, entrada.etiqueta)
+    cantidad = (contadores or {}).get(entrada.contador, 0) if entrada.contador else 0
     return Opcion(
         clave=entrada.clave, etiqueta=etiqueta, corta=entrada.corta, url=reverse(entrada.destino),
         icono=entrada.icono, activa=bool(app and entrada.activa(app, nombre)), otra_pestana=entrada.otra_pestana,
+        insignia=cantidad, insignia_texto=entrada.contador_texto if cantidad else "",
     )
 
 
-def armar_menu(rol, app="", nombre="", persona=None):
+def armar_menu(rol, app="", nombre="", persona=None, contadores=None):
     """Menú de un perfil (`rol`) en la página `app:nombre`; un rol vacío es una cuenta sin perfil asignado."""
-    visibles = [_resolver(entrada, rol, app, nombre) for entrada in ENTRADAS if _visible(entrada, rol)]
+    visibles = [_resolver(entrada, rol, app, nombre, contadores) for entrada in ENTRADAS if _visible(entrada, rol)]
     claves_en_barra = [e.clave for e in ENTRADAS if e.en_barra and _visible(e, rol)][:MAXIMO_EN_BARRA]
     grupos, titulos = [], {e.clave: e.grupo for e in ENTRADAS}
     for opcion in visibles:
@@ -139,3 +156,21 @@ def armar_menu(rol, app="", nombre="", persona=None):
         barra=barra, mas=mas, perfil=perfil,
         mas_activa=any(o.activa for o in mas) or bool(perfil and perfil.activa), persona=persona,
     )
+
+
+def contadores_del_menu(rol):
+    """Cantidades de las insignias del menú, solo para el personal de farmacia.
+
+    «fila»: turnos esperando hoy. «por_preparar»: recetas de turnos activos que aún no se marcan listas.
+    Son dos consultas de conteo; los imports van aquí para que el núcleo no dependa de las otras apps al cargar.
+    """
+    if rol not in PERSONAL_DE_FARMACIA:
+        return {}
+    from recetasapp.preparacion import por_preparar
+    from turnosapp.models import Turno
+
+    hoy = timezone.localdate()
+    return {
+        "fila": Turno.objects.filter(fecha=hoy, estado="esperando").count(),
+        "por_preparar": por_preparar(hoy).filter(lista_en__isnull=True).count(),
+    }

@@ -1,19 +1,12 @@
 {% extends 'recetas/base.html' %}
 {% load static %}
-{% block titulo %}Pendientes de retiro · Preparación{% endblock %}
+{% block titulo %}Pendientes de retiro · Recetas{% endblock %}
 {% block estilos %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/preparacion.css' %}">{% endblock %}
-{% block migas %}<li><a href="{% url 'recetasapp:recetas' %}">Recetas</a></li><li><a href="{% url 'recetasapp:preparacion' %}">Preparación</a></li><li><span aria-current="page">Pendientes de retiro</span></li>{% endblock %}
+{% block migas_contenedor %}{% endblock %}
 {% block farmacia %}
-<header class="preparacion-cabecera">
-  <div>
-    <h1>Pendientes de retiro</h1>
-    <p>Preparaciones listas que no se entregaron al cerrar el turno.</p>
-  </div>
-  <nav class="preparacion-pestanas" aria-label="Secciones de preparación">
-    <a href="{% url 'recetasapp:preparacion' %}">Por preparar</a>
-    <a href="{% url 'recetasapp:preparacion_pendientes' %}" aria-current="page">Pendientes de retiro <span>{{ page_obj.paginator.count }}</span></a>
-  </nav>
-</header>
+{% include 'recetas/_cabecera.html' with titulo='Recetas' texto='Preparaciones listas que no se entregaron al cerrar el turno.' %}
+
+<h2 class="seccion-subtitulo">Pendientes de retiro</h2>
 
 <form class="preparacion-busqueda" method="post" role="search">
   {% csrf_token %}

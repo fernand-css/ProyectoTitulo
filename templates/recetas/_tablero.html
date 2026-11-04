@@ -1,6 +1,7 @@
-{# Tablero de recetas. Espera `tablero` (recetasapp.tablero.armar). Todo número que va a un atributo SVG llega ya formateado. #}
+{# Resumen de Recetas. Espera `tablero` (recetasapp.tablero.armar). Todo número que va a un atributo SVG llega ya formateado. #}
+{% with entregas=tablero.entregas calor=tablero.calor %}
 <div class="tablero">
-  <h2 class="sr-only">Tablero de recetas</h2>
+  <h2 class="sr-only">Resumen de recetas</h2>
 
   <ul class="kpis" aria-label="Cifras principales">
     {% for kpi in tablero.kpis %}
@@ -9,8 +10,16 @@
         <span class="kpi-icono"><svg class="icono" aria-hidden="true" focusable="false"><use href="#{{ kpi.icono }}"/></svg></span>
         <span class="kpi-texto">
           <span class="kpi-titulo">{{ kpi.titulo }}</span>
-          <strong class="kpi-valor">{{ kpi.valor }}</strong>
-          <span class="kpi-nota">{{ kpi.nota }}</span>
+          <span class="kpi-fila">
+            <strong class="kpi-valor">{{ kpi.valor }}</strong>
+            {% if kpi.tendencia %}
+            <svg class="tendencia" viewBox="0 0 {{ kpi.tendencia.ancho }} {{ kpi.tendencia.alto }}" aria-hidden="true" focusable="false">
+              {% if kpi.tendencia.ruta %}<path class="tendencia-linea" d="{{ kpi.tendencia.ruta }}"/>{% endif %}
+              {% if kpi.tendencia.ultimo %}<circle class="tendencia-punto" cx="{{ kpi.tendencia.ultimo.x }}" cy="{{ kpi.tendencia.ultimo.y }}" r="4"/>{% endif %}
+            </svg>
+            {% endif %}
+          </span>
+          <span class="kpi-nota">{% if kpi.sentido %}<span class="kpi-sentido" aria-hidden="true">{% if kpi.sentido == 'sube' %}▲{% elif kpi.sentido == 'baja' %}▼{% else %}={% endif %}</span> {% endif %}{{ kpi.nota }}</span>
         </span>
         {% if kpi.enlace %}<svg class="icono kpi-ir" aria-hidden="true" focusable="false"><use href="#i-flecha"/></svg>{% endif %}
       {% if kpi.enlace %}</a>{% else %}</div>{% endif %}
@@ -18,118 +27,140 @@
     {% endfor %}
   </ul>
 
-  <div class="tablero-fila tablero-fila-ancha">
-    <section class="tarjeta tarjeta-linea" aria-labelledby="titulo-entregas">
-      <header class="tarjeta-cabeza">
-        <div>
-          <h3 id="titulo-entregas">Entregas por día</h3>
-          <p>Entregas confirmadas en los últimos {{ tablero.periodo }} días.</p>
-        </div>
-        <ul class="periodos" aria-label="Periodo del gráfico">
-          {% for opcion in tablero.periodos %}<li><a href="?periodo={{ opcion.dias }}#entregas"{% if opcion.dias == tablero.periodo %} aria-current="true"{% endif %}>{{ opcion.texto }}</a></li>{% endfor %}
-        </ul>
-      </header>
-      <div id="entregas"></div>
-      {% if tablero.linea.total %}
-      <svg class="linea" viewBox="0 0 {{ tablero.linea.ancho }} {{ tablero.linea.alto }}" role="img" aria-labelledby="linea-titulo linea-desc" focusable="false">
-        <title id="linea-titulo">Entregas por día</title>
-        <desc id="linea-desc">{{ tablero.linea.total }} entregas en {{ tablero.periodo }} días; el máximo fue {{ tablero.linea.maximo }} el {{ tablero.linea.dia_maximo_texto }}.</desc>
-        {% for marca in tablero.linea.marcas_y %}
-        <line class="linea-rejilla" x1="{{ tablero.linea.izquierda }}" x2="{{ tablero.linea.derecha }}" y1="{{ marca.y }}" y2="{{ marca.y }}"/>
-        <text class="linea-eje" x="{{ tablero.linea.izquierda }}" y="{{ marca.y }}" dx="-8" dy="4" text-anchor="end">{{ marca.etiqueta }}</text>
-        {% endfor %}
-        {% for marca in tablero.linea.marcas_x %}<text class="linea-eje" x="{{ marca.x }}" y="{{ tablero.linea.alto|add:'-8' }}" text-anchor="middle">{{ marca.texto }}</text>{% endfor %}
-        <path class="linea-area" d="{{ tablero.linea.area }}"/>
-        <path class="linea-trazo" d="{{ tablero.linea.ruta }}" pathLength="1"/>
-        {% for punto in tablero.linea.puntos %}<circle class="linea-dato" cx="{{ punto.x }}" cy="{{ punto.y }}" r="9"><title>{{ punto.texto }}: {{ punto.valor }} entrega{{ punto.valor|pluralize }}</title></circle>{% endfor %}
-        {% if tablero.linea.ultimo %}<circle class="linea-ultimo" cx="{{ tablero.linea.ultimo.x }}" cy="{{ tablero.linea.ultimo.y }}" r="5"/>{% endif %}
-      </svg>
-      <details class="datos">
-        <summary>Ver los datos en una tabla</summary>
-        <table class="tabla">
-          <caption class="sr-only">Entregas confirmadas por día</caption>
-          <thead><tr><th scope="col">Día</th><th scope="col" class="num">Entregas</th></tr></thead>
-          <tbody>{% for punto in tablero.linea.puntos %}<tr><th scope="row">{{ punto.texto }}</th><td class="num">{{ punto.valor }}</td></tr>{% endfor %}</tbody>
-        </table>
-      </details>
-      {% else %}
-      <div class="tarjeta-vacia">
-        <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-sello"/></svg>
-        <p>Todavía no hay entregas confirmadas en este periodo. Aparecerán aquí cuando el Técnico selle la primera.</p>
-      </div>
-      {% endif %}
-    </section>
-
-    <section class="tarjeta" aria-labelledby="titulo-situacion">
-      <header class="tarjeta-cabeza"><div><h3 id="titulo-situacion">Situación de las recetas</h3><p>{{ tablero.total }} recetas en total.</p></div></header>
-      {% if tablero.total %}
-      <div class="anillo-caja">
-        <svg class="anillo" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
-          <circle class="anillo-borde" cx="50" cy="50" r="46"/>
-          <circle class="anillo-borde" cx="50" cy="50" r="30"/>
-          {% for parte in tablero.anillo.partes %}{% if parte.visible %}<circle class="anillo-arco anillo-{{ parte.clave }}" cx="50" cy="50" r="38" pathLength="100" stroke-dasharray="{{ parte.trazo }} 100" stroke-dashoffset="-{{ parte.inicio }}" style="--i: {{ parte.indice }}"/>{% endif %}{% endfor %}
-          <text class="anillo-total" x="50" y="50" text-anchor="middle" dy="2">{{ tablero.total }}</text>
-          <text class="anillo-etiqueta" x="50" y="50" text-anchor="middle" dy="12">recetas</text>
-        </svg>
-        <ul class="anillo-leyenda">
-          {% for parte in tablero.anillo.partes %}
-          <li><a href="{{ parte.enlace }}" data-clave="{{ parte.clave }}">
-            <span class="muestra muestra-{{ parte.clave }}" aria-hidden="true"></span>
-            <span class="anillo-nombre"><svg class="icono" aria-hidden="true" focusable="false"><use href="#{{ parte.icono }}"/></svg>{{ parte.texto }}</span>
-            <span class="anillo-cifra"><strong>{{ parte.cantidad }}</strong> <small>{{ parte.porcentaje }} %</small></span>
-          </a></li>
-          {% endfor %}
-        </ul>
-      </div>
-      {% else %}
-      <div class="tarjeta-vacia"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-documento"/></svg><p>Todavía no hay recetas que mostrar.</p></div>
-      {% endif %}
-    </section>
-  </div>
-
-  <div class="tablero-fila tablero-fila-ranking">
-    <section class="tarjeta tarjeta-barras" aria-labelledby="titulo-meses">
-      <header class="tarjeta-cabeza"><div><h3 id="titulo-meses">Vencimientos por mes</h3><p>Recetas vigentes, según el mes de su último día válido.</p></div></header>
-      {% if tablero.barras.total %}
-      <ol class="barras" aria-label="Recetas vigentes que vencen en cada mes">
-        {% for barra in tablero.barras.barras %}
-        <li style="--h: {{ barra.altura }}; --i: {{ barra.indice }}"{% if forloop.first %} class="barras-actual"{% endif %}>
-          <span class="barras-valor">{{ barra.valor }}</span>
-          <span class="barras-columna" aria-hidden="true"></span>
-          <span class="barras-mes">{{ barra.etiqueta }}<span class="sr-only"> ({{ barra.mes_largo }})</span></span>
-        </li>
-        {% endfor %}
-      </ol>
-      {% else %}
-      <div class="tarjeta-vacia"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-calendario"/></svg><p>Ninguna receta vigente vence en los próximos seis meses.</p></div>
-      {% endif %}
-    </section>
-
-    <section class="tarjeta" aria-labelledby="titulo-vencen">
-      <header class="tarjeta-cabeza">
-        <div><h3 id="titulo-vencen">Vencen primero</h3><p>Las recetas vigentes más cerca de su último día.</p></div>
-        {% if tablero.por_vencer_total %}<a class="tarjeta-enlace" href="?situacion=por_vencer#listado">Ver las {{ tablero.por_vencer_total }} por vencer</a>{% endif %}
-      </header>
-      {% if tablero.por_vencer %}
-      <div class="tabla-caja">
-        <table class="tabla tabla-apilable" aria-label="Recetas vigentes que vencen primero">
-          <thead><tr><th scope="col">Paciente</th><th scope="col">Último día</th><th scope="col">Entregas</th><th scope="col" class="num">Quedan</th></tr></thead>
-          <tbody>
-            {% for receta in tablero.por_vencer %}
-            <tr>
-              <th scope="row"><a href="{% url 'recetasapp:receta_detalle' pk=receta.pk %}">{{ receta.paciente.apellidos }}, {{ receta.paciente.nombres }}</a><small>Receta {{ receta.codigo }}</small></th>
-              <td data-etiqueta="Último día">{{ receta.ultimo_dia|date:"j b Y" }}<small class="plazo{% if receta.dias <= 7 %} plazo-urgente{% endif %}">{% if receta.dias == 1 %}Vence mañana{% else %}En {{ receta.dias }} días{% endif %}</small></td>
-              <td data-etiqueta="Entregas"><div class="mini-barra" aria-hidden="true" style="--p: {{ receta.porcentaje }}"><span></span></div><small>{{ receta.puntos_resumen }}</small></td>
-              <td class="num" data-etiqueta="Quedan">{{ receta.entregas_restantes }}</td>
-            </tr>
+  <div class="tablero-columnas">
+    <div class="tablero-columna">
+      <section class="tarjeta tarjeta-entregas" aria-labelledby="titulo-entregas">
+        <header class="tarjeta-cabeza">
+          <div>
+            <h3 id="titulo-entregas">Entregas por día</h3>
+            <p>{{ entregas.total }} entrega{{ entregas.total|pluralize }} en {{ tablero.periodo }} días{% if entregas.total %} · {{ entregas.promedio_diario }} por día en promedio{% endif %}.</p>
+          </div>
+          <ul class="periodos" aria-label="Periodo del gráfico">
+            {% for opcion in tablero.periodos %}<li><a href="?periodo={{ opcion.dias }}#entregas"{% if opcion.dias == tablero.periodo %} aria-current="true"{% endif %}>{{ opcion.texto }}</a></li>{% endfor %}
+          </ul>
+        </header>
+        <div id="entregas"></div>
+        {% if entregas.total %}
+        <figure class="grafico" data-grafico="columnas">
+          <ul class="grafico-leyenda" aria-label="Qué muestra cada marca">
+            <li><span class="grafico-muestra grafico-muestra-columna" aria-hidden="true"></span>Entregas del día</li>
+            <li><span class="grafico-muestra grafico-muestra-linea" aria-hidden="true"></span>Promedio de {{ tablero.ventana }} días</li>
+          </ul>
+          <svg class="columnas" viewBox="0 0 {{ entregas.ancho }} {{ entregas.alto }}" role="img" aria-labelledby="columnas-titulo columnas-desc" focusable="false">
+            <title id="columnas-titulo">Entregas por día</title>
+            <desc id="columnas-desc">{{ entregas.total }} entregas en {{ tablero.periodo }} días; el máximo fue {{ entregas.maximo }} el {{ entregas.dia_maximo_texto }}. El promedio de {{ tablero.ventana }} días termina en {{ entregas.ultimo_promedio|floatformat:1 }}.</desc>
+            {% for marca in entregas.marcas_y %}
+            <line class="grafico-rejilla" x1="{{ entregas.izquierda }}" x2="{{ entregas.derecha }}" y1="{{ marca.y }}" y2="{{ marca.y }}"/>
+            <text class="grafico-eje" x="{{ entregas.izquierda }}" y="{{ marca.y }}" dx="-8" dy="4" text-anchor="end">{{ marca.etiqueta }}</text>
             {% endfor %}
-          </tbody>
-        </table>
-      </div>
-      {% else %}
-      <div class="tarjeta-vacia"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg><p>No hay recetas vigentes que venzan en los próximos {{ tablero.dias_por_vencer }} días.</p></div>
-      {% endif %}
-    </section>
+            {% for marca in entregas.marcas_x %}<text class="grafico-eje" x="{{ marca.x }}" y="{{ entregas.alto|add:'-8' }}" text-anchor="middle">{{ marca.texto }}</text>{% endfor %}
+            {% for columna in entregas.columnas %}{% if columna.ruta %}<path class="columna" d="{{ columna.ruta }}"/>{% endif %}{% endfor %}
+            {% if entregas.ruta_promedio %}<path class="columnas-promedio" d="{{ entregas.ruta_promedio }}" pathLength="1"/>{% endif %}
+            <g aria-hidden="true">{% for columna in entregas.columnas %}<rect class="ranura" x="{{ columna.ranura_x }}" y="{{ entregas.zona.y }}" width="{{ columna.ranura_ancho }}" height="{{ entregas.zona.alto }}" data-tip="{{ columna.tip }}"/>{% endfor %}</g>
+          </svg>
+        </figure>
+        <details class="datos">
+          <summary>Ver los datos en una tabla</summary>
+          <div class="tabla-caja datos-tabla">
+            <table class="tabla">
+              <caption class="sr-only">Entregas confirmadas por día y promedio de {{ tablero.ventana }} días</caption>
+              <thead><tr><th scope="col">Día</th><th scope="col" class="num">Entregas</th><th scope="col" class="num">Promedio de {{ tablero.ventana }} días</th></tr></thead>
+              <tbody>{% for columna in entregas.columnas %}<tr><th scope="row">{{ columna.texto }}</th><td class="num">{{ columna.valor }}</td><td class="num">{{ columna.promedio|floatformat:1 }}</td></tr>{% endfor %}</tbody>
+            </table>
+          </div>
+        </details>
+        {% else %}
+        <div class="tarjeta-vacia">
+          <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-sello"/></svg>
+          <p>Todavía no hay entregas confirmadas en este periodo. Aparecerán aquí cuando el Técnico selle la primera.</p>
+        </div>
+        {% endif %}
+      </section>
+
+      <section class="tarjeta tarjeta-vencen" aria-labelledby="titulo-vencen">
+        <header class="tarjeta-cabeza">
+          <div><h3 id="titulo-vencen">Vencen primero</h3><p>Las recetas vigentes más cerca de su último día.</p></div>
+          {% if tablero.por_vencer_total %}<a class="tarjeta-enlace" href="{% url 'recetasapp:recetas_lista' %}?situacion=por_vencer">Ver las {{ tablero.por_vencer_total }} por vencer</a>{% endif %}
+        </header>
+        {% if tablero.por_vencer %}
+        <div class="tabla-caja">
+          <table class="tabla tabla-apilable" aria-label="Recetas vigentes que vencen primero">
+            <thead><tr><th scope="col">Paciente</th><th scope="col">Último día</th><th scope="col">Entregas</th><th scope="col" class="num">Quedan</th></tr></thead>
+            <tbody>
+              {% for receta in tablero.por_vencer %}
+              <tr>
+                <th scope="row"><a href="{% url 'recetasapp:receta_detalle' pk=receta.pk %}">{{ receta.paciente.apellidos }}, {{ receta.paciente.nombres }}</a><small>Receta {{ receta.codigo }}</small></th>
+                <td data-etiqueta="Último día">{{ receta.ultimo_dia|date:"j b Y" }}<small class="plazo{% if receta.dias <= 7 %} plazo-urgente{% endif %}">{% if receta.dias == 1 %}Vence mañana{% else %}En {{ receta.dias }} días{% endif %}</small></td>
+                <td data-etiqueta="Entregas"><div class="mini-barra" aria-hidden="true" style="--p: {{ receta.porcentaje }}"><span></span></div><small>{{ receta.puntos_resumen }}</small></td>
+                <td class="num" data-etiqueta="Quedan">{{ receta.entregas_restantes }}</td>
+              </tr>
+              {% endfor %}
+            </tbody>
+          </table>
+        </div>
+        {% else %}
+        <div class="tarjeta-vacia"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg><p>No hay recetas vigentes que venzan en los próximos {{ tablero.dias_por_vencer }} días.</p></div>
+        {% endif %}
+      </section>
+    </div>
+    <div class="tablero-columna">
+      <section class="tarjeta tarjeta-situacion" aria-labelledby="titulo-situacion">
+        <header class="tarjeta-cabeza"><div><h3 id="titulo-situacion">Situación de las recetas</h3><p>{{ tablero.total }} receta{{ tablero.total|pluralize }} en total.</p></div></header>
+        {% if tablero.total %}
+        <div class="grafico" data-grafico="segmentos">
+          <ol class="segmentos" aria-label="Reparto de las recetas por situación">
+            {% for parte in tablero.situacion %}{% if parte.visible %}
+            <li class="segmento segmento-{{ parte.clave }}" style="--n: {{ parte.cantidad }}"><a href="{{ parte.enlace }}" data-tip="{{ parte.texto }}: {{ parte.cantidad }} ({{ parte.porcentaje }} %)"><span class="sr-only">{{ parte.texto }}: {{ parte.cantidad }}</span></a></li>
+            {% endif %}{% endfor %}
+          </ol>
+          <ul class="situacion-leyenda">
+            {% for parte in tablero.situacion %}
+            <li><a href="{{ parte.enlace }}" data-clave="{{ parte.clave }}">
+              <span class="muestra muestra-{{ parte.clave }}" aria-hidden="true"></span>
+              <span class="situacion-nombre"><svg class="icono" aria-hidden="true" focusable="false"><use href="#{{ parte.icono }}"/></svg>{{ parte.texto }}</span>
+              <span class="situacion-cifra"><strong>{{ parte.cantidad }}</strong> <small>{{ parte.porcentaje }} %</small></span>
+            </a></li>
+            {% endfor %}
+          </ul>
+        </div>
+        {% else %}
+        <div class="tarjeta-vacia"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-documento"/></svg><p>Todavía no hay recetas que mostrar.</p></div>
+        {% endif %}
+      </section>
+
+      <section class="tarjeta tarjeta-calor" aria-labelledby="titulo-calor">
+        <header class="tarjeta-cabeza"><div><h3 id="titulo-calor">Cuándo vencen las vigentes</h3><p>Último día válido de cada receta vigente, en las próximas {{ calor.dias_texto }}.</p></div></header>
+        {% if calor.total %}
+        <figure class="grafico" data-grafico="calor">
+          <div class="calor" aria-hidden="true">
+            <span class="calor-esquina"></span>
+            <span class="calor-nombre">Lun</span><span class="calor-nombre">Mar</span><span class="calor-nombre">Mié</span><span class="calor-nombre">Jue</span><span class="calor-nombre">Vie</span><span class="calor-nombre">Sáb</span><span class="calor-nombre">Dom</span>
+            {% for semana in calor.semanas %}
+            <span class="calor-semana">{{ semana.texto }}</span>
+            {% for dia in semana.dias %}<span class="calor-celda calor-t{{ dia.tono }}{% if dia.pasado %} calor-pasado{% endif %}{% if dia.es_hoy %} calor-hoy{% endif %}"{% if not dia.pasado %} data-tip="{{ dia.tip }}"{% endif %}>{% if not dia.pasado %}{{ dia.fecha.day }}{% endif %}</span>{% endfor %}
+            {% endfor %}
+          </div>
+          <figcaption class="calor-escala" aria-hidden="true">
+            <span class="calor-paso"><span class="calor-muestra calor-t0"></span>0</span>
+            {% for tramo in calor.leyenda %}<span class="calor-paso"><span class="calor-muestra calor-t{{ tramo.tono }}"></span>{{ tramo.texto }}</span>{% endfor %}
+            <span class="calor-unidad">recetas por día</span>
+          </figcaption>
+        </figure>
+        <details class="datos">
+          <summary>Ver los días con vencimientos en una tabla</summary>
+          <div class="tabla-caja datos-tabla">
+            <table class="tabla">
+              <caption class="sr-only">Recetas vigentes que vencen cada día</caption>
+              <thead><tr><th scope="col">Último día válido</th><th scope="col" class="num">Recetas</th></tr></thead>
+              <tbody>{% for dia in calor.con_vencimientos %}<tr><th scope="row">{{ dia.texto }}</th><td class="num">{{ dia.valor }}</td></tr>{% endfor %}</tbody>
+            </table>
+          </div>
+        </details>
+        {% else %}
+        <div class="tarjeta-vacia"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-calendario"/></svg><p>Ninguna receta vigente vence en las próximas {{ calor.dias_texto }}.</p></div>
+        {% endif %}
+      </section>
+    </div>
   </div>
 
   <section class="carga-oscura" aria-labelledby="titulo-carga">
@@ -153,3 +184,4 @@
     </div>
   </section>
 </div>
+{% endwith %}

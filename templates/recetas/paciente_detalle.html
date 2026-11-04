@@ -1,6 +1,6 @@
 {% extends 'recetas/base.html' %}
 {% load core_tags %}
-{% block titulo %}{% if paciente %}{{ paciente.apellidos }}, {{ paciente.nombres }}{% else %}Paciente{% endif %} · Padrón · Farmacia{% endblock %}
+{% block titulo %}{% if paciente %}{{ paciente.apellidos }}, {{ paciente.nombres }}{% else %}Paciente{% endif %} · Pacientes · Farmacia{% endblock %}
 {% block migas %}{{ block.super }}<li><span aria-current="page">{% if paciente %}{{ paciente.apellidos }}, {{ paciente.nombres }}{% else %}Paciente{% endif %}</span></li>{% endblock %}
 {% block farmacia %}
 {% if paciente %}
@@ -18,37 +18,72 @@
   {% if puede_crear %}<a class="boton" href="{% url 'recetasapp:receta_nueva' %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-mas"/></svg>Crear receta</a>{% endif %}
 </header>
 
-<div class="rejilla rejilla-2">
-  <section aria-labelledby="titulo-recetas">
-    <h2 id="titulo-recetas">Recetas e historial</h2>
-    {% if recetas %}
-    <div class="libretas">
-      {% for receta in recetas %}{% include 'recetas/_libreta.html' with compacta=True %}{% endfor %}
-    </div>
-    {% else %}
-    <div class="vacio">
-      <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-documento"/></svg>
-      <div>
-        <h3>Este paciente aún no tiene recetas</h3>
-        {% if puede_crear %}
-        <p>Crea una receta simulada para empezar a registrar sus entregas.</p>
-        <div class="acciones"><a class="boton" href="{% url 'recetasapp:receta_nueva' %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-mas"/></svg>Crear receta</a></div>
-        {% else %}
-        <p>La Jefa de Farmacia puede crear su primera receta.</p>
-        {% endif %}
-      </div>
-    </div>
-    {% endif %}
-  </section>
+{% include 'components/_pestanas.html' with etiqueta='Secciones de la ficha del paciente' %}
 
-  <aside class="panel" aria-labelledby="titulo-ficha">
-    <h2 class="panel-titulo" id="titulo-ficha"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-usuario"/></svg>Datos del paciente</h2>
-    <dl class="ficha">
-      <dt>Nacimiento</dt><dd>{{ paciente.fecha_nacimiento|date:"j \d\e F \d\e Y" }}</dd>
-      <dt>Teléfono</dt><dd>{{ paciente.telefono|default:"No registrado" }}</dd>
-      <dt>Dirección</dt><dd>{{ paciente.direccion|default:"No registrada" }}</dd>
-    </dl>
-  </aside>
-</div>
+{% if pestana == 'recetas' %}
+<section class="ficha-pestana" aria-labelledby="titulo-recetas">
+  <h2 id="titulo-recetas">Recetas e historial</h2>
+  {% if recetas %}
+  <p class="ficha-resumen"><strong>{{ vigentes }}</strong> vigente{{ vigentes|pluralize }} de {{ recetas|length }} receta{{ recetas|length|pluralize }}.</p>
+  <div class="libretas libretas-rejilla">
+    {% for receta in recetas %}{% include 'recetas/_libreta.html' with compacta=True %}{% endfor %}
+  </div>
+  {% else %}
+  <div class="vacio">
+    <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-documento"/></svg>
+    <div>
+      <h3>Este paciente aún no tiene recetas</h3>
+      {% if puede_crear %}
+      <p>Crea una receta simulada para empezar a registrar sus entregas.</p>
+      <div class="acciones"><a class="boton" href="{% url 'recetasapp:receta_nueva' %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-mas"/></svg>Crear receta</a></div>
+      {% else %}
+      <p>La Jefa de Farmacia puede crear su primera receta.</p>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+{% elif pestana == 'entregas' %}
+<section class="ficha-pestana" aria-labelledby="titulo-entregas">
+  <h2 id="titulo-entregas">Entregas confirmadas</h2>
+  {% if entregas %}
+  <div class="tabla-caja">
+    <table class="tabla tabla-apilable" aria-labelledby="titulo-entregas">
+      <thead><tr><th scope="col">Fecha y hora</th><th scope="col">Receta</th><th scope="col">Entrega</th><th scope="col">Responsable</th></tr></thead>
+      <tbody>
+        {% for entrega in entregas %}
+        <tr>
+          <th scope="row" data-etiqueta="Fecha y hora">{{ entrega.creado_en|date:"j b Y, H:i" }}</th>
+          <td data-etiqueta="Receta"><a href="{% url 'recetasapp:receta_detalle' pk=entrega.receta_id %}">{{ entrega.receta.codigo }}</a></td>
+          <td data-etiqueta="Entrega">{{ entrega.numero }} de {{ entrega.receta.max_entregas }}</td>
+          <td data-etiqueta="Responsable">{{ entrega.creado_por.get_username|default:"Cuenta retirada" }}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <div class="vacio">
+    <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-sello"/></svg>
+    <div>
+      <h3>Aún no hay entregas confirmadas</h3>
+      <p>Cuando el Técnico selle una entrega de sus recetas, quedará registrada aquí con su fecha y responsable.</p>
+    </div>
+  </div>
+  {% endif %}
+</section>
+
+{% else %}
+<section class="ficha-pestana" aria-labelledby="titulo-ficha">
+  <h2 id="titulo-ficha">Datos del paciente</h2>
+  <dl class="ficha ficha-datos">
+    <dt>Nacimiento</dt><dd>{{ paciente.fecha_nacimiento|date:"j \d\e F \d\e Y" }} ({{ paciente.edad }} años)</dd>
+    <dt>Teléfono</dt><dd>{{ paciente.telefono|default:"No registrado" }}</dd>
+    <dt>Dirección</dt><dd>{{ paciente.direccion|default:"No registrada" }}</dd>
+    <dt>Condición</dt><dd>{% if paciente.es_cronico or paciente.es_postrado %}{% if paciente.es_cronico %}Crónico{% endif %}{% if paciente.es_cronico and paciente.es_postrado %} · {% endif %}{% if paciente.es_postrado %}Postrado{% endif %}{% else %}Sin condición registrada{% endif %}</dd>
+  </dl>
+</section>
+{% endif %}
 {% endif %}
 {% endblock %}

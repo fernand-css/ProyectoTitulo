@@ -5,6 +5,8 @@ import re
 from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import AnonymousUser
+from unittest.mock import patch
+
 from django.test import Client, RequestFactory, SimpleTestCase, TestCase
 from django.urls import reverse
 
@@ -14,10 +16,10 @@ from coreapp.roles import ENCARGADO, JEFA, SUPERUSUARIO, TECNICO
 from usuariosapp.tests.test_gestion_usuarios import cuenta_personal
 
 VISIBLES = {
-    JEFA: ["Inicio de farmacia", "Turnos", "Pantalla de sala", "Recetas", "Padrón", "Usuarios"],
-    TECNICO: ["Atención en ventanilla", "Turnos", "Pantalla de sala", "Recetas", "Padrón"],
+    JEFA: ["Inicio", "Atención", "Pacientes", "Recetas", "Sala de espera", "Ventanillas y pesos", "Usuarios"],
+    TECNICO: ["Inicio", "Atención", "Pacientes", "Recetas", "Sala de espera"],
     ENCARGADO: ["Entregas en terreno"],
-    SUPERUSUARIO: ["Inicio", "Turnos", "Pantalla de sala", "Recetas", "Padrón", "Usuarios", "Administración"],
+    SUPERUSUARIO: ["Inicio", "Atención", "Pacientes", "Recetas", "Sala de espera", "Ventanillas y pesos", "Usuarios", "Administración"],
     "": ["Inicio"],
 }
 
@@ -34,8 +36,8 @@ class MenuPorPerfilTests(TestCase):
 
     def test_los_grupos_tienen_titulo_y_el_inicio_va_suelto(self):
         menu = armar_menu(JEFA)
-        self.assertEqual([grupo.titulo for grupo in menu.grupos], ["", "Atención", "Pacientes y recetas", "Equipo"])
-        self.assertEqual([len(grupo.opciones) for grupo in menu.grupos], [1, 2, 2, 1])
+        self.assertEqual([grupo.titulo for grupo in menu.grupos], ["", "Trabajo", "Equipo"])
+        self.assertEqual([len(grupo.opciones) for grupo in menu.grupos], [1, 4, 2])
         self.assertEqual([grupo.titulo for grupo in armar_menu(ENCARGADO).grupos], [""])
 
     def test_una_cuenta_sin_perfil_solo_ve_el_inicio_y_no_tiene_mi_perfil(self):
@@ -47,10 +49,10 @@ class MenuPorPerfilTests(TestCase):
 
     def test_la_barra_del_celular_lleva_el_trabajo_y_el_resto_va_en_mas_sin_perder_nada(self):
         esperado = {
-            JEFA: (["inicio", "turnos", "recetas", "padron"], ["sala", "usuarios"]),
-            TECNICO: (["inicio", "turnos", "recetas", "padron"], ["sala"]),
+            JEFA: (["inicio", "turnos", "padron", "recetas"], ["sala", "ventanillas", "usuarios"]),
+            TECNICO: (["inicio", "turnos", "padron", "recetas"], ["sala"]),
             ENCARGADO: (["inicio"], []),
-            SUPERUSUARIO: (["inicio", "turnos", "recetas", "padron"], ["sala", "usuarios", "administracion"]),
+            SUPERUSUARIO: (["inicio", "turnos", "padron", "recetas"], ["sala", "ventanillas", "usuarios", "administracion"]),
         }
         for rol, (barra, mas) in esperado.items():
             with self.subTest(rol=rol):
@@ -63,8 +65,12 @@ class MenuPorPerfilTests(TestCase):
 
     def test_la_pagina_actual_se_marca_en_una_sola_entrada(self):
         casos = (
-            (("coreapp", "inicio"), "inicio"), (("turnosapp", "panel"), "turnos"), (("turnosapp", "gestion"), "turnos"),
-            (("turnosapp", "historial"), "turnos"), (("recetasapp", "recetas"), "recetas"),
+            (("coreapp", "inicio"), "inicio"), (("turnosapp", "panel"), "turnos"), (("turnosapp", "historial"), "turnos"),
+            (("turnosapp", "finalizar_atencion"), "turnos"), (("turnosapp", "accion_turno"), "turnos"),
+            # La configuración de la atención es de la Jefa y vive en «Equipo».
+            (("turnosapp", "gestion"), "ventanillas"), (("turnosapp", "pesos"), "ventanillas"),
+            (("turnosapp", "ventanilla_nueva"), "ventanillas"), (("turnosapp", "ventanilla_configurar"), "ventanillas"),
+            (("recetasapp", "recetas"), "recetas"),
             (("recetasapp", "receta_detalle"), "recetas"), (("recetasapp", "entrega_confirmar"), "recetas"),
             # Preparación vive dentro de Recetas: no tiene entrada propia.
             (("recetasapp", "preparacion"), "recetas"), (("recetasapp", "preparacion_pendientes"), "recetas"),
@@ -115,11 +121,12 @@ class EntradasTests(SimpleTestCase):
         self.assertEqual(len(iconos), len(set(iconos)), "Dos destinos comparten ícono.")
 
     def test_los_destinos_de_la_barra_inferior_caben_en_un_boton_de_un_quinto_de_pantalla(self):
-        """Con cinco botones en 320 px cada texto mide como mucho 8 letras; las entradas nuevas deben respetarlo."""
+        """Con cinco botones en 320 px cada texto mide como mucho 9 letras («Pacientes»); menu.css reduce el tamaño
+        del texto del dock a 3,3 vw para que quepa. Las entradas nuevas deben respetarlo."""
         for entrada in ENTRADAS:
             if entrada.en_barra:
                 with self.subTest(clave=entrada.clave):
-                    self.assertLessEqual(len(entrada.corta or entrada.etiqueta), 8)
+                    self.assertLessEqual(len(entrada.corta or entrada.etiqueta), 9)
 
     def test_claves_unicas_y_las_etiquetas_largas_tienen_nombre_corto_para_la_columna_plegada(self):
         claves = [entrada.clave for entrada in ENTRADAS]
@@ -207,7 +214,7 @@ class MenuRenderizadoTests(TestCase):
 
     def test_la_hoja_mas_incluye_la_cuenta_y_avisa_si_contiene_la_pagina_actual(self):
         _, dock = self.partes(self.pagina(JEFA))
-        for texto in ("Pantalla de sala", "Usuarios", "Mi perfil", "Cerrar sesión", "Persona Sintética"):
+        for texto in ("Sala de espera", "Ventanillas y pesos", "Usuarios", "Mi perfil", "Cerrar sesión", "Persona Sintética"):
             self.assertIn(texto, dock)
         self.assertNotIn("incluye la página actual", dock)
         _, dock = self.partes(self.pagina(JEFA, reverse("usuariosapp:gestion_usuarios")))
@@ -237,3 +244,80 @@ class MenuRenderizadoTests(TestCase):
         html = self.pagina(JEFA)
         self.assertEqual(html.count('class="franja"'), 1)
         self.assertGreater(html.index('class="franja"'), html.index('<div class="app-columna">'))
+
+
+class InsigniasTests(TestCase):
+    """Las cantidades que acompañan a «Atención» y «Recetas»."""
+
+    def test_las_insignias_salen_de_los_contadores_y_solo_en_las_opciones_que_las_declaran(self):
+        menu = armar_menu(TECNICO, contadores={"fila": 7, "por_preparar": 3, "otra": 99})
+        opciones = {o.clave: o for g in menu.grupos for o in g.opciones}
+        self.assertEqual((opciones["turnos"].insignia, opciones["turnos"].insignia_texto), (7, "en espera"))
+        self.assertEqual((opciones["recetas"].insignia, opciones["recetas"].insignia_texto), (3, "por preparar"))
+        for clave in ("inicio", "padron", "sala"):
+            self.assertEqual(opciones[clave].insignia, 0)
+
+    def test_una_cantidad_en_cero_no_dibuja_insignia_ni_texto(self):
+        menu = armar_menu(TECNICO, contadores={"fila": 0, "por_preparar": 0})
+        for opcion in (o for g in menu.grupos for o in g.opciones):
+            self.assertEqual((opcion.insignia, opcion.insignia_texto), (0, ""))
+        self.assertEqual(armar_menu(TECNICO).barra[1].insignia, 0)
+
+    def test_el_encargado_y_la_cuenta_sin_perfil_no_consultan_nada(self):
+        from coreapp.navegacion import contadores_del_menu
+        with self.assertNumQueries(0):
+            self.assertEqual(contadores_del_menu(ENCARGADO), {})
+            self.assertEqual(contadores_del_menu(""), {})
+
+    def test_los_contadores_cuentan_la_fila_de_hoy_y_las_recetas_sin_marcar(self):
+        from datetime import date, timedelta
+        from random import Random
+
+        from django.utils import timezone
+
+        from coreapp.navegacion import contadores_del_menu
+        from coreapp.utils.sinteticos import generar_ruts
+        from recetasapp.models import Paciente, PreparacionReceta, Receta
+        from turnosapp.models import Turno, TurnoReceta
+
+        hoy = timezone.localdate()
+        ruts = generar_ruts(5, Random(10))
+        turnos = []
+        for numero, rut in enumerate(ruts[:3], start=1):
+            paciente = Paciente.objects.create(rut=rut, nombres="Paciente", apellidos="Sintético", fecha_nacimiento=date(1960, 1, 1))
+            turnos.append(Turno.objects.create(paciente=paciente, fecha=hoy, numero=numero, tipo_atencion="general"))
+        Turno.objects.filter(pk=turnos[2].pk).update(estado="atendido", cerrado_en=timezone.now())
+        for numero, turno in enumerate(turnos[:2], start=1):
+            receta = Receta.objects.create(
+                paciente=turno.paciente, codigo=f"INS-{numero}", fecha_inicio=hoy - timedelta(days=1),
+                vigencia_meses=6, max_entregas=6, fecha_fin_exclusiva=hoy + timedelta(days=180))
+            vinculo = TurnoReceta.objects.create(turno=turno, receta=receta)
+            PreparacionReceta.objects.create(turno_receta=vinculo, recibida_en=timezone.now())
+        self.assertEqual(contadores_del_menu(TECNICO), {"fila": 2, "por_preparar": 2})
+        # Una receta marcada lista deja de contar como por preparar.
+        PreparacionReceta.objects.filter(turno_receta__turno=turnos[0]).update(
+            lista_en=timezone.now(), lista_por=cuenta_personal("insignia_tecnico_sintetico", TECNICO),
+            inicio_medido=timezone.now() - timedelta(seconds=30), duracion_segundos=30)
+        self.assertEqual(contadores_del_menu(JEFA)["por_preparar"], 1)
+
+    def test_el_menu_dibuja_la_insignia_con_su_texto_para_lectores_de_pantalla(self):
+        usuario = cuenta_personal("insignia_render_sintetico", TECNICO)
+        cliente = Client()
+        cliente.force_login(usuario)
+        with patch("coreapp.context_processors.contadores_del_menu", return_value={"fila": 5, "por_preparar": 2}):
+            html = cliente.get(reverse("recetasapp:pacientes")).content.decode()
+        self.assertEqual(html.count('<span class="menu-insignia">5<span class="sr-only"> en espera</span></span>'), 1)
+        self.assertEqual(html.count('<span class="menu-insignia">2<span class="sr-only"> por preparar</span></span>'), 1)
+        self.assertEqual(html.count('<span class="dock-insignia">5<span class="sr-only"> en espera</span></span>'), 1)
+        self.assertEqual(html.count('<span class="dock-insignia">2<span class="sr-only"> por preparar</span></span>'), 1)
+
+    def test_el_estado_de_la_cola_que_se_consulta_cada_segundo_no_arma_el_menu(self):
+        usuario = cuenta_personal("insignia_estado_sintetico", TECNICO)
+        cliente = Client()
+        cliente.force_login(usuario)
+        with patch("coreapp.context_processors.contadores_del_menu", return_value={}) as contar:
+            respuesta = cliente.get(reverse("turnosapp:estado"))
+            self.assertEqual(respuesta.status_code, 200)
+            contar.assert_not_called()
+            cliente.get(reverse("turnosapp:panel"))
+            contar.assert_called()

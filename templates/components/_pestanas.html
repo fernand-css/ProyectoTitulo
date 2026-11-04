@@ -1,0 +1,8 @@
+{# Pestañas de una sección. Espera `pestanas` (lista de dicts: texto, url, actual y, si aplica, cantidad) y `etiqueta`. Cada una es un enlace a su propia dirección. #}
+<nav class="pestanas" aria-label="{{ etiqueta }}">
+  <ul>
+    {% for pestana in pestanas %}
+    <li><a href="{{ pestana.url }}"{% if pestana.actual %} aria-current="page"{% endif %}>{{ pestana.texto }}{% if pestana.cantidad is not None %} <span class="pestana-cantidad">{{ pestana.cantidad }}</span>{% endif %}</a></li>
+    {% endfor %}
+  </ul>
+</nav>

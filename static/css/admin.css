@@ -1,14 +1,14 @@
 /*
   Piel de la administración de Django con la identidad de la Unidad de Farmacia.
   Solo redefine las variables que Django expone; no toca la estructura de sus pantallas.
-  Cada texto sobre fondo de color cumple 4,5:1 (blanco sobre #8f3434 / #bc4f4f / #5b4640; tinta sobre trigo).
+  Cada texto sobre fondo de color cumple 4,5:1 (blanco sobre #0b3d7a / #1f5fae / #44546a; tinta sobre trigo).
 */
 @font-face {
-  font-family: "Bitter";
+  font-family: "Figtree";
   font-style: normal;
-  font-weight: 100 900;
+  font-weight: 300 900;
   font-display: swap;
-  src: url("../fonts/bitter-latin-wght-normal.woff2") format("woff2");
+  src: url("../fonts/figtree-latin-wght-normal.woff2") format("woff2");
 }
 @font-face {
   font-family: "Atkinson Hyperlegible Next";
@@ -22,67 +22,67 @@
 html[data-theme="light"],
 html[data-theme="auto"],
 :root {
-  --primary: #f3cd97;
-  --secondary: #bc4f4f;
-  --accent: #fef2a0;
+  --primary: #c3d6ee;
+  --secondary: #1f5fae;
+  --accent: #e3edf9;
   --primary-fg: #ffffff;
 
-  --body-fg: #2a1613;
+  --body-fg: #0b2545;
   --body-bg: #ffffff;
-  --body-quiet-color: #5b4640;
-  --body-medium-color: #3d2723;
-  --body-loud-color: #2a1613;
+  --body-quiet-color: #44546a;
+  --body-medium-color: #2a3a52;
+  --body-loud-color: #0b2545;
 
   --header-color: #ffffff;
-  --header-branding-color: #fef2a0;
-  --header-bg: #bc4f4f;
+  --header-branding-color: #e3edf9;
+  --header-bg: #1f5fae;
   --header-link-color: #ffffff;
 
-  --breadcrumbs-fg: #fff3d6;
+  --breadcrumbs-fg: #dbe7f7;
   --breadcrumbs-link-fg: #ffffff;
-  --breadcrumbs-bg: #8f3434;
+  --breadcrumbs-bg: #0b3d7a;
 
-  --link-fg: #9a3636;
-  --link-hover-color: #2a1613;
-  --link-selected-fg: #9a3636;
+  --link-fg: #0b3d7a;
+  --link-hover-color: #0b2545;
+  --link-selected-fg: #0b3d7a;
 
-  --hairline-color: #ead6bb;
-  --border-color: #8a6e63;
+  --hairline-color: #d5e0ee;
+  --border-color: #5b7da8;
 
   --error-fg: #7e2222;
   --message-success-bg: #e8f3df;
   --message-warning-bg: #fef2a0;
   --message-error-bg: #fdeceb;
 
-  --darkened-bg: #fdf1e0;
-  --selected-bg: #f3cd97;
-  --selected-row: #fef2a0;
+  --darkened-bg: #eef4fb;
+  --selected-bg: #c3d6ee;
+  --selected-row: #e3edf9;
 
   --button-fg: #ffffff;
-  --button-bg: #8f3434;
-  --button-hover-bg: #6e2525;
-  --default-button-bg: #bc4f4f;
-  --default-button-hover-bg: #8f3434;
-  --close-button-bg: #5b4640;
-  --close-button-hover-bg: #2a1613;
+  --button-bg: #0b3d7a;
+  --button-hover-bg: #082a52;
+  --default-button-bg: #1f5fae;
+  --default-button-hover-bg: #0b3d7a;
+  --close-button-bg: #44546a;
+  --close-button-hover-bg: #0b2545;
   --delete-button-bg: #9a3636;
   --delete-button-hover-bg: #7e2222;
 
   --object-tools-fg: #ffffff;
-  --object-tools-bg: #5b4640;
-  --object-tools-hover-bg: #2a1613;
+  --object-tools-bg: #44546a;
+  --object-tools-hover-bg: #0b2545;
 
   --font-family-primary: "Atkinson Hyperlegible Next", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
 
 body { font-size: 1rem; }
 #site-name a, #content > h1, #content-main h2, .module h2, .module caption, #content h2 {
-  font-family: "Bitter", "Rockwell", Georgia, serif;
+  font-family: "Figtree", "Segoe UI", system-ui, sans-serif;
   letter-spacing: -0.01em;
 }
-#site-name a { font-weight: 800; }
+#site-name a { font-weight: 700; }
 a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
-  outline: 3px solid #2a1613;
+  outline: 3px solid #0b2545;
   outline-offset: 2px;
   box-shadow: 0 0 0 2px #ffffff;
 }

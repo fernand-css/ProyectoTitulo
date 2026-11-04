@@ -7,13 +7,7 @@
 */
 
 /* ------------------------------------------------------------------ Banda de búsqueda del padrón */
-.padron-cabecera { position: relative; color: var(--trigo-texto); background: var(--trigo-fondo); }
-.padron-cabecera::after {
-  content: "";
-  display: block;
-  height: 1.1rem;
-  background: linear-gradient(to bottom, var(--activo-fondo) 0 0.2rem, var(--naranja) 0.2rem 0.7rem, var(--arena) 0.7rem 100%);
-}
+.padron-cabecera { position: relative; color: var(--trigo-texto); background: var(--trigo-fondo); border-bottom: 1px solid var(--linea); }
 .padron-cabecera-int { max-width: var(--ancho-contenido); margin: auto; padding: 1.75rem 1.5rem 2rem; }
 .padron-cabecera .migas { margin-bottom: 1.25rem; }
 .padron-cabecera .migas a, .padron-cabecera .migas [aria-current="page"] { color: var(--trigo-texto); }
@@ -61,7 +55,7 @@
 .padron-fila:hover { background: var(--suave-fondo); box-shadow: inset 0.35rem 0 0 var(--ladrillo); }
 .padron-fila:has(a:focus-visible) { background: var(--suave-fondo); outline: 3px solid var(--tinta); outline-offset: -3px; }
 .padron-persona { grid-area: persona; min-width: 0; }
-.padron-nombre { margin: 0 0 0.2rem; font-family: var(--fuente-titulo); font-size: 1.3rem; font-weight: 800; line-height: 1.2; overflow-wrap: anywhere; }
+.padron-nombre { margin: 0 0 0.2rem; font-family: var(--fuente-titulo); font-size: 1.3rem; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
 .padron-nombre a { color: var(--panel-texto); text-decoration: none; }
 .padron-nombre a::after { content: ""; position: absolute; inset: 0; }
 .padron-nombre a:hover { text-decoration: underline; text-decoration-thickness: 0.12em; }
@@ -166,7 +160,7 @@
   border-radius: 50%;
   font-family: var(--fuente-titulo);
   font-size: 1.2rem;
-  font-weight: 800;
+  font-weight: 700;
 }
 .sello .icono { width: 2.1rem; height: 2.1rem; stroke-width: 2.2; }
 .sello-libre { color: var(--secundario-texto); background: var(--panel-fondo); border: 2px dashed var(--borde); }
@@ -231,7 +225,7 @@
 /* ------------------------------------------------------------------ Tablas */
 .tabla-caja { overflow-x: auto; }
 .tabla { width: 100%; border-collapse: collapse; }
-.tabla caption { padding-bottom: 0.75rem; font-family: var(--fuente-titulo); font-size: 1.3rem; font-weight: 800; text-align: left; }
+.tabla caption { padding-bottom: 0.75rem; font-family: var(--fuente-titulo); font-size: 1.3rem; font-weight: 700; text-align: left; }
 .tabla th, .tabla td { padding: 0.75rem 0.8rem; border-bottom: 2px solid var(--linea); text-align: left; vertical-align: top; overflow-wrap: break-word; }
 .tabla thead th { white-space: nowrap; }
 .tabla thead th { color: var(--secundario-texto); border-bottom-color: var(--borde); font-size: 0.95rem; }
@@ -294,7 +288,7 @@
   background: var(--marca-fondo);
   border-radius: 50%;
   font-family: var(--fuente-titulo);
-  font-weight: 800;
+  font-weight: 700;
 }
 .paso h2 { margin-bottom: 0.4rem; font-size: 1.3rem; }
 .paso > p { margin-bottom: 0.9rem; }
@@ -321,7 +315,7 @@
 .dropzone:focus-within { outline: 3px solid var(--tinta); outline-offset: 3px; }
 .dropzone .icono { width: 2.4rem; height: 2.4rem; color: var(--ladrillo); }
 .dropzone-titulo { font-weight: 700; }
-.dropzone-archivo { font-family: var(--fuente-titulo); font-size: 1.15rem; font-weight: 800; overflow-wrap: anywhere; }
+.dropzone-archivo { font-family: var(--fuente-titulo); font-size: 1.15rem; font-weight: 700; overflow-wrap: anywhere; }
 .dropzone-ayuda { font-size: 0.95rem; color: var(--secundario-texto); }
 .dropzone input[type="file"] { margin-top: 0.75rem; max-width: 100%; }
 /* Con JavaScript, la zona completa es el botón: el campo real queda encima, invisible pero enfocable. */
@@ -478,7 +472,7 @@
   background: var(--arena-fondo);
   border-radius: 999px;
   font-size: 0.95rem;
-  font-weight: 800;
+  font-weight: 700;
   font-variant-numeric: tabular-nums;
 }
 /* Seleccionado: relleno de tinta, marca ✓ y subrayado, para que no dependa solo del color. */
@@ -500,4 +494,56 @@
 @media (forced-colors: active) {
   .filtro { border-color: CanvasText; }
   .filtro[aria-pressed="true"] { forced-color-adjust: none; color: HighlightText; background: Highlight; }
+}
+
+/* ------------------------------------------------------------------ Sección con pestañas: cabecera y ficha del paciente */
+.seccion { margin: 1.5rem 0 1.5rem; }
+.seccion-fila { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0.75rem 2rem; margin-bottom: 1.1rem; }
+.seccion-fila h1 { margin-bottom: 0.3rem; }
+.seccion-fila p { margin: 0; color: var(--secundario-texto); font-size: 1.05rem; }
+.seccion-subtitulo { margin: 0 0 0.75rem; font-size: 1.3rem; }
+
+/* Pestañas: cada una es un enlace a su dirección. En el celular se recorren de lado, sin partirse en filas. */
+.pestanas { margin-bottom: 1.5rem; border-bottom: 1px solid var(--linea); }
+.seccion .pestanas { margin-bottom: 0; }
+.pestanas ul { display: flex; gap: 0.25rem; margin: 0; padding: 0; overflow-x: auto; list-style: none; }
+.pestanas a {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.9rem;
+  padding: 0.5rem 1rem;
+  color: var(--secundario-texto);
+  border-bottom: 3px solid transparent;
+  font-weight: 600;
+  text-decoration: none;
+  white-space: nowrap;
+}
+.pestanas a:hover { color: var(--panel-texto); background: var(--suave-fondo); }
+.pestanas a:focus-visible { outline-offset: -3px; }
+.pestanas a[aria-current="page"] { color: var(--panel-texto); border-bottom-color: var(--ladrillo); font-weight: 700; }
+.pestana-cantidad {
+  min-width: 1.7rem;
+  padding: 0.05rem 0.5rem;
+  color: var(--trigo-texto);
+  background: var(--trigo-fondo);
+  border-radius: 999px;
+  font-size: 0.9rem;
+  font-variant-numeric: tabular-nums;
+  text-align: center;
+}
+.pestanas a[aria-current="page"] .pestana-cantidad { color: var(--marca-texto); background: var(--marca-fondo); }
+
+.ficha-pestana > h2 { margin-bottom: 0.75rem; }
+.ficha-resumen { color: var(--secundario-texto); }
+.ficha-resumen strong { color: var(--panel-texto); }
+.libretas-rejilla { grid-template-columns: repeat(auto-fill, minmax(min(100%, 24rem), 1fr)); align-items: start; }
+.ficha-datos { max-width: 40rem; padding: 1.25rem 1.5rem; background: var(--panel-fondo); border: 1px solid var(--linea); border-radius: var(--radio-panel); }
+
+@media (max-width: 44rem) {
+  /* Más angostas, para que se vea el comienzo de la pestaña siguiente y se note que se puede deslizar. */
+  .pestanas a { padding-inline: 0.7rem; }
+}
+@media (forced-colors: active) {
+  .pestanas a[aria-current="page"] { border-bottom-color: Highlight; }
 }

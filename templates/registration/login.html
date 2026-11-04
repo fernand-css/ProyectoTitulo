@@ -1,4 +1,4 @@
-{% extends 'components/Layout/base_publica.html' %}
+{% extends 'components/Layout/base_acceso.html' %}
 {% block titulo %}Iniciar sesión · Farmacia{% endblock %}
 {% block contenido %}
 <h1 id="titulo-login">Inicia sesión</h1>
@@ -28,7 +28,6 @@
 </form>
 <p class="formulario-pie"><a href="{% url 'usuariosapp:recuperar_clave' %}">¿Olvidaste tu contraseña?</a></p>
 <div class="acceso-ayuda">
-  <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ayuda"/></svg>
   <p><strong>¿No puedes entrar?</strong> Avisa a tu Q.F. o a la administración para que revisen tu cuenta.</p>
 </div>
 {% endblock %}

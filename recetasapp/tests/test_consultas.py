@@ -98,3 +98,24 @@ class ConsultasTests(TestCase):
 
     def test_ultima_carga_sin_cargas_es_none(self):
         self.assertIsNone(consultas.ultima_carga())
+
+    def test_vencimientos_por_dia_cuentan_el_ultimo_dia_valido_de_las_vigentes(self):
+        self.armar()
+        # «ultimodia» termina el 2026-11-02 (fin exclusivo 11-03); «borde30», el 2026-12-01; «borde31», el 12-02;
+        # «holgada», el 2026-12-31. Ni la vencida ni la que aún no parte ni la agotada cuentan.
+        dias = consultas.vencimientos_por_dia(date(2026, 11, 2), date(2027, 1, 31), HOY)
+        self.assertEqual(dias, {date(2026, 11, 2): 1, date(2026, 12, 1): 1, date(2026, 12, 2): 1, date(2026, 12, 31): 1})
+
+    def test_vencimientos_por_dia_respeta_los_dos_bordes_del_rango(self):
+        self.armar()
+        solo_el_primero = consultas.vencimientos_por_dia(date(2026, 11, 2), date(2026, 11, 2), HOY)
+        self.assertEqual(solo_el_primero, {date(2026, 11, 2): 1})
+        self.assertEqual(consultas.vencimientos_por_dia(date(2026, 11, 3), date(2026, 11, 30), HOY), {})
+        self.assertEqual(consultas.vencimientos_por_dia(date(2026, 12, 1), date(2026, 12, 2), HOY), {date(2026, 12, 1): 1, date(2026, 12, 2): 1})
+
+    def test_vencimientos_por_dia_suma_las_recetas_que_terminan_el_mismo_dia(self):
+        self.receta("a", date(2026, 6, 2))
+        self.receta("b", date(2026, 6, 2))
+        self.receta("c", date(2026, 6, 3))
+        dias = consultas.vencimientos_por_dia(HOY, date(2026, 12, 31), HOY)
+        self.assertEqual(dias, {date(2026, 12, 1): 2, date(2026, 12, 2): 1})

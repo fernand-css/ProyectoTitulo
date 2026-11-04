@@ -2,6 +2,7 @@
 import uuid
 from datetime import timedelta
 from django.core.paginator import Paginator
+from django.db.models import Count
 from django.utils import timezone
 from coreapp.mixins import tiene_rol
 from coreapp.roles import JEFA, TECNICO
@@ -32,11 +33,16 @@ def contexto_panel(usuario, pagina=1):
     propia = next((v for v in ventanillas if v.operador_id == usuario.pk), None) if operar else None
     vigente = Turno.objects.select_related("paciente").filter(ventanilla=propia, estado="llamado").first() if propia else None
     preparaciones_vigente = _preparaciones_del_turno(vigente)
+    # Qué turno atiende cada ventanilla, para listarlas todas con su estado.
+    llamados = dict(Turno.objects.filter(estado="llamado").values_list("ventanilla_id", "numero"))
     for vent in ventanillas:
+        vent.turno_actual = llamados.get(vent.pk)
+        vent.es_propia = bool(propia and vent.pk == propia.pk)
         vent.nonce_ocupar = uuid.uuid4()
         vent.tipos_texto = ", ".join(tipo.get_codigo_display() for tipo in vent.tipos.all()) or "Ninguno"
         vent.activa_hoy = vent.automatico and vent.fecha_activacion == hoy and vent.habilitada and not vent.retirada
-    espera = Turno.objects.filter(fecha=hoy, estado="esperando").order_by("entrada_cola", "numero", "pk")
+    espera = (Turno.objects.filter(fecha=hoy, estado="esperando")
+        .annotate(cantidad_recetas=Count("recetas_vinculadas")).order_by("entrada_cola", "numero", "pk"))
     pagina_cola = Paginator(espera, 30).get_page(pagina)
     for turno in pagina_cola:
         turno.espera = espera_turno(turno, ahora)

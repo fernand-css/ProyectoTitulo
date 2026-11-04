@@ -10,8 +10,8 @@ from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
 from django.utils import timezone
 
-from recetasapp.models import EntregaReceta, PreparacionReceta
-from turnosapp.models import CierreAtencion, Ventanilla
+from recetasapp.models import EntregaReceta, PreparacionReceta, Receta
+from turnosapp.models import CierreAtencion, TurnoReceta, Ventanilla
 from .datos_cierre import DatosCierre
 
 
@@ -200,3 +200,61 @@ class PanelTests(DatosCierre, TestCase):
         respuesta = self.client.get(self.url("historial", pk=self.actual.pk))
         self.assertContains(respuesta, "Llamado")
         self.assertContains(respuesta, "CIERRE-DEMO-0")
+
+
+class AtencionReorganizadaTests(DatosCierre, TestCase):
+    """La pantalla de Atención: fila y ventanillas a un lado, la persona atendida al otro."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.personal["tecnico"])
+
+    def html(self):
+        return self.client.get(reverse("turnosapp:estado")).json()["html"]
+
+    def test_la_persona_en_ventanilla_muestra_sus_datos_y_la_ficha_del_paciente(self):
+        html = self.html()
+        self.assertIn("Ventanilla 1", html)
+        self.assertIn("Paciente sintético Cola", html)
+        self.assertIn(f'href="{reverse("recetasapp:paciente_detalle", args=[self.actual.paciente_id])}">Ver ficha del paciente</a>', html)
+        self.assertIn("Finalizar y confirmar entregas", html)
+        self.assertIn('class="cola-puesto cola-puesto-activo"', html)
+
+    def test_la_fila_dice_cuantas_recetas_trae_cada_turno(self):
+        con_recetas = self.turno(espera=300)
+        for indice in range(2):
+            receta = Receta.objects.create(
+                paciente=con_recetas.paciente, codigo=f"FILA-DEMO-{indice}", fecha_inicio=self.fecha,
+                fecha_fin_exclusiva=self.fecha + timedelta(days=30), vigencia_meses=1, max_entregas=3)
+            TurnoReceta.objects.create(turno=con_recetas, receta=receta)
+        self.turno(espera=60)  # un turno sin recetas vinculadas no menciona recetas
+        html = self.html()
+        fila = html[html.index('<ol class="cola-fila"'):html.index("</ol>", html.index('<ol class="cola-fila"'))]
+        self.assertIn("2 recetas", fila)
+        self.assertEqual(fila.count("receta"), 1)
+        self.assertIn(f'href="{reverse("turnosapp:historial", args=[con_recetas.pk])}"', fila)
+
+    def test_todas_las_ventanillas_se_listan_con_su_estado_y_se_marca_la_propia(self):
+        self.activar(numero=2)
+        Ventanilla.objects.filter(numero=3).update(habilitada=False)
+        html = self.html()
+        lista = html[html.index('id="ventanillas-titulo"'):html.index("</ul>", html.index('id="ventanillas-titulo"'))]
+        self.assertIn("Ventanilla 1 (la tuya)", lista)
+        self.assertIn(f"Atendiendo el turno {self.actual.numero}", lista)
+        self.assertIn("Ventanilla 2", lista)
+        self.assertIn("Libre, llamando", lista)
+        self.assertIn("Deshabilitada", lista)
+
+    def test_la_jefa_ve_la_fila_y_las_ventanillas_sin_controles_de_atencion(self):
+        self.client.force_login(self.personal["qf"])
+        html = self.html()
+        self.assertIn("Fila de espera", html)
+        self.assertIn("Ventanillas", html)
+        self.assertIn("Gestionar ventanillas y pesos", html)
+        for ausente in ("Re-llamar", "Marcar lista", "Finalizar y confirmar entregas", "Ver ficha del paciente"):
+            self.assertNotIn(ausente, html)
+
+    def test_las_migas_dicen_atencion(self):
+        html = self.client.get(reverse("turnosapp:panel")).content.decode()
+        self.assertIn(f'<li><a href="{reverse("turnosapp:panel")}">Atención</a></li>', html)
+        self.assertNotIn(">Turnos</a></li>", html)

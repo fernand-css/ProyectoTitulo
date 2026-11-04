@@ -1,5 +1,5 @@
 /*
-  Menú principal. En computador (más de 70 rem) es una tarjeta lateral que se pliega a una columna angosta;
+  Menú principal. En computador (más de 70 rem) es una columna azul marino que se pliega a una franja angosta;
   en celular y tableta (hasta 70 rem) es una barra superior con la marca y un dock flotante abajo. Las dos
   salen de la misma lista (coreapp/navegacion.py). Todo el color viene de las variables de base.css, donde
   se verifica el contraste: esta hoja no declara colores (una prueba lo exige). Tamaños en rem, para que el
@@ -11,22 +11,14 @@
 .app-columna { display: flex; flex-direction: column; min-width: 0; }
 .menu, .barra-superior, .dock { display: none; }
 
-/* Horizonte de la marca: el cielo ladrillo con tres franjas de surco, como la portada del inicio. */
+/* La cabecera del menú (y la barra del celular) se apoya en este contenedor. */
 .horizonte { position: relative; }
-.horizonte::after {
-  content: "";
-  position: absolute;
-  right: 0;
-  bottom: 0;
-  left: 0;
-  height: 0.85rem;
-  background: linear-gradient(to bottom, var(--activo-fondo) 0 0.16rem, var(--naranja) 0.16rem 0.52rem, var(--arena) 0.52rem 100%);
-}
 
 /* ------------------------------------------------------------------ Piezas compartidas */
 .menu-lista, .menu-lista ul { margin: 0; padding: 0; list-style: none; }
 .menu-lista form, .menu-cuenta form { margin: 0; }
 .menu-enlace {
+  position: relative;
   display: flex;
   align-items: center;
   gap: 0.8rem;
@@ -51,6 +43,23 @@
 .menu-enlace[aria-current="page"]:hover { color: var(--activo-texto); background: var(--activo-fondo); }
 .menu-corta { display: none; }
 .menu-enlace .menu-externo { flex: none; width: 1.15rem; height: 1.15rem; margin-left: auto; }
+/* Insignia con una cantidad (fila de espera, recetas por preparar): el número va en texto y el lector dice qué cuenta. */
+.menu-insignia {
+  flex: none;
+  display: inline-grid;
+  place-items: center;
+  min-width: 1.7rem;
+  margin-left: auto;
+  padding: 0.05rem 0.5rem;
+  color: var(--trigo-texto);
+  background: var(--trigo-fondo);
+  border-radius: 999px;
+  font-size: 0.85rem;
+  font-weight: 700;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.4;
+}
+.menu-enlace[aria-current="page"] .menu-insignia { color: var(--activo-fondo); background: var(--panel-fondo); }
 
 .menu-persona { display: flex; align-items: center; gap: 0.75rem; max-width: none; margin: 0 0 0.2rem; padding: 0.3rem 0.5rem; }
 .menu-avatar {
@@ -63,20 +72,20 @@
   background: var(--arena-fondo);
   border-radius: 50%;
   font-family: var(--fuente-titulo);
-  font-weight: 800;
+  font-weight: 700;
   text-transform: uppercase;
 }
 .menu-persona-texto { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; overflow-wrap: anywhere; }
 .menu-persona-texto span { color: var(--secundario-texto); font-size: 0.95rem; }
 
-/* ------------------------------------------------------------------ Computador: tarjeta lateral */
+/* ------------------------------------------------------------------ Computador: columna lateral */
 @media (min-width: 70.0625rem) {
   .app-con-menu {
-    --menu-ancho: min(17.5rem, 28vw);
+    --menu-ancho: min(16rem, 26vw);
     grid-template-columns: var(--menu-ancho) minmax(0, 1fr);
     transition: grid-template-columns 0.22s ease;
   }
-  html[data-menu="plegado"] .app-con-menu { --menu-ancho: 7rem; }
+  html[data-menu="plegado"] .app-con-menu { --menu-ancho: 6.5rem; }
 
   .menu {
     position: sticky;
@@ -86,49 +95,53 @@
     align-self: start;
     height: 100vh;
     height: 100dvh;
-    padding: 0.75rem;
   }
   .menu-tarjeta {
     display: flex;
     flex-direction: column;
     height: 100%;
     overflow: hidden;
-    color: var(--panel-texto);
-    background: var(--panel-fondo);
-    border: 2px solid var(--linea);
-    border-radius: 1.25rem;
+    color: var(--menu-texto);
+    background: var(--menu-fondo);
   }
   .menu-marca {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 0.85rem 1rem 1.45rem;
-    color: var(--marca-texto);
-    background: var(--marca-fondo);
+    padding: 1.4rem 1.2rem 1.1rem;
+    color: var(--menu-activo-texto);
     text-decoration: none;
   }
-  .menu-marca:focus-visible { outline: 3px solid var(--trigo); outline-offset: -5px; box-shadow: none; }
+  .menu-marca:focus-visible { outline: 3px solid var(--menu-activo-texto); outline-offset: -5px; box-shadow: none; }
   .menu-marca .marca-svg { flex: none; width: 2.75rem; height: 2.75rem; }
   .menu-marca-texto { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
-  .menu-marca-texto strong { font-family: var(--fuente-titulo); font-size: 1.4rem; font-weight: 800; letter-spacing: -0.01em; }
-  .menu-marca-texto span { font-size: 0.95rem; }
+  .menu-marca-texto strong { font-family: var(--fuente-titulo); font-size: 1.4rem; font-weight: 700; letter-spacing: -0.01em; }
+  .menu-marca-texto span { color: var(--menu-grupo-texto); font-size: 0.95rem; }
 
-  .menu-nav { flex: 1; min-height: 0; padding: 0.5rem 0.65rem; overflow-y: auto; overscroll-behavior: contain; }
-  .menu-grupo + .menu-grupo { margin-top: 0.4rem; }
-  .menu-grupo-titulo { max-width: none; margin: 0.7rem 0.85rem 0.2rem; color: var(--secundario-texto); font-size: 0.95rem; font-weight: 700; }
+  .menu-nav { flex: 1; min-height: 0; padding: 0.25rem 0.8rem 0.75rem; overflow-y: auto; overscroll-behavior: contain; }
+  .menu-grupo + .menu-grupo { margin-top: 0.5rem; }
+  .menu-grupo-titulo { max-width: none; margin: 0.9rem 0.85rem 0.3rem; color: var(--menu-grupo-texto); font-size: 0.95rem; font-weight: 700; }
   .menu-grupo > ul > li + li { margin-top: 0.1rem; }
 
-  .menu-cuenta { padding: 0.5rem 0.65rem 0.6rem; color: var(--suave-texto); background: var(--suave-fondo); border-top: 2px solid var(--linea); }
-  .menu-cuenta .menu-enlace:hover { color: var(--trigo-texto); background: var(--trigo-fondo); }
-  .menu-cuenta .menu-enlace[aria-current="page"]:hover { color: var(--activo-texto); background: var(--activo-fondo); }
-  .menu-cuenta > .menu-enlace, .menu-cuenta form { margin-top: 0.1rem; }
+  /* Sobre el azul marino cada estado usa sus propios pares de color (verificados en base.css). */
+  .menu .menu-enlace { color: var(--menu-texto); font-weight: 500; }
+  .menu .menu-enlace .icono { color: inherit; }
+  .menu .menu-enlace:hover { color: var(--menu-hover-texto); background: var(--menu-hover-fondo); }
+  .menu .menu-enlace[aria-current="page"] { color: var(--menu-activo-texto); background: var(--menu-activo-fondo); font-weight: 700; }
+  .menu .menu-enlace[aria-current="page"]:hover { color: var(--menu-activo-texto); background: var(--menu-activo-fondo); }
+  .menu :focus-visible { outline-color: var(--menu-activo-texto); box-shadow: none; }
 
-  /* Botón de plegar: solo con JavaScript; se asoma sobre el borde de la tarjeta, junto a la marca. */
+  .menu-cuenta { padding: 0.6rem 0.8rem 0.8rem; border-top: 1px solid var(--menu-hover-fondo); }
+  .menu-cuenta > .menu-enlace, .menu-cuenta form { margin-top: 0.1rem; }
+  .menu .menu-persona-texto strong { color: var(--menu-activo-texto); }
+  .menu .menu-persona-texto span { color: var(--menu-grupo-texto); }
+
+  /* Botón de plegar: solo con JavaScript; se asoma sobre el borde de la columna, junto a la marca. */
   .menu-plegar {
     position: absolute;
     z-index: 2;
-    top: 1.7rem;
-    right: -0.35rem;
+    top: 1.6rem;
+    right: -1.25rem;
     display: none;
     place-items: center;
     width: 2.5rem;
@@ -161,7 +174,7 @@
   }
   html[data-menu="plegado"] .menu-nav, html[data-menu="plegado"] .menu-cuenta { padding-inline: 0.4rem; }
   html[data-menu="plegado"] .menu-grupo-titulo { display: none; }
-  html[data-menu="plegado"] .menu-grupo + .menu-grupo { margin-top: 0.4rem; padding-top: 0.4rem; border-top: 2px solid var(--linea); }
+  html[data-menu="plegado"] .menu-grupo + .menu-grupo { margin-top: 0.4rem; padding-top: 0.4rem; border-top: 1px solid var(--menu-hover-fondo); }
   html[data-menu="plegado"] .menu .menu-enlace {
     flex-direction: column;
     justify-content: center;
@@ -173,13 +186,14 @@
     overflow-wrap: anywhere;
   }
   html[data-menu="plegado"] .menu .tiene-corta .menu-corta { display: block; }
+  html[data-menu="plegado"] .menu .menu-insignia { position: absolute; top: 0.15rem; right: 0.3rem; min-width: 1.35rem; margin: 0; padding: 0 0.35rem; font-size: 0.72rem; }
   html[data-menu="plegado"] .menu-persona { justify-content: center; padding-inline: 0; }
   html[data-menu="plegado"] .menu-plegar .icono { transform: rotate(180deg); }
 }
 
 /* ------------------------------------------------------------------ Celular y tableta: barra superior y dock */
 @media (max-width: 70rem) {
-  .barra-superior { display: block; padding: 0.7rem 1rem 1.5rem; color: var(--marca-texto); background: var(--marca-fondo); }
+  .barra-superior { display: block; padding: 0.7rem 1rem; color: var(--marca-texto); background: var(--marca-fondo); }
   .barra-superior .marca-svg { width: 2.6rem; height: 2.6rem; }
   .barra-superior .marca-texto strong { font-size: 1.3rem; }
   .barra-superior .marca:focus-visible { outline: 3px solid var(--trigo); box-shadow: none; }
@@ -209,6 +223,7 @@
   }
   .dock-item { flex: 1 1 0; min-width: 0; }
   .dock-enlace {
+    position: relative;
     display: flex;
     flex-direction: column;
     align-items: center;
@@ -226,12 +241,28 @@
     cursor: pointer;
   }
   .dock-enlace::-webkit-details-marker { display: none; }
+  .dock-insignia {
+    position: absolute;
+    top: 0.1rem;
+    right: 12%;
+    min-width: 1.3rem;
+    padding: 0 0.35rem;
+    color: var(--trigo-texto);
+    background: var(--trigo-fondo);
+    border: 2px solid var(--suave-fondo);
+    border-radius: 999px;
+    font-size: 0.72rem;
+    font-weight: 700;
+    line-height: 1.25;
+    text-align: center;
+  }
+  .dock-enlace[aria-current="page"] .dock-insignia { color: var(--activo-fondo); background: var(--panel-fondo); border-color: var(--marca-fondo); }
   .dock-enlace .icono { width: 1.55rem; height: 1.55rem; color: var(--enlace-texto); }
   /* Con cinco botones el texto no puede crecer con el control de tamaño ni partirse a media palabra: se
      ajusta al ancho de la pantalla (un quinto de ella) y crecen los íconos, la altura y la hoja «Más». */
-  .dock-texto { max-width: 100%; font-size: min(0.78rem, 3.6vw); white-space: nowrap; }
-  html[data-texto="grande"] .dock-texto { font-size: min(0.7rem, 3.6vw); }
-  html[data-texto="muy-grande"] .dock-texto { font-size: min(0.62rem, 3.6vw); }
+  .dock-texto { max-width: 100%; font-size: min(0.78rem, 3.3vw); white-space: nowrap; }
+  html[data-texto="grande"] .dock-texto { font-size: min(0.7rem, 3.3vw); }
+  html[data-texto="muy-grande"] .dock-texto { font-size: min(0.62rem, 3.3vw); }
   .dock-enlace:hover { background: var(--trigo-fondo); color: var(--trigo-texto); }
   .dock-enlace[aria-current="page"], .dock-mas-activa > .dock-enlace { color: var(--marca-texto); background: var(--marca-fondo); }
   .dock-enlace[aria-current="page"] .icono, .dock-mas-activa > .dock-enlace .icono { color: inherit; }
@@ -274,11 +305,6 @@
 }
 @media (min-width: 80.5rem) and (max-width: 92rem) {
   html[data-menu="plegado"] .app-con-menu .kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
-}
-@media (min-width: 70.0625rem) and (max-width: 82rem) {
-  /* Portada del inicio: con la columna desplegada el arte pasa bajo el texto, como en pantallas angostas. */
-  html:not([data-menu="plegado"]) .app-con-menu .portada-int { min-height: 0; padding: 2rem 1.5rem 8.5rem; }
-  html:not([data-menu="plegado"]) .app-con-menu .portada-arte { right: 1rem; width: min(22rem, 78%); }
 }
 
 @media print {

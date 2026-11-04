@@ -5,8 +5,9 @@ from django.http import JsonResponse
 from django.views import View
 from django.views.generic import TemplateView
 
-from . import noticias
+from .context_processors import contadores_de_la_peticion
 from .mixins import CuentaHabilitadaMixin
+from .roles import estado_acceso
 
 
 class InicioView(CuentaHabilitadaMixin, TemplateView):
@@ -14,10 +15,10 @@ class InicioView(CuentaHabilitadaMixin, TemplateView):
 
     def get_context_data(self, **kwargs):
         contexto = super().get_context_data(**kwargs)
-        # Solo lee la base: las noticias se copian aparte con `actualizar_noticias`.
-        contexto["noticia_destacada"], contexto["noticias_lista"] = noticias.noticias_del_inicio()
-        contexto["noticias_sitio"] = noticias.SITIO
-        contexto["noticias_actualizadas"] = noticias.ultima_actualizacion()
+        # Lo que espera hoy: las mismas cifras de las insignias del menú, sin repetir la consulta.
+        cantidades = contadores_de_la_peticion(self.request, estado_acceso(self.request.user)[1])
+        contexto["hoy_en_espera"] = cantidades.get("fila")
+        contexto["hoy_por_preparar"] = cantidades.get("por_preparar")
         return contexto
 
 

@@ -1,6 +1,8 @@
 """Rol operativo único, etiqueta de presentación de la cuenta habilitada y menú principal."""
 
-from .navegacion import Persona, armar_menu
+from django.utils.functional import SimpleLazyObject
+
+from .navegacion import Persona, armar_menu, contadores_del_menu
 from .roles import ETIQUETAS_ROLES, SUPERUSUARIO, estado_acceso
 
 
@@ -26,15 +28,31 @@ def _persona(usuario, nombre_rol):
     return Persona(nombre=nombre, iniciales=iniciales, rol=nombre_rol)
 
 
+def contadores_de_la_peticion(request, rol):
+    """Contadores del menú, calculados una sola vez por petición (el inicio también los muestra)."""
+    if not hasattr(request, "_contadores_del_menu"):
+        request._contadores_del_menu = contadores_del_menu(rol)
+    return request._contadores_del_menu
+
+
 def menu_principal(request):
-    """Menú lateral y barra inferior de la persona con sesión, con la página actual marcada."""
+    """Menú lateral y barra inferior de la persona con sesión, con la página actual marcada.
+
+    Se arma solo cuando una plantilla lo usa: los fragmentos que la página pide cada segundo (como el estado
+    de la cola) no lo dibujan y así no pagan ni la consulta del perfil ni los contadores de las insignias.
+    """
     usuario = request.user
     if not usuario.is_authenticated:
         return {"menu_principal": None}
-    contexto = rol_actual(request)
-    coincidencia = getattr(request, "resolver_match", None)
-    app = getattr(coincidencia, "app_name", "") or ""
-    nombre = getattr(coincidencia, "url_name", "") or ""
-    return {"menu_principal": armar_menu(
-        contexto["rol"], app, nombre, persona=_persona(usuario, contexto["nombre_rol"]),
-    )}
+
+    def construir():
+        contexto = rol_actual(request)
+        coincidencia = getattr(request, "resolver_match", None)
+        app = getattr(coincidencia, "app_name", "") or ""
+        nombre = getattr(coincidencia, "url_name", "") or ""
+        return armar_menu(
+            contexto["rol"], app, nombre, persona=_persona(usuario, contexto["nombre_rol"]),
+            contadores=contadores_de_la_peticion(request, contexto["rol"]),
+        )
+
+    return {"menu_principal": SimpleLazyObject(construir)}

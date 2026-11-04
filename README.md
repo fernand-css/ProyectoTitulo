@@ -232,7 +232,7 @@ Verificación aislada (la dependencia `websockets` es solo para esta herramienta
 ```powershell
 python -m pip install websockets==16.1.1
 python tools/verificar_spec_06_http.py
-node --test turnosapp/tests/*.test.cjs
+node --test turnosapp/tests/*.test.cjs recetasapp/tests/*.test.cjs
 ```
 
 La herramienta crea/elimina SQLite temporal y 670 pacientes/turnos sintéticos; usa un proceso ASGI aparte, dos clientes WebSocket, cuatro ventanillas y sondeo de cuatro paneles privados. Mide 100 llamados y 96 cierres con entrega/selección posterior; informa p50, p95 y máximo, HTTP y servicio del 05. La medición final dio **p95 444,12 ms** hasta recibir en ambas pantallas (máximo 536,66 ms). Es recepción por loopback, sin medir dibujo/voz en navegador ni la red del CESFAM. [Evidencia y pendientes del 06](specs/06-pantalla-sala-y-voz/validation.md): revisión visual/axe bloqueada por el host de Windows, voz real, cinco personas y aceptación pendientes. El spec conserva **Aprobado**, sin declarar aceptación completa.
@@ -263,15 +263,3 @@ El índice central está en [specs/README.md](specs/README.md); [specs/00-indice
 - `validation.md`: verificaciones, resultados y límites de la evidencia.
 
 La base implementada está en [specs/01-base-del-proyecto/spec.md](specs/01-base-del-proyecto/spec.md). La [spec 02 de autenticación, roles y auditoría](specs/02-autenticacion-roles-auditoria/spec.md) tiene código y verificación técnica final completados; revisión visual y cierre pendientes. Las plantillas están en `specs/_templates/`. El 06 incorpora pantalla/voz con WebSocket y conserva los pendientes de aceptación de su validación. Se mantienen las reservas 11 para funcionamiento sin conexión y 12 para notificaciones.
-
-## Noticias en el inicio — spec 08
-
-El inicio muestra noticias de San Nicolás copiadas del sitio de la Municipalidad (`municipalidadsannicolas.cl`). El inicio solo lee la base; para llenarla o refrescarla:
-
-```powershell
-python manage.py migrate
-python manage.py actualizar_noticias            # revisa las 24 más recientes
-python manage.py actualizar_noticias --maximo 40
-```
-
-Si el sitio no responde, el comando termina con un error y deja las noticias que ya estaban. Conviene programarlo una vez al día (por ejemplo, con el Programador de tareas de Windows o `cron`). Solo se guardan textos y enlaces: las fotos se piden al sitio municipal desde el navegador y no se copian. Las pruebas no salen a Internet.
