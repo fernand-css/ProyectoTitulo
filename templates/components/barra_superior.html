@@ -1,0 +1,9 @@
+{# Marca del celular: reemplaza a la cabecera del menú lateral, que allí se oculta. #}
+{% if request.user.is_authenticated %}
+<header class="barra-superior horizonte">
+  <a class="marca" href="{% url 'coreapp:inicio' %}">
+    <svg class="marca-svg" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><use href="#marca"/></svg>
+    <span class="marca-texto"><strong>Farmacia</strong><span>CESFAM San Nicolás</span></span>
+  </a>
+</header>
+{% endif %}

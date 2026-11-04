@@ -61,6 +61,7 @@
   --aviso-fondo: #fef2a0;
   --pie-texto: #fff3d6;
   --pie-fondo: #2a1613;
+  --velo: color-mix(in srgb, var(--tinta) 55%, transparent);
 
   --fuente-titulo: "Bitter", "Rockwell", Georgia, serif;
   --fuente-texto: "Atkinson Hyperlegible Next", "Segoe UI", system-ui, -apple-system, sans-serif;
@@ -182,18 +183,8 @@ ul, ol { margin-top: 0; }
 .texto-control button:hover { border-color: var(--tinta); }
 .texto-control button[aria-pressed="true"] { color: var(--hover-texto); background: var(--hover-fondo); }
 
-/* ------------------------------------------------------------------ Cabecera */
-.cabecera { color: var(--marca-texto); background: var(--marca-fondo); }
-.cabecera-int {
-  max-width: var(--ancho-contenido);
-  margin: auto;
-  padding: 0.9rem 1.5rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.75rem 2rem;
-}
+/* ------------------------------------------------------------------ Marca */
+/* El menú principal (columna lateral y barra inferior) vive en menu.css. */
 .marca {
   display: inline-flex;
   align-items: center;
@@ -204,59 +195,6 @@ ul, ol { margin-top: 0; }
 .marca-texto { display: flex; flex-direction: column; line-height: 1.15; }
 .marca-texto strong { font-family: var(--fuente-titulo); font-size: 1.5rem; font-weight: 800; letter-spacing: -0.01em; }
 .marca-texto span { font-size: 0.95rem; }
-.cabecera a { color: var(--marca-texto); }
-.nav { display: flex; flex-wrap: wrap; align-items: center; gap: 0.35rem 0.5rem; }
-.nav form { margin: 0; }
-.nav-enlace {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.5rem;
-  min-height: 2.75rem;
-  padding: 0.4rem 0.9rem;
-  border-radius: 999px;
-  font-weight: 600;
-  text-decoration: none;
-}
-.nav-enlace:hover { color: var(--activo-texto); background: var(--activo-fondo); }
-.nav-enlace[aria-current="page"] {
-  color: var(--hover-texto);
-  background: var(--hover-fondo);
-  text-decoration: underline;
-  text-decoration-color: var(--trigo);
-  text-decoration-thickness: 0.15em;
-}
-
-/* Botón del menú: solo se muestra con JavaScript y en pantallas angostas (el corte coincide con static/js/menu.js). */
-.nav-toggle {
-  display: none;
-  align-items: center;
-  gap: 0.7rem;
-  min-height: 2.75rem;
-  padding: 0.35rem 1.1rem;
-  color: var(--marca-texto);
-  background: transparent;
-  border: 2px solid var(--marca-texto);
-  border-radius: 999px;
-  font: inherit;
-  font-weight: 700;
-  cursor: pointer;
-}
-.nav-toggle:hover { color: var(--enlace-texto); background: var(--enlace-fondo); }
-.nav-toggle:focus-visible { outline: 3px solid var(--trigo); outline-offset: 3px; }
-.nav-toggle-barras { display: grid; gap: 0.25rem; width: 1.4rem; }
-.nav-toggle-barras span { display: block; height: 0.2rem; background: currentColor; border-radius: 0.2rem; transition: transform 0.25s, opacity 0.2s; }
-/* Abierto, las tres barras se cruzan en una X: el botón muestra lo que hará al tocarlo. */
-.nav-toggle[aria-expanded="true"] .nav-toggle-barras span:nth-child(1) { transform: translateY(0.45rem) rotate(45deg); }
-.nav-toggle[aria-expanded="true"] .nav-toggle-barras span:nth-child(2) { opacity: 0; }
-.nav-toggle[aria-expanded="true"] .nav-toggle-barras span:nth-child(3) { transform: translateY(-0.45rem) rotate(-45deg); }
-@keyframes desplegar { from { opacity: 0; transform: translateY(-0.6rem); } }
-@media (max-width: 64rem) {
-  .js .nav-toggle { display: inline-flex; }
-  .js .nav { display: none; width: 100%; flex-direction: column; align-items: stretch; gap: 0.35rem; padding-top: 0.5rem; border-top: 2px solid var(--marca-texto); }
-  .js .nav.nav-abierto { display: flex; animation: desplegar 0.28s ease-out both; }
-  .js .nav-enlace { width: 100%; justify-content: flex-start; }
-  .js .nav form, .js .nav .boton { width: 100%; }
-}
 
 /* ------------------------------------------------------------------ Botones */
 .boton {
@@ -283,8 +221,6 @@ ul, ol { margin-top: 0; }
 .boton-secundario:hover { color: var(--trigo-texto); background: var(--trigo-fondo); }
 .boton-peligro { color: var(--enlace-texto); background: var(--enlace-fondo); border-color: var(--enlace-texto); }
 .boton-peligro:hover { color: var(--error-texto); background: var(--error-fondo); }
-.boton-claro { color: var(--marca-texto); background: transparent; border-color: var(--marca-texto); min-height: 2.75rem; padding-block: 0.35rem; }
-.boton-claro:hover { color: var(--enlace-texto); background: var(--enlace-fondo); }
 .boton-bloque { display: flex; width: 100%; }
 .boton, .boton-bloque { max-width: 100%; }
 .acciones { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1rem; }
@@ -655,11 +591,8 @@ form .acciones { margin-top: 0.5rem; }
   .paisaje-lema, .paisaje-arte { display: none; }
   .paisaje-arte-movil { display: block; }
   .acceso-panel { padding-top: 2rem; }
-  .franja-int, .cabecera-int, .contenedor { padding-inline: 1rem; }
+  .franja-int, .contenedor { padding-inline: 1rem; }
   .texto-control-etiqueta { display: none; }
-  .nav { width: 100%; }
-  .nav-enlace, .nav form { flex: 1 1 auto; }
-  .nav .boton { width: 100%; }
   .ficha { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .ficha dd { margin-bottom: 0.75rem; }
   .pie-int { padding-inline: 1rem; }

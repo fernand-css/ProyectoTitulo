@@ -9,6 +9,21 @@ from .cola import espera_turno
 from .models import ConfiguracionCola, PendienteSeleccion, Turno, Ventanilla
 
 
+def _preparaciones_del_turno(turno):
+    """Recetas del turno llamado, para marcarlas listas sin salir del panel."""
+    if turno is None:
+        return []
+    from recetasapp.models import PreparacionReceta
+
+    items = list(PreparacionReceta.objects.filter(turno_receta__turno=turno)
+        .select_related("turno_receta__receta", "lista_por").order_by("turno_receta_id"))
+    for item in items:
+        receta = item.turno_receta.receta
+        item.numero_entrega = receta.entregas_completadas + 1
+        item.maximo_entregas = receta.max_entregas
+    return items
+
+
 def contexto_panel(usuario, pagina=1):
     ahora = timezone.now()
     hoy = timezone.localdate(ahora)
@@ -16,6 +31,7 @@ def contexto_panel(usuario, pagina=1):
     ventanillas = list(Ventanilla.objects.select_related("operador").prefetch_related("tipos").order_by("retirada", "numero"))
     propia = next((v for v in ventanillas if v.operador_id == usuario.pk), None) if operar else None
     vigente = Turno.objects.select_related("paciente").filter(ventanilla=propia, estado="llamado").first() if propia else None
+    preparaciones_vigente = _preparaciones_del_turno(vigente)
     for vent in ventanillas:
         vent.nonce_ocupar = uuid.uuid4()
         vent.tipos_texto = ", ".join(tipo.get_codigo_display() for tipo in vent.tipos.all()) or "Ninguno"
@@ -34,6 +50,7 @@ def contexto_panel(usuario, pagina=1):
         "pendientes": PendienteSeleccion.objects.filter(estado="pendiente").order_by("creado_en")[:20],
         "sin_cobertura": sin_cobertura, "hoy": hoy, "ahora": ahora,
         "estimacion_preparacion": estimacion_preparacion,
+        "preparaciones_vigente": preparaciones_vigente,
         "puede_ausente": bool(vigente and ahora >= vigente.ultimo_llamado + timedelta(seconds=60)),
         "nonce_iniciar": uuid.uuid4(), "nonce_pausar": uuid.uuid4(), "nonce_liberar": uuid.uuid4(),
         "nonce_rellamar": uuid.uuid4(), "nonce_ausente": uuid.uuid4()}

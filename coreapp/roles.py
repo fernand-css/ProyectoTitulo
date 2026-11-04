@@ -6,6 +6,7 @@ JEFA = "Jefa de Farmacia"
 TECNICO = "Técnico en Farmacia"
 ENCARGADO = "Encargado de entrega"
 TOTEM = "Tótem"
+SUPERUSUARIO = "superusuario"
 
 ROLES_INTERNOS = (JEFA, TECNICO, ENCARGADO)
 ETIQUETAS_ROLES = {
@@ -23,7 +24,7 @@ def estado_acceso(usuario):
     if cuenta is None:
         return False, ""
     if cuenta.is_superuser:
-        return True, "superusuario"
+        return True, SUPERUSUARIO
     roles = list(cuenta.groups.filter(name__in=ROLES_INTERNOS).values_list("name", flat=True))
     if len(roles) != 1 or not hasattr(cuenta, "perfil"):
         return False, ""

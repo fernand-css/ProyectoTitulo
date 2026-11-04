@@ -19,6 +19,19 @@
 <p class="cola-numero">{{ vigente.numero }}</p><p>Turno del {{ vigente.fecha|date:'d/m/Y' }}</p>
 <p><strong>{{ vigente.paciente.nombres }} {{ vigente.paciente.apellidos }}</strong><br>RUT {{ vigente.paciente.rut|rut }}</p>
 <p>Último llamado: {{ vigente.ultimo_llamado|date:'H:i:s' }}</p>
+{% if preparaciones_vigente %}
+<section class="cola-recetas" aria-labelledby="recetas-titulo">
+<h3 id="recetas-titulo">Recetas del turno</h3>
+<ul>
+{% for item in preparaciones_vigente %}<li{% if item.lista_en %} class="cola-receta-lista"{% endif %}>
+<div><strong>Receta {{ item.turno_receta.receta.codigo }}</strong><span>Entrega {{ item.numero_entrega }} de {{ item.maximo_entregas }}</span></div>
+{% if item.lista_en %}<p>Lista a las {{ item.lista_en|time:'H:i' }}</p>
+<form method="post" action="{% url 'recetasapp:preparacion_deshacer' pk=item.pk %}">{% csrf_token %}<input type="hidden" name="volver" value="panel"><button class="boton boton-secundario" type="submit" aria-label="Corregir marca de la receta {{ item.turno_receta.receta.codigo }}">Corregir marca</button></form>
+{% else %}<form method="post" action="{% url 'recetasapp:preparacion_lista' pk=item.pk %}">{% csrf_token %}<input type="hidden" name="volver" value="panel"><button class="boton" type="submit" aria-label="Marcar lista la receta {{ item.turno_receta.receta.codigo }}">Marcar lista</button></form>{% endif %}
+</li>{% endfor %}
+</ul>
+</section>
+{% endif %}
 <a class="boton boton-bloque" href="{% url 'turnosapp:finalizar_atencion' pk=vigente.pk %}">Finalizar y confirmar entregas</a>
 <div class="cola-acciones">
 <form method="post" action="{% url 'turnosapp:accion_turno' pk=vigente.pk accion='rellamar' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ nonce_rellamar }}"><button class="boton boton-secundario" type="submit">Re-llamar</button></form>

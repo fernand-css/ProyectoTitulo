@@ -1,36 +1,70 @@
 /*
-  Menú principal plegable. Con pantalla angosta y JavaScript, el menú se oculta tras el botón «Menú»;
-  sin JavaScript (o en pantalla ancha) el menú se ve siempre completo. El ancho de corte es el mismo
-  de base.css (64rem). No guarda nada ni envía datos.
+  Menú principal. Dos comportamientos, ambos opcionales: sin JavaScript la columna lateral queda desplegada
+  y la hoja «Más» del celular abre y cierra sola (es un <details>).
+    1. Columna lateral del computador: el botón la pliega a una columna angosta y recuerda la elección en
+       este navegador (clave «farmacia.menu»; preferencias.js la aplica antes de pintar para evitar un salto).
+    2. Hoja «Más» del celular: se cierra con Escape (y devuelve el foco al botón), al tocar fuera, al elegir
+       una opción, al salir con el teclado de la hoja y al ensanchar la ventana.
+  El ancho de corte es el mismo de menu.css (70 rem). No envía nada ni guarda datos personales.
 */
 (function () {
-  var boton = document.querySelector("[data-menu-boton]");
-  var menu = document.querySelector("[data-menu]");
-  if (!boton || !menu) { return; }
+  "use strict";
+  var CLAVE = "farmacia.menu";
+  var plegar = document.querySelector("[data-menu-plegar]");
+  var mas = document.querySelector("[data-mas]");
+  if (!plegar && !mas) { return; }
 
-  var angosta = window.matchMedia ? window.matchMedia("(max-width: 64rem)") : null;
+  var raiz = document.documentElement;
 
-  function abierto() { return boton.getAttribute("aria-expanded") === "true"; }
-
-  function cambiar(abrir, devolverFoco) {
-    if (abrir) { menu.classList.add("nav-abierto"); } else { menu.classList.remove("nav-abierto"); }
-    boton.setAttribute("aria-expanded", abrir ? "true" : "false");
-    if (!abrir && devolverFoco) { boton.focus(); }
+  function leer() {
+    try { return window.localStorage.getItem(CLAVE); } catch (error) { return null; }
+  }
+  function guardar(plegado) {
+    try {
+      if (plegado) { window.localStorage.setItem(CLAVE, "plegado"); } else { window.localStorage.removeItem(CLAVE); }
+    } catch (error) { /* Sin almacenamiento: el cambio vale solo en esta visita. */ }
   }
 
-  boton.addEventListener("click", function () { cambiar(!abierto(), false); });
+  if (plegar) {
+    var estaPlegado = function () { return raiz.getAttribute("data-menu") === "plegado"; };
+    var mostrar = function () {
+      var plegado = estaPlegado();
+      plegar.setAttribute("aria-expanded", plegado ? "false" : "true");
+      plegar.setAttribute("aria-label", plegado ? "Desplegar el menú" : "Plegar el menú");
+    };
+    if (leer() === "plegado") { raiz.setAttribute("data-menu", "plegado"); }
+    plegar.addEventListener("click", function () {
+      if (estaPlegado()) { raiz.removeAttribute("data-menu"); } else { raiz.setAttribute("data-menu", "plegado"); }
+      guardar(estaPlegado());
+      mostrar();
+    });
+    mostrar();
+  }
 
-  document.addEventListener("keydown", function (evento) {
-    if (evento.key === "Escape" && abierto()) { cambiar(false, true); }
-  });
+  if (mas) {
+    var resumen = mas.querySelector("summary");
+    var cerrar = function (devolverFoco) {
+      if (!mas.open) { return; }
+      mas.open = false;
+      if (devolverFoco && resumen) { resumen.focus(); }
+    };
 
-  // Tocar fuera del menú lo cierra.
-  document.addEventListener("click", function (evento) {
-    if (abierto() && !menu.contains(evento.target) && !boton.contains(evento.target)) { cambiar(false, false); }
-  });
-
-  // Al ensanchar la ventana el menú vuelve a mostrarse completo, así que se reinicia el estado.
-  if (angosta && angosta.addEventListener) {
-    angosta.addEventListener("change", function (evento) { if (!evento.matches) { cambiar(false, false); } });
+    document.addEventListener("keydown", function (evento) {
+      if (evento.key === "Escape") { cerrar(true); }
+    });
+    document.addEventListener("click", function (evento) {
+      if (mas.open && !mas.contains(evento.target)) { cerrar(false); }
+    });
+    mas.addEventListener("click", function (evento) {
+      var enlace = evento.target && evento.target.closest ? evento.target.closest("a") : null;
+      if (enlace) { cerrar(false); }
+    });
+    mas.addEventListener("focusout", function (evento) {
+      if (mas.open && evento.relatedTarget && !mas.contains(evento.relatedTarget)) { cerrar(false); }
+    });
+    var ancha = window.matchMedia ? window.matchMedia("(min-width: 70.0625rem)") : null;
+    if (ancha && ancha.addEventListener) {
+      ancha.addEventListener("change", function (evento) { if (evento.matches) { cerrar(false); } });
+    }
   }
 })();

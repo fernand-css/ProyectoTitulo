@@ -327,6 +327,8 @@ class PendientesRetiroView(FarmaciaView):
 
 class AccionPreparacionView(FarmaciaView):
     accion = None
+    # Solo destinos fijos: el formulario no puede indicar una dirección propia.
+    volver_a = {"panel": "turnosapp:panel"}
 
     def post(self, request, pk):
         try:
@@ -337,7 +339,7 @@ class AccionPreparacionView(FarmaciaView):
             messages.error(request, "No se pudo completar la operación. Vuelve a cargar la preparación.")
         else:
             messages.success(request, self.mensaje)
-        return redirect(self.destino)
+        return redirect(self.volver_a.get(request.POST.get("volver"), self.destino))
 
 
 class MarcarPreparacionView(AccionPreparacionView):

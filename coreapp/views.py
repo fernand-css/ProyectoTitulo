@@ -5,11 +5,20 @@ from django.http import JsonResponse
 from django.views import View
 from django.views.generic import TemplateView
 
+from . import noticias
 from .mixins import CuentaHabilitadaMixin
 
 
 class InicioView(CuentaHabilitadaMixin, TemplateView):
     template_name = "index.html"
+
+    def get_context_data(self, **kwargs):
+        contexto = super().get_context_data(**kwargs)
+        # Solo lee la base: las noticias se copian aparte con `actualizar_noticias`.
+        contexto["noticia_destacada"], contexto["noticias_lista"] = noticias.noticias_del_inicio()
+        contexto["noticias_sitio"] = noticias.SITIO
+        contexto["noticias_actualizadas"] = noticias.ultima_actualizacion()
+        return contexto
 
 
 class ServiceWorkerView(TemplateView):

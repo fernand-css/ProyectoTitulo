@@ -1,0 +1,36 @@
+{% comment %}
+  Barra inferior del celular (hasta 64 rem): los destinos de trabajo y «Más», que abre una hoja con el resto
+  de las opciones y la cuenta. La hoja es un <details>, así abre y cierra incluso sin JavaScript; menu.js
+  agrega cerrar con Escape, al tocar fuera o al elegir una opción. Las opciones salen de coreapp/navegacion.py.
+{% endcomment %}
+{% if request.user.is_authenticated and menu_principal %}
+<nav class="dock" id="dock-principal" aria-label="Navegación principal">
+  <ul class="dock-lista">
+    {% for opcion in menu_principal.barra %}
+    <li class="dock-item"><a class="dock-enlace" href="{{ opcion.url }}"{% if opcion.activa %} aria-current="page"{% endif %}><svg class="icono" aria-hidden="true" focusable="false"><use href="#{{ opcion.icono }}"/></svg><span class="dock-texto">{{ opcion.corta|default:opcion.etiqueta }}</span></a></li>
+    {% endfor %}
+    <li class="dock-item">
+      <details class="dock-mas{% if menu_principal.mas_activa %} dock-mas-activa{% endif %}" data-mas>
+        <summary class="dock-enlace"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-puntos"/></svg><span class="dock-texto">Más</span>{% if menu_principal.mas_activa %}<span class="sr-only"> (incluye la página actual)</span>{% endif %}</summary>
+        <div class="dock-hoja" role="group" aria-label="Más opciones">
+          {% if menu_principal.persona %}
+          <p class="menu-persona"><span class="menu-avatar" aria-hidden="true">{{ menu_principal.persona.iniciales }}</span><span class="menu-persona-texto"><strong>{{ menu_principal.persona.nombre }}</strong><span>{{ menu_principal.persona.rol }}</span></span></p>
+          {% endif %}
+          <ul class="menu-lista">
+            {% for opcion in menu_principal.mas %}
+            <li>{% include 'components/_menu_enlace.html' %}</li>
+            {% endfor %}
+            {% if menu_principal.perfil %}<li>{% include 'components/_menu_enlace.html' with opcion=menu_principal.perfil %}</li>{% endif %}
+            <li>
+              <form action="{% url 'usuariosapp:logout' %}" method="post">
+                {% csrf_token %}
+                <button class="menu-enlace" type="submit"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-salir"/></svg><span class="menu-texto">Cerrar sesión</span></button>
+              </form>
+            </li>
+          </ul>
+        </div>
+      </details>
+    </li>
+  </ul>
+</nav>
+{% endif %}

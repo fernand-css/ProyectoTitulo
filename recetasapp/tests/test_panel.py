@@ -354,7 +354,7 @@ class PanelTests(TestCase):
         html = self.client.get(ruta).content.decode()
         inicio = html.index('aria-label="Navegación principal"')
         menu = html[inicio:html.index("</nav>", inicio)]
-        return {m.group(1): 'aria-current="page"' in m.group(0) for m in re.finditer(r'<a class="nav-enlace" href="([^"]+)"[^>]*>', menu)}
+        return {m.group(1): 'aria-current="page"' in m.group(0) for m in re.finditer(r'<a class="menu-enlace[^"]*" href="([^"]+)"[^>]*>', menu)}
 
     def test_el_menu_separa_padron_y_recetas_segun_el_rol_y_no_tiene_resumen(self):
         padron, recetas = reverse("recetasapp:pacientes"), reverse("recetasapp:recetas")
@@ -365,14 +365,21 @@ class PanelTests(TestCase):
                 self.assertEqual({h for h in self.enlaces(reverse("coreapp:inicio")) if h.startswith("/recetas/")}, esperado)
                 self.assertNotIn(">Resumen<", html)
 
-    def test_el_menu_se_pliega_con_un_boton_asociado_a_la_navegacion(self):
+    def test_el_menu_lateral_se_pliega_y_el_celular_tiene_su_dock_con_hoja_mas(self):
         self.entrar()
         html = self.client.get(reverse("coreapp:inicio")).content.decode()
-        self.assertRegex(html, r'<button class="nav-toggle" type="button" aria-expanded="false" aria-controls="menu-principal" data-menu-boton>')
-        self.assertIn('id="menu-principal" aria-label="Navegación principal" data-menu', html)
+        # Computador: el botón de plegar controla la navegación y parte desplegado.
+        self.assertIn('<button class="menu-plegar" type="button" aria-expanded="true" aria-controls="menu-principal" aria-label="Plegar el menú" data-menu-plegar>', html)
+        self.assertIn('id="menu-principal" aria-label="Navegación principal"', html)
+        # Celular: dock con la hoja «Más» (un <details>: abre y cierra aunque falle JavaScript).
+        self.assertIn('<nav class="dock" id="dock-principal" aria-label="Navegación principal">', html)
+        self.assertRegex(html, r'<details class="dock-mas[^"]*" data-mas>\s*<summary class="dock-enlace">')
+        self.assertIn("css/menu.css", html)
         self.assertIn("js/menu.js", html)
         self.client.logout()
-        self.assertNotIn("nav-toggle", self.client.get(reverse("usuariosapp:login")).content.decode())
+        login = self.client.get(reverse("usuariosapp:login")).content.decode()
+        for ausente in ("menu-plegar", "dock-principal", "barra-superior", "app-con-menu"):
+            self.assertNotIn(ausente, login)
 
     def test_cada_pantalla_marca_una_sola_entrada_como_pagina_actual(self):
         self.escenario()
@@ -388,6 +395,9 @@ class PanelTests(TestCase):
             reverse("recetasapp:receta_detalle", args=[receta.pk]): recetas,
             reverse("recetasapp:receta_nueva"): recetas,
             reverse("recetasapp:receta_renovar", args=[receta.pk]): recetas,
+            # Preparación vive dentro de Recetas: no tiene entrada propia, así que marca Recetas.
+            reverse("recetasapp:preparacion"): recetas,
+            reverse("recetasapp:preparacion_pendientes"): recetas,
         }
         self.entrar()
         for ruta, actual in casos.items():

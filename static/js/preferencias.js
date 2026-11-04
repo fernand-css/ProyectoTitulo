@@ -1,11 +1,13 @@
 /*
-  Preferencia de tamaño de texto (franja superior). Se carga sin `defer` para aplicarla antes de
-  pintar la página y evitar un salto de tamaño. No guarda datos personales: solo "normal",
-  "grande" o "muy-grande" en el almacenamiento local de este navegador.
+  Preferencias de la persona, aplicadas antes de pintar para evitar saltos: tamaño de texto (franja
+  superior) y menú lateral plegado (lo guarda menu.js). Se carga sin `defer`. No guarda datos
+  personales: solo "normal", "grande" o "muy-grande", y "plegado", en el almacenamiento local de
+  este navegador.
 */
 (function () {
   var raiz = document.documentElement;
   var CLAVE = "farmacia.texto";
+  var CLAVE_MENU = "farmacia.menu";
   var NIVELES = ["normal", "grande", "muy-grande"];
   var nivel = "normal";
 
@@ -15,6 +17,10 @@
     var guardado = window.localStorage.getItem(CLAVE);
     if (NIVELES.indexOf(guardado) !== -1) { nivel = guardado; }
   } catch (error) { /* Sin almacenamiento: se usa el tamaño normal. */ }
+
+  try {
+    if (window.localStorage.getItem(CLAVE_MENU) === "plegado") { raiz.setAttribute("data-menu", "plegado"); }
+  } catch (error) { /* Sin almacenamiento: el menú queda desplegado. */ }
 
   function aplicar() {
     if (nivel === "normal") { raiz.removeAttribute("data-texto"); } else { raiz.setAttribute("data-texto", nivel); }

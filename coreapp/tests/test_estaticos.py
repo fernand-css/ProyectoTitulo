@@ -84,8 +84,8 @@ class EstaticosTests(SimpleTestCase):
     def test_libreta_del_padron_usa_solo_colores_de_la_paleta_y_variables_definidas(self):
         """recetas.css no declara colores propios: todo sale de base.css, donde se verifica el contraste."""
         base = (settings.BASE_DIR / "static/css/base.css").read_text(encoding="utf-8")
-        # El tablero (tablero.css) sigue la misma regla que la libreta.
-        for nombre in ("recetas.css", "tablero.css"):
+        # El tablero (tablero.css) y el menú (menu.css) siguen la misma regla que la libreta.
+        for nombre in ("recetas.css", "tablero.css", "menu.css", "noticias.css"):
             with self.subTest(hoja=nombre):
                 recetas = (settings.BASE_DIR / "static/css" / nombre).read_text(encoding="utf-8")
                 self.assertNotRegex(recetas, r"#[0-9a-fA-F]{3,8}\b")
@@ -112,6 +112,51 @@ class EstaticosTests(SimpleTestCase):
             with self.subTest(primero=primero, segundo=segundo):
                 self.assertGreaterEqual(contraste(variables[primero], variables[segundo]), 3)
 
+    def test_menu_cumple_contraste_de_texto_y_de_componentes(self):
+        """La píldora de la opción activa, la cápsula del celular y sus bordes se distinguen con al menos 3:1;
+        el texto de cada combinación del menú, con al menos 4,5:1 (WCAG 1.4.3 y 1.4.11)."""
+        css = (settings.BASE_DIR / "static/css/base.css").read_text(encoding="utf-8")
+        variables = dict(re.findall(r"--([a-z-]+):\s*(#[0-9a-fA-F]{6})\s*;", css))
+        componentes = [
+            ("marca-fondo", "panel-fondo"), ("marca-fondo", "suave-fondo"),  # píldora activa sobre la tarjeta y la cápsula
+            ("activo-fondo", "panel-fondo"), ("activo-fondo", "suave-fondo"),  # botón «Más» abierto y opción activa con el cursor
+            ("borde", "panel-fondo"),  # cápsula y hoja del celular, y botón de plegar, sobre la página
+            ("enlace-texto", "panel-fondo"), ("enlace-texto", "suave-fondo"), ("enlace-texto", "trigo-fondo"),  # íconos
+        ]
+        for primero, segundo in componentes:
+            with self.subTest(primero=primero, segundo=segundo):
+                self.assertGreaterEqual(contraste(variables[primero], variables[segundo]), 3)
+        textos = [
+            ("panel-texto", "panel-fondo"), ("suave-texto", "suave-fondo"), ("secundario-texto", "panel-fondo"),
+            ("secundario-texto", "suave-fondo"), ("marca-texto", "marca-fondo"), ("activo-texto", "activo-fondo"),
+            ("trigo-texto", "trigo-fondo"), ("arena-texto", "arena-fondo"),
+        ]
+        for texto, fondo in textos:
+            with self.subTest(texto=texto, fondo=fondo):
+                self.assertGreaterEqual(contraste(variables[texto], variables[fondo]), 4.5)
+
+    def test_menu_respeta_foco_movimiento_reducido_impresion_y_tamano_de_texto(self):
+        menu = (settings.BASE_DIR / "static/css/menu.css").read_text(encoding="utf-8")
+        # Sin px en tamaños ni alturas (salvo el 1 px del texto solo para lectores de pantalla): todo escala
+        # con el control de tamaño de texto.
+        self.assertNotRegex(menu, r"(?:font-size|height|min-height|max-height|width|min-width):\s*(?!1px(?![0-9a-z]))\d+px")
+        # El corte entre computador y celular es el mismo que usa menu.js.
+        self.assertIn("(min-width: 70.0625rem)", menu)
+        self.assertIn("(max-width: 70rem)", menu)
+        self.assertIn("@media print", menu)
+        self.assertIn("forced-colors: active", menu)
+        # La barra inferior deja al lado del indicador de inicio de iOS el espacio que le corresponde.
+        self.assertIn("env(safe-area-inset-bottom", menu)
+        # El texto de la barra inferior se ajusta a cada nivel del control de tamaño de texto.
+        for nivel in ("grande", "muy-grande"):
+            self.assertIn(f'html[data-texto="{nivel}"] .dock-texto', menu)
+        # Las animaciones nuevas solo declaran su estado de partida; con «reducir movimiento» base.css las apaga.
+        linea = next(linea for linea in menu.splitlines() if linea.startswith("@keyframes subir-hoja "))
+        self.assertRegex(linea, r"\{ from \{[^}]*\} \}")
+        self.assertNotRegex(linea, r"\bto\b|100%")
+        self.assertRegex((settings.BASE_DIR / "static/css/base.css").read_text(encoding="utf-8"),
+                         r"prefers-reduced-motion: reduce\)\s*\{[^}]*animation: none !important[^}]*transition: none !important")
+
     def test_recursos_del_padron_existen_y_estan_enlazados(self):
         base = (settings.BASE_DIR / "templates/recetas/base.html").read_text(encoding="utf-8")
         self.assertIn("css/recetas.css", base)
@@ -129,7 +174,7 @@ class EstaticosTests(SimpleTestCase):
         """Cambiar un .css o .js cambia su URL, así el navegador no sigue usando una hoja vieja."""
         from django.templatetags.static import static
 
-        for recurso in ("css/base.css", "css/recetas.css", "css/tablero.css", "js/menu.js"):
+        for recurso in ("css/base.css", "css/menu.css", "css/recetas.css", "css/tablero.css", "js/menu.js"):
             with self.subTest(recurso=recurso):
                 self.assertRegex(static(recurso), rf"^/static/{re.escape(recurso)}\?v=\d+$")
         # Las fuentes y los iconos conservan su URL: el CSS las pide sin versión y una URL distinta las descargaría dos veces.
@@ -156,7 +201,8 @@ class EstaticosTests(SimpleTestCase):
         layout = (settings.BASE_DIR / "templates/components/Layout/base.html").read_text(encoding="utf-8")
         self.assertIn("css/tablero.css", pagina)
         self.assertIn("js/menu.js", layout)
-        for recurso in ("css/tablero.css", "js/menu.js"):
+        self.assertIn("css/menu.css", layout)
+        for recurso in ("css/tablero.css", "css/menu.css", "js/menu.js"):
             with self.subTest(recurso=recurso):
                 self.assertTrue(finders.find(recurso))
 

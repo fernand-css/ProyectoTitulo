@@ -35,5 +35,13 @@
   background: var(--trigo-fondo);
   border-left: 0.55rem solid var(--ladrillo);
 }
+.cola-recetas { margin: 1rem 0; padding-top: 1rem; border-top: 1px solid var(--borde); }
+.cola-recetas h3 { margin: 0 0 .6rem; font-family: var(--fuente-titulo); font-size: 1.1rem; }
+.cola-recetas ul { display: grid; gap: .6rem; margin: 0; padding: 0; list-style: none; }
+.cola-recetas li { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: .6rem 1rem; padding: .7rem .8rem; border: 1px solid var(--borde); }
+.cola-recetas li > div { display: grid; }
+.cola-recetas form, .cola-recetas p { margin: 0; }
+.cola-recetas .cola-receta-lista { background: var(--suave-fondo); }
+.cola-recetas .cola-receta-lista p { font-weight: 700; }
 .cola-preparacion h2 { margin: 0 0 0.35rem; font-family: var(--fuente-titulo); font-size: 1.2rem; }
 .cola-preparacion p { margin: 0.3rem 0; }

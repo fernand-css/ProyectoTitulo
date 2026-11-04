@@ -1,35 +1,70 @@
 {% extends 'components/Layout/base.html' %}
+{% load static %}
 {% block titulo %}Inicio · Farmacia{% endblock %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/noticias.css' %}">{% endblock %}
 {% block contenido %}
 {% now "G" as hora %}
-<section class="portada" aria-labelledby="titulo-inicio">
+<section class="portada portada-compacta" aria-labelledby="titulo-inicio">
   <div class="portada-int">
-    <p class="portada-rol"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-escudo-ok"/></svg>{{ nombre_rol }}</p>
-    <h1 id="titulo-inicio">{% if hora|add:0 < 12 %}Buenos días{% elif hora|add:0 < 20 %}Buenas tardes{% else %}Buenas noches{% endif %}, {% firstof request.user.first_name request.user.get_username %}</h1>
+    <div class="portada-fila">
+      <h1 id="titulo-inicio">{% if hora|add:0 < 12 %}Buenos días{% elif hora|add:0 < 20 %}Buenas tardes{% else %}Buenas noches{% endif %}, {% firstof request.user.first_name request.user.get_username %}</h1>
+      <p class="portada-rol"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-escudo-ok"/></svg>{{ nombre_rol }}</p>
+    </div>
     <p>Estás en la Unidad de Farmacia del CESFAM San Nicolás.</p>
-    <svg class="portada-arte" viewBox="0 0 520 190" aria-hidden="true" focusable="false">
-      <use href="#sol-naciente" transform="translate(400 190) scale(0.62)"/>
-      <use href="#espiga" transform="translate(196 196) rotate(-10) scale(0.5)"/>
-      <use href="#espiga" transform="translate(246 198) rotate(1) scale(0.6)"/>
-      <use href="#espiga" transform="translate(294 196) rotate(10) scale(0.47)"/>
-    </svg>
   </div>
 </section>
 <div class="contenedor pagina">
+  <section class="noticias" aria-labelledby="titulo-noticias">
+    <div class="noticias-cabecera">
+      <h2 id="titulo-noticias">Noticias de San Nicolás</h2>
+      <a class="noticias-fuente" href="{{ noticias_sitio }}noticias.php" target="_blank" rel="noopener noreferrer">Ver todas en municipalidadsannicolas.cl<svg class="icono" aria-hidden="true" focusable="false"><use href="#i-externo"/></svg><span class="sr-only">(se abre en otra pestaña)</span></a>
+    </div>
+    {% if noticia_destacada %}
+    {% with n=noticia_destacada %}
+    <article class="destacada" aria-labelledby="titulo-destacada">
+      <div class="destacada-texto">
+        <p class="noticia-meta">{% if n.es_salud %}Salud en la comuna. {% endif %}Municipalidad de San Nicolás{% if n.publicada_el %}, <time datetime="{{ n.publicada_el|date:'Y-m-d' }}">{{ n.publicada_el|date:"j \d\e F \d\e Y" }}</time>{% endif %}</p>
+        <h3 id="titulo-destacada"><a href="{{ n.url }}" target="_blank" rel="noopener noreferrer">{{ n.titulo }}<span class="sr-only"> (se abre en otra pestaña)</span></a></h3>
+        {% if n.resumen %}<p>{{ n.resumen }}</p>{% endif %}
+        <a class="boton" href="{{ n.url }}" target="_blank" rel="noopener noreferrer">Leer la noticia completa<svg class="icono" aria-hidden="true" focusable="false"><use href="#i-externo"/></svg><span class="sr-only"> (se abre en otra pestaña)</span></a>
+      </div>
+      {% if n.imagen_url %}
+      <div class="destacada-foto"><img src="{{ n.imagen_url }}" alt="" decoding="async" referrerpolicy="no-referrer"></div>
+      {% endif %}
+    </article>
+    {% endwith %}
+    {% if noticias_lista %}
+    <h3 class="noticias-subtitulo">Más noticias de la comuna</h3>
+    <ul class="noticias-lista">
+      {% for n in noticias_lista %}
+      <li>
+        <article class="noticia">
+          {% if n.imagen_url %}<div class="noticia-foto"><img src="{{ n.imagen_url }}" alt="" loading="lazy" decoding="async" referrerpolicy="no-referrer"></div>{% endif %}
+          <div class="noticia-texto">
+            {% if n.publicada_el %}<p class="noticia-meta"><time datetime="{{ n.publicada_el|date:'Y-m-d' }}">{{ n.publicada_el|date:"j \d\e F \d\e Y" }}</time></p>{% endif %}
+            <h4><a href="{{ n.url }}" target="_blank" rel="noopener noreferrer">{{ n.titulo }}<span class="sr-only"> (se abre en otra pestaña)</span></a></h4>
+          </div>
+        </article>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    {% if noticias_actualizadas %}<p class="noticias-nota suave">Copiadas del sitio de la Municipalidad el <time datetime="{{ noticias_actualizadas|date:'c' }}">{{ noticias_actualizadas|date:"j \d\e F \d\e Y" }}</time>.</p>{% endif %}
+    {% else %}
+    <div class="panel noticias-vacio">
+      <p>Todavía no hay noticias guardadas en el sistema. Puedes leerlas en el sitio de la Municipalidad.</p>
+      <a class="boton boton-secundario" href="{{ noticias_sitio }}noticias.php" target="_blank" rel="noopener noreferrer">Abrir noticias de la Municipalidad<svg class="icono" aria-hidden="true" focusable="false"><use href="#i-externo"/></svg><span class="sr-only"> (se abre en otra pestaña)</span></a>
+    </div>
+    {% endif %}
+  </section>
+
   {% if rol %}
-  <h2 class="sr-only">Accesos directos</h2>
+  <h2 class="trabajo-titulo">Tu trabajo en la unidad</h2>
   <ul class="atajos">
     {% if rol == 'Jefa de Farmacia' or rol == 'superusuario' %}
     <li><a class="atajo" href="{% url 'usuariosapp:gestion_usuarios' %}">
       <span class="atajo-icono"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-usuarios"/></svg></span>
       <span class="atajo-texto"><strong>Usuarios</strong><span>Crea y administra las cuentas del equipo.</span></span>
-      <svg class="icono atajo-flecha" aria-hidden="true" focusable="false"><use href="#i-flecha"/></svg>
-    </a></li>
-    {% endif %}
-    {% if rol == 'superusuario' %}
-    <li><a class="atajo" href="{% url 'admin:index' %}">
-      <span class="atajo-icono"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ajustes"/></svg></span>
-      <span class="atajo-texto"><strong>Administración</strong><span>Cuentas, grupos y registro de auditoría.</span></span>
       <svg class="icono atajo-flecha" aria-hidden="true" focusable="false"><use href="#i-flecha"/></svg>
     </a></li>
     {% endif %}
@@ -41,12 +76,9 @@
   </ul>
   {% endif %}
   <div class="rejilla rejilla-2">
+    {% if rol == 'Jefa de Farmacia' or rol == 'Técnico en Farmacia' or rol == 'Encargado de entrega' or not rol %}
     <section class="panel" aria-labelledby="titulo-perfil">
-      {% if rol == 'superusuario' %}
-        <h2 id="titulo-perfil" class="panel-titulo"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ajustes"/></svg>{{ nombre_rol }}</h2>
-        <p>Tu cuenta tiene acceso a la administración del sistema.</p>
-        <a class="boton" href="{% url 'admin:index' %}">Abrir administración</a>
-      {% elif rol == 'Jefa de Farmacia' %}
+      {% if rol == 'Jefa de Farmacia' %}
         <h2 id="titulo-perfil" class="panel-titulo"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-mortero"/></svg>{{ nombre_rol }}</h2>
         <p>Este es el punto de acceso a tus herramientas de gestión de farmacia.</p>
         <a class="boton" href="{% url 'usuariosapp:gestion_usuarios' %}">Administrar usuarios</a>
@@ -63,6 +95,7 @@
         <p>Tu cuenta aún no tiene un perfil asignado. Solicita su asignación a la administración.</p>
       {% endif %}
     </section>
+    {% endif %}
     {% if rol == 'Jefa de Farmacia' or rol == 'Técnico en Farmacia' or rol == 'superusuario' %}
     <section class="panel" aria-labelledby="titulo-padron-recetas">
       <h2 id="titulo-padron-recetas">Padrón y recetas</h2>

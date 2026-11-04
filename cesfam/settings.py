@@ -75,6 +75,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "coreapp.context_processors.rol_actual",
+                "coreapp.context_processors.menu_principal",
             ],
             "libraries": {"core_tags": "coreapp.templatetags.core_tags"},
         },

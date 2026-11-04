@@ -13,6 +13,7 @@
   <link rel="preload" href="{% static 'fonts/bitter-latin-wght-normal.woff2' %}" as="font" type="font/woff2" crossorigin>
   <link rel="preload" href="{% static 'fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2' %}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{% static 'css/base.css' %}">
+  <link rel="stylesheet" href="{% static 'css/menu.css' %}">
   {% block estilos %}{% endblock %}
   <script src="{% static 'js/preferencias.js' %}"></script>
   <script defer src="{% static 'js/alpine.min.js' %}"></script>
@@ -22,14 +23,22 @@
 <body>
   <a class="skip-link" href="#contenido">Saltar al contenido</a>
   {% include 'components/iconos.html' %}
-  {% include 'components/franja.html' %}
+  {# Las pantallas con menú llevan la franja dentro de su columna; las demás la ponen aquí. #}
+  {% block franja_global %}{% endblock %}
   {% block cuerpo %}
-  {% block navegacion %}{% include 'components/navbar.html' %}{% endblock %}
-  <main id="contenido" class="principal" tabindex="-1">
-    {% include 'components/mensajes.html' %}
-    {% block contenido %}{% endblock %}
-  </main>
-  {% include 'components/footer.html' %}
+  <div class="app{% if request.user.is_authenticated %} app-con-menu{% endif %}">
+    {% block navegacion %}{% include 'components/navbar.html' %}{% endblock %}
+    <div class="app-columna">
+      {% include 'components/barra_superior.html' %}
+      {% include 'components/franja.html' %}
+      <main id="contenido" class="principal" tabindex="-1">
+        {% include 'components/mensajes.html' %}
+        {% block contenido %}{% endblock %}
+      </main>
+      {% include 'components/footer.html' %}
+    </div>
+    {% include 'components/dock.html' %}
+  </div>
   {% endblock %}
   {% block scripts %}{% endblock %}
 </body>

@@ -1,5 +1,6 @@
 """Pantallas privadas y formularios sobre datos sintéticos."""
 import uuid
+from datetime import timedelta
 from html.parser import HTMLParser
 from unittest.mock import patch
 
@@ -7,8 +8,9 @@ from django.db import connection
 from django.test import Client, TestCase
 from django.test.utils import CaptureQueriesContext
 from django.urls import reverse
+from django.utils import timezone
 
-from recetasapp.models import EntregaReceta
+from recetasapp.models import EntregaReceta, PreparacionReceta
 from turnosapp.models import CierreAtencion, Ventanilla
 from .datos_cierre import DatosCierre
 
@@ -49,6 +51,48 @@ class PanelTests(DatosCierre, TestCase):
             self.assertIn("no-store", respuesta["Cache-Control"])
             self.assertFalse(any(q["sql"].lstrip().split()[0].upper() in ("INSERT", "UPDATE", "DELETE") for q in consultas))
         self.assertIn("Prioridad por espera", self.client.get(self.url("estado")).json()["html"])
+
+    def preparar(self):
+        recibida = timezone.now() - timedelta(minutes=3)
+        return [PreparacionReceta.objects.create(turno_receta=vinculo, recibida_en=recibida) for vinculo in self.vinculos]
+
+    def test_panel_muestra_las_recetas_del_turno_llamado_con_su_boton(self):
+        preparaciones = self.preparar()
+        for respuesta in (self.client.get(self.url("panel")).content.decode(),
+                          self.client.get(self.url("estado")).json()["html"]):
+            self.assertIn("Recetas del turno", respuesta)
+            self.assertIn("CIERRE-DEMO-0", respuesta)
+            self.assertIn("CIERRE-DEMO-1", respuesta)
+            self.assertEqual(respuesta.count(">Marcar lista<"), 2)
+            self.assertIn(reverse("recetasapp:preparacion_lista", args=[preparaciones[0].pk]), respuesta)
+
+    def test_marcar_lista_desde_el_panel_vuelve_al_panel(self):
+        preparaciones = self.preparar()
+        url = reverse("recetasapp:preparacion_lista", args=[preparaciones[0].pk])
+        respuesta = self.client.post(url, {"volver": "panel"})
+        self.assertRedirects(respuesta, self.url("panel"), fetch_redirect_response=False)
+        preparaciones[0].refresh_from_db()
+        self.assertEqual(preparaciones[0].lista_por, self.personal["tecnico"])
+        html = self.client.get(self.url("panel")).content.decode()
+        self.assertEqual(html.count(">Corregir marca<"), 1)
+        self.assertEqual(html.count(">Marcar lista<"), 1)
+        deshacer = reverse("recetasapp:preparacion_deshacer", args=[preparaciones[0].pk])
+        self.assertRedirects(self.client.post(deshacer, {"volver": "panel"}), self.url("panel"), fetch_redirect_response=False)
+        preparaciones[0].refresh_from_db()
+        self.assertIsNone(preparaciones[0].lista_en)
+
+    def test_destino_de_retorno_solo_admite_el_panel(self):
+        preparacion = self.preparar()[0]
+        url = reverse("recetasapp:preparacion_lista", args=[preparacion.pk])
+        for volver in ("", "https://ajeno.example/", "//ajeno.example", "otro"):
+            with self.subTest(volver=volver):
+                respuesta = self.client.post(url, {"volver": volver})
+                self.assertRedirects(respuesta, reverse("recetasapp:preparacion"), fetch_redirect_response=False)
+
+    def test_qf_sin_ventanilla_no_ve_recetas_del_turno(self):
+        self.preparar()
+        self.client.force_login(self.personal["qf"])
+        self.assertNotContains(self.client.get(self.url("panel")), "Recetas del turno")
 
     def test_roles_y_revocacion(self):
         for actor, esperado in (("encargado", 403), ("qf", 200), ("admin", 200)):

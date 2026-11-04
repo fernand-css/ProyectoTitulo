@@ -1,0 +1,291 @@
+/*
+  Menú principal. En computador (más de 70 rem) es una tarjeta lateral que se pliega a una columna angosta;
+  en celular y tableta (hasta 70 rem) es una barra superior con la marca y un dock flotante abajo. Las dos
+  salen de la misma lista (coreapp/navegacion.py). Todo el color viene de las variables de base.css, donde
+  se verifica el contraste: esta hoja no declara colores (una prueba lo exige). Tamaños en rem, para que el
+  control de tamaño de texto los escale. El corte de 70 rem es el mismo de static/js/menu.js.
+*/
+
+/* ------------------------------------------------------------------ Estructura de la página */
+.app { flex: 1; display: grid; grid-template-columns: minmax(0, 1fr); }
+.app-columna { display: flex; flex-direction: column; min-width: 0; }
+.menu, .barra-superior, .dock { display: none; }
+
+/* Horizonte de la marca: el cielo ladrillo con tres franjas de surco, como la portada del inicio. */
+.horizonte { position: relative; }
+.horizonte::after {
+  content: "";
+  position: absolute;
+  right: 0;
+  bottom: 0;
+  left: 0;
+  height: 0.85rem;
+  background: linear-gradient(to bottom, var(--activo-fondo) 0 0.16rem, var(--naranja) 0.16rem 0.52rem, var(--arena) 0.52rem 100%);
+}
+
+/* ------------------------------------------------------------------ Piezas compartidas */
+.menu-lista, .menu-lista ul { margin: 0; padding: 0; list-style: none; }
+.menu-lista form, .menu-cuenta form { margin: 0; }
+.menu-enlace {
+  display: flex;
+  align-items: center;
+  gap: 0.8rem;
+  width: 100%;
+  min-height: 2.9rem;
+  padding: 0.4rem 0.85rem;
+  color: var(--panel-texto);
+  background: transparent;
+  border: 0;
+  border-radius: 0.9rem;
+  font: inherit;
+  font-weight: 600;
+  line-height: 1.2;
+  text-align: left;
+  text-decoration: none;
+  cursor: pointer;
+}
+.menu-enlace .icono { width: 1.5rem; height: 1.5rem; color: var(--enlace-texto); }
+.menu-enlace:hover { color: var(--suave-texto); background: var(--suave-fondo); }
+.menu-enlace[aria-current="page"] { color: var(--marca-texto); background: var(--marca-fondo); font-weight: 700; }
+.menu-enlace[aria-current="page"] .icono { color: inherit; }
+.menu-enlace[aria-current="page"]:hover { color: var(--activo-texto); background: var(--activo-fondo); }
+.menu-corta { display: none; }
+.menu-enlace .menu-externo { flex: none; width: 1.15rem; height: 1.15rem; margin-left: auto; }
+
+.menu-persona { display: flex; align-items: center; gap: 0.75rem; max-width: none; margin: 0 0 0.2rem; padding: 0.3rem 0.5rem; }
+.menu-avatar {
+  flex: none;
+  display: grid;
+  place-items: center;
+  width: 2.6rem;
+  height: 2.6rem;
+  color: var(--arena-texto);
+  background: var(--arena-fondo);
+  border-radius: 50%;
+  font-family: var(--fuente-titulo);
+  font-weight: 800;
+  text-transform: uppercase;
+}
+.menu-persona-texto { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; overflow-wrap: anywhere; }
+.menu-persona-texto span { color: var(--secundario-texto); font-size: 0.95rem; }
+
+/* ------------------------------------------------------------------ Computador: tarjeta lateral */
+@media (min-width: 70.0625rem) {
+  .app-con-menu {
+    --menu-ancho: min(17.5rem, 28vw);
+    grid-template-columns: var(--menu-ancho) minmax(0, 1fr);
+    transition: grid-template-columns 0.22s ease;
+  }
+  html[data-menu="plegado"] .app-con-menu { --menu-ancho: 7rem; }
+
+  .menu {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    display: block;
+    align-self: start;
+    height: 100vh;
+    height: 100dvh;
+    padding: 0.75rem;
+  }
+  .menu-tarjeta {
+    display: flex;
+    flex-direction: column;
+    height: 100%;
+    overflow: hidden;
+    color: var(--panel-texto);
+    background: var(--panel-fondo);
+    border: 2px solid var(--linea);
+    border-radius: 1.25rem;
+  }
+  .menu-marca {
+    display: flex;
+    align-items: center;
+    gap: 0.75rem;
+    padding: 0.85rem 1rem 1.45rem;
+    color: var(--marca-texto);
+    background: var(--marca-fondo);
+    text-decoration: none;
+  }
+  .menu-marca:focus-visible { outline: 3px solid var(--trigo); outline-offset: -5px; box-shadow: none; }
+  .menu-marca .marca-svg { flex: none; width: 2.75rem; height: 2.75rem; }
+  .menu-marca-texto { display: flex; flex-direction: column; min-width: 0; line-height: 1.15; }
+  .menu-marca-texto strong { font-family: var(--fuente-titulo); font-size: 1.4rem; font-weight: 800; letter-spacing: -0.01em; }
+  .menu-marca-texto span { font-size: 0.95rem; }
+
+  .menu-nav { flex: 1; min-height: 0; padding: 0.5rem 0.65rem; overflow-y: auto; overscroll-behavior: contain; }
+  .menu-grupo + .menu-grupo { margin-top: 0.4rem; }
+  .menu-grupo-titulo { max-width: none; margin: 0.7rem 0.85rem 0.2rem; color: var(--secundario-texto); font-size: 0.95rem; font-weight: 700; }
+  .menu-grupo > ul > li + li { margin-top: 0.1rem; }
+
+  .menu-cuenta { padding: 0.5rem 0.65rem 0.6rem; color: var(--suave-texto); background: var(--suave-fondo); border-top: 2px solid var(--linea); }
+  .menu-cuenta .menu-enlace:hover { color: var(--trigo-texto); background: var(--trigo-fondo); }
+  .menu-cuenta .menu-enlace[aria-current="page"]:hover { color: var(--activo-texto); background: var(--activo-fondo); }
+  .menu-cuenta > .menu-enlace, .menu-cuenta form { margin-top: 0.1rem; }
+
+  /* Botón de plegar: solo con JavaScript; se asoma sobre el borde de la tarjeta, junto a la marca. */
+  .menu-plegar {
+    position: absolute;
+    z-index: 2;
+    top: 1.7rem;
+    right: -0.35rem;
+    display: none;
+    place-items: center;
+    width: 2.5rem;
+    height: 2.5rem;
+    padding: 0;
+    color: var(--enlace-texto);
+    background: var(--panel-fondo);
+    border: 2px solid var(--borde);
+    border-radius: 50%;
+  }
+  .js .menu-plegar { display: grid; }
+  .menu-plegar:hover { color: var(--trigo-texto); background: var(--trigo-fondo); border-color: var(--tinta); }
+  .menu-plegar .icono { width: 1.35rem; height: 1.35rem; transition: transform 0.22s ease; }
+
+  /* Plegado: ícono con su nombre corto debajo. Nada depende de pasar el mouse por encima. */
+  html[data-menu="plegado"] .menu-marca { justify-content: center; padding-inline: 0.5rem; }
+  html[data-menu="plegado"] .menu-marca-texto,
+  html[data-menu="plegado"] .menu-persona-texto,
+  html[data-menu="plegado"] .tiene-corta .menu-texto,
+  html[data-menu="plegado"] .menu-externo {
+    position: absolute;
+    width: 1px;
+    height: 1px;
+    margin: -1px;
+    padding: 0;
+    overflow: hidden;
+    clip: rect(0, 0, 0, 0);
+    white-space: nowrap;
+    border: 0;
+  }
+  html[data-menu="plegado"] .menu-nav, html[data-menu="plegado"] .menu-cuenta { padding-inline: 0.4rem; }
+  html[data-menu="plegado"] .menu-grupo-titulo { display: none; }
+  html[data-menu="plegado"] .menu-grupo + .menu-grupo { margin-top: 0.4rem; padding-top: 0.4rem; border-top: 2px solid var(--linea); }
+  html[data-menu="plegado"] .menu .menu-enlace {
+    flex-direction: column;
+    justify-content: center;
+    gap: 0.1rem;
+    min-height: 3.6rem;
+    padding: 0.4rem 0.1rem;
+    font-size: 0.78rem;
+    text-align: center;
+    overflow-wrap: anywhere;
+  }
+  html[data-menu="plegado"] .menu .tiene-corta .menu-corta { display: block; }
+  html[data-menu="plegado"] .menu-persona { justify-content: center; padding-inline: 0; }
+  html[data-menu="plegado"] .menu-plegar .icono { transform: rotate(180deg); }
+}
+
+/* ------------------------------------------------------------------ Celular y tableta: barra superior y dock */
+@media (max-width: 70rem) {
+  .barra-superior { display: block; padding: 0.7rem 1rem 1.5rem; color: var(--marca-texto); background: var(--marca-fondo); }
+  .barra-superior .marca-svg { width: 2.6rem; height: 2.6rem; }
+  .barra-superior .marca-texto strong { font-size: 1.3rem; }
+  .barra-superior .marca:focus-visible { outline: 3px solid var(--trigo); box-shadow: none; }
+
+  /* Deja libre el alto del dock (y la zona del indicador de inicio de iOS) al final de cada pantalla. */
+  .app-con-menu .app-columna { padding-bottom: calc(6.25rem + env(safe-area-inset-bottom, 0px)); }
+
+  .dock {
+    position: fixed;
+    z-index: 30;
+    right: 0;
+    bottom: calc(0.75rem + env(safe-area-inset-bottom, 0px));
+    left: 0;
+    display: block;
+    width: min(34rem, calc(100% - 1.5rem));
+    margin-inline: auto;
+  }
+  .dock-lista {
+    display: flex;
+    gap: 0.2rem;
+    margin: 0;
+    padding: 0.4rem;
+    list-style: none;
+    background: var(--suave-fondo);
+    border: 2px solid var(--borde);
+    border-radius: 1.75rem;
+  }
+  .dock-item { flex: 1 1 0; min-width: 0; }
+  .dock-enlace {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    gap: 0.15rem;
+    min-height: 3.6rem;
+    padding: 0.35rem 0.1rem;
+    color: var(--suave-texto);
+    border-radius: 1.3rem;
+    font-weight: 700;
+    line-height: 1.1;
+    text-align: center;
+    text-decoration: none;
+    list-style: none;
+    cursor: pointer;
+  }
+  .dock-enlace::-webkit-details-marker { display: none; }
+  .dock-enlace .icono { width: 1.55rem; height: 1.55rem; color: var(--enlace-texto); }
+  /* Con cinco botones el texto no puede crecer con el control de tamaño ni partirse a media palabra: se
+     ajusta al ancho de la pantalla (un quinto de ella) y crecen los íconos, la altura y la hoja «Más». */
+  .dock-texto { max-width: 100%; font-size: min(0.78rem, 3.6vw); white-space: nowrap; }
+  html[data-texto="grande"] .dock-texto { font-size: min(0.7rem, 3.6vw); }
+  html[data-texto="muy-grande"] .dock-texto { font-size: min(0.62rem, 3.6vw); }
+  .dock-enlace:hover { background: var(--trigo-fondo); color: var(--trigo-texto); }
+  .dock-enlace[aria-current="page"], .dock-mas-activa > .dock-enlace { color: var(--marca-texto); background: var(--marca-fondo); }
+  .dock-enlace[aria-current="page"] .icono, .dock-mas-activa > .dock-enlace .icono { color: inherit; }
+  .dock-mas[open] > .dock-enlace { color: var(--activo-texto); background: var(--activo-fondo); }
+  .dock-mas[open] > .dock-enlace .icono { color: inherit; }
+
+  /* Hoja «Más»: sale sobre el dock con el resto de las opciones y la cuenta. */
+  .dock-hoja {
+    position: absolute;
+    right: 0;
+    bottom: calc(100% + 0.6rem);
+    left: 0;
+    max-height: calc(100vh - 11rem);
+    max-height: calc(100dvh - 11rem);
+    padding: 0.6rem;
+    overflow-y: auto;
+    overscroll-behavior: contain;
+    background: var(--panel-fondo);
+    border: 2px solid var(--borde);
+    border-radius: 1.5rem;
+    animation: subir-hoja 0.2s ease-out both;
+  }
+  .dock-hoja .menu-enlace { min-height: 3.25rem; }
+  .dock-hoja li + li { margin-top: 0.15rem; }
+  /* El velo es parte del botón «Más»: tocarlo equivale a tocar el botón y cierra la hoja. */
+  .dock-mas[open] > .dock-enlace::before { content: ""; position: fixed; z-index: -1; inset: 0; background: var(--velo); cursor: default; }
+}
+@media (max-width: 24rem) {
+  .dock { width: calc(100% - 1rem); }
+  .dock-lista { gap: 0.1rem; padding: 0.3rem; }
+}
+@keyframes subir-hoja { from { opacity: 0; transform: translateY(0.75rem); } }
+
+/* ------------------------------------------------------------------ Otras pantallas con el ancho que deja el menú */
+/* Los cortes de esas hojas piensan en la ventana completa; con la columna lateral el contenido es unos
+   315 px más angosto (unos 135 px plegada). Estas reglas lo compensan solo donde se notaba. */
+@media (min-width: 70.0625rem) and (max-width: 92rem) {
+  /* Cifras del tablero: cuatro en fila solo si caben sin partir cada título en tres o cuatro líneas. */
+  .app-con-menu .kpis { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (min-width: 80.5rem) and (max-width: 92rem) {
+  html[data-menu="plegado"] .app-con-menu .kpis { grid-template-columns: repeat(4, minmax(0, 1fr)); }
+}
+@media (min-width: 70.0625rem) and (max-width: 82rem) {
+  /* Portada del inicio: con la columna desplegada el arte pasa bajo el texto, como en pantallas angostas. */
+  html:not([data-menu="plegado"]) .app-con-menu .portada-int { min-height: 0; padding: 2rem 1.5rem 8.5rem; }
+  html:not([data-menu="plegado"]) .app-con-menu .portada-arte { right: 1rem; width: min(22rem, 78%); }
+}
+
+@media print {
+  .menu, .barra-superior, .dock, .franja { display: none !important; }
+  .app-con-menu { display: block; }
+}
+@media (forced-colors: active) {
+  .menu-tarjeta, .dock-lista, .dock-hoja { border-color: ButtonText; }
+  .menu-enlace[aria-current="page"], .dock-enlace[aria-current="page"] { outline: 2px solid Highlight; }
+}

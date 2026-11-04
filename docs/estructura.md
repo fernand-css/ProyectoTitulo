@@ -55,13 +55,14 @@ proyecto/
 │   ├── index.html            403.html            404.html        500.html
 │   ├── components/
 │   │   ├── Layout/           base.html           base_publica.html
-│   │   └── navbar.html       footer.html         paginator.html  mensajes.html
+│   │   ├── navbar.html       barra_superior.html dock.html       _menu_enlace.html
+│   │   └── footer.html       paginator.html      mensajes.html
 │   ├── registration/         login.html
 │   └── pwa/                  sw.js
 ├── static/
 │   ├── manifest.webmanifest
-│   ├── css/                  base.css
-│   ├── js/                   alpine.min.js       alpine.LICENSE.md   pwa.js
+│   ├── css/                  base.css            menu.css
+│   ├── js/                   alpine.min.js       alpine.LICENSE.md   pwa.js    menu.js
 │   └── icons/                icon-192.png        icon-512.png
 ├── docs/                     Informe.md          estructura.md   verificacion-spec-01.md
 └── specs/
@@ -160,13 +161,13 @@ El árbol inicial del 01 se amplía en `recetasapp` con estos componentes:
 | `templates/recetas/`, `static/css/recetas.css`, `static/js/receta_previa.js`, `static/js/importacion.js` | Base y campos compartidos, padrón/detalle, receta/renovación, confirmación, carga, bitácora y reporte paginado, con la identidad «libreta de control» (sección siguiente a la de identidad visual). |
 | `tools/verificar_spec_03_http.py` | SQLite temporal, WSGI real, cookies/CSRF, importación de 670, renovación e idempotencia; medición p95 y vista HTML sintética opcional de solo lectura. |
 
-La navegación del inicio y navbar enlaza el padrón para Q.F., Técnico y superusuario; Encargado no accede. No se añaden rutas públicas de pacientes ni API con Rayén. Los formatos y comandos están en [README](../README.md#padrón-y-recetas--spec-03); evidencia y límites en [validation.md](../specs/03-padron-y-recetas/validation.md).
+La navegación del inicio y el menú principal (`coreapp/navegacion.py`) enlazan el padrón para Q.F., Técnico y superusuario; Encargado no accede. No se añaden rutas públicas de pacientes ni API con Rayén. Los formatos y comandos están en [README](../README.md#padrón-y-recetas--spec-03); evidencia y límites en [validation.md](../specs/03-padron-y-recetas/validation.md).
 
 La ejecución técnica del 03 quedó verificada con 238 pruebas y HTTP real sobre 23 migraciones nuevas. La revisión visual/móvil y axe del módulo quedaron pendientes en esa ejecución porque el host de navegador no estaba disponible; se hicieron después con el rediseño descrito en la sección «Padrón y recetas: la libreta de control». Las comprobaciones de presentación de specs previas no se atribuyen al 03.
 
 ## Identidad visual de la presentación
 
-Rediseño de plantillas y estilos a partir del escudo comunal: campo de gules, tres espigas de oro y un sol naciente. No cambia vistas, URLs, formularios ni servicios; solo la presentación. El login y las pantallas sin sesión comparten un panel de paisaje (sol saliendo sobre surcos que convergen en el horizonte, con las tres espigas); las pantallas con sesión usan cabecera ladrillo, migas de pan, azulejos de acceso y paneles planos.
+Rediseño de plantillas y estilos a partir del escudo comunal: campo de gules, tres espigas de oro y un sol naciente. No cambia vistas, URLs, formularios ni servicios; solo la presentación. El login y las pantallas sin sesión comparten un panel de paisaje (sol saliendo sobre surcos que convergen en el horizonte, con las tres espigas); las pantallas con sesión usan un menú lateral (tarjeta clara con cabecera ladrillo; barra superior y dock inferior en celular), migas de pan, azulejos de acceso y paneles planos.
 
 | Archivo | Responsabilidad |
 |---|---|
@@ -214,16 +215,15 @@ Comportamiento que conviene conocer antes de tocar estas pantallas:
 
 Verificación realizada (2026-11-02, Chrome headless y datos sintéticos inventados en una base temporal): capturas a 1280 px y 390 px, también con texto «muy grande», sin desbordes horizontales; auditoría con axe-core 4.10.2 sobre 28 pantallas (padrón y búsquedas, ficha del paciente, recetas en cada situación, crear/renovar con errores, confirmación, cargas, reporte y filtro) con Q.F. y Técnico: **0 violaciones de WCAG 2.1 A/AA**. Axe deja como «incompletas» tres comprobaciones de contraste sobre los `select` con flecha de fondo (tinta sobre blanco, ≥ 15:1). Comportamiento comprobado en el navegador: vista previa, detección de formato, animaciones y su ausencia fuera del momento de confirmar. Suite: 278 pruebas aprobadas; `tools/verificar_spec_02_http.py` y `tools/verificar_spec_03_http.py` aprobados. Pendientes: aceptación del equipo, prueba de usabilidad con al menos cinco personas (RNF-04) y, si se quiere, registrar este rediseño en un spec propio o cerrar con él la revisión visual de [validation.md](../specs/03-padron-y-recetas/validation.md) del 03.
 
-## Recetas como tablero, Padrón aparte y menú plegable
+## Recetas como tablero y Padrón aparte
 
-El menú superior reemplaza «Padrón y recetas» por dos entradas: **Padrón** (pacientes, ficha, importaciones y plantillas) y **Recetas** (`recetasapp:recetas`, en `/recetas/`; detalle, creación, renovación y confirmación de entrega). Cada una marca «página actual» por sí sola; `test_cada_pantalla_marca_una_sola_entrada_como_pagina_actual` recorre las pantallas. «Crear receta» está en Recetas. No hay una entrada «Resumen»: el resumen es el tablero con que abre Recetas.
+El menú reemplaza «Padrón y recetas» por dos entradas: **Padrón** (pacientes, ficha, importaciones y plantillas) y **Recetas** (`recetasapp:recetas`, en `/recetas/`; detalle, creación, renovación y confirmación de entrega). Cada una marca «página actual» por sí sola; `test_cada_pantalla_marca_una_sola_entrada_como_pagina_actual` recorre las pantallas. «Crear receta» está en Recetas. No hay una entrada «Resumen»: el resumen es el tablero con que abre Recetas.
 
 | Archivo | Responsabilidad |
 |---|---|
 | `recetasapp/tablero.py` | Arma el tablero (solo lectura): cifras, anillo, línea, barras, ranking y última carga. Valida el periodo (7, 30 o 90 días; cualquier otro valor vuelve a 30). |
 | `recetasapp/graficos.py` | Geometría pura de los gráficos: porcentajes que suman 100, arcos del anillo sobre un círculo de largo 100, curva con tangentes horizontales (no se pasa del rango), techo redondo del eje y barras. Todo número hacia un atributo SVG sale como texto con punto decimal: con es-cl, Django escribiría coma y el atributo quedaría inválido. |
 | `templates/recetas/_tablero.html`, `static/css/tablero.css` | Dibujo y estilos. Sin librerías ni CDN. `tablero.css` no declara colores (una prueba lo exige, igual que `recetas.css`). |
-| `static/js/menu.js`, `base.css` (`.nav-toggle`) | Menú plegable. |
 
 - **Tablero:** cuatro cifras (vigentes, por vencer, pacientes sin receta vigente y entregas del mes, cada una con su enlace), entregas por día (línea con selector de periodo y tabla de datos desplegable), situación de las recetas (anillo con leyenda en texto que enlaza a la lista filtrada), vencimientos por mes (seis barras), «Vencen primero» (ranking de seis, con aviso si no hay) y la tarjeta oscura de la última carga. «Por vencer» es parte de las vigentes, por eso no es un arco del anillo. Sin datos, cada tarjeta explica qué falta en vez de dibujar un gráfico vacío.
 - **Movimiento:** una sola secuencia al cargar (el anillo se traza, la línea se dibuja, las barras suben, escalonados) y el latido de «Por vencer». Todas las animaciones parten de su estado final y `base.css` las apaga con «reducir movimiento»; una prueba lo comprueba.
@@ -231,7 +231,33 @@ El menú superior reemplaza «Padrón y recetas» por dos entradas: **Padrón** 
 - **Lista** (debajo del tablero, en `#listado`): pestañas con cantidad por situación, hechas con botones que envían el formulario para conservar la búsqueda. El botón «Buscar» va primero en el documento y lleva la situación actual, de modo que Enter en el campo no la pierde. Buscar o paginar vuelve a `#listado` y no al comienzo. El RUT o nombre viaja por POST; solo la situación y el periodo pueden ir en la URL.
 - **Padrón:** filtro «Sin receta vigente», con el mismo patrón de botones.
 - **Estáticos versionados:** `coreapp/storage.py` agrega `?v=<fecha de modificación>` a las URL de `.css` y `.js` (no a fuentes ni iconos). El servidor de desarrollo no envía `Cache-Control` y el navegador podía seguir con una hoja vieja (botones sin estilo tras un cambio). En producción, el equivalente completo es `ManifestStaticFilesStorage` con `collectstatic`.
-- **Menú plegable:** bajo 64 rem (y con JavaScript) el menú se oculta tras un botón «Menú» que se convierte en X; Escape o tocar fuera lo cierra y ensanchar la ventana lo reinicia. Sin JavaScript el menú se ve siempre completo. `turnosapp/tests/menu.test.cjs` lo prueba con `node --test`.
+
+## Menú principal: columna lateral y dock del celular
+
+Reemplaza la cabecera ladrillo con ocho enlaces en fila, que ya no cabían (el botón «Cerrar sesión» bajaba a una segunda fila) y que seguirían creciendo con cada spec. Una sola lista alimenta dos presentaciones: en computador (más de 70 rem), una tarjeta lateral con grupos y una zona de cuenta, que se pliega a una columna angosta; en celular y tableta (hasta 70 rem), una barra superior con la marca y un dock flotante abajo con los cuatro destinos de trabajo y «Más», que abre una hoja con el resto y la cuenta. Es solo presentación: no cambia vistas, URLs, permisos ni servicios, y cada vista sigue validando el rol en el servidor.
+
+| Archivo | Responsabilidad |
+|---|---|
+| `coreapp/navegacion.py` | La lista del menú (`ENTRADAS`, más `PERFIL`): etiqueta, ruta, ícono, grupo, perfiles que la ven, regla de «página actual», nombre corto y si va en el dock. `armar_menu()` la resuelve para un perfil y una página. Para sumar la sección de una spec basta una `Entrada` nueva. |
+| `coreapp/context_processors.py` | `menu_principal` entrega el menú ya resuelto (y nombre e iniciales de la persona) a toda plantilla; `rol_actual` no cambia. |
+| `templates/components/navbar.html`, `_menu_enlace.html`, `barra_superior.html`, `dock.html` | Columna lateral, opción compartida, marca del celular y dock con la hoja «Más» (un `<details>`). `Layout/base.html` los ordena; `base_publica.html` y `base_sala.html` siguen llevando la franja superior y ninguna navegación. |
+| `static/css/menu.css` | Estilos. No declara colores: todo sale de `base.css`, donde se verifica el contraste (una prueba lo exige, igual que `recetas.css`). Incluye unas pocas compensaciones para pantallas cuyos cortes asumen la ventana completa (cifras del tablero, portada del inicio). |
+| `static/js/menu.js`, `preferencias.js` | Plegar la columna y recordarlo («farmacia.menu»; `preferencias.js` lo aplica antes de pintar, sin salto), y cerrar la hoja «Más». `turnosapp/tests/menu.test.cjs` lo prueba con `node --test`. |
+| `coreapp/tests/test_navegacion.py`, `test_estaticos.py` | Qué ve cada perfil, reparto entre columna y dock, página actual, íconos y nombres cortos, contraste del menú y reglas de la hoja de estilos. |
+
+- **Computador.** Tarjeta blanca de 2 px de borde (como los paneles) con cabecera ladrillo y el «horizonte» de la marca (tres franjas de surco, las de la portada del inicio), opciones agrupadas con títulos en minúscula («Atención», «Pacientes y recetas», «Equipo»), la opción activa en una píldora ladrillo con texto blanco (ícono, texto y negrita: nada depende solo del color) y una zona de cuenta crema con nombre, perfil, «Mi perfil» y «Cerrar sesión». La lista tiene su propio scroll si la ventana es baja. Plegada, cada opción muestra el ícono con su nombre corto debajo; no hay íconos sin texto ni ayudas que dependan del mouse, y el nombre completo sigue en el árbol de accesibilidad. «Pantalla de sala» lleva un ícono de «abre en otra pestaña» y el aviso para lectores de pantalla. El botón de plegar es el primer control de la columna para el teclado.
+- **Celular y tableta.** Los botones del dock miden al menos 52 × 65 px a 320 px de ancho. El texto de sus etiquetas se ajusta al ancho de la pantalla (un quinto de ella) y no crece con el control de tamaño de texto; crecen el ícono, la altura y la hoja «Más». Las etiquetas del dock y de la columna plegada (0,78 rem como máximo) son la excepción a «texto de 1 rem como mínimo» de las reglas de arriba: no caben a 1 rem; WCAG 2.1 no fija un tamaño mínimo y se compensa con ícono, píldora y áreas grandes. Una prueba exige que el nombre de cada destino del dock tenga 8 letras o menos. En tableta el dock queda centrado (34 rem como máximo). «Más» muestra una marca si la página actual está dentro de la hoja.
+- **Orden y permisos.** Q.F.: Inicio de farmacia, Turnos, Pantalla de sala, Recetas, Padrón y Usuarios. Técnico: igual, sin Usuarios. Encargado de terreno: Entregas en terreno y su cuenta. Superusuario: todo más «Administración». Una cuenta sin perfil asignado solo ve el inicio. Preparación vive dentro de Recetas y marca «Recetas» como página actual (antes no marcaba ninguna entrada).
+- **Agregar una sección.** Una `Entrada` en `coreapp/navegacion.py` (con su ícono en `iconos.html` si hace falta). A lo más cuatro destinos por perfil van en el dock (`en_barra`); el resto pasa solo a «Más». Las pruebas exigen una ruta existente, un ícono del sprite distinto a los demás y nombre corto cuando la etiqueta es larga.
+- **Cortes.** 70 rem (1 120 px): el mismo valor en `menu.css` y `menu.js`. Más abajo la columna apretaría el contenido (con el menú desplegado quedan unos 315 px menos de ancho).
+
+Verificación realizada (2026-11-04, datos sintéticos en una SQLite temporal; la base del proyecto no se tocó):
+
+- Chrome sin interfaz, manejado por su protocolo de depuración: capturas a 1440, 1366, 1280, 1100, 1024, 768, 412, 390, 360 y 320 px, con texto normal, grande y muy grande; sin desborde horizontal en ninguna. 28 comprobaciones de comportamiento aprobadas: plegar, recordar al recargar y desplegar; la hoja «Más» con clic, Enter, Espacio, Escape (devuelve el foco), toque en el velo y elección de una opción; orden de teclado; y dock sin texto cortado con botones de 44 px o más de 320 a 768 px con los tres tamaños de texto.
+- axe-core 4.10.2 (WCAG 2.0, 2.1 y 2.2 A y AA) sobre 16 estados (columna desplegada y plegada, cuatro perfiles, texto muy grande, dock, hoja abierta y tableta): **0 violaciones**. Encontró y se corrigió un caso real: el botón de plegar quedaba parcialmente tapado por la cabecera (tamaño de objetivo, WCAG 2.5.8). Las comprobaciones «incompletas» de contraste son las de siempre: texto blanco sobre el horizonte ladrillo (4,81:1 calculado), el SVG de la portada y el contenido bajo el velo de la hoja.
+- Firefox sin interfaz: siete capturas (columna desplegada y plegada, recetas, inicio, hoja «Más», 320 px y tableta) sin diferencias visibles respecto de Chrome.
+- 580 pruebas de Django (26 nuevas del menú), 63 de Node, `manage.py check`, `makemigrations --check` y `tools/verificar_spec_02_http.py` aprobados.
+- Pendientes: probar en un celular y un iPad reales (Safari de iOS, Chrome de Android), con un lector de pantalla (NVDA, TalkBack o VoiceOver) y la prueba de usabilidad con al menos cinco personas (RNF-04). No se activó `viewport-fit=cover`: `env(safe-area-inset-bottom)` queda previsto para cuando se active. Las compensaciones de `menu.css` cubren las pantallas vistas (inicio, tablero de Recetas); revisar otras si se agregan diseños de varias columnas.
 
 Cambios que acompañaron al paso a PostgreSQL y conviene conocer:
 
@@ -249,7 +275,7 @@ Cambios que acompañaron al paso a PostgreSQL y conviene conocer:
 | `consumers.py`, `routing.py`, `cesfam/asgi.py` | Canal `/ws/sala/` de salida con origen validado, 20 conexiones totales/5 por dirección, límite de 4096 bytes entrantes y latido de 15 s. Sin sesiones ni permisos privados. HTTP continúa en Django; `runserver` sirve ASGI y estáticos con Daphne. |
 | `views.py`, `urls.py`, `base_sala.html`, `sala.html` | `/turnos/sala/`: GET/HEAD, `no-store`, sin cookies. Tarjetas, seis recientes (20 en estado), hasta 40 números en espera/restantes y hora del servidor. Sin navegación privada ni estimación de espera. |
 | `static/js/sala.js` | Pintado con nodos/texto, ids vistos en memoria de la jornada, reconexión 1–10 s del WebSocket (sin respaldo HTTP), reloj monotónico desde el servidor y limpieza a medianoche. Sonido por gesto, voz es-CL/es, tono y dos repeticiones con 1,5 s; cinco pendientes sin cortar el actual, vigencia 60 s, sin pronunciar historial inicial. |
-| `static/css/sala.css`, `navbar.html` | Texto ampliable, contraste de la paleta, foco y región viva, sin destellos; enlace público solo visible para Técnico/Q.F./superusuario, en otra pestaña con `noopener`. |
+| `static/css/sala.css`, `coreapp/navegacion.py` | Texto ampliable, contraste de la paleta, foco y región viva, sin destellos; enlace público solo visible para Técnico/Q.F./superusuario, en otra pestaña con `noopener`. |
 | `tools/verificar_spec_06_http.py` | Coordinador sin Django propietario del temporal; emisor/cliente en otro proceso y servidor ASGI separado. 670 pacientes/turnos, 100 anuncios a dos clientes websockets y 96 cierres reales del 05; cuatro paneles privados consultan durante la medición. Cierra procesos antes de eliminar SQLite en Windows. |
 
 No se agrega un servicio de mensajes: la base durable comunica procesos y la capa de canales en memoria distribuye solo en el proceso web propio. No exponer el evento/UUID interno en serialización pública. Mantener `procesar_cola --continuo` según el 05; el GET y el vigilante nunca recuperan ni escriben pendientes.
@@ -270,3 +296,14 @@ Medición final aislada: p95 confirmación → recepción en ambas pantallas **4
 | `tools/verificar_spec_07_http.py` | SQLite temporal, HTTP real en loopback, 670 pacientes sintéticos, cuatro ventanillas y 100 recorridos de emisión, marca, ausencia y retiro; p50/p95/máximo por acción y panel. |
 
 La sección vive en Recetas y no agrega entrada al menú. La cifra de trabajo mide tiempo desde la recepción o la marca anterior del mismo usuario ese día, la que sea posterior; no equivale al tiempo total de espera del paciente. HU-18 se cubre parcialmente: la estimación actualiza la interfaz del personal, pero no la sala, el tótem ya emitido ni el comprobante impreso. El p95 HTTP de loopback con SQLite sintética fue menor de 110 ms en cada escenario; ver `specs/07-preparacion-y-tiempos-de-espera/validation.md` para valores detallados y límites. Revisión visual/axe y usabilidad siguen pendientes; no declarar el spec Implementado ni migrar la base del proyecto automáticamente.
+
+## Inicio con noticias — spec 08
+
+| Archivo | Responsabilidad |
+|---|---|
+| `coreapp/models.py`, `migrations/0002_noticiacomuna.py` | `NoticiaComuna`: texto, fecha, resumen, enlaces y marca de salud; sin imágenes. Las noticias sin fecha van al final. |
+| `coreapp/noticias.py` | Lector del sitio municipal (`urllib` + `html.parser`), `actualizar()` con descarga inyectable, `noticias_del_inicio()` (salud vigente a 180 días o la más reciente, más cuatro) y `ultima_actualizacion()`. Solo acepta direcciones `https` del sitio. |
+| `coreapp/management/commands/actualizar_noticias.py` | Copia las noticias; falla con mensaje y conserva lo guardado si el sitio no responde. |
+| `coreapp/views.py` (`InicioView`) | Entrega destacada y lista leyendo solo la base; nunca sale a Internet. |
+| `templates/index.html`, `static/css/noticias.css` | Opción «B compacta»: franja de saludo baja, noticia destacada con foto chica, lista con miniaturas, accesos y paneles por perfil. Sin tarjeta ni panel de Administración (sigue en el menú). |
+| `coreapp/tests/test_noticias.py` | 24 pruebas con páginas sintéticas. |

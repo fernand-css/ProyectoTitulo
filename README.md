@@ -110,7 +110,7 @@ El manifest declara iconos PNG de 192 y 512 px. El service worker se registra, p
 
 Q.F. importa y consulta el padrón, crea recetas simuladas y registra renovaciones como recetas nuevas vinculadas a sus antecedentes. Técnico consulta y confirma entregas del ciclo (por ejemplo, «3 de 6»). La Q.F. no confirma entregas por su rol; el superusuario activo conserva acceso a ambas funciones. El Encargado no tiene acceso general al padrón en este módulo. No existen cuentas de pacientes ni prescripción clínica o inventario por medicamento.
 
-Tras aplicar las migraciones del proyecto, entra a «Padrón» y, como Q.F., a «Importaciones». El menú tiene dos entradas separadas: «Padrón» (pacientes e importaciones) y «Recetas» (tablero, lista y detalle de recetas). En pantallas angostas el menú se pliega tras el botón «Menú».
+Tras aplicar las migraciones del proyecto, entra a «Padrón» y, como Q.F., a «Importaciones». El menú tiene dos entradas separadas: «Padrón» (pacientes e importaciones) y «Recetas» (tablero, lista y detalle de recetas). En computador el menú es una columna lateral que se puede plegar (recuerda tu elección); en celular y tableta, una barra inferior con los destinos de trabajo y «Más» para el resto.
 
 ```text
 rut,nombres,apellidos,fecha_nacimiento,es_cronico,es_postrado,telefono,direccion,codigo_receta,fecha_inicio,vigencia_meses,max_entregas
@@ -263,3 +263,15 @@ El índice central está en [specs/README.md](specs/README.md); [specs/00-indice
 - `validation.md`: verificaciones, resultados y límites de la evidencia.
 
 La base implementada está en [specs/01-base-del-proyecto/spec.md](specs/01-base-del-proyecto/spec.md). La [spec 02 de autenticación, roles y auditoría](specs/02-autenticacion-roles-auditoria/spec.md) tiene código y verificación técnica final completados; revisión visual y cierre pendientes. Las plantillas están en `specs/_templates/`. El 06 incorpora pantalla/voz con WebSocket y conserva los pendientes de aceptación de su validación. Se mantienen las reservas 11 para funcionamiento sin conexión y 12 para notificaciones.
+
+## Noticias en el inicio — spec 08
+
+El inicio muestra noticias de San Nicolás copiadas del sitio de la Municipalidad (`municipalidadsannicolas.cl`). El inicio solo lee la base; para llenarla o refrescarla:
+
+```powershell
+python manage.py migrate
+python manage.py actualizar_noticias            # revisa las 24 más recientes
+python manage.py actualizar_noticias --maximo 40
+```
+
+Si el sitio no responde, el comando termina con un error y deja las noticias que ya estaban. Conviene programarlo una vez al día (por ejemplo, con el Programador de tareas de Windows o `cron`). Solo se guardan textos y enlaces: las fotos se piden al sitio municipal desde el navegador y no se copian. Las pruebas no salen a Internet.
