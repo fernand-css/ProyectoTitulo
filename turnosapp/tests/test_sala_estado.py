@@ -113,7 +113,7 @@ class EstadoSalaTests(DatosCola, TestCase):
     def test_contrato_publico_tiene_solo_campos_permitidos(self):
         self.crear_historial(1)
         self.turno()
-        estado = self.client.get(reverse("turnosapp:sala_estado")).json()
+        estado = estado_sala()
         self.assertEqual(set(estado), {"tipo", "ahora", "fecha", "ultimo_id", "ventanillas", "recientes", "espera"})
         self.assertEqual(set(estado["espera"]), {"cantidad", "numeros", "restantes"})
         for tarjeta in estado["ventanillas"]:
@@ -132,11 +132,11 @@ class EstadoSalaTests(DatosCola, TestCase):
         privados = [paciente.rut, paciente.nombres, paciente.apellidos, receta.codigo,
             str(turno.operacion_id), str(turno.eventos.get().pk), "preferencial", "cronicos",
             '"paciente"', '"turno"', '"evento"', '"operacion"', '"tipo_atencion"', '"recetas"']
-        for nombre in ("sala", "sala_estado"):
-            respuesta = self.client.get(reverse("turnosapp:" + nombre))
-            for privado in privados:
-                with self.subTest(ruta=nombre, dato=privado):
-                    self.assertNotContains(respuesta, privado)
+        respuesta = self.client.get(reverse("turnosapp:sala"))
+        for privado in privados:
+            with self.subTest(dato=privado):
+                self.assertNotContains(respuesta, privado)
+                self.assertNotIn(privado, json.dumps(estado_sala()))
         html = self.client.get(reverse("turnosapp:sala")).content.decode()
         inicial = html.split('<script id="sala-estado-inicial" type="application/json">', 1)[1].split("</script>", 1)[0]
         self.assertEqual(json.loads(inicial), estado_sala())
@@ -144,23 +144,21 @@ class EstadoSalaTests(DatosCola, TestCase):
         self.assertNotIn("</footer>", html)
 
     def test_publico_sin_cookies_no_store_y_sin_escrituras(self):
-        for nombre in ("sala", "sala_estado"):
-            for metodo in (self.client.get, self.client.head):
-                with self.subTest(ruta=nombre, metodo=metodo.__name__):
-                    with self.assertNumQueries(5):
-                        respuesta = metodo(reverse("turnosapp:" + nombre))
-                    self.assertEqual(respuesta.status_code, 200)
-                    self.assertIn("no-store", respuesta["Cache-Control"])
-                    self.assertFalse(respuesta.cookies)
+        for metodo in (self.client.get, self.client.head):
+            with self.subTest(metodo=metodo.__name__):
+                with self.assertNumQueries(5):
+                    respuesta = metodo(reverse("turnosapp:sala"))
+                self.assertEqual(respuesta.status_code, 200)
+                self.assertIn("no-store", respuesta["Cache-Control"])
+                self.assertFalse(respuesta.cookies)
         self.assertFalse(self.client.cookies)
         self.assertFalse(AnuncioSala.objects.exists())
         self.assertFalse(EventoTurno.objects.exists())
 
     def test_post_y_otros_metodos_no_mutan_el_estado(self):
         self.turno()
-        for nombre in ("sala", "sala_estado"):
-            for metodo in (self.client.post, self.client.put, self.client.delete):
-                self.assertEqual(metodo(reverse("turnosapp:" + nombre), {"numero": 99}).status_code, 405)
+        for metodo in (self.client.post, self.client.put, self.client.delete):
+            self.assertEqual(metodo(reverse("turnosapp:sala"), {"numero": 99}).status_code, 405)
         self.assertEqual(Turno.objects.get().estado, "esperando")
         self.assertFalse(AnuncioSala.objects.exists())
 
@@ -171,8 +169,7 @@ class EstadoSalaTests(DatosCola, TestCase):
             actor.is_active = activo
             actor.save()
             self.client.force_login(actor)
-            for nombre in ("sala", "sala_estado"):
-                self.assertEqual(self.client.get(reverse("turnosapp:" + nombre)).status_code, 200)
+            self.assertEqual(self.client.get(reverse("turnosapp:sala")).status_code, 200)
 
     def test_totem_y_panel_siguen_disponibles(self):
         self.assertEqual(self.client.get(reverse("turnosapp:totem")).status_code, 200)
@@ -228,4 +225,4 @@ class EstadoSalaTests(DatosCola, TestCase):
         self.assertIn('href="#contenido"', html)
         self.assertIn("data-texto-nivel", html)
         self.assertIn("js/sala.js", html)
-        self.assertIn('data-estado-url="/turnos/sala/estado/"', html)
+        self.assertNotIn("data-estado-url", html)

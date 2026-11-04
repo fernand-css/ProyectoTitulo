@@ -1,6 +1,6 @@
 {% extends 'recetas/base.html' %}
 {% block titulo %}Receta {{ receta.codigo }} · Farmacia{% endblock %}
-{% block migas %}{{ block.super }}{% if receta %}<li><a href="{% url 'recetasapp:paciente_detalle' pk=receta.paciente_id %}">{{ receta.paciente.apellidos }}, {{ receta.paciente.nombres }}</a></li><li><span aria-current="page">Receta {{ receta.codigo }}</span></li>{% endif %}{% endblock %}
+{% block migas %}<li><a href="{% url 'recetasapp:recetas' %}">Recetas</a></li>{% if receta %}<li><a href="{% url 'recetasapp:paciente_detalle' pk=receta.paciente_id %}">{{ receta.paciente.apellidos }}, {{ receta.paciente.nombres }}</a></li><li><span aria-current="page">Receta {{ receta.codigo }}</span></li>{% endif %}{% endblock %}
 {% block farmacia %}
 {% if receta %}
 <header class="encabezado">

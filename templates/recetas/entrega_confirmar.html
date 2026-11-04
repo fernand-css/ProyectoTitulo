@@ -1,7 +1,7 @@
 {% extends 'recetas/base.html' %}
 {% load core_tags %}
 {% block titulo %}Confirmar entrega · Farmacia{% endblock %}
-{% block migas %}{{ block.super }}{% if receta %}<li><a href="{% url 'recetasapp:paciente_detalle' pk=receta.paciente_id %}">{{ receta.paciente.apellidos }}, {{ receta.paciente.nombres }}</a></li><li><a href="{% url 'recetasapp:receta_detalle' pk=receta.pk %}">Receta {{ receta.codigo }}</a></li><li><span aria-current="page">Confirmar entrega</span></li>{% endif %}{% endblock %}
+{% block migas %}<li><a href="{% url 'recetasapp:recetas' %}">Recetas</a></li>{% if receta %}<li><a href="{% url 'recetasapp:paciente_detalle' pk=receta.paciente_id %}">{{ receta.paciente.apellidos }}, {{ receta.paciente.nombres }}</a></li><li><a href="{% url 'recetasapp:receta_detalle' pk=receta.pk %}">Receta {{ receta.codigo }}</a></li><li><span aria-current="page">Confirmar entrega</span></li>{% endif %}{% endblock %}
 {% block farmacia %}
 <div class="confirmar">
   <h1>Confirmar entrega</h1>

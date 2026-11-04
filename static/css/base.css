@@ -226,6 +226,38 @@ ul, ol { margin-top: 0; }
   text-decoration-thickness: 0.15em;
 }
 
+/* Botón del menú: solo se muestra con JavaScript y en pantallas angostas (el corte coincide con static/js/menu.js). */
+.nav-toggle {
+  display: none;
+  align-items: center;
+  gap: 0.7rem;
+  min-height: 2.75rem;
+  padding: 0.35rem 1.1rem;
+  color: var(--marca-texto);
+  background: transparent;
+  border: 2px solid var(--marca-texto);
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+}
+.nav-toggle:hover { color: var(--enlace-texto); background: var(--enlace-fondo); }
+.nav-toggle:focus-visible { outline: 3px solid var(--trigo); outline-offset: 3px; }
+.nav-toggle-barras { display: grid; gap: 0.25rem; width: 1.4rem; }
+.nav-toggle-barras span { display: block; height: 0.2rem; background: currentColor; border-radius: 0.2rem; transition: transform 0.25s, opacity 0.2s; }
+/* Abierto, las tres barras se cruzan en una X: el botón muestra lo que hará al tocarlo. */
+.nav-toggle[aria-expanded="true"] .nav-toggle-barras span:nth-child(1) { transform: translateY(0.45rem) rotate(45deg); }
+.nav-toggle[aria-expanded="true"] .nav-toggle-barras span:nth-child(2) { opacity: 0; }
+.nav-toggle[aria-expanded="true"] .nav-toggle-barras span:nth-child(3) { transform: translateY(-0.45rem) rotate(-45deg); }
+@keyframes desplegar { from { opacity: 0; transform: translateY(-0.6rem); } }
+@media (max-width: 64rem) {
+  .js .nav-toggle { display: inline-flex; }
+  .js .nav { display: none; width: 100%; flex-direction: column; align-items: stretch; gap: 0.35rem; padding-top: 0.5rem; border-top: 2px solid var(--marca-texto); }
+  .js .nav.nav-abierto { display: flex; animation: desplegar 0.28s ease-out both; }
+  .js .nav-enlace { width: 100%; justify-content: flex-start; }
+  .js .nav form, .js .nav .boton { width: 100%; }
+}
+
 /* ------------------------------------------------------------------ Botones */
 .boton {
   display: inline-flex;

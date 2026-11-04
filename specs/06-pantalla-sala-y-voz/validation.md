@@ -143,3 +143,19 @@ Creada `turnosapp/0003_anuncio_sala.py` y aplicada al crear la base de pruebas d
 ## Aceptación funcional
 
 Pendiente. No se marcará por el solo hecho de que pasen las pruebas.
+
+## Corrección posterior — activación de sonido en Firefox
+
+Tras el commit técnico `57abc94`, el usuario informó «Sonido activado» sin audio en Firefox, y antes vio «Conectando con la sala». Se comprobó en su servidor local `127.0.0.1:8000` que el estado HTTP devuelve 200 con `tipo=estado`, que `sala.js` se sirve correctamente y que una conexión WebSocket real recibe el estado. No se modificaron la base ni los datos.
+
+Se reprodujeron con pruebas cinco defectos/casos del cliente: activación anunciada antes de terminar la prueba, síntesis pausada sin reanudación, `AudioContext.resume()` sin resolución que bloquea el botón, éxito anunciado cuando fallan voz y tono y espera inicial del canal sin plazo de 5 s. Se corrigió la activación para mostrar «Probando sonido…», reanudar ambas APIs dentro del gesto, conservar la locución hasta su fin, limitar la espera del audio, permitir reintento y confirmar activación solo si alguna salida termina correctamente. El canal reintenta si no recibe estado inicial en 5 s y conserva el latido de 30 s después de conectar.
+
+`node --test turnosapp/tests/*.test.cjs`: **59 pruebas OK**, 231,4942 ms (54 anteriores + cinco regresiones nuevas que fallaron antes del cambio). Cambios de cliente/pruebas y esta evidencia sin commit adicional: se conserva el único commit solicitado. Se pidió recargar Firefox con Ctrl+F5 y volver a probar, revisando también si la pestaña está silenciada. La comprobación audible por el usuario sigue pendiente; las pruebas simuladas no permiten confirmar el volumen/salida real del equipo.
+
+## Cambio posterior — retiro de `/turnos/sala/estado/` y del respaldo HTTP
+
+2026-11-03, por instrucción del usuario. Se eliminaron la vista `sala_estado`, su ruta, el atributo `data-estado-url` de `sala.html` y el respaldo HTTP de `sala.js` (consulta, aborto, versión de transporte). El aviso de acercarse a la ventanilla pasa a mostrarse tras tres fallos del canal, y sin WebSocket se informa en texto. Las pruebas de JavaScript del respaldo se eliminaron y las que lo mezclaban con otros comportamientos se reescribieron. `test_sala_estado.py` consulta `estado_sala()` directamente; `test_sala_servidor.py` y `tools/verificar_spec_06_http.py` usan `/turnos/sala/`.
+
+- `.\venv\Scripts\python.exe manage.py test turnosapp coreapp`: **249 pruebas OK**.
+- `node --test turnosapp/tests/*.test.cjs`: **56 pruebas OK**.
+- No se re-ejecutó la medición de `tools/verificar_spec_06_http.py` tras el cambio; su p95 (444,12 ms) corresponde al canal WebSocket y no debería verse afectado, pero no se volvió a medir.

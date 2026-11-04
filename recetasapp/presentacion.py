@@ -69,6 +69,13 @@ def porcentaje_entregas(receta):
     return round(100 * min(receta.entregas_completadas, receta.max_entregas) / receta.max_entregas)
 
 
+def puntos(receta):
+    """Un punto por entrega (lleno si ya se selló), o None si el cupo es demasiado grande para dibujarlos."""
+    if receta.max_entregas > MAX_PUNTOS:
+        return None
+    return [numero <= receta.entregas_completadas for numero in range(1, receta.max_entregas + 1)]
+
+
 def linea_vigencia(receta, hoy=None):
     """Posición de «hoy» entre el inicio y el último día válido, con la frase que la explica."""
     hoy = hoy or timezone.localdate()
@@ -112,12 +119,9 @@ def resumen_paciente(recetas, hoy=None):
         detalle = f"Quedan {maximo - completadas}"
     else:
         texto, detalle = "Sin receta vigente", SIN_VIGENTE[estado["clave"]]
-    puntos = None
-    if maximo <= MAX_PUNTOS:
-        puntos = [numero <= completadas for numero in range(1, maximo + 1)]
     return {
         "receta": elegida, "situacion": estado, "texto": texto, "detalle": detalle,
-        "puntos": puntos, "porcentaje": porcentaje_entregas(elegida),
+        "puntos": puntos(elegida), "porcentaje": porcentaje_entregas(elegida),
     }
 
 
@@ -160,4 +164,41 @@ def preparar_receta(receta, entregas=(), proxima=False, hoy=None):
     receta.estado = evaluar_elegibilidad(receta, hoy)
     receta.casillas = casillas(receta, entregas, proxima and receta.estado["elegible"])
     receta.porcentaje = porcentaje_entregas(receta)
+    return receta
+
+
+# (clave, texto en plural, ícono) de las partes de la regleta del resumen. Son excluyentes: suman el total.
+SEGMENTOS_RESUMEN = (
+    ("vigente", "Vigentes", "i-ok"),
+    ("futura", "Aún no inician", "i-calendario"),
+    ("agotada", "Agotadas", "i-sello"),
+    ("vencida", "Vencidas", "i-alerta"),
+)
+
+
+def segmentos_resumen(conteos):
+    """Partes de la regleta con su cantidad; la clave sirve también de filtro en la lista de recetas."""
+    return [
+        {"clave": clave, "texto": texto, "icono": icono, "cantidad": conteos[clave]}
+        for clave, texto, icono in SEGMENTOS_RESUMEN
+    ]
+
+
+def preparar_por_vencer(receta, hoy=None):
+    """Días que le quedan a una receta vigente y último día en que sirve."""
+    hoy = hoy or timezone.localdate()
+    receta.dias = (receta.fecha_fin_exclusiva - hoy).days
+    receta.ultimo_dia = receta.fecha_fin_exclusiva - timedelta(days=1)
+    receta.entregas_restantes = max(0, receta.max_entregas - receta.entregas_completadas)
+    return receta
+
+
+def preparar_fila_receta(receta, hoy=None):
+    """Datos de una fila de la lista de recetas: situación, puntos de entrega y vigencia."""
+    hoy = hoy or timezone.localdate()
+    receta.situacion = situacion(receta, hoy)
+    receta.puntos = puntos(receta)
+    receta.porcentaje = porcentaje_entregas(receta)
+    receta.entregas_restantes = max(0, receta.max_entregas - receta.entregas_completadas)
+    receta.vigencia = linea_vigencia(receta, hoy)
     return receta

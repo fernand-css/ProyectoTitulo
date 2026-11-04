@@ -4,13 +4,22 @@
       <svg class="marca-svg" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><use href="#marca"/></svg>
       <span class="marca-texto"><strong>Farmacia</strong><span>CESFAM San Nicolás</span></span>
     </a>
-    <nav class="nav" aria-label="Navegación principal">
+    {% if request.user.is_authenticated %}
+    <button class="nav-toggle" type="button" aria-expanded="false" aria-controls="menu-principal" data-menu-boton>
+      <span class="nav-toggle-barras" aria-hidden="true"><span></span><span></span><span></span></span>
+      <span class="nav-toggle-texto">Menú</span>
+    </button>
+    {% endif %}
+    <nav class="nav" id="menu-principal" aria-label="Navegación principal" data-menu>
       {% if request.user.is_authenticated %}
         <a class="nav-enlace" href="{% url 'coreapp:inicio' %}"{% if request.resolver_match.url_name == 'inicio' %} aria-current="page"{% endif %}><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-inicio"/></svg>{% if rol == 'Jefa de Farmacia' %}Inicio de farmacia{% elif rol == 'Técnico en Farmacia' %}Atención en ventanilla{% elif rol == 'Encargado de entrega' %}Entregas en terreno{% else %}Inicio{% endif %}</a>
         {% if rol %}<a class="nav-enlace" href="{% url 'usuariosapp:perfil' %}"{% if request.resolver_match.url_name == 'perfil' or request.resolver_match.url_name == 'cambiar_clave' %} aria-current="page"{% endif %}><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-usuario"/></svg>Mi perfil</a>{% endif %}
         {% if rol == 'Jefa de Farmacia' or rol == 'superusuario' %}<a class="nav-enlace" href="{% url 'usuariosapp:gestion_usuarios' %}"{% if request.resolver_match.url_name|slice:':8' == 'gestion_' %} aria-current="page"{% endif %}><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-usuarios"/></svg>Usuarios</a>{% endif %}
-        {% if rol == 'Jefa de Farmacia' or rol == 'Técnico en Farmacia' or rol == 'superusuario' %}<a class="nav-enlace" href="{% url 'recetasapp:pacientes' %}"{% if request.resolver_match.app_name == 'recetasapp' %} aria-current="page"{% endif %}>Padrón y recetas</a>{% endif %}
-        {% if rol == 'Jefa de Farmacia' or rol == 'Técnico en Farmacia' or rol == 'superusuario' %}<a class="nav-enlace" href="{% url 'turnosapp:panel' %}"{% if request.resolver_match.app_name == 'turnosapp' %} aria-current="page"{% endif %}>Turnos</a>{% endif %}
+        {% with seccion=request.resolver_match.url_name %}
+        {% if rol == 'Jefa de Farmacia' or rol == 'Técnico en Farmacia' or rol == 'superusuario' %}<a class="nav-enlace" href="{% url 'recetasapp:pacientes' %}"{% if seccion == 'pacientes' or seccion == 'paciente_detalle' or seccion|slice:':11' == 'importacion' or seccion == 'plantilla' %} aria-current="page"{% endif %}><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-usuarios"/></svg>Padrón</a>{% endif %}
+        {% if rol == 'Jefa de Farmacia' or rol == 'Técnico en Farmacia' or rol == 'superusuario' %}<a class="nav-enlace" href="{% url 'recetasapp:recetas' %}"{% if seccion == 'recetas' or seccion|slice:':7' == 'receta_' or seccion == 'entrega_confirmar' %} aria-current="page"{% endif %}><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-documento"/></svg>Recetas</a>{% endif %}
+        {% endwith %}
+        {% if rol == 'Jefa de Farmacia' or rol == 'Técnico en Farmacia' or rol == 'superusuario' %}<a class="nav-enlace" href="{% url 'turnosapp:panel' %}"{% if request.resolver_match.app_name == 'turnosapp' %} aria-current="page"{% endif %}><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-turno"/></svg>Turnos</a>{% endif %}
         {% if rol == 'Jefa de Farmacia' or rol == 'Técnico en Farmacia' or rol == 'superusuario' %}<a class="nav-enlace" href="{% url 'turnosapp:sala' %}" target="_blank" rel="noopener"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-info"/></svg>Pantalla de sala<span class="sr-only"> (abre en otra pestaña)</span></a>{% endif %}
         {% if rol == 'superusuario' %}<a class="nav-enlace" href="{% url 'admin:index' %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ajustes"/></svg>Administración</a>{% endif %}
         <form action="{% url 'usuariosapp:logout' %}" method="post">

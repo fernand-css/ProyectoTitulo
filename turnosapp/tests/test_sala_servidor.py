@@ -79,10 +79,12 @@ class ServidorSalaTests(SimpleTestCase):
                     limite = time.monotonic() + 15
                     while True:
                         try:
-                            with urlopen(base + "/turnos/sala/estado/", timeout=0.5) as respuesta:
+                            with urlopen(base + "/turnos/sala/", timeout=0.5) as respuesta:
                                 self.assertIn("no-store", respuesta.headers["Cache-Control"])
                                 self.assertIsNone(respuesta.headers.get("Set-Cookie"))
-                                self.assertEqual(json.load(respuesta)["espera"]["cantidad"], 1)
+                                html = respuesta.read().decode()
+                            inicial = html.split('<script id="sala-estado-inicial" type="application/json">', 1)[1].split("</script>", 1)[0]
+                            self.assertEqual(json.loads(inicial)["espera"]["cantidad"], 1)
                             break
                         except OSError:
                             if time.monotonic() >= limite or servidor.poll() is not None:

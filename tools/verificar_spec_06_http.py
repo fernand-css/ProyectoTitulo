@@ -108,7 +108,7 @@ async def medir(base, clave):
     from turnosapp.sala import registrar_anuncio
 
     confirmaciones, cierres = {}, []
-    http = {"sala_html": [], "sala_estado": [], "panel_05": []}
+    http = {"sala_html": [], "panel_05": []}
 
     class Pantalla:
         def __init__(self, canal):
@@ -195,9 +195,9 @@ async def medir(base, clave):
             for lote in range(25):
                 esperados = await asyncio.to_thread(avanzar, lote == 0)
                 await asyncio.gather(*(p.recibir(esperados) for _, p in clientes))
-                # Cuatro consultas de cada ruta por lote: 100 HTML y 100 JSON.
+                # Cuatro consultas por lote: 100 de la página de sala.
                 for _ in range(4):
-                    for nombre, ruta in (("sala_html", "/turnos/sala/"), ("sala_estado", "/turnos/sala/estado/")):
+                    for nombre, ruta in (("sala_html", "/turnos/sala/"),):
                         c = ClienteHTTP(base)
                         texto, segundos, cabeceras = await asyncio.to_thread(c.pedir, ruta)
                         sin_datos_privados(texto)
@@ -256,7 +256,7 @@ def ejecutar(base):
             limite = time.monotonic() + 15
             while True:
                 try:
-                    with urlopen(base_http + "/turnos/sala/estado/", timeout=1) as respuesta:
+                    with urlopen(base_http + "/turnos/sala/", timeout=1) as respuesta:
                         assert respuesta.status == 200
                     break
                 except OSError:

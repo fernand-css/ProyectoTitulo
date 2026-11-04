@@ -27,12 +27,6 @@ def sala(request):
     return render(request, "turnos/sala.html", {"estado": estado})
 
 
-@never_cache
-@require_http_methods(["GET", "HEAD"])
-def sala_estado(request):
-    return JsonResponse(estado_sala())
-
-
 def _nuevo(request):
     contexto = {"operacion": str(uuid.uuid4()), "vence": time.time() + 120}
     request.session[CLAVE] = contexto

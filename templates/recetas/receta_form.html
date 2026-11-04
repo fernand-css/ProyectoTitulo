@@ -1,7 +1,7 @@
 {% extends 'recetas/base.html' %}
 {% load static %}
 {% block titulo %}{% if anterior %}Renovar receta{% else %}Crear receta{% endif %} · Farmacia{% endblock %}
-{% block migas %}{{ block.super }}<li><span aria-current="page">{% if anterior %}Renovar receta{% else %}Crear receta{% endif %}</span></li>{% endblock %}
+{% block migas %}<li><a href="{% url 'recetasapp:recetas' %}">Recetas</a></li><li><span aria-current="page">{% if anterior %}Renovar receta{% else %}Crear receta{% endif %}</span></li>{% endblock %}
 {% block farmacia %}
 <header class="encabezado">
   <div>

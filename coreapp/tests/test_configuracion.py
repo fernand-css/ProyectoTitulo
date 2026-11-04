@@ -10,7 +10,9 @@ from django.test import SimpleTestCase
 
 
 class ConfiguracionTests(SimpleTestCase):
-    def cargar(self, **entorno):
+    def cargar(self, _con_base=True, **entorno):
+        if _con_base:
+            entorno.setdefault("DB_NAME", "cesfam_sintetica")
         especificacion = importlib.util.spec_from_file_location("configuracion_prueba", settings.BASE_DIR / "cesfam/settings.py")
         modulo = importlib.util.module_from_spec(especificacion)
         with patch.dict(os.environ, entorno, clear=True), patch("dotenv.load_dotenv"):
@@ -22,6 +24,15 @@ class ConfiguracionTests(SimpleTestCase):
             with self.subTest(entorno=entorno):
                 with self.assertRaisesMessage(ImproperlyConfigured, "Debes definir SECRET_KEY"):
                     self.cargar(**entorno)
+
+    def test_base_postgresql_exige_nombre_y_usa_host_y_puerto_por_defecto(self):
+        with self.assertRaisesMessage(ImproperlyConfigured, "Debes definir DB_NAME"):
+            self.cargar(_con_base=False, SECRET_KEY="clave-sintetica-de-prueba")
+        base = self.cargar(SECRET_KEY="clave-sintetica-de-prueba", DB_NAME="cesfam_sintetica", DB_HOST="", DB_PORT="")
+        self.assertEqual(base.DATABASES["default"]["ENGINE"], "django.db.backends.postgresql")
+        self.assertEqual((base.DATABASES["default"]["HOST"], base.DATABASES["default"]["PORT"]), ("localhost", "5432"))
+        base = self.cargar(SECRET_KEY="clave-sintetica-de-prueba", DB_HOST="db.example.invalid", DB_PORT="6543", DB_USER="rol_sintetico")
+        self.assertEqual((base.DATABASES["default"]["HOST"], base.DATABASES["default"]["PORT"], base.DATABASES["default"]["USER"]), ("db.example.invalid", "6543", "rol_sintetico"))
 
     def test_defaults_seguros_y_configuracion_regional(self):
         configuracion = self.cargar(SECRET_KEY="clave-sintetica-de-prueba")

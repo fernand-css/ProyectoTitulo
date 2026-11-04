@@ -446,3 +446,58 @@
   .sello-sellada, .punto-lleno { forced-color-adjust: none; color: CanvasText; background: Highlight; }
   .barra-carga span, .mini-barra span, .barra-cupo span, .vigencia-recorrido { forced-color-adjust: none; background: Highlight; }
 }
+
+/* ------------------------------------------------------------------ Filtros de padrón y recetas (botones que envían el formulario) */
+.filtros { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 1rem; }
+.filtros-etiqueta { margin-right: 0.15rem; font-weight: 700; }
+.filtro {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.55rem;
+  min-height: 2.75rem;
+  padding: 0.3rem 0.5rem 0.3rem 1.1rem;
+  color: var(--panel-texto);
+  background: var(--panel-fondo);
+  border: 2px solid var(--tinta);
+  border-radius: 999px;
+  font: inherit;
+  font-weight: 700;
+  cursor: pointer;
+  transition: background-color 0.15s, color 0.15s;
+}
+.filtro:not([aria-pressed="true"]) { padding-right: 0.5rem; }
+.filtro:hover { color: var(--hover-texto); background: var(--hover-fondo); }
+.filtro:focus-visible { outline: 3px solid var(--tinta); outline-offset: 3px; }
+/* La cantidad va en una insignia: se lee de un vistazo y no se confunde con el texto del botón. */
+.filtro-cantidad {
+  display: inline-grid;
+  place-items: center;
+  min-width: 2rem;
+  padding: 0.05rem 0.55rem;
+  color: var(--arena-texto);
+  background: var(--arena-fondo);
+  border-radius: 999px;
+  font-size: 0.95rem;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+}
+/* Seleccionado: relleno de tinta, marca ✓ y subrayado, para que no dependa solo del color. */
+.filtro[aria-pressed="true"] {
+  color: var(--hover-texto);
+  background: var(--hover-fondo);
+  text-decoration: underline;
+  text-decoration-color: var(--trigo);
+  text-decoration-thickness: 0.15em;
+  text-underline-offset: 0.2em;
+}
+.filtro[aria-pressed="true"]::before { content: "✓"; content: "✓" / ""; margin-right: -0.2rem; text-decoration: none; }
+.filtro[aria-pressed="true"] .filtro-cantidad { color: var(--trigo-texto); background: var(--trigo-fondo); }
+.quitar-filtros { margin-left: 0.4rem; font-weight: 700; }
+/* Seis pestañas caben en una fila si el formulario no se limita a la caja de búsqueda. */
+.busqueda-ancha { max-width: none; }
+.busqueda-ancha .busqueda-caja { max-width: 48rem; }
+
+@media (forced-colors: active) {
+  .filtro { border-color: CanvasText; }
+  .filtro[aria-pressed="true"] { forced-color-adjust: none; color: HighlightText; background: Highlight; }
+}

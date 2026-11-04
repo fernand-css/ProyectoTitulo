@@ -9,6 +9,7 @@ from django.db import DatabaseError
 from django.db.models import Prefetch, Q
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.cache import never_cache
@@ -17,9 +18,9 @@ from django.views.decorators.debug import sensitive_post_parameters
 from coreapp.mixins import RolRequeridoMixin, tiene_rol
 from coreapp.roles import JEFA, TECNICO
 from coreapp.utils.rut import normalizar_rut
-from .forms import BusquedaPacienteForm, EntregaForm, ImportacionForm, RecetaForm
+from .forms import BusquedaPacienteForm, BusquedaRecetaForm, EntregaForm, ImportacionForm, RecetaForm
 from .importacion import filas_demo, generar_archivo, importar_padron
-from . import presentacion
+from . import consultas, presentacion, tablero
 from .models import ImportacionPadron, Paciente, Receta
 from .services import crear_receta, registrar_entrega
 
@@ -39,17 +40,22 @@ class FarmaciaView(RolRequeridoMixin, View):
 
 class PacientesView(FarmaciaView):
     def get(self, request):
-        return self.mostrar(BusquedaPacienteForm())
+        # Los enlaces del resumen llegan con el filtro en la URL; la búsqueda por RUT nunca viaja así.
+        datos = {"filtro": request.GET["filtro"]} if "filtro" in request.GET else None
+        return self.mostrar(BusquedaPacienteForm(datos))
 
     def post(self, request):
         return self.mostrar(BusquedaPacienteForm(request.POST))
 
     def mostrar(self, form):
         pacientes = Paciente.objects.order_by("apellidos", "nombres", "pk")
-        pagina, buscar = 1, ""
+        pagina, buscar, filtro = 1, "", ""
         if form.is_bound:
             if form.is_valid():
                 buscar, pagina = form.cleaned_data["buscar"], form.cleaned_data["pagina"] or 1
+                filtro = form.cleaned_data["filtro"]
+                if filtro == "sin_vigente":
+                    pacientes = consultas.pacientes_sin_vigente().order_by("apellidos", "nombres", "pk")
                 if buscar:
                     condicion = Q(nombres__icontains=buscar) | Q(apellidos__icontains=buscar)
                     try:
@@ -64,7 +70,52 @@ class PacientesView(FarmaciaView):
         page_obj.object_list = list(page_obj.object_list)
         for paciente in page_obj.object_list:
             paciente.resumen = presentacion.resumen_paciente(paciente.recetas.all())
-        return self.render("pacientes_lista.html", {"form": form, "page_obj": page_obj, "buscar": buscar})
+        return self.render("pacientes_lista.html", {
+            "form": form, "page_obj": page_obj, "buscar": buscar, "filtro": filtro,
+            "filtros": [{"clave": "", "texto": "Todos"}] + [{"clave": clave, "texto": texto} for clave, texto in consultas.FILTROS_PACIENTE],
+        })
+
+
+class RecetasView(FarmaciaView):
+    """Tablero de recetas (cifras, gráficos y ranking) y, debajo, todas las recetas con su situación."""
+
+    def get(self, request):
+        datos = {"situacion": request.GET["situacion"]} if "situacion" in request.GET else None
+        return self.mostrar(BusquedaRecetaForm(datos), request)
+
+    def post(self, request):
+        return self.mostrar(BusquedaRecetaForm(request.POST), request)
+
+    def mostrar(self, form, request):
+        hoy = timezone.localdate()
+        recetas = Receta.objects.select_related("paciente")
+        pagina, buscar, situacion = 1, "", ""
+        if form.is_bound:
+            if form.is_valid():
+                buscar, pagina = form.cleaned_data["buscar"], form.cleaned_data["pagina"] or 1
+                situacion = form.cleaned_data["situacion"]
+                recetas = consultas.filtrar_recetas(recetas, situacion, hoy)
+                if buscar:
+                    condicion = Q(codigo__icontains=buscar) | Q(paciente__nombres__icontains=buscar) | Q(paciente__apellidos__icontains=buscar)
+                    try:
+                        condicion |= Q(paciente__rut=normalizar_rut(buscar))
+                    except ValidationError:
+                        pass
+                    recetas = recetas.filter(condicion)
+            else:
+                recetas = recetas.none()
+        # Lo que vence primero va arriba cuando se mira lo vigente; en el resto, lo más reciente.
+        orden = ("fecha_fin_exclusiva", "pk") if situacion in ("vigente", "por_vencer") else ("-fecha_inicio", "-pk")
+        page_obj = Paginator(recetas.order_by(*orden), 20).get_page(pagina)
+        page_obj.object_list = [presentacion.preparar_fila_receta(receta, hoy) for receta in page_obj.object_list]
+        conteos = consultas.contar_recetas(hoy)
+        pestanas = [{"clave": "", "texto": "Todas", "cantidad": conteos["total"]}]
+        pestanas += [{"clave": clave, "texto": texto, "cantidad": conteos[clave]} for clave, texto in consultas.FILTROS_RECETA]
+        # El periodo del gráfico de entregas viaja en la URL: no es un dato personal.
+        panel = tablero.armar(hoy, tablero.periodo_valido(request.GET.get("periodo")))
+        return self.render("recetas_lista.html", {
+            "form": form, "page_obj": page_obj, "buscar": buscar, "situacion": situacion, "pestanas": pestanas, "tablero": panel,
+        })
 
 
 class PacienteView(FarmaciaView):

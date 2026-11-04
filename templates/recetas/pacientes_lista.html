@@ -1,6 +1,6 @@
 {% extends 'recetas/base.html' %}
 {% load core_tags %}
-{% block titulo %}Padrón y recetas · Farmacia{% endblock %}
+{% block titulo %}Padrón · Farmacia{% endblock %}
 {# La banda de búsqueda es lo primero que se ve: el trabajo de ventanilla empieza buscando a una persona. #}
 {% block migas_contenedor %}{% endblock %}
 {% block cabecera_pagina %}
@@ -8,17 +8,16 @@
   <div class="padron-cabecera-int">
     <nav class="migas" aria-label="Ruta de navegación"><ol>
       <li><a href="{% url 'coreapp:inicio' %}">Inicio</a></li>
-      <li><span aria-current="page">Padrón y recetas</span></li>
+      <li><span aria-current="page">Padrón</span></li>
     </ol></nav>
     <div class="padron-titulo">
       <div>
-        <h1 id="titulo-padron">Padrón y recetas</h1>
-        <p>Busca a un paciente para ver sus recetas y cuántas entregas le quedan.</p>
+        <h1 id="titulo-padron">Padrón</h1>
+        <p>Busca a un paciente para ver su ficha y cuántas entregas le quedan.</p>
       </div>
       {% if rol == 'Jefa de Farmacia' or rol == 'superusuario' %}
       <div class="acciones">
-        <a class="boton" href="{% url 'recetasapp:receta_nueva' %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-mas"/></svg>Crear receta</a>
-        <a class="boton boton-secundario" href="{% url 'recetasapp:importaciones' %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-subir"/></svg>Importaciones</a>
+        <a class="boton" href="{% url 'recetasapp:importaciones' %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-subir"/></svg>Importaciones</a>
       </div>
       {% endif %}
     </div>
@@ -30,9 +29,15 @@
           <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-lupa"/></svg>
           {{ form.buscar }}
         </div>
-        <button class="boton" type="submit">Buscar</button>
+        <button class="boton" type="submit" name="filtro" value="{{ filtro }}">Buscar</button>
       </div>
       {{ form.pagina }}
+      {# Los botones del filtro van después de «Buscar»: Enter en el campo envía el primero, que conserva el filtro actual. #}
+      <div class="filtros" role="group" aria-label="Mostrar">
+        <span class="filtros-etiqueta" aria-hidden="true">Mostrar:</span>
+        {% for opcion in filtros %}<button class="filtro" type="submit" name="filtro" value="{{ opcion.clave }}"{% if opcion.clave == filtro %} aria-pressed="true"{% else %} aria-pressed="false"{% endif %}>{{ opcion.texto }}</button>{% endfor %}
+        {% if filtro or buscar %}<a class="quitar-filtros" href="{% url 'recetasapp:pacientes' %}">Quitar filtros</a>{% endif %}
+      </div>
       {% if form.errors %}<div class="message message-error" role="alert">{{ form.buscar.errors }}{{ form.pagina.errors }}</div>{% endif %}
     </form>
   </div>
@@ -43,6 +48,7 @@
 {% if page_obj %}
 <p class="padron-resumen">
   {% if buscar %}<strong>{{ page_obj.paginator.count }}</strong> paciente{{ page_obj.paginator.count|pluralize }} coincid{{ page_obj.paginator.count|pluralize:"e,en" }} con «<strong>{{ buscar }}</strong>».{% if page_obj.has_other_pages %} Mostrando del {{ page_obj.start_index }} al {{ page_obj.end_index }}.{% endif %}
+  {% elif filtro %}<strong>{{ page_obj.paginator.count }}</strong> paciente{{ page_obj.paginator.count|pluralize }} sin receta vigente: hoy no pueden retirar medicamentos.{% if page_obj.has_other_pages %} Mostrando del {{ page_obj.start_index }} al {{ page_obj.end_index }}.{% endif %}
   {% else %}Mostrando del <strong>{{ page_obj.start_index }}</strong> al <strong>{{ page_obj.end_index }}</strong> de <strong>{{ page_obj.paginator.count }}</strong> pacientes, por apellido.{% endif %}
 </p>
 <ul class="padron" aria-label="Pacientes del padrón">
@@ -79,17 +85,26 @@
 </ul>
 {% if page_obj.has_other_pages %}
 <nav class="paginacion" aria-label="Páginas del padrón">
-  {% if page_obj.has_previous %}<form method="post">{% csrf_token %}<input type="hidden" name="buscar" value="{{ buscar }}"><button type="submit" name="pagina" value="{{ page_obj.previous_page_number }}">Página anterior</button></form>{% endif %}
+  {% if page_obj.has_previous %}<form method="post">{% csrf_token %}<input type="hidden" name="buscar" value="{{ buscar }}"><input type="hidden" name="filtro" value="{{ filtro }}"><button type="submit" name="pagina" value="{{ page_obj.previous_page_number }}">Página anterior</button></form>{% endif %}
   <span aria-current="page">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
-  {% if page_obj.has_next %}<form method="post">{% csrf_token %}<input type="hidden" name="buscar" value="{{ buscar }}"><button type="submit" name="pagina" value="{{ page_obj.next_page_number }}">Página siguiente</button></form>{% endif %}
+  {% if page_obj.has_next %}<form method="post">{% csrf_token %}<input type="hidden" name="buscar" value="{{ buscar }}"><input type="hidden" name="filtro" value="{{ filtro }}"><button type="submit" name="pagina" value="{{ page_obj.next_page_number }}">Página siguiente</button></form>{% endif %}
 </nav>
 {% endif %}
 {% elif buscar %}
 <div class="vacio">
   <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-lupa"/></svg>
   <div>
-    <h2>No encontramos pacientes con «{{ buscar }}»</h2>
+    <h2>No encontramos pacientes con «{{ buscar }}»{% if filtro %} sin receta vigente{% endif %}</h2>
     <p>Revisa el RUT (sirve con o sin puntos) o prueba solo con el apellido.</p>
+    <div class="acciones"><a class="boton boton-secundario" href="{% url 'recetasapp:pacientes' %}">Ver todo el padrón</a></div>
+  </div>
+</div>
+{% elif filtro %}
+<div class="vacio">
+  <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg>
+  <div>
+    <h2>Todos los pacientes tienen una receta vigente</h2>
+    <p>No hay nadie sin receta que admita entregas hoy.</p>
     <div class="acciones"><a class="boton boton-secundario" href="{% url 'recetasapp:pacientes' %}">Ver todo el padrón</a></div>
   </div>
 </div>

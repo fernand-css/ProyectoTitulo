@@ -10,17 +10,17 @@
   function crearSonido(e) {
     const pendientes = new Set();
     const osciladores = new Set();
-    let activado = false, ocupado = false, contexto = null, voz = null, actual = null;
+    let activado = false, ocupado = false, probando = false, contexto = null, voz = null, actual = null;
     let fila = [], generacion = 0, falloVoz = false, falloTono = false;
     function mostrarEstado() {
-      let mensaje = activado ? "Sonido activado." : "Sonido desactivado.";
+      let mensaje = probando ? "Probando sonido…" : (activado ? "Sonido activado." : "Sonido desactivado.");
       if (!voz) mensaje += " No hay voz en español en este equipo; se mantienen el tono y el aviso visual.";
       else if (falloVoz) mensaje += " No se pudo reproducir la voz. Activa o prueba el sonido nuevamente.";
       if (falloTono) mensaje += " No se puede emitir el tono en este navegador.";
       if (e.estado.textContent !== mensaje) e.estado.textContent = mensaje;
-      e.activar.hidden = activado;
+      e.activar.hidden = activado && !probando;
       e.activar.disabled = ocupado;
-      e.probar.hidden = !activado;
+      e.probar.hidden = !activado || probando;
       e.probar.disabled = ocupado || fila.length > 0;
     }
     function buscarVoz() {
@@ -39,12 +39,13 @@
     function decir(texto, seleccionada) {
       if (!seleccionada) return Promise.resolve(false);
       return new Promise(resolve => {
-        let terminada = false;
+        let terminada = false, locucion = null;
         const terminar = exito => {
           if (terminada) return;
           terminada = true;
           e.clearTimeout(timer);
           pendientes.delete(cancelar);
+          locucion = null;
           resolve(exito);
         };
         const cancelar = () => terminar(false);
@@ -56,7 +57,8 @@
         }, 15000);
         pendientes.add(cancelar);
         try {
-          const locucion = new e.Locucion(texto);
+          // Mantener una referencia hasta onend/onerror, también en motores nativos.
+          locucion = new e.Locucion(texto);
           locucion.voice = seleccionada;
           locucion.lang = seleccionada.lang;
           locucion.rate = 0.9;
@@ -100,7 +102,9 @@
         falloTono = false;
       } catch (_) { falloTono = true; }
       mostrarEstado();
+      const correcto = !falloTono;
       await esperar(450);
+      return correcto;
     }
     function vigente(a) {
       const edad = e.ahora() - Date.parse(a.instante);
@@ -145,7 +149,7 @@
       if (ocupado) return;
       buscarVoz();
       falloVoz = false;
-      try { if (!contexto && e.AudioContext) contexto = new e.AudioContext(); }
+      try { if ((!contexto || contexto.state === "closed") && e.AudioContext) contexto = new e.AudioContext(); }
       catch (_) { falloTono = true; }
       if (!contexto && !voz) {
         falloTono = true;
@@ -155,20 +159,42 @@
       const turno = generacion;
       activado = true;
       ocupado = true;
+      probando = true;
       mostrarEstado();
-      // speak se invoca dentro del gesto, sin esperar la promesa de resume.
+      // Ambas APIs se desbloquean dentro del clic; no esperar antes de speak.
+      const reanudar = new Promise(resolve => {
+        let terminada = false;
+        const terminar = correcto => {
+          if (terminada) return;
+          terminada = true;
+          e.clearTimeout(timer);
+          pendientes.delete(cancelar);
+          resolve(correcto);
+        };
+        const cancelar = () => terminar(false);
+        const timer = e.setTimeout(cancelar, 5000);
+        pendientes.add(cancelar);
+        try {
+          if (!contexto) { terminar(false); return; }
+          Promise.resolve(contexto.resume()).then(() => terminar(contexto.state === "running"), cancelar);
+        } catch (_) { cancelar(); }
+      });
+      try {
+        if (e.sintesis) { e.sintesis.cancel(); e.sintesis.resume(); }
+      } catch (_) { falloVoz = true; }
       const locucion = decir("Prueba de sonido de la pantalla de sala", voz);
-      let reanudar;
-      try { reanudar = contexto ? contexto.resume() : Promise.resolve(); }
-      catch (_) { reanudar = Promise.reject(new Error("audio")); }
-      const pruebaTono = Promise.resolve(reanudar).catch(() => {
-        if (turno !== generacion) return;
+      const pruebaTono = reanudar.then(correcto => {
+        if (turno !== generacion) return false;
+        if (correcto) return tono();
         falloTono = true;
-        if (!voz) activado = false;
-      }).then(() => turno === generacion ? tono() : undefined);
-      Promise.all([locucion, pruebaTono]).then(() => {
+        mostrarEstado();
+        return false;
+      });
+      Promise.all([locucion, pruebaTono]).then(([vozCorrecta, tonoCorrecto]) => {
         if (turno !== generacion) return;
+        activado = activado && (vozCorrecta || tonoCorrecto);
         ocupado = false;
+        probando = false;
         mostrarEstado();
         procesar();
       });
@@ -185,6 +211,7 @@
       osciladores.clear();
       actual = null;
       ocupado = false;
+      probando = false;
       e.alCambiar(null);
       mostrarEstado();
     }
@@ -216,7 +243,7 @@
     const formatoReloj = new Intl.DateTimeFormat("es-CL", {timeZone: "America/Santiago", dateStyle: "full", timeStyle: "medium"});
     const formatoFecha = new Intl.DateTimeFormat("en", {timeZone: "America/Santiago", year: "numeric", month: "2-digit", day: "2-digit"});
     let estado = null, socket = null, conectado = false, detenido = false;
-    let fallos = 0, reintento = null, respaldo = null, consulta = null, epoca = 0;
+    let fallos = 0, reintento = null, plazoEstado = null;
     let servidor = null, referencia = 0, recibido = e.performance.now();
     let sonido;
 
@@ -358,61 +385,33 @@
       return true;
     }
     function aviso(mensaje) { texto(elementos.conexion, mensaje); }
-    function cancelarConsulta() {
-      epoca++;
-      if (consulta) consulta.abort();
-    }
-    async function consultar() {
-      if (detenido || conectado || consulta) return;
-      const controlador = new e.AbortController();
-      consulta = controlador;
-      const version = epoca;
-      const limite = e.setTimeout(() => controlador.abort(), 5000);
-      try {
-        const respuesta = await e.fetch(e.estadoUrl, {
-          cache: "no-store", credentials: "omit", signal: controlador.signal, headers: {Accept: "application/json"},
-        });
-        if (!respuesta.ok || respuesta.redirected) throw new Error("estado");
-        const datos = await respuesta.json();
-        if (detenido || conectado || epoca !== version) return;
-        if (!aplicarEstado(datos)) throw new Error("estado");
-        aviso("Conexión de respaldo. La pantalla se actualiza cada segundo.");
-      } catch (_) {
-        if (!detenido && !conectado && epoca === version) {
-          aviso("Sin conexión. La información puede estar desactualizada. Acércate a la ventanilla.");
-        }
-      } finally {
-        e.clearTimeout(limite);
-        if (consulta === controlador) consulta = null;
-      }
-    }
-    function iniciarRespaldo() {
-      if (respaldo !== null || detenido) return;
-      respaldo = e.setInterval(consultar, 1000);
-      consultar();
-    }
     function perder(actual) {
       if (detenido || (actual && socket !== actual)) return;
+      if (plazoEstado !== null) e.clearTimeout(plazoEstado);
+      plazoEstado = null;
       const anterior = socket;
       socket = null;
       conectado = false;
       if (anterior) anterior.close();
       fallos++;
-      aviso("Sin conexión. Reintentando. La información puede estar desactualizada.");
-      if (fallos >= 3) iniciarRespaldo();
+      aviso("Sin conexión. Reintentando. La información puede estar desactualizada." + (fallos >= 3 ? " Acércate a la ventanilla." : ""));
       if (e.WebSocket && reintento === null) {
         reintento = e.setTimeout(() => { reintento = null; conectar(); }, Math.min(fallos, 10) * 1000);
       }
     }
     function conectar() {
       if (detenido) return;
-      if (!e.WebSocket) { fallos = 2; perder(null); return; }
+      if (!e.WebSocket) {
+        aviso("Este navegador no admite la conexión en vivo. La información puede estar desactualizada.");
+        return;
+      }
       recibido = e.performance.now();
       try {
         const url = new URL("/ws/sala/", e.location.href);
         url.protocol = e.location.protocol === "https:" ? "wss:" : "ws:";
         const actual = new e.WebSocket(url.href);
         socket = actual;
+        plazoEstado = e.setTimeout(() => perder(actual), 5000);
         actual.onmessage = evento => {
           if (detenido || socket !== actual) return;
           try {
@@ -421,11 +420,10 @@
             if (datos.tipo === "estado") {
               valido = aplicarEstado(datos);
               if (valido) {
+                if (plazoEstado !== null) e.clearTimeout(plazoEstado);
+                plazoEstado = null;
                 conectado = true;
                 fallos = 0;
-                cancelarConsulta();
-                if (respaldo !== null) e.clearInterval(respaldo);
-                respaldo = null;
                 aviso("Conectada en vivo.");
               }
             } else if (datos.tipo === "anuncio" && conectado) {
@@ -467,10 +465,10 @@
     function detener() {
       detenido = true;
       sonido.detener();
-      cancelarConsulta();
       e.clearInterval(reloj);
-      if (respaldo !== null) e.clearInterval(respaldo);
       if (reintento !== null) e.clearTimeout(reintento);
+      if (plazoEstado !== null) e.clearTimeout(plazoEstado);
+      plazoEstado = null;
       if (socket) socket.close();
       socket = null;
     }
@@ -479,7 +477,7 @@
       if (!evento.persisted || !detenido) return;
       detenido = false;
       fallos = 0;
-      reintento = respaldo = consulta = null;
+      reintento = null;
       aviso("Reconectando con la sala…");
       pintarReloj();
       iniciarReloj();
@@ -491,11 +489,13 @@
   if (typeof module !== "undefined" && module.exports) module.exports = {crearSala, frase};
   if (typeof window !== "undefined" && typeof document !== "undefined") {
     crearSala({document, location: window.location, WebSocket: window.WebSocket,
-      estadoUrl: document.currentScript.dataset.estadoUrl,
       speechSynthesis: window.speechSynthesis, SpeechSynthesisUtterance: window.SpeechSynthesisUtterance,
       AudioContext: window.AudioContext || window.webkitAudioContext,
-      fetch: window.fetch.bind(window), AbortController: window.AbortController,
-      performance: window.performance, setTimeout, clearTimeout, setInterval, clearInterval,
+      performance: window.performance,
+      // Atados a window: el navegador lanza «called on an object that does not
+      // implement interface Window» si se invocan como método de otro objeto.
+      setTimeout: window.setTimeout.bind(window), clearTimeout: window.clearTimeout.bind(window),
+      setInterval: window.setInterval.bind(window), clearInterval: window.clearInterval.bind(window),
       addEventListener: window.addEventListener.bind(window)});
   }
 })();

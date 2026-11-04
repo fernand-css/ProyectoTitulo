@@ -97,7 +97,8 @@ python manage.py test usuariosapp.tests.test_login
 | `/usuarios/salir/` | Logout por POST con CSRF. |
 | `/salud/` | Pública: `{"estado": "ok"}`; devuelve 503 si no se puede abrir la conexión a la base. |
 | `/sw.js` | Service worker público, MIME JavaScript y alcance `/`. |
-| `/recetas/pacientes/` | Padrón privado y consulta de recetas para Q.F., Técnico y superusuario. |
+| `/recetas/` | Recetas: tablero (cifras, entregas por día, situación, vencimientos por mes, ranking y última carga) y, debajo, la lista de todas las recetas, para Q.F., Técnico y superusuario. Admite `?situacion=` (vigente, por_vencer, futura, agotada, vencida) y `?periodo=` (7, 30 o 90 días); la búsqueda por RUT o nombre viaja por POST. |
+| `/recetas/pacientes/` | Padrón privado para Q.F., Técnico y superusuario. Admite `?filtro=sin_vigente` y el mismo filtro por POST. |
 | `/recetas/importaciones/` | Bitácora y carga CSV/XLSX para Q.F. y superusuario. |
 | `/recetas/nueva/` | Creación de receta simulada para Q.F. y superusuario. |
 | `/turnos/totem/` | Emisión pública por RUT y recuperación del turno activo. |
@@ -109,7 +110,7 @@ El manifest declara iconos PNG de 192 y 512 px. El service worker se registra, p
 
 Q.F. importa y consulta el padrón, crea recetas simuladas y registra renovaciones como recetas nuevas vinculadas a sus antecedentes. Técnico consulta y confirma entregas del ciclo (por ejemplo, «3 de 6»). La Q.F. no confirma entregas por su rol; el superusuario activo conserva acceso a ambas funciones. El Encargado no tiene acceso general al padrón en este módulo. No existen cuentas de pacientes ni prescripción clínica o inventario por medicamento.
 
-Tras aplicar las migraciones del proyecto, entra a «Padrón y recetas» y, como Q.F., a «Importaciones». Descarga una plantilla CSV o `.xlsx`. Las doce columnas, en este orden, son:
+Tras aplicar las migraciones del proyecto, entra a «Padrón» y, como Q.F., a «Importaciones». El menú tiene dos entradas separadas: «Padrón» (pacientes e importaciones) y «Recetas» (tablero, lista y detalle de recetas). En pantallas angostas el menú se pliega tras el botón «Menú».
 
 ```text
 rut,nombres,apellidos,fecha_nacimiento,es_cronico,es_postrado,telefono,direccion,codigo_receta,fecha_inicio,vigencia_meses,max_entregas
@@ -224,7 +225,7 @@ Después de instalar `requirements.txt`, `python manage.py runserver` sirve HTTP
 
 Abre `/turnos/sala/` en el equipo de la sala. Es pública y de solo lectura: muestra números y ventanillas, recientes, espera y hora de Chile, sin identidad ni recetas. Técnico, Q.F. y superusuario tienen «Pantalla de sala» en el menú, que abre otra pestaña. Pulsa **Activar sonido** una vez y usa **Probar sonido** para comprobar el equipo. Cada aviso tiene tono y voz dos veces; si no existe voz española, lo informa y mantiene el tono/aviso visual. El equipo requiere navegador actualizado, altavoces y una voz española instalada; comprobarlos antes de la demostración. El modo quiosco no sustituye esa comprobación ni garantiza reproducción sin gesto.
 
-El canal `/ws/sala/` vigila la base cada 0,5 s, por lo que recibe también lo que emite `procesar_cola --continuo` desde otro proceso. Tiene límites de 20 conexiones por proceso y 5 por dirección, y valida el origen contra `ALLOWED_HOSTS`. El panel privado conserva su consulta cada segundo. Tras tres fallos del canal, la sala consulta `/turnos/sala/estado/` cada segundo hasta recuperarlo; si el servidor no responde, conserva el contenido y advierte que puede estar desactualizado. HTTP público usa `no-store` y no crea cookies. El sonido requiere activación local y no se persiste el estado de pacientes en el navegador.
+El canal `/ws/sala/` vigila la base cada 0,5 s, por lo que recibe también lo que emite `procesar_cola --continuo` desde otro proceso. Tiene límites de 20 conexiones por proceso y 5 por dirección, y valida el origen contra `ALLOWED_HOSTS`. El panel privado conserva su consulta cada segundo. Si el canal cae, la sala reintenta el WebSocket con esperas de 1 a 10 s; mientras tanto conserva el contenido, advierte que puede estar desactualizado y pide acercarse a la ventanilla. No hay respaldo por HTTP. HTTP público usa `no-store` y no crea cookies. El sonido requiere activación local y no se persiste el estado de pacientes en el navegador.
 
 Verificación aislada (la dependencia `websockets` es solo para esta herramienta, no para servir la aplicación):
 

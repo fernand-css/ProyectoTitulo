@@ -1,6 +1,7 @@
 """Contraste WCAG, integridad de iconos y recursos locales de la PWA."""
 
 import json
+import os
 import re
 import struct
 import zlib
@@ -83,14 +84,18 @@ class EstaticosTests(SimpleTestCase):
     def test_libreta_del_padron_usa_solo_colores_de_la_paleta_y_variables_definidas(self):
         """recetas.css no declara colores propios: todo sale de base.css, donde se verifica el contraste."""
         base = (settings.BASE_DIR / "static/css/base.css").read_text(encoding="utf-8")
-        recetas = (settings.BASE_DIR / "static/css/recetas.css").read_text(encoding="utf-8")
-        self.assertNotRegex(recetas, r"#[0-9a-fA-F]{3,8}\b")
-        self.assertNotRegex(recetas, r"\b(?:rgb|rgba|hsl|hsla)\(")
-        definidas = set(re.findall(r"(--[a-z0-9-]+)\s*:", base + recetas))
-        # Las plantillas inyectan estos tres valores numéricos (porcentaje, posición de «hoy» y cantidad de la barra).
-        inyectadas = {"--p", "--hoy", "--n"}
-        usadas = set(re.findall(r"var\((--[a-z0-9-]+)", recetas))
-        self.assertEqual(usadas - definidas - inyectadas, set())
+        # El tablero (tablero.css) sigue la misma regla que la libreta.
+        for nombre in ("recetas.css", "tablero.css"):
+            with self.subTest(hoja=nombre):
+                recetas = (settings.BASE_DIR / "static/css" / nombre).read_text(encoding="utf-8")
+                self.assertNotRegex(recetas, r"#[0-9a-fA-F]{3,8}\b")
+                self.assertNotRegex(recetas, r"\b(?:rgb|rgba|hsl|hsla)\(")
+                definidas = set(re.findall(r"(--[a-z0-9-]+)\s*:", base + recetas))
+                # Las plantillas inyectan valores numéricos: porcentaje, posición de «hoy», cantidad de la barra,
+                # altura de una barra del tablero y orden de aparición de un arco del anillo o de una barra.
+                inyectadas = {"--p", "--hoy", "--n", "--h", "--i"}
+                usadas = set(re.findall(r"var\((--[a-z0-9-]+)", recetas))
+                self.assertEqual(usadas - definidas - inyectadas, set())
 
     def test_graficos_de_la_libreta_cumplen_contraste_de_componentes(self):
         """WCAG 1.4.11: sellos, casillas y barras se distinguen del fondo con al menos 3:1."""
@@ -100,7 +105,8 @@ class EstaticosTests(SimpleTestCase):
             ("ladrillo", "trigo-fondo"), ("ladrillo", "suave-fondo"), ("ladrillo", "panel-fondo"),  # sello, aro y lomo
             ("borde", "suave-fondo"), ("borde", "panel-fondo"),  # casilla vacía y punto sin sellar
             ("tinta", "trigo-fondo"),  # próxima casilla
-            ("exito-texto", "panel-fondo"), ("error-texto", "panel-fondo"),  # tramos de la barra de carga
+            ("exito-texto", "panel-fondo"), ("error-texto", "panel-fondo"),  # tramos de la barra de carga y del anillo
+            ("tinta", "naranja"),  # el arco naranja del anillo y la barra del mes actual van delimitados por tinta
         ]
         for primero, segundo in pares:
             with self.subTest(primero=primero, segundo=segundo):
@@ -118,6 +124,52 @@ class EstaticosTests(SimpleTestCase):
             with self.subTest(recurso=recurso):
                 self.assertTrue(finders.find(recurso))
                 self.assertIn(recurso, (settings.BASE_DIR / plantilla).read_text(encoding="utf-8"))
+
+    def test_urls_de_css_y_js_llevan_su_version_y_el_resto_no(self):
+        """Cambiar un .css o .js cambia su URL, así el navegador no sigue usando una hoja vieja."""
+        from django.templatetags.static import static
+
+        for recurso in ("css/base.css", "css/recetas.css", "css/tablero.css", "js/menu.js"):
+            with self.subTest(recurso=recurso):
+                self.assertRegex(static(recurso), rf"^/static/{re.escape(recurso)}\?v=\d+$")
+        # Las fuentes y los iconos conservan su URL: el CSS las pide sin versión y una URL distinta las descargaría dos veces.
+        self.assertEqual(static("fonts/bitter-latin-wght-normal.woff2"), "/static/fonts/bitter-latin-wght-normal.woff2")
+        self.assertEqual(static("icons/marca.svg"), "/static/icons/marca.svg")
+        # Un archivo inexistente no rompe la página: se entrega sin versión.
+        self.assertEqual(static("css/no-existe.css"), "/static/css/no-existe.css")
+
+    def test_la_version_cambia_cuando_cambia_el_archivo(self):
+        from django.templatetags.static import static
+
+        ruta = finders.find("css/tablero.css")
+        antes = static("css/tablero.css")
+        original = os.stat(ruta).st_mtime
+        try:
+            os.utime(ruta, (original + 100, original + 100))
+            self.assertNotEqual(static("css/tablero.css"), antes)
+        finally:
+            os.utime(ruta, (original, original))
+        self.assertEqual(static("css/tablero.css"), antes)
+
+    def test_tablero_y_menu_plegable_existen_y_estan_enlazados(self):
+        pagina = (settings.BASE_DIR / "templates/recetas/recetas_lista.html").read_text(encoding="utf-8")
+        layout = (settings.BASE_DIR / "templates/components/Layout/base.html").read_text(encoding="utf-8")
+        self.assertIn("css/tablero.css", pagina)
+        self.assertIn("js/menu.js", layout)
+        for recurso in ("css/tablero.css", "js/menu.js"):
+            with self.subTest(recurso=recurso):
+                self.assertTrue(finders.find(recurso))
+
+    def test_animaciones_del_tablero_parten_de_su_estado_final_y_se_apagan_con_reducir_movimiento(self):
+        """Sin animación el tablero debe verse completo: estas animaciones solo declaran el estado de partida («from»)."""
+        css = (settings.BASE_DIR / "static/css/tablero.css").read_text(encoding="utf-8")
+        for nombre in ("trazar", "dibujar", "velo", "subir"):
+            with self.subTest(animacion=nombre):
+                linea = next(linea for linea in css.splitlines() if linea.startswith(f"@keyframes {nombre} "))
+                self.assertRegex(linea, r"\{ from \{[^}]*\} \}")
+                self.assertNotRegex(linea, r"\bto\b|100%")
+        base = (settings.BASE_DIR / "static/css/base.css").read_text(encoding="utf-8")
+        self.assertRegex(base, r"prefers-reduced-motion: reduce\)\s*\{[^}]*animation: none !important")
 
     def test_fuentes_locales_woff2_con_licencia_y_referenciadas_por_el_css(self):
         css = (settings.BASE_DIR / "static/css/base.css").read_text(encoding="utf-8")

@@ -18,7 +18,10 @@ class Command(BaseCommand):
             raise CommandError("Intervalo debe estar entre 0 y 60 segundos y límite entre 1 y 1000.")
         try:
             while True:
-                close_old_connections()
+                # Solo el modo continuo es un proceso de larga vida que puede heredar conexiones vencidas.
+                # Una pasada única no lo necesita, y en una transacción (pruebas) PostgreSQL sí la cerraría.
+                if options["continuo"]:
+                    close_old_connections()
                 cantidad = procesar_pendientes(options["limite"])
                 if cantidad or not options["continuo"]:
                     self.stdout.write(f"Llamados confirmados: {cantidad}")

@@ -65,5 +65,5 @@
 {{ estado|json_script:'sala-estado-inicial' }}
 {% endblock %}
 {% block scripts %}
-<script defer src="{% static 'js/sala.js' %}" data-estado-url="{% url 'turnosapp:sala_estado' %}"></script>
+<script defer src="{% static 'js/sala.js' %}"></script>
 {% endblock %}

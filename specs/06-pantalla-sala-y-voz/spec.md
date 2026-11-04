@@ -25,7 +25,7 @@ El resultado es una pantalla pública, de solo lectura, que se abre en el equipo
 
 | Acción | Anónimo (equipo de la sala) | Técnico | Encargado de terreno | Q.F. | Superusuario activo |
 |---|---|---|---|---|---|
-| Abrir la pantalla `/turnos/sala/`, su canal en vivo y su estado de respaldo | Sí, solo lectura, sin sesión | Sí | Sí | Sí | Sí |
+| Abrir la pantalla `/turnos/sala/`, su canal en vivo | Sí, solo lectura, sin sesión | Sí | Sí | Sí | Sí |
 | Ver el enlace «Pantalla de sala» en el menú | No | Sí | No | Sí | Sí |
 | Enviar datos o comandos por el canal en vivo | No: el servidor los ignora | No | No | No | No |
 | Ver RUT, nombre, categoría o recetas en la pantalla | No | No | No | No | No |
@@ -42,7 +42,7 @@ Incluye:
 - canal WebSocket de solo lectura con vigilancia de la base, que sirve también a los llamados hechos por otro proceso (`procesar_cola`);
 - la pantalla de sala con una tarjeta por ventanilla, el último llamado destacado, los llamados recientes, la hora y fecha, y la cantidad y los números en espera;
 - aviso visual y voz concordantes, con fila de avisos, activación y prueba del sonido, y un respaldo cuando no hay voz en español;
-- reconexión automática y respaldo por consulta HTTP;
+- reconexión automática del canal en vivo, sin respaldo por consulta HTTP (retirado el 2026-11-03);
 - un enlace del menú para el personal;
 - pruebas de concurrencia y una medición de la latencia confirmación → pantalla.
 
@@ -65,7 +65,7 @@ Fuera de este spec:
 5. La pantalla destaca el llamado con el texto «Número 23, ventanilla 2» (o «Nuevamente, número 23, ventanilla 2» si es un re-llamado). La voz dice esa misma frase dos veces, con una pausa entre ambas.
 6. Si llegan varios llamados casi juntos, la voz los dice uno tras otro sin superponerse. Los números siguen visibles en la pantalla aunque algún aviso hablado se descarte.
 7. Cuando el Técnico finaliza la atención o declara ausente al paciente, la tarjeta de esa ventanilla pasa a «Disponible» (o «Sin atención») sin pronunciar nada.
-8. Si la conexión se corta, aparece un aviso visible, la pantalla reintenta con esperas crecientes y, si el WebSocket no se logra, consulta el estado cada segundo. Al volver, recibe el estado completo; dice los llamados recientes que se perdió durante la caída y no repite los que ya había dicho.
+8. Si la conexión se corta, aparece un aviso visible, la pantalla reintenta con esperas crecientes. Al volver, recibe el estado completo; dice los llamados recientes que se perdió durante la caída y no repite los que ya había dicho.
 
 ## Requisitos funcionales
 
@@ -76,8 +76,8 @@ Fuera de este spec:
 - **RF-06-05 — Aviso visual y de voz concordantes:** CUANDO llega un anuncio, LA PANTALLA lo destaca visualmente con una frase y LA VOZ dice esa misma frase. Las frases son fijas: «Número {n}, ventanilla {v}» para un llamado y «Nuevamente, número {n}, ventanilla {v}» para un re-llamado. La voz repite la frase dos veces, con una pausa corta, y la precede un tono breve. Nada depende solo del color ni solo del sonido.
 - **RF-06-06 — Fila de avisos de voz:** LOS AVISOS hablados se dicen en orden de llegada, completos y sin superponerse; la pantalla marca el aviso que suena. SI se acumulan más de cinco, ENTONCES se descartan los más antiguos de la fila, cuyos números siguen visibles. SI un aviso tiene más de 60 segundos al llegar a la pantalla, ENTONCES no se pronuncia. Al abrir la pantalla no se pronuncia el historial. Al reconectar tras una caída sí se pronuncian los anuncios que se perdieron durante ella, siempre que tengan menos de 60 segundos; los ya dichos no se repiten.
 - **RF-06-07 — Activación y estado del sonido:** MIENTRAS el navegador no haya recibido un gesto de la persona, LA PANTALLA muestra de forma permanente y en texto que el sonido está desactivado y ofrece «Activar sonido». Una vez activado, muestra «Sonido activado» y ofrece «Probar sonido». SI el equipo no tiene una voz en español, ENTONCES lo avisa en texto, conserva el tono y el aviso visual y no finge que hubo voz.
-- **RF-06-08 — Reconexión y respaldo:** SI se pierde el canal en vivo, ENTONCES LA PANTALLA muestra en texto que no está conectada, reintenta con esperas de 1 s hasta un máximo de 10 s y, tras tres intentos fallidos, consulta el estado por HTTP cada segundo hasta recuperar el canal. Al recuperarse recibe el estado completo. SI el servidor deja de responder del todo, ENTONCES la pantalla conserva lo último que mostró, avisa que puede estar desactualizada y pide acercarse a la ventanilla.
-- **RF-06-09 — Privacidad del contenido público:** EL CANAL, el estado de respaldo y la pantalla solo contienen número de turno, número de ventanilla, tipo, instante, identificador del anuncio y la cantidad y números en espera. No se expone ninguna referencia al paciente, al turno interno ni a recetas. Las respuestas HTTP llevan `Cache-Control: no-store`, el sitio no pone cookies a quien solo mira la pantalla y los registros del servidor no contienen datos personales.
+- **RF-06-08 — Reconexión:** SI se pierde el canal en vivo, ENTONCES LA PANTALLA muestra en texto que no está conectada, conserva lo último que mostró, avisa que puede estar desactualizada y reintenta con esperas de 1 s hasta un máximo de 10 s. Tras tres intentos fallidos pide además acercarse a la ventanilla. Al recuperarse recibe el estado completo. SI el navegador no admite WebSocket, ENTONCES lo dice en texto y conserva el contenido inicial. No hay respaldo por HTTP (retirado el 2026-11-03).
+- **RF-06-09 — Privacidad del contenido público:** EL CANAL y la pantalla solo contienen número de turno, número de ventanilla, tipo, instante, identificador del anuncio y la cantidad y números en espera. No se expone ninguna referencia al paciente, al turno interno ni a recetas. Las respuestas HTTP llevan `Cache-Control: no-store`, el sitio no pone cookies a quien solo mira la pantalla y los registros del servidor no contienen datos personales.
 - **RF-06-10 — Accesibilidad de la pantalla:** LA PANTALLA cumple WCAG 2.1 AA: contraste de al menos 4,5:1 en el texto, tipografía grande y legible a distancia, aviso del llamado en una región viva, estados con texto, foco visible en los controles, sin destellos de más de tres por segundo y respeto de «reducir movimiento». El tamaño del texto puede ampliarse con el control existente del proyecto.
 - **RF-06-11 — Sincronía medida:** EL SISTEMA muestra un llamado confirmado en la pantalla en 2 segundos o menos en al menos el 95 % de los casos, medido desde que se confirma la transacción del llamado hasta que el navegador de la pantalla recibe el anuncio. La medición registra cuántos llamados, con qué carga y con qué pantallas conectadas.
 - **RF-06-12 — Acceso del personal y compatibilidad:** EL MENÚ ofrece «Pantalla de sala» a Técnico, Q.F. y superusuario, que la abre en otra pestaña. LAS rutas HTTP existentes, el tótem, el panel privado del 05 y su consulta periódica siguen funcionando igual con el servidor ahora capaz de WebSocket.
@@ -118,7 +118,7 @@ Son propuestas ajustables en el plan, no reglas institucionales:
 | Revisión de la base por proceso | 0,5 s |
 | Latido del canal | cada 15 s; la pantalla reconecta si pasan 30 s sin recibir nada |
 | Reconexión | 1 s, creciendo hasta 10 s |
-| Intentos antes del respaldo HTTP | 3; consulta cada 1 s |
+| Intentos antes de pedir acercarse a la ventanilla | 3 |
 | Fila de avisos hablados | máximo 5 |
 | Vigencia de un aviso hablado | 60 s |
 | Repeticiones de la voz | 2, con 1,5 s de pausa |
@@ -148,8 +148,8 @@ A medianoche la pantalla muestra solo la fecha nueva y no pronuncia anuncios de 
 | RF-06-07 | La pantalla se abre sin gesto previo | Muestra en texto «Sonido desactivado» y el botón; tras pulsarlo muestra «Sonido activado» y permite probarlo. |
 | RF-06-07 | El equipo no tiene voz en español | Avisa en texto, mantiene tono y aviso visual y no dice haber hablado. |
 | RF-06-08 | Se corta la conexión y vuelve | Aparece el aviso de desconexión, reintenta con las esperas indicadas y, al volver, muestra el estado actual y dice solo lo que se perdió y sigue vigente. |
-| RF-06-08 | El WebSocket no logra conectarse tras tres intentos | Pasa a consultar cada segundo y muestra los anuncios nuevos; vuelve al canal en vivo al lograrlo. |
-| RF-06-09 | Se inspeccionan el canal, el estado de respaldo, el HTML y los registros | Solo hay número, ventanilla, tipo, instante, identificador, cantidad y números en espera; ni RUT, nombre, categoría ni referencias internas. |
+| RF-06-08 | El WebSocket no logra conectarse tras tres intentos | Conserva lo último mostrado, avisa que puede estar desactualizada, pide acercarse a la ventanilla y sigue reintentando. |
+| RF-06-09 | Se inspeccionan el canal, el HTML y los registros | Solo hay número, ventanilla, tipo, instante, identificador, cantidad y números en espera; ni RUT, nombre, categoría ni referencias internas. |
 | RF-06-10 | Auditoría automática y revisión de contraste, teclado y zoom | Sin errores de nivel AA, contraste ≥ 4,5:1, controles con foco visible y estados con texto. |
 | RF-06-11 | Se miden al menos 100 llamados con la carga descrita y dos pantallas conectadas | El p95 de confirmación → recepción es ≤ 2 s y se registran la carga y el número de muestras. |
 | RF-06-12 | Técnico, Q.F., Encargado y anónimo miran el menú | Los tres primeros ven el enlace según la matriz; el Encargado y el anónimo no. Las rutas del 04 y del 05 responden como antes. |
@@ -192,5 +192,7 @@ No quedan preguntas funcionales bloqueantes. Supuestos técnicos reversibles, a 
 - Si la franja superior del layout (aviso de demostración y control de tamaño de texto) se conserva o se oculta en la pantalla de sala. Se propone conservarla.
 
 ## Revisión y cambios
+
+2026-11-03 (posterior a la implementación): por instrucción del usuario se retira `GET /turnos/sala/estado/` (vista `sala_estado`, ruta y atributo `data-estado-url`) y con él el respaldo HTTP del cliente. La pantalla depende solo del WebSocket; el estado inicial sigue incrustado en `sala.html`. Consecuencia: si un proxy bloquea WebSocket o el canal cae, la pantalla no se actualiza hasta recuperar la conexión. Se actualizan RF-06-08, RF-06-09 y los parámetros; el historial de `validation.md` no se reescribe.
 
 2026-11-03: primer bloque (WebSocket con Channels y vigilancia de la base, voz del navegador, pantalla pública de solo lectura, contenido adicional) y segundo bloque (números en espera en orden numérico con cantidad, tiempo estimado fuera, voz dos veces, fila de avisos). Se guardan cuatro documentos como Borrador, sin código, migraciones ni aceptación funcional.

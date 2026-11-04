@@ -25,7 +25,7 @@ class VistasTests(TestCase):
         self.actores = actores()
         self.carga = cargar(self.actores["qf"], [fila()])
         self.receta = Receta.objects.get()
-        self.consultas = [reverse("recetasapp:pacientes"), reverse("recetasapp:paciente_detalle", args=[self.receta.paciente_id]), reverse("recetasapp:receta_detalle", args=[self.receta.pk])]
+        self.consultas = [reverse("recetasapp:pacientes"), reverse("recetasapp:paciente_detalle", args=[self.receta.paciente_id]), reverse("recetasapp:receta_detalle", args=[self.receta.pk]), reverse("recetasapp:recetas")]
         self.gestion = [reverse("recetasapp:receta_nueva"), reverse("recetasapp:receta_renovar", args=[self.receta.pk]), reverse("recetasapp:importaciones"), reverse("recetasapp:importacion_nueva"), reverse("recetasapp:importacion_detalle", args=[self.carga.referencia]), reverse("recetasapp:plantilla", args=["csv"]), reverse("recetasapp:plantilla", args=["xlsx"])]
         self.entrega = reverse("recetasapp:entrega_confirmar", args=[self.receta.pk])
 

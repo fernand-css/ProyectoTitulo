@@ -68,3 +68,7 @@ También confirmó «sip» para T-06-07. El único commit técnico final está a
 ## Aceptación del usuario
 
 Pendiente; no marcarla automáticamente después de ejecutar pruebas.
+
+## Corrección posterior al cierre técnico
+
+El usuario reportó sonido inaudible en Firefox tras mostrar «Sonido activado». El servidor local HTTP/WebSocket respondió correctamente. Se corrigieron en el cliente la reanudación de voz pausada, la confirmación prematura de activación, la espera de audio sin límite y el plazo inicial del canal. Cinco nuevas regresiones reproducían los defectos antes del cambio; la suite JavaScript termina con 59 pruebas OK. El servidor ya entrega el script actualizado. Se pidió al usuario recargar y probar; verificación audible pendiente. La corrección queda sin commit adicional y no modifica la base del proyecto ni los cambios ajenos.

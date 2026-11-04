@@ -23,8 +23,9 @@ const vaciarPromesas = async () => { for (let i = 0; i < 8; i++) await Promise.r
 
 function entorno(opciones = {}) {
   let ahora = 0, siguiente = 1;
-  const tareas = new Map(), sockets = [], solicitudes = [], eventos = {}, locuciones = [], tonos = [], eventosVoz = {};
+  const tareas = new Map(), sockets = [], eventos = {}, locuciones = [], tonos = [], eventosVoz = {};
   let voces = opciones.voces || [{lang: 'es-CL', name: 'Voz sintética chilena'}], enVoz = null, cancelaciones = 0;
+  let pausada = Boolean(opciones.vozPausada), reanudaciones = 0;
   const elementos = Object.fromEntries(['ultimo', 'ventanillas', 'recientes', 'espera', 'reloj', 'conexion', 'aviso', 'sonido', 'activar-sonido', 'probar-sonido']
     .map(nombre => ['sala-' + nombre, new Nodo()]));
   elementos['sala-estado-inicial'] = new Nodo('script');
@@ -40,13 +41,14 @@ function entorno(opciones = {}) {
   }
   const sintesis = {
     getVoices: () => voces,
+    resume() { pausada = false; reanudaciones++; },
     addEventListener: (nombre, fn) => { eventosVoz[nombre] = fn; },
     speak(locucion) {
       assert.equal(enVoz, null, 'No superponer locuciones');
       const registro = {texto: locucion.text, voz: locucion.voice, rate: locucion.rate, cuando: ahora,
         visual: elementos['sala-aviso'].textContent, fin: null, locucion};
       locuciones.push(registro); enVoz = registro;
-      if (!opciones.vozBloqueada) registro.timer = programar(() => {
+      if (!opciones.vozBloqueada && !pausada) registro.timer = programar(() => {
         enVoz = null; registro.fin = ahora;
         if (opciones.errorVoz) locucion.onerror?.({error: opciones.errorVoz}); else locucion.onend?.();
       }, 1000);
@@ -63,6 +65,7 @@ function entorno(opciones = {}) {
     constructor() { this.state = 'suspended'; this.destination = {}; }
     get currentTime() { return ahora / 1000; }
     resume() {
+      if (opciones.audioBloqueado) return new Promise(() => {});
       if (opciones.errorAudio) return Promise.reject(Error('audio no disponible'));
       this.state = 'running'; return Promise.resolve();
     }
@@ -85,18 +88,14 @@ function entorno(opciones = {}) {
       createTextNode: texto => { const n = new Nodo('#text'); n.textContent = texto; return n; }},
     location: {href: opciones.https ? 'https://sala.example/turnos/sala/' : 'http://sala.example/turnos/sala/',
       protocol: opciones.https ? 'https:' : 'http:'},
-    estadoUrl: '/turnos/sala/estado/', WebSocket: opciones.sinWebSocket ? undefined : Socket,
-    AbortController, performance: {now: () => ahora},
+    WebSocket: opciones.sinWebSocket ? undefined : Socket,
+    performance: {now: () => ahora},
     speechSynthesis: opciones.sinSintesis ? undefined : sintesis,
     SpeechSynthesisUtterance: class { constructor(text) { this.text = text; } },
     AudioContext: opciones.sinAudio ? undefined : Audio,
     setTimeout: (fn, ms) => programar(fn, ms), clearTimeout: id => tareas.delete(id),
     setInterval: (fn, ms) => programar(fn, ms, true), clearInterval: id => tareas.delete(id),
     addEventListener: (nombre, fn) => { eventos[nombre] = fn; },
-    fetch: async (url, datos) => {
-      solicitudes.push({url, datos, cuando: ahora});
-      return opciones.fetch ? opciones.fetch(url, datos) : {ok: true, json: async () => opciones.respaldo || estado()};
-    },
   };
   const cliente = crearSala(e);
   async function avanzar(ms) {
@@ -110,7 +109,7 @@ function entorno(opciones = {}) {
     }
     ahora = fin; await vaciarPromesas();
   }
-  async function respaldo() {
+  async function caidas() {
     sockets[0].fallar(); await avanzar(1000);
     sockets[1].fallar(); await avanzar(2000);
     sockets[2].fallar(); await vaciarPromesas();
@@ -118,8 +117,9 @@ function entorno(opciones = {}) {
   async function activar() {
     elementos['sala-activar-sonido'].click(); await vaciarPromesas(); await avanzar(1000);
   }
-  return {elementos, sockets, solicitudes, cliente, avanzar, respaldo, eventos, tareas, activar, locuciones, tonos,
-    cambiarVoces: nuevas => { voces = nuevas; eventosVoz.voiceschanged?.(); }, cancelaciones: () => cancelaciones};
+  return {elementos, sockets, cliente, avanzar, caidas, eventos, tareas, activar, locuciones, tonos,
+    cambiarVoces: nuevas => { voces = nuevas; eventosVoz.voiceschanged?.(); }, cancelaciones: () => cancelaciones,
+    reanudaciones: () => reanudaciones};
 }
 
 test('pinta estado inicial, conserva el historial y conecta por ws o wss al mismo host', () => {
@@ -130,7 +130,6 @@ test('pinta estado inicial, conserva el historial y conecta por ws o wss al mism
     assert.equal(e.elementos['sala-ultimo'].textContent, frase(a));
     assert.match(e.elementos['sala-espera'].textContent, /2 personas en espera23/);
     assert.match(e.elementos['sala-ventanillas'].textContent, /Disponible/);
-    assert.equal(e.solicitudes.length, 0);
   }
 });
 
@@ -185,72 +184,27 @@ test('reconecta con esperas de uno a diez segundos sin duplicar por error y cier
   }
 });
 
-test('tras tres fallos consulta solo GET cada segundo con no-store y sin credenciales', async () => {
-  const e = entorno(); await e.respaldo();
-  assert.equal(e.solicitudes.length, 1);
-  await e.avanzar(1000); assert.equal(e.solicitudes.length, 2);
-  await e.avanzar(1000); assert.equal(e.solicitudes.length, 3);
-  for (const {url, datos} of e.solicitudes) {
-    assert.equal(url, '/turnos/sala/estado/'); assert.equal(datos.method, undefined);
-    assert.equal(datos.cache, 'no-store'); assert.equal(datos.credentials, 'omit');
-  }
-  assert.match(e.elementos['sala-conexion'].textContent, /respaldo/);
-});
-
-test('respaldo actualiza llamados y no repite el recibido por el canal', async () => {
-  const e = entorno({respaldo: estado({recientes: [anuncio(2)]})});
-  e.sockets[0].mensaje(estado({recientes: [anuncio(1)]}));
-  await e.respaldo();
-  assert.equal(e.elementos['sala-ultimo'].dataset.anuncioId, '2');
-  const escrituras = e.elementos['sala-ultimo'].escrituras;
-  await e.avanzar(1000);
-  assert.equal(e.elementos['sala-ultimo'].escrituras, escrituras);
-});
-
-test('recuperar el canal cancela respaldo y reinicia la espera de reconexión', async () => {
-  const e = entorno(); await e.respaldo(); await e.avanzar(3000);
+test('tras varias caídas recupera el canal y vuelve a reintentar si se cae de nuevo', async () => {
+  const e = entorno(); await e.caidas(); await e.avanzar(3000);
   const s = e.sockets.at(-1); s.mensaje(estado());
-  const solicitudes = e.solicitudes.length;
-  await e.avanzar(1000); assert.equal(e.solicitudes.length, solicitudes);
+  assert.match(e.elementos['sala-conexion'].textContent, /en vivo/);
   s.fallar(); const conexiones = e.sockets.length;
   await e.avanzar(1000); assert.equal(e.sockets.length, conexiones + 1);
 });
 
-test('respuesta HTTP pendiente no pisa un estado recuperado por WebSocket', async () => {
-  let resolver;
-  const e = entorno({fetch: () => new Promise(resolve => { resolver = resolve; })});
-  await e.respaldo(); await e.avanzar(3000);
-  e.sockets.at(-1).mensaje(estado({recientes: [anuncio(3)]}));
-  resolver({ok: true, json: async () => estado({recientes: [anuncio(2)]})}); await vaciarPromesas();
-  assert.equal(e.elementos['sala-ultimo'].dataset.anuncioId, '3');
-  assert.match(e.elementos['sala-conexion'].textContent, /en vivo/);
-});
-
 test('caída total conserva el contenido y pide acercarse a la ventanilla', async () => {
-  const e = entorno({inicial: estado({recientes: [anuncio(1)]}), fetch: async () => { throw Error('caída'); }});
-  await e.respaldo();
+  const e = entorno({inicial: estado({recientes: [anuncio(1)]})});
+  await e.caidas();
   assert.equal(e.elementos['sala-ultimo'].dataset.anuncioId, '1');
   assert.match(e.elementos['sala-conexion'].textContent, /desactualizada.*Acércate a la ventanilla/);
 });
 
-test('respaldo no superpone solicitudes y aborta una bloqueada a los cinco segundos', async () => {
-  const e = entorno({fetch: (_, datos) => new Promise((_, reject) => {
-    datos.signal.addEventListener('abort', () => reject(Error('abortar')));
-  })});
-  await e.respaldo(); await e.avanzar(4999);
-  assert.equal(e.solicitudes.length, 1);
-  await e.avanzar(1001); assert.equal(e.solicitudes[0].datos.signal.aborted, true);
-  assert.ok(e.solicitudes.length >= 2);
-});
-
-test('sin WebSocket usa HTTP y recupera errores de consulta', async () => {
-  let consultas = 0;
-  const e = entorno({sinWebSocket: true, fetch: async () => {
-    if (++consultas === 1) return {ok: false};
-    return {ok: true, json: async () => estado({recientes: [anuncio(4)]})};
-  }});
-  await vaciarPromesas(); assert.match(e.elementos['sala-conexion'].textContent, /Sin conexión/);
-  await e.avanzar(1000); assert.equal(e.elementos['sala-ultimo'].dataset.anuncioId, '4');
+test('sin WebSocket lo dice en texto, conserva el contenido y no intenta conectar', async () => {
+  const e = entorno({sinWebSocket: true, inicial: estado({recientes: [anuncio(4)]})});
+  await e.avanzar(60000);
+  assert.match(e.elementos['sala-conexion'].textContent, /no admite la conexión en vivo/);
+  assert.equal(e.elementos['sala-ultimo'].dataset.anuncioId, '4');
+  assert.equal(e.sockets.length, 0);
 });
 
 test('si pasan treinta segundos sin estado ni latido cierra y reconecta', async () => {
@@ -311,14 +265,12 @@ test('eventos de un socket anterior no modifican una conexión nueva', async () 
   assert.match(e.elementos['sala-conexion'].textContent, /en vivo/);
 });
 
-test('cerrar la página cancela solicitudes, temporizadores y conexión', async () => {
-  const e = entorno({fetch: (_, datos) => new Promise((_, reject) => {
-    datos.signal.addEventListener('abort', () => reject(Error('abortar')));
-  })});
-  await e.respaldo(); e.eventos.pagehide(); await vaciarPromesas();
-  const solicitudes = e.solicitudes.length, conexiones = e.sockets.length;
+test('cerrar la página cancela temporizadores y conexión', async () => {
+  const e = entorno();
+  await e.caidas(); e.eventos.pagehide(); await vaciarPromesas();
+  const conexiones = e.sockets.length;
   await e.avanzar(60000);
-  assert.equal(e.solicitudes.length, solicitudes); assert.equal(e.sockets.length, conexiones);
+  assert.equal(e.sockets.length, conexiones);
   assert.equal(e.tareas.size, 0); assert.ok(e.sockets.every(s => s.cerrado));
 });
 
@@ -424,9 +376,10 @@ test('reconexión a los 20 s habla solo el perdido vigente, sin repetir el ya di
   assert.deepEqual(avisosHablados(e).map(l => l.texto), [1, 1, 2, 2].map(id => frase(anuncio(id))));
 });
 
-test('respaldo y regreso al WebSocket no duplican avisos hablados', async () => {
-  const e = entorno({respaldo: estado({recientes: [anuncio(1)]})});
-  e.sockets[0].mensaje(estado()); await e.activar(); await e.respaldo();
+test('reconectar tras caídas no duplica avisos hablados', async () => {
+  const e = entorno();
+  e.sockets[0].mensaje(estado()); await e.activar(); await e.caidas(); await e.avanzar(3000);
+  e.sockets.at(-1).mensaje(estado({recientes: [anuncio(1)]}));
   await e.avanzar(4000);
   e.sockets.at(-1).mensaje(estado({recientes: [anuncio(1)]}));
   await e.avanzar(4000);
@@ -465,7 +418,6 @@ test('Probar sonido funciona localmente y no interrumpe un llamado', async () =>
   assert.equal(e.locuciones.filter(l => l.texto.startsWith('Prueba')).length, 1);
   e.elementos['sala-probar-sonido'].click(); await vaciarPromesas(); await e.avanzar(1000);
   assert.equal(e.locuciones.filter(l => l.texto.startsWith('Prueba')).length, 2);
-  assert.equal(e.solicitudes.length, 0);
 });
 
 test('rechazo de voz por el navegador muestra sonido desactivado y permite reactivarlo', async () => {
@@ -533,4 +485,72 @@ test('una síntesis que no notifica fin se cancela tras 15 s y la fila sigue ava
   assert.match(e.elementos['sala-sonido'].textContent, /No se pudo reproducir la voz/);
   e.eventos.pagehide(); await vaciarPromesas(); await e.avanzar(1000);
   assert.equal(e.tareas.size, 0);
+});
+
+test('la activación muestra prueba en curso hasta que termina, sin anunciar éxito anticipado', async () => {
+  const e = entorno();
+  e.elementos['sala-activar-sonido'].click();
+  assert.match(e.elementos['sala-sonido'].textContent, /^Probando sonido/);
+  await vaciarPromesas(); await e.avanzar(1000);
+  assert.match(e.elementos['sala-sonido'].textContent, /^Sonido activado/);
+});
+
+test('activar reanuda una síntesis pausada para que la prueba y los llamados se reproduzcan', async () => {
+  const e = entorno({vozPausada: true}); const s = e.sockets[0]; s.mensaje(estado());
+  await e.activar();
+  assert.ok(e.reanudaciones() >= 1);
+  s.mensaje({tipo: 'anuncio', ...anuncio(1)}); await e.avanzar(4000);
+  assert.equal(avisosHablados(e).length, 2);
+});
+
+test('si el navegador no termina de activar audio, libera el botón y permite reintentar', async () => {
+  const e = entorno({voces: [], audioBloqueado: true});
+  e.elementos['sala-activar-sonido'].click(); await vaciarPromesas(); await e.avanzar(6000);
+  assert.equal(e.elementos['sala-activar-sonido'].hidden, false);
+  assert.equal(e.elementos['sala-activar-sonido'].disabled, false);
+  assert.match(e.elementos['sala-sonido'].textContent, /^Sonido desactivado/);
+  e.eventos.pagehide(); await vaciarPromesas(); await e.avanzar(1000);
+  assert.equal(e.tareas.size, 0);
+});
+
+test('si fallan voz y tono, no informa que el sonido está activado', async () => {
+  const e = entorno({errorVoz: 'synthesis-failed', errorAudio: true}); await e.activar();
+  assert.match(e.elementos['sala-sonido'].textContent, /^Sonido desactivado/);
+  assert.equal(e.elementos['sala-activar-sonido'].hidden, false);
+  assert.equal(e.elementos['sala-activar-sonido'].disabled, false);
+});
+
+test('sin estado inicial del canal sale de Conectando tras cinco segundos y reintenta', async () => {
+  const e = entorno(); await e.avanzar(5000);
+  assert.equal(e.sockets[0].cerrado, true);
+  assert.match(e.elementos['sala-conexion'].textContent, /Sin conexión/);
+  await e.avanzar(1000); assert.equal(e.sockets.length, 2);
+});
+
+test('el arranque en el navegador ata los temporizadores a window', async () => {
+  const vm = require('node:vm');
+  const fs = require('node:fs');
+  const path = require('node:path');
+  const contexto = vm.createContext({});
+  const g = vm.runInContext('globalThis', contexto);
+  // Como en el navegador: invocar un temporizador como método de otro objeto es un error.
+  const estricto = nombre => function () {
+    'use strict';
+    if (this !== undefined && this !== g) throw new TypeError(`'${nombre}' called on an object that does not implement interface Window.`);
+    return 1;
+  };
+  for (const nombre of ['setTimeout', 'clearTimeout', 'setInterval', 'clearInterval']) g[nombre] = estricto(nombre);
+  const nodos = Object.fromEntries(['ultimo', 'ventanillas', 'recientes', 'espera', 'reloj', 'conexion', 'aviso', 'sonido', 'activar-sonido', 'probar-sonido', 'estado-inicial']
+    .map(nombre => ['sala-' + nombre, new Nodo()]));
+  nodos['sala-estado-inicial'].textContent = JSON.stringify(estado());
+  g.window = g;
+  g.location = {href: 'http://sala.example/turnos/sala/', protocol: 'http:'};
+  g.WebSocket = class { close() {} };
+  g.addEventListener = () => {};
+  g.performance = {now: () => 0};
+  g.document = {
+    getElementById: id => nodos[id], createElement: etiqueta => new Nodo(etiqueta),
+    createTextNode: texto => { const n = new Nodo('#text'); n.textContent = texto; return n; }};
+  const codigo = fs.readFileSync(path.join(__dirname, '../../static/js/sala.js'), 'utf8');
+  assert.doesNotThrow(() => vm.runInContext(codigo, contexto));
 });

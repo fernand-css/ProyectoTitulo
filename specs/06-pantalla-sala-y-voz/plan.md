@@ -11,7 +11,7 @@ Revisados `CLAUDE.md`, el informe (HU-04, HU-05, HU-08, HU-09, RNF-02/04/05, NS0
 - `turnosapp/cola.py` crea el evento `llamado` dentro de la transacción de selección (`EventoTurno.objects.create(... accion="llamado" ...)`). `turnosapp/atencion.py` crea el `rellamado` con `_evento(turno, "rellamado", ...)` dentro de `_operar`, que está decorada con `@transaction.atomic`.
 - `EventoTurno` tiene UUID, secuencia por turno, acción, instante, actor, ventanilla y operación. No tiene un orden global ni está pensado para publicarse: apunta al turno y, por él, al paciente.
 - Según el 05, toda operación del personal y toda selección reservan el mismo estado diario (`EstadoColaDiaria.version`, con UPDATE condicional). Esto serializa los llamados y re-llamados del día; el plan se apoya en ello y lo comprueba con pruebas, sin darlo por supuesto.
-- El panel privado consulta `turnosapp:estado` cada segundo (`static/js/cola.js`); no usa WebSocket.
+- El panel privado consulta `turnosapp:estado` cada segundo (`static/js/cola.js`); no usa WebSocket. Esa URL es la del panel, distinta de la retirada de la sala.
 - `cesfam/asgi.py` es la plantilla estándar de Django (solo HTTP). No hay Channels, Daphne ni WebSocket. `INSTALLED_APPS` no los incluye y `requirements.txt` tampoco.
 - La base del proyecto es PostgreSQL (`cesfam/settings.py`); las herramientas `tools/verificar_spec_0X_http.py` reemplazan `DATABASES` por una SQLite temporal antes de `django.setup()`.
 - El tótem usa `components/Layout/base_publica.html` (panel de identidad a la izquierda), pensado para pantallas con formularios. La sala necesita una pantalla completa sin navegación.
@@ -41,7 +41,7 @@ Decisiones de diseño, con su motivo:
 2. **Tabla pública separada.** `AnuncioSala` guarda solo lo que se puede mostrar. El vigilante y el consumidor nunca leen `Turno` más allá de lo necesario para el estado (números y estados), ni ven pacientes.
 3. **Estado calculado, no guardado.** Las tarjetas de ventanilla, los números en espera y los recientes se calculan en cada lectura. Solo los anuncios se persisten, porque son eventos y necesitan orden e identidad.
 4. **La pantalla es el único lugar que decide qué se dice en voz alta.** El servidor envía anuncios con identidad; el navegador decide, según su fila y la vigencia, qué pronunciar. Así la voz no depende del servidor ni de que haya una pantalla conectada en el momento del llamado.
-5. **Respaldo HTTP.** El estado se expone también por `GET /turnos/sala/estado/`, que sirve para el primer pintado, para la pantalla cuando el WebSocket no se logra y para la herramienta de medición.
+5. **Sin respaldo HTTP.** *(Retirado el 2026-11-03 por instrucción del usuario: se eliminó `GET /turnos/sala/estado/`.)* El primer pintado sale del estado incrustado en `sala.html` y después todo llega por el WebSocket.
 
 ### Carrera de orden en la lectura incremental
 
@@ -109,7 +109,6 @@ Detalle implementado en T-06-03: seis consultas por lectura (las cinco del estad
 | Ruta | Uso |
 |---|---|
 | `GET /turnos/sala/` | Pantalla de sala, pública. Incluye el estado inicial en la página para pintar sin esperar al canal. |
-| `GET /turnos/sala/estado/` | Estado JSON de respaldo. Solo lectura, `no-store`. |
 | `WS /ws/sala/` | Canal en vivo, de solo lectura. |
 
 ### Cliente (`static/js/sala.js`)
@@ -120,10 +119,10 @@ Detalle implementado en T-06-03: seis consultas por lectura (las cinco del estad
 - **Voz:** `speechSynthesis`, con preferencia por `es-CL` y luego cualquier `es-*`; velocidad algo menor que la normal. Si no hay voz en español, lo informa en texto y mantiene tono y aviso visual. Las voces se cargan de forma asíncrona (`voiceschanged`).
 - **Tono:** generado con Web Audio (dos notas breves), sin archivos de audio.
 - **Activación:** el botón «Activar sonido» crea el contexto de audio y emite una locución de prueba dentro del gesto, que es lo que los navegadores exigen. El estado se muestra siempre en texto.
-- **Reconexión:** esperas de 1 s que crecen hasta 10 s; tras tres fallos, consulta `GET /turnos/sala/estado/` cada 1 s y sigue intentando el canal. Si pasan 30 s sin ningún mensaje ni latido, la pantalla considera caída la conexión.
+- **Reconexión:** esperas de 1 s que crecen hasta 10 s; sigue intentando el canal sin respaldo HTTP (retirado el 2026-11-03). Si pasan 30 s sin ningún mensaje ni latido, la pantalla considera caída la conexión.
 - **Reloj:** muestra la hora del servidor (`ahora` de cada mensaje) en `America/Santiago`, avanzando con un temporizador local entre mensajes.
 
-Implementado en T-06-04: reconexión lineal de 1, 2, …, 10 s; tras tres fallos, consulta HTTP inmediata y luego cada segundo. Las consultas no se superponen y se abortan tras 5 s si no responden; llevan `no-store` y omiten credenciales. Un estado válido del WebSocket cancela el respaldo y descarta respuestas HTTP pendientes mediante una versión de transporte. Los latidos corrigen la hora del servidor y el reloj avanza con `performance.now()`, sin depender de la hora configurada en el navegador. Al cambiar la jornada se limpia el contenido anterior incluso sin conexión; al salir se liberan recursos y al volver desde la caché de navegación se reconecta. Sin WebSocket disponible se usa directamente el respaldo.
+Implementado en T-06-04 y simplificado el 2026-11-03: reconexión lineal de 1, 2, …, 10 s; tras tres fallos añade el aviso de acercarse a la ventanilla. Se retiró el respaldo HTTP. Los latidos corrigen la hora del servidor y el reloj avanza con `performance.now()`, sin depender de la hora configurada en el navegador. Al cambiar la jornada se limpia el contenido anterior incluso sin conexión; al salir se liberan recursos y al volver desde la caché de navegación se reconecta. Sin WebSocket disponible lo dice en texto y conserva el contenido inicial.
 
 Implementado en T-06-05: controlador local de sonido en `sala.js`. Los botones se habilitan al cargar JavaScript; no hay reproducción antes del gesto. Activar solicita la locución de prueba dentro del clic y reanuda Web Audio; Probar no interrumpe un aviso en curso. Los llamados usan dos notas (880/1174 Hz), frase común con el texto visual, dos locuciones con velocidad 0,9 y pausa de 1,5 s. El aviso activo se marca en texto y en su tarjeta; el límite de cinco corresponde a los pendientes, sin cortar el que ya comenzó. Un lote se acota antes de comenzar, descartando los más antiguos. Se comprueba la vigencia al recibir y al desencolar; el aviso ya iniciado se completa, salvo error del motor, cambio de jornada o salida de la página. La primera carga nunca encola su historial; los estados posteriores recuperan ids no vistos en orden ascendente. Ausencia de voz española, rechazo de reproducción y fallos de audio quedan visibles. Una locución sin respuesta se cancela tras 15 s para no bloquear la fila. Al cambiar de jornada se cancela la voz/fila; al salir también se cierra AudioContext y se requiere activar de nuevo tras volver.
 

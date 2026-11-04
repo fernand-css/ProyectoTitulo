@@ -3,6 +3,7 @@
 from django import forms
 from django.utils import timezone
 
+from . import consultas
 from .importacion import MAX_BYTES
 from .models import ImportacionPadron, Paciente
 
@@ -14,6 +15,19 @@ class BusquedaPacienteForm(forms.Form):
         widget=forms.TextInput(attrs={"type": "search", "autocomplete": "off", "spellcheck": "false", "enterkeyhint": "search", "placeholder": "RUT, nombre o apellido"}),
     )
     pagina = forms.IntegerField(min_value=1, initial=1, widget=forms.HiddenInput, required=False)
+    # Lo envían los botones del filtro; vacío muestra todo el padrón.
+    filtro = forms.ChoiceField(choices=[("", "Todos")] + list(consultas.FILTROS_PACIENTE), required=False)
+
+
+class BusquedaRecetaForm(forms.Form):
+    """Búsqueda y filtro de la lista de recetas. El texto viaja por POST para que el RUT no quede en la URL."""
+
+    buscar = forms.CharField(
+        label="Buscar por paciente, RUT o código de receta", max_length=150, required=False,
+        widget=forms.TextInput(attrs={"type": "search", "autocomplete": "off", "spellcheck": "false", "enterkeyhint": "search", "placeholder": "RUT, nombre o código"}),
+    )
+    pagina = forms.IntegerField(min_value=1, initial=1, widget=forms.HiddenInput, required=False)
+    situacion = forms.ChoiceField(choices=[("", "Todas")] + list(consultas.FILTROS_RECETA), required=False)
 
 
 class RecetaForm(forms.Form):

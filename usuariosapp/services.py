@@ -206,10 +206,13 @@ def confirmar_correo(token, *, using=DEFAULT_DB_ALIAS):
 
     def operacion():
         with transaction.atomic(using=using):
-            # Primera operación SQL: un UPDATE condicional, también en SQLite.
+            # Primera operación SQL: un UPDATE condicional. Su filtro no puede cruzar tablas (como
+            # usuario__is_active): Django lo traduciría a «id IN (subconsulta)» y PostgreSQL no volvería a
+            # evaluar la subconsulta tras esperar el bloqueo, con lo que dos confirmaciones pasarían.
+            # La cuenta activa se comprueba más abajo, dentro de la misma transacción.
             consumidos = Perfil.objects.using(using).filter(
                 usuario_id=datos["usuario"], correo_pendiente=datos["correo"],
-                solicitud_correo=datos["solicitud"], usuario__is_active=True,
+                solicitud_correo=datos["solicitud"],
             ).update(correo_pendiente="", solicitud_correo=None, correo_verificado_en=timezone.now())
             if consumidos != 1:
                 raise ValidationError(ERROR_CORREO)

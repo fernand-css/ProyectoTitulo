@@ -1,0 +1,121 @@
+{% extends 'recetas/base.html' %}
+{% load static %}
+{% load core_tags %}
+{% block titulo %}Recetas · Farmacia{% endblock %}
+{% block estilos %}{{ block.super }}<link rel="stylesheet" href="{% static 'css/tablero.css' %}">{% endblock %}
+{# Página de recetas: arriba el tablero (qué hay y qué vence) y debajo la lista completa con búsqueda. #}
+{% block migas_contenedor %}{% endblock %}
+{% block cabecera_pagina %}
+<section class="padron-cabecera" aria-labelledby="titulo-recetas">
+  <div class="padron-cabecera-int">
+    <nav class="migas" aria-label="Ruta de navegación"><ol>
+      <li><a href="{% url 'coreapp:inicio' %}">Inicio</a></li>
+      <li><span aria-current="page">Recetas</span></li>
+    </ol></nav>
+    <div class="padron-titulo">
+      <div>
+        <h1 id="titulo-recetas">Recetas</h1>
+        <p>Cuántas recetas siguen vigentes, cuáles vencen pronto y cómo van las entregas. Abajo está la lista completa.</p>
+      </div>
+      {% if rol == 'Jefa de Farmacia' or rol == 'superusuario' %}
+      <div class="acciones">
+        <a class="boton" href="{% url 'recetasapp:receta_nueva' %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-mas"/></svg>Crear receta</a>
+        <a class="boton boton-secundario" href="#listado">Ir a la lista</a>
+      </div>
+      {% else %}
+      <div class="acciones"><a class="boton boton-secundario" href="#listado">Ir a la lista</a></div>
+      {% endif %}
+    </div>
+  </div>
+</section>
+{% endblock %}
+
+{% block farmacia %}
+{% include 'recetas/_tablero.html' %}
+
+<section class="listado" id="listado" aria-labelledby="titulo-listado">
+  <h2 id="titulo-listado">Todas las recetas</h2>
+  <form method="post" action="#listado" class="busqueda busqueda-ancha" role="search">
+    {% csrf_token %}
+    <label for="{{ form.buscar.id_for_label }}">{{ form.buscar.label }}</label>
+    <div class="busqueda-caja">
+      <div class="busqueda-campo">
+        <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-lupa"/></svg>
+        {{ form.buscar }}
+      </div>
+      <button class="boton" type="submit" name="situacion" value="{{ situacion }}">Buscar</button>
+    </div>
+    {{ form.pagina }}
+    {# Los botones de situación van después de «Buscar»: Enter en el campo envía el primero, que conserva la situación actual. #}
+    <div class="filtros" role="group" aria-label="Situación de la receta">
+      <span class="filtros-etiqueta" aria-hidden="true">Mostrar:</span>
+      {% for pestana in pestanas %}<button class="filtro" type="submit" name="situacion" value="{{ pestana.clave }}"{% if pestana.clave == situacion %} aria-pressed="true"{% else %} aria-pressed="false"{% endif %}>{{ pestana.texto }} <span class="filtro-cantidad">{{ pestana.cantidad }}</span></button>{% endfor %}
+      {% if situacion or buscar %}<a class="quitar-filtros" href="{% url 'recetasapp:recetas' %}#listado">Quitar filtros</a>{% endif %}
+    </div>
+    {% if form.errors %}<div class="message message-error" role="alert">{{ form.buscar.errors }}{{ form.pagina.errors }}{{ form.situacion.errors }}</div>{% endif %}
+  </form>
+
+  {% if page_obj %}
+  <p class="padron-resumen">
+    <strong>{{ page_obj.paginator.count }}</strong> receta{{ page_obj.paginator.count|pluralize }}{% if buscar %} con «<strong>{{ buscar }}</strong>»{% endif %}.
+    {% if page_obj.has_other_pages %}Mostrando del {{ page_obj.start_index }} al {{ page_obj.end_index }}.{% endif %}
+    {% if situacion == 'vigente' or situacion == 'por_vencer' %}Las que vencen primero van arriba.{% else %}Las más recientes van arriba.{% endif %}
+  </p>
+  <ul class="padron" aria-label="Recetas">
+    {% for receta in page_obj %}
+    <li class="padron-fila">
+      <div class="padron-persona">
+        <p class="padron-nombre"><a href="{% url 'recetasapp:receta_detalle' pk=receta.pk %}">Receta {{ receta.codigo }}<span class="sr-only">: ver detalle</span></a></p>
+        <p class="padron-datos"><span>{{ receta.paciente.apellidos }}, {{ receta.paciente.nombres }}</span><span>RUT {{ receta.paciente.rut|rut }}</span></p>
+      </div>
+      <div class="padron-etiquetas">
+        {% include 'recetas/_situacion.html' with situacion=receta.situacion %}
+        <p class="padron-estado">{{ receta.vigencia.texto }}<small>Hasta el {{ receta.vigencia.ultimo_dia|date:"j b Y" }}</small></p>
+      </div>
+      <div class="padron-libreta">
+        {% if receta.puntos %}
+        <div class="mini" aria-hidden="true">{% for lleno in receta.puntos %}<span class="punto{% if lleno %} punto-lleno{% endif %}"></span>{% endfor %}</div>
+        {% else %}
+        <div class="mini-barra" aria-hidden="true" style="--p: {{ receta.porcentaje }}"><span></span></div>
+        {% endif %}
+        <p class="padron-estado">{{ receta.entregas_completadas }} de {{ receta.max_entregas }} entregas<small>{% if receta.situacion.clave == 'vigente' %}Quedan {{ receta.entregas_restantes }}{% else %}No admite entregas{% endif %}</small></p>
+      </div>
+      <svg class="icono padron-flecha" aria-hidden="true" focusable="false"><use href="#i-flecha"/></svg>
+    </li>
+    {% endfor %}
+  </ul>
+  {% if page_obj.has_other_pages %}
+  <nav class="paginacion" aria-label="Páginas de recetas">
+    {% if page_obj.has_previous %}<form method="post" action="#listado">{% csrf_token %}<input type="hidden" name="buscar" value="{{ buscar }}"><input type="hidden" name="situacion" value="{{ situacion }}"><button type="submit" name="pagina" value="{{ page_obj.previous_page_number }}">Página anterior</button></form>{% endif %}
+    <span aria-current="page">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<form method="post" action="#listado">{% csrf_token %}<input type="hidden" name="buscar" value="{{ buscar }}"><input type="hidden" name="situacion" value="{{ situacion }}"><button type="submit" name="pagina" value="{{ page_obj.next_page_number }}">Página siguiente</button></form>{% endif %}
+  </nav>
+  {% endif %}
+  {% elif buscar or situacion %}
+  <div class="vacio">
+    <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-lupa"/></svg>
+    <div>
+      <h3>No hay recetas que coincidan</h3>
+      <p>{% if buscar %}Revisa el RUT (sirve con o sin puntos), prueba solo con el apellido o con parte del código.{% else %}Ninguna receta está en esta situación hoy.{% endif %}</p>
+      <div class="acciones"><a class="boton boton-secundario" href="{% url 'recetasapp:recetas' %}">Ver todas las recetas</a></div>
+    </div>
+  </div>
+  {% elif not form.errors %}
+  <div class="vacio">
+    <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-documento"/></svg>
+    <div>
+      <h3>Todavía no hay recetas</h3>
+      {% if rol == 'Jefa de Farmacia' or rol == 'superusuario' %}
+      <p>Importa el padrón para cargar las recetas vigentes, o crea una receta simulada a mano.</p>
+      <div class="acciones">
+        <a class="boton" href="{% url 'recetasapp:importacion_nueva' %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-subir"/></svg>Importar padrón</a>
+        <a class="boton boton-secundario" href="{% url 'recetasapp:receta_nueva' %}">Crear receta</a>
+      </div>
+      {% else %}
+      <p>Pide a la Jefa de Farmacia que cargue el padrón para poder consultarlas.</p>
+      {% endif %}
+    </div>
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

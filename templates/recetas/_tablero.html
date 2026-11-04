@@ -1,0 +1,155 @@
+{# Tablero de recetas. Espera `tablero` (recetasapp.tablero.armar). Todo número que va a un atributo SVG llega ya formateado. #}
+<div class="tablero">
+  <h2 class="sr-only">Tablero de recetas</h2>
+
+  <ul class="kpis" aria-label="Cifras principales">
+    {% for kpi in tablero.kpis %}
+    <li class="kpi-celda">
+      {% if kpi.enlace %}<a class="kpi{% if kpi.atencion %} kpi-atencion{% endif %}" href="{{ kpi.enlace }}">{% else %}<div class="kpi">{% endif %}
+        <span class="kpi-icono"><svg class="icono" aria-hidden="true" focusable="false"><use href="#{{ kpi.icono }}"/></svg></span>
+        <span class="kpi-texto">
+          <span class="kpi-titulo">{{ kpi.titulo }}</span>
+          <strong class="kpi-valor">{{ kpi.valor }}</strong>
+          <span class="kpi-nota">{{ kpi.nota }}</span>
+        </span>
+        {% if kpi.enlace %}<svg class="icono kpi-ir" aria-hidden="true" focusable="false"><use href="#i-flecha"/></svg>{% endif %}
+      {% if kpi.enlace %}</a>{% else %}</div>{% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+
+  <div class="tablero-fila tablero-fila-ancha">
+    <section class="tarjeta tarjeta-linea" aria-labelledby="titulo-entregas">
+      <header class="tarjeta-cabeza">
+        <div>
+          <h3 id="titulo-entregas">Entregas por día</h3>
+          <p>Entregas confirmadas en los últimos {{ tablero.periodo }} días.</p>
+        </div>
+        <ul class="periodos" aria-label="Periodo del gráfico">
+          {% for opcion in tablero.periodos %}<li><a href="?periodo={{ opcion.dias }}#entregas"{% if opcion.dias == tablero.periodo %} aria-current="true"{% endif %}>{{ opcion.texto }}</a></li>{% endfor %}
+        </ul>
+      </header>
+      <div id="entregas"></div>
+      {% if tablero.linea.total %}
+      <svg class="linea" viewBox="0 0 {{ tablero.linea.ancho }} {{ tablero.linea.alto }}" role="img" aria-labelledby="linea-titulo linea-desc" focusable="false">
+        <title id="linea-titulo">Entregas por día</title>
+        <desc id="linea-desc">{{ tablero.linea.total }} entregas en {{ tablero.periodo }} días; el máximo fue {{ tablero.linea.maximo }} el {{ tablero.linea.dia_maximo_texto }}.</desc>
+        {% for marca in tablero.linea.marcas_y %}
+        <line class="linea-rejilla" x1="{{ tablero.linea.izquierda }}" x2="{{ tablero.linea.derecha }}" y1="{{ marca.y }}" y2="{{ marca.y }}"/>
+        <text class="linea-eje" x="{{ tablero.linea.izquierda }}" y="{{ marca.y }}" dx="-8" dy="4" text-anchor="end">{{ marca.etiqueta }}</text>
+        {% endfor %}
+        {% for marca in tablero.linea.marcas_x %}<text class="linea-eje" x="{{ marca.x }}" y="{{ tablero.linea.alto|add:'-8' }}" text-anchor="middle">{{ marca.texto }}</text>{% endfor %}
+        <path class="linea-area" d="{{ tablero.linea.area }}"/>
+        <path class="linea-trazo" d="{{ tablero.linea.ruta }}" pathLength="1"/>
+        {% for punto in tablero.linea.puntos %}<circle class="linea-dato" cx="{{ punto.x }}" cy="{{ punto.y }}" r="9"><title>{{ punto.texto }}: {{ punto.valor }} entrega{{ punto.valor|pluralize }}</title></circle>{% endfor %}
+        {% if tablero.linea.ultimo %}<circle class="linea-ultimo" cx="{{ tablero.linea.ultimo.x }}" cy="{{ tablero.linea.ultimo.y }}" r="5"/>{% endif %}
+      </svg>
+      <details class="datos">
+        <summary>Ver los datos en una tabla</summary>
+        <table class="tabla">
+          <caption class="sr-only">Entregas confirmadas por día</caption>
+          <thead><tr><th scope="col">Día</th><th scope="col" class="num">Entregas</th></tr></thead>
+          <tbody>{% for punto in tablero.linea.puntos %}<tr><th scope="row">{{ punto.texto }}</th><td class="num">{{ punto.valor }}</td></tr>{% endfor %}</tbody>
+        </table>
+      </details>
+      {% else %}
+      <div class="tarjeta-vacia">
+        <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-sello"/></svg>
+        <p>Todavía no hay entregas confirmadas en este periodo. Aparecerán aquí cuando el Técnico selle la primera.</p>
+      </div>
+      {% endif %}
+    </section>
+
+    <section class="tarjeta" aria-labelledby="titulo-situacion">
+      <header class="tarjeta-cabeza"><div><h3 id="titulo-situacion">Situación de las recetas</h3><p>{{ tablero.total }} recetas en total.</p></div></header>
+      {% if tablero.total %}
+      <div class="anillo-caja">
+        <svg class="anillo" viewBox="0 0 100 100" aria-hidden="true" focusable="false">
+          <circle class="anillo-borde" cx="50" cy="50" r="46"/>
+          <circle class="anillo-borde" cx="50" cy="50" r="30"/>
+          {% for parte in tablero.anillo.partes %}{% if parte.visible %}<circle class="anillo-arco anillo-{{ parte.clave }}" cx="50" cy="50" r="38" pathLength="100" stroke-dasharray="{{ parte.trazo }} 100" stroke-dashoffset="-{{ parte.inicio }}" style="--i: {{ parte.indice }}"/>{% endif %}{% endfor %}
+          <text class="anillo-total" x="50" y="50" text-anchor="middle" dy="2">{{ tablero.total }}</text>
+          <text class="anillo-etiqueta" x="50" y="50" text-anchor="middle" dy="12">recetas</text>
+        </svg>
+        <ul class="anillo-leyenda">
+          {% for parte in tablero.anillo.partes %}
+          <li><a href="{{ parte.enlace }}" data-clave="{{ parte.clave }}">
+            <span class="muestra muestra-{{ parte.clave }}" aria-hidden="true"></span>
+            <span class="anillo-nombre"><svg class="icono" aria-hidden="true" focusable="false"><use href="#{{ parte.icono }}"/></svg>{{ parte.texto }}</span>
+            <span class="anillo-cifra"><strong>{{ parte.cantidad }}</strong> <small>{{ parte.porcentaje }} %</small></span>
+          </a></li>
+          {% endfor %}
+        </ul>
+      </div>
+      {% else %}
+      <div class="tarjeta-vacia"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-documento"/></svg><p>Todavía no hay recetas que mostrar.</p></div>
+      {% endif %}
+    </section>
+  </div>
+
+  <div class="tablero-fila tablero-fila-ranking">
+    <section class="tarjeta tarjeta-barras" aria-labelledby="titulo-meses">
+      <header class="tarjeta-cabeza"><div><h3 id="titulo-meses">Vencimientos por mes</h3><p>Recetas vigentes, según el mes de su último día válido.</p></div></header>
+      {% if tablero.barras.total %}
+      <ol class="barras" aria-label="Recetas vigentes que vencen en cada mes">
+        {% for barra in tablero.barras.barras %}
+        <li style="--h: {{ barra.altura }}; --i: {{ barra.indice }}"{% if forloop.first %} class="barras-actual"{% endif %}>
+          <span class="barras-valor">{{ barra.valor }}</span>
+          <span class="barras-columna" aria-hidden="true"></span>
+          <span class="barras-mes">{{ barra.etiqueta }}<span class="sr-only"> ({{ barra.mes_largo }})</span></span>
+        </li>
+        {% endfor %}
+      </ol>
+      {% else %}
+      <div class="tarjeta-vacia"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-calendario"/></svg><p>Ninguna receta vigente vence en los próximos seis meses.</p></div>
+      {% endif %}
+    </section>
+
+    <section class="tarjeta" aria-labelledby="titulo-vencen">
+      <header class="tarjeta-cabeza">
+        <div><h3 id="titulo-vencen">Vencen primero</h3><p>Las recetas vigentes más cerca de su último día.</p></div>
+        {% if tablero.por_vencer_total %}<a class="tarjeta-enlace" href="?situacion=por_vencer#listado">Ver las {{ tablero.por_vencer_total }} por vencer</a>{% endif %}
+      </header>
+      {% if tablero.por_vencer %}
+      <div class="tabla-caja">
+        <table class="tabla tabla-apilable" aria-label="Recetas vigentes que vencen primero">
+          <thead><tr><th scope="col">Paciente</th><th scope="col">Último día</th><th scope="col">Entregas</th><th scope="col" class="num">Quedan</th></tr></thead>
+          <tbody>
+            {% for receta in tablero.por_vencer %}
+            <tr>
+              <th scope="row"><a href="{% url 'recetasapp:receta_detalle' pk=receta.pk %}">{{ receta.paciente.apellidos }}, {{ receta.paciente.nombres }}</a><small>Receta {{ receta.codigo }}</small></th>
+              <td data-etiqueta="Último día">{{ receta.ultimo_dia|date:"j b Y" }}<small class="plazo{% if receta.dias <= 7 %} plazo-urgente{% endif %}">{% if receta.dias == 1 %}Vence mañana{% else %}En {{ receta.dias }} días{% endif %}</small></td>
+              <td data-etiqueta="Entregas"><div class="mini-barra" aria-hidden="true" style="--p: {{ receta.porcentaje }}"><span></span></div><small>{{ receta.puntos_resumen }}</small></td>
+              <td class="num" data-etiqueta="Quedan">{{ receta.entregas_restantes }}</td>
+            </tr>
+            {% endfor %}
+          </tbody>
+        </table>
+      </div>
+      {% else %}
+      <div class="tarjeta-vacia"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg><p>No hay recetas vigentes que venzan en los próximos {{ tablero.dias_por_vencer }} días.</p></div>
+      {% endif %}
+    </section>
+  </div>
+
+  <section class="carga-oscura" aria-labelledby="titulo-carga">
+    <div class="carga-titulo">
+      <h3 id="titulo-carga">Última carga del padrón</h3>
+      {% if tablero.carga %}<p>{{ tablero.carga.creado_en|date:"j \d\e F, H:i" }} · {{ tablero.carga.creado_por.get_username|default:"Cuenta retirada" }}</p>{% else %}<p>Todavía no se ha cargado ningún archivo.</p>{% endif %}
+    </div>
+    {% if tablero.carga %}
+    <dl class="carga-cifras">
+      <div><dt>Filas leídas</dt><dd>{{ tablero.carga.total_filas }}</dd></div>
+      <div><dt>Rechazadas</dt><dd>{{ tablero.carga.filas_rechazadas }}</dd></div>
+      <div><dt>Estado</dt><dd class="carga-estado">{{ tablero.carga.get_estado_display }}</dd></div>
+    </dl>
+    <div class="carga-barra">{% include 'recetas/_barra_carga.html' with carga=tablero.carga categorias=tablero.carga.categorias chica=True %}</div>
+    {% endif %}
+    <div class="acciones carga-acciones">
+      {% if rol == 'Jefa de Farmacia' or rol == 'superusuario' %}
+      {% if tablero.carga %}<a class="boton boton-sobre-oscuro" href="{% url 'recetasapp:importacion_detalle' referencia=tablero.carga.referencia %}">Ver el reporte</a>{% endif %}
+      <a class="boton" href="{% url 'recetasapp:importacion_nueva' %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-subir"/></svg>Importar padrón</a>
+      {% endif %}
+    </div>
+  </section>
+</div>
