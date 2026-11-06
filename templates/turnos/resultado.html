@@ -15,7 +15,7 @@
 <p>Si el papel no sale, puedes volver a imprimir el mismo número.</p>
 <noscript><p>Para imprimir tu número, usa la opción Imprimir de tu navegador.</p></noscript>
 {% include 'turnos/tiempo.html' %}
-<form method="post" action="{% url 'turnosapp:finalizar' %}" data-finalizar>{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ operacion }}"><button class="boton boton-bloque" type="submit">Nueva atención</button></form>
+<form method="post" action="{% url 'turnosapp:finalizar' %}" data-finalizar>{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ operacion }}"><button class="boton boton-bloque boton-secundario" type="submit">Nueva atención</button></form>
 </section>
 {% endblock %}
 {% block scripts %}{% include 'turnos/comprobante.html' %}<script defer src="{% static 'js/totem.js' %}"></script>{% endblock %}

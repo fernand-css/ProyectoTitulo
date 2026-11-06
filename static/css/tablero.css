@@ -7,7 +7,7 @@
   impresión, errores de carga) todo se ve completo. base.css apaga las animaciones con «reducir movimiento».
 */
 
-.tablero { display: grid; gap: 1.5rem; margin-bottom: 3rem; }
+.tablero { display: grid; gap: 1.5rem; margin-bottom: 2rem; }
 
 /* ------------------------------------------------------------------ Cifras principales */
 .kpis { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 1.25rem; margin: 0; padding: 0; list-style: none; }
@@ -39,7 +39,7 @@ a.kpi:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
   height: 3rem;
   color: var(--ladrillo);
   background: var(--trigo-fondo);
-  border-radius: 0.9rem;
+  border-radius: 0.6rem;
 }
 .kpi-icono .icono { width: 1.5rem; height: 1.5rem; }
 .kpi-texto { display: flex; flex: 1; flex-direction: column; min-width: 0; line-height: 1.25; }
@@ -49,7 +49,7 @@ a.kpi:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
 .kpi-nota { color: var(--secundario-texto); font-size: 0.93rem; }
 .kpi-sentido { color: var(--tinta); font-size: 0.8rem; }
 /* «Por vencer» pide atención: borde y ícono ámbar, y el texto que dice por qué. */
-.kpi-atencion { border: 2px solid var(--serie-2); }
+.kpi-atencion { border: 1px solid var(--serie-2); }
 .kpi-atencion .kpi-icono { color: var(--aviso-texto); background: var(--aviso-fondo); }
 
 /* Tendencia mínima junto a una cifra: solo la forma de los últimos 14 días y su último punto (8 px). */
@@ -66,13 +66,13 @@ a.kpi:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
 .tarjeta-cabeza h3 { margin: 0 0 0.2rem; font-size: 1.25rem; }
 .tarjeta-cabeza p { margin: 0; color: var(--secundario-texto); font-size: 0.95rem; }
 .tarjeta-enlace { font-weight: 700; }
-.tarjeta-vacia { display: flex; align-items: center; gap: 1rem; padding: 1.25rem; color: var(--suave-texto); background: var(--suave-fondo); border: 2px dashed var(--borde); border-radius: var(--radio-panel); }
+.tarjeta-vacia { display: flex; align-items: center; gap: 1rem; padding: 1.25rem; color: var(--suave-texto); background: var(--suave-fondo); border: 1px solid var(--linea); border-radius: var(--radio-panel); }
 .tarjeta-vacia .icono { flex: none; width: 2rem; height: 2rem; color: var(--ladrillo); }
 .tarjeta-vacia p { margin: 0; }
 
 /* Selector de periodo: enlaces que recargan la página con otro rango. */
-.periodos { display: flex; gap: 0.25rem; margin: 0; padding: 0.25rem; list-style: none; background: var(--suave-fondo); border: 1px solid var(--linea); border-radius: 999px; }
-.periodos a { display: inline-flex; align-items: center; min-height: 2.5rem; padding: 0.2rem 0.9rem; color: var(--panel-texto); border-radius: 999px; font-weight: 600; text-decoration: none; }
+.periodos { display: flex; gap: 0.25rem; margin: 0; padding: 0.25rem; list-style: none; background: var(--suave-fondo); border: 1px solid var(--linea); border-radius: 0.6rem; }
+.periodos a { display: inline-flex; align-items: center; min-height: 2.5rem; padding: 0.2rem 0.9rem; color: var(--panel-texto); border-radius: 0.35rem; font-weight: 600; text-decoration: none; }
 .periodos a:hover { background: var(--arena-fondo); }
 .periodos a[aria-current="true"] { color: var(--marca-texto); background: var(--marca-fondo); }
 
@@ -102,8 +102,8 @@ a.kpi:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
 
 /* ------------------------------------------------------------------ Columnas de entregas por día */
 .columnas { display: block; width: 100%; height: auto; overflow: visible; touch-action: pan-y; }
-.columna { fill: var(--serie-1); transform-box: fill-box; transform-origin: bottom; animation: subir 0.7s cubic-bezier(0.25, 0.8, 0.3, 1) both; }
-.columnas-promedio { fill: none; stroke: var(--serie-2); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; animation: dibujar 1s cubic-bezier(0.45, 0, 0.2, 1) 0.45s both; }
+.columna { fill: var(--serie-1); transform-box: fill-box; transform-origin: bottom; }
+.columnas-promedio { fill: none; stroke: var(--serie-2); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; }
 /* Cada día tiene una ranura invisible del alto del gráfico: al pasar sobre ella se marca el día y aparece su texto. */
 .ranura { fill: transparent; }
 .ranura:hover { fill: var(--serie-1); fill-opacity: 0.1; }
@@ -115,7 +115,7 @@ a.kpi:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
 
 /* ------------------------------------------------------------------ Situación: barra segmentada */
 .segmentos { display: flex; gap: 2px; height: 1.75rem; margin: 0 0 1rem; padding: 0; overflow: hidden; border-radius: 0.5rem; list-style: none; }
-.segmento { flex: var(--n) 1 0%; min-width: 0.5rem; transform-origin: left; animation: crecer-x 0.8s cubic-bezier(0.25, 0.8, 0.3, 1) both; }
+.segmento { flex: var(--n) 1 0%; min-width: 0.5rem; transform-origin: left; }
 .segmento a { display: block; height: 100%; transition: opacity 0.2s; }
 .segmento a:focus-visible { outline-offset: -3px; }
 .segmento-vigente a, .muestra-vigente { background: var(--serie-1); }
@@ -173,7 +173,7 @@ a.kpi:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
 .tarjeta .tabla th small, .tarjeta .tabla td small { display: block; margin-top: 0.15rem; color: var(--secundario-texto); font-size: 0.9rem; font-weight: 400; }
 .tarjeta .tabla tbody th a { color: var(--enlace-texto); }
 .tarjeta .tabla .mini-barra { width: min(100%, 8rem); margin: 0.3rem 0 0.1rem; }
-.tarjeta .tabla .mini-barra span { transform-origin: left; animation: crecer-x 0.9s cubic-bezier(0.25, 0.8, 0.3, 1) 0.4s both; }
+.tarjeta .tabla .mini-barra span { transform-origin: left; }
 .plazo-urgente { color: var(--error-texto) !important; font-weight: 700 !important; }
 
 /* ------------------------------------------------------------------ Última carga: tarjeta oscura */

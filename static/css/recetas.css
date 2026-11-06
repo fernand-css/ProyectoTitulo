@@ -3,12 +3,12 @@
   En el CESFAM el paciente crónico lleva una libreta que se timbra en cada retiro. Aquí cada receta es una
   libreta con una casilla por entrega y cada entrega confirmada es un sello (el sol sobre surcos del escudo).
   Solo usa las variables de base.css: no declara colores propios (lo vigila coreapp/tests/test_estaticos.py).
-  Todo el movimiento va dentro de @keyframes cuyo estado inicial es el final; base.css lo apaga con «reducir movimiento».
+  Los estados se comunican con texto y forma, sin animaciones al cargar.
 */
 
 /* ------------------------------------------------------------------ Banda de búsqueda del padrón */
-.padron-cabecera { position: relative; color: var(--trigo-texto); background: var(--trigo-fondo); border-bottom: 1px solid var(--linea); }
-.padron-cabecera-int { max-width: var(--ancho-contenido); margin: auto; padding: 1.75rem 1.5rem 2rem; }
+.padron-cabecera { position: relative; color: var(--panel-texto); background: var(--panel-fondo); border-bottom: 1px solid var(--linea); }
+.padron-cabecera-int { max-width: var(--ancho-contenido); margin: auto; padding: 2rem clamp(1rem, 3vw, 2.5rem) 1.75rem; }
 .padron-cabecera .migas { margin-bottom: 1.25rem; }
 .padron-cabecera .migas a, .padron-cabecera .migas [aria-current="page"] { color: var(--trigo-texto); }
 .padron-cabecera .migas li + li::before { border-color: var(--trigo-texto); }
@@ -28,9 +28,9 @@
   padding: 0.6rem 1rem 0.6rem 3.2rem;
   color: var(--panel-texto);
   background: var(--panel-fondo);
-  border: 2px solid var(--tinta);
-  border-radius: 999px;
-  font-size: 1.2rem;
+  border: 2px solid var(--borde);
+  border-radius: 0.55rem;
+  font-size: 1.1rem;
 }
 .busqueda-campo input::placeholder { color: var(--secundario-texto); opacity: 1; }
 .busqueda .boton { min-height: 3.5rem; }
@@ -40,7 +40,7 @@
 .padron-resumen strong { color: var(--panel-texto); }
 
 /* ------------------------------------------------------------------ Filas del padrón */
-.padron { margin: 0; padding: 0; list-style: none; border-top: 2px solid var(--linea); }
+.padron { margin: 0; padding: 0; list-style: none; background: var(--panel-fondo); border: 1px solid var(--linea); border-radius: var(--radio-panel); }
 .padron-fila {
   position: relative;
   display: grid;
@@ -49,13 +49,14 @@
   align-items: center;
   gap: 0.6rem 1.5rem;
   padding: 1.15rem 0.75rem 1.15rem 1.25rem;
-  border-bottom: 2px solid var(--linea);
+  border-bottom: 1px solid var(--linea);
   transition: background-color 0.15s;
 }
-.padron-fila:hover { background: var(--suave-fondo); box-shadow: inset 0.35rem 0 0 var(--ladrillo); }
+.padron-fila:last-child { border-bottom: 0; }
+.padron-fila:hover { background: var(--suave-fondo); box-shadow: inset 0.2rem 0 0 var(--ladrillo); }
 .padron-fila:has(a:focus-visible) { background: var(--suave-fondo); outline: 3px solid var(--tinta); outline-offset: -3px; }
 .padron-persona { grid-area: persona; min-width: 0; }
-.padron-nombre { margin: 0 0 0.2rem; font-family: var(--fuente-titulo); font-size: 1.3rem; font-weight: 700; line-height: 1.2; overflow-wrap: anywhere; }
+.padron-nombre { margin: 0 0 0.3rem; font-family: var(--fuente-titulo); font-size: 1.15rem; font-weight: 650; line-height: 1.3; overflow-wrap: anywhere; }
 .padron-nombre a { color: var(--panel-texto); text-decoration: none; }
 .padron-nombre a::after { content: ""; position: absolute; inset: 0; }
 .padron-nombre a:hover { text-decoration: underline; text-decoration-thickness: 0.12em; }
@@ -102,7 +103,7 @@
   padding: clamp(1.25rem, 3vw, 2rem);
   color: var(--suave-texto);
   background: var(--suave-fondo);
-  border: 3px dashed var(--borde);
+  border: 1px solid var(--linea);
   border-radius: var(--radio-panel);
 }
 .vacio .icono { width: 2.6rem; height: 2.6rem; color: var(--ladrillo); }
@@ -113,21 +114,19 @@
 /* ------------------------------------------------------------------ La libreta */
 .libreta {
   display: grid;
-  grid-template-columns: 1.5rem minmax(0, 1fr);
+  grid-template-columns: 0.4rem minmax(0, 1fr);
   min-width: 0;
   color: var(--suave-texto);
-  background: var(--suave-fondo);
-  border: 2px solid var(--arena);
-  border-radius: 0.5rem 1.25rem 1.25rem 0.5rem;
+  background: var(--panel-fondo);
+  border: 1px solid var(--linea);
+  border-radius: 0.3rem var(--radio-panel) var(--radio-panel) 0.3rem;
   overflow: hidden;
   --lomo: var(--ladrillo);
 }
-/* Lomo cosido: franja de tinta con las perforaciones de la libreta. */
+/* El lomo conserva la referencia a la libreta sin añadir textura. */
 .libreta::before {
   content: "";
-  background:
-    radial-gradient(circle at center, var(--trigo) 0.22rem, transparent 0.26rem) 0 0 / 100% 3.4rem no-repeat round,
-    var(--lomo);
+  background: var(--lomo);
 }
 .libreta-cerrada { --lomo: var(--borde); }
 .libreta-cuerpo { min-width: 0; padding: clamp(1.1rem, 3vw, 1.75rem); }
@@ -148,9 +147,6 @@
 /* Casillas: cada una es una entrega del ciclo. */
 .sellos { display: flex; flex-wrap: wrap; gap: 0.9rem 0.6rem; margin: 0 0 1.1rem; padding: 0; list-style: none; }
 .sello-casilla { display: flex; flex-direction: column; align-items: center; gap: 0.3rem; width: 4.4rem; text-align: center; }
-.sello-casilla:nth-child(3n + 1) { --giro: -5deg; }
-.sello-casilla:nth-child(3n + 2) { --giro: 4deg; }
-.sello-casilla:nth-child(3n) { --giro: -2deg; }
 .sello {
   position: relative;
   display: grid;
@@ -164,16 +160,13 @@
 }
 .sello .icono { width: 2.1rem; height: 2.1rem; stroke-width: 2.2; }
 .sello-libre { color: var(--secundario-texto); background: var(--panel-fondo); border: 2px dashed var(--borde); }
-.sello-proxima { color: var(--tinta); background: var(--trigo-fondo); border: 3px dashed var(--tinta); animation: latido 1.3s ease-in-out 3; }
-/* Sello estampado: tinta ladrillo sobre trigo, con doble aro como el timbre de una libreta. */
+.sello-proxima { color: var(--tinta); background: var(--trigo-fondo); border: 3px solid var(--tinta); }
+/* Una casilla confirmada conserva la tinta de la libreta. */
 .sello-sellada {
   color: var(--ladrillo);
   background: var(--trigo-fondo);
   border: 3px solid var(--ladrillo);
-  box-shadow: inset 0 0 0 3px var(--trigo-fondo), inset 0 0 0 4.5px var(--ladrillo);
-  transform: rotate(var(--giro, 0deg));
 }
-.sello::after { content: ""; position: absolute; inset: -3px; border: 3px solid var(--ladrillo); border-radius: 50%; opacity: 0; pointer-events: none; }
 .sello-pie { min-height: 1.2em; color: var(--secundario-texto); font-size: 0.88rem; line-height: 1.2; }
 .sello-pie-proxima { color: var(--panel-texto); font-weight: 700; }
 
@@ -192,7 +185,7 @@
 .vigencia { margin: 0 0 1.25rem; }
 .vigencia-texto { margin: 0 0 0.2rem; font-weight: 700; }
 .vigencia-pista { position: relative; height: 0.7rem; margin: 1.25rem 1.2rem 0.9rem; border-radius: 999px; background: var(--arena); }
-.vigencia-recorrido { position: absolute; inset: 0 auto 0 0; width: calc(var(--hoy) * 1%); border-radius: inherit; background: var(--ladrillo); animation: crecer 1.1s cubic-bezier(0.25, 0.8, 0.3, 1) both; }
+.vigencia-recorrido { position: absolute; inset: 0 auto 0 0; width: calc(var(--hoy) * 1%); border-radius: inherit; background: var(--ladrillo); }
 .vigencia-sol {
   position: absolute;
   top: 50%;
@@ -206,7 +199,6 @@
   border: 3px solid var(--ladrillo);
   border-radius: 50%;
   transform: translate(-50%, -50%);
-  animation: recorrer 1.1s cubic-bezier(0.25, 0.8, 0.3, 1) both;
 }
 .vigencia-sol .icono { width: 1.5rem; height: 1.5rem; }
 .vigencia-datos { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 0.5rem 1.5rem; margin: 0; }
@@ -218,17 +210,15 @@
 .libreta .message { margin-bottom: 1rem; }
 .libreta .message p { margin-bottom: 0.25rem; }
 
-/* Sello recién confirmado: se estampa una vez y deja un aro de tinta que se disipa. */
-.sello-casilla-nuevo .sello-sellada { animation: estampar 0.75s cubic-bezier(0.2, 0.9, 0.3, 1.2) both; }
-.sello-casilla-nuevo .sello-sellada::after { animation: tinta 0.8s ease-out 0.3s both; }
-
 /* ------------------------------------------------------------------ Tablas */
 .tabla-caja { overflow-x: auto; }
 .tabla { width: 100%; border-collapse: collapse; }
 .tabla caption { padding-bottom: 0.75rem; font-family: var(--fuente-titulo); font-size: 1.3rem; font-weight: 700; text-align: left; }
-.tabla th, .tabla td { padding: 0.75rem 0.8rem; border-bottom: 2px solid var(--linea); text-align: left; vertical-align: top; overflow-wrap: break-word; }
+.tabla th, .tabla td { padding: 0.95rem 1rem; border-bottom: 1px solid var(--linea); text-align: left; vertical-align: top; overflow-wrap: break-word; }
 .tabla thead th { white-space: nowrap; }
-.tabla thead th { color: var(--secundario-texto); border-bottom-color: var(--borde); font-size: 0.95rem; }
+.tabla thead th { color: var(--secundario-texto); background: var(--suave-fondo); border-bottom-color: var(--linea); font-size: 0.9rem; font-weight: 600; }
+.tabla tbody { background: var(--panel-fondo); }
+.tabla tbody tr:hover { background: var(--suave-fondo); }
 .tabla tbody th { font-weight: 700; font-variant-numeric: tabular-nums; }
 .tabla td { font-variant-numeric: tabular-nums; }
 .tabla .num { text-align: right; }
@@ -256,7 +246,6 @@
 .vista-previa { position: sticky; top: 1rem; }
 .vista-previa .libreta { border-style: dashed; }
 .vista-previa .libreta-codigo { margin-bottom: 1rem; font-size: 1.2rem; }
-.vista-previa .sello-casilla { animation: aparecer 0.35s cubic-bezier(0.2, 0.9, 0.3, 1.3) both; }
 .vista-previa-vacia { margin: 0 0 1rem; color: var(--secundario-texto); }
 .vista-previa-mas { align-self: center; margin: 0; font-weight: 700; }
 .vista-previa-fin { margin: 0; font-weight: 700; }
@@ -333,7 +322,7 @@
 .reporte-meta { display: flex; flex-wrap: wrap; align-items: center; gap: 0.3rem 1.25rem; margin: 0; color: var(--secundario-texto); }
 
 .barra-carga { display: flex; height: 1.5rem; margin: 0 0 1.1rem; overflow: hidden; border: 2px solid var(--tinta); border-radius: 999px; background: var(--panel-fondo); }
-.barra-carga span { flex: var(--n) 1 0%; min-width: 0.5rem; transform-origin: left; animation: crecer-x 0.8s cubic-bezier(0.25, 0.8, 0.3, 1) both; }
+.barra-carga span { flex: var(--n) 1 0%; min-width: 0.5rem; transform-origin: left; }
 .barra-carga span + span { border-left: 2px solid var(--tinta); }
 .barra-carga[hidden] { display: none; }
 .barra-carga-chica { height: 0.85rem; margin: 0.5rem 0 0; }
@@ -363,8 +352,8 @@
   padding: 0.4rem 1.2rem;
   color: var(--panel-texto);
   background: var(--panel-fondo);
-  border: 2px solid var(--tinta);
-  border-radius: 999px;
+  border: 1px solid var(--borde);
+  border-radius: 0.5rem;
   font-weight: 700;
   text-decoration: none;
 }
@@ -393,22 +382,6 @@
 }
 .paginacion button:hover { color: var(--trigo-texto); background: var(--trigo-fondo); }
 
-/* ------------------------------------------------------------------ Movimiento (solo estados finales como base) */
-@keyframes estampar {
-  0% { transform: translateY(-1.6rem) scale(1.8) rotate(-16deg); opacity: 0; }
-  55% { transform: translateY(0) scale(0.9) rotate(var(--giro, 0deg)); opacity: 1; }
-  100% { transform: translateY(0) scale(1) rotate(var(--giro, 0deg)); opacity: 1; }
-}
-@keyframes tinta { from { transform: scale(1); opacity: 0.55; } to { transform: scale(1.7); opacity: 0; } }
-@keyframes latido {
-  0%, 100% { box-shadow: 0 0 0 0 transparent; }
-  50% { box-shadow: 0 0 0 0.6rem color-mix(in srgb, var(--naranja) 55%, transparent); }
-}
-@keyframes recorrer { from { left: 0%; } }
-@keyframes crecer { from { width: 0; } }
-@keyframes crecer-x { from { transform: scaleX(0); } }
-@keyframes aparecer { from { transform: scale(0.4); opacity: 0; } }
-
 /* ------------------------------------------------------------------ Pantallas pequeñas */
 @media (max-width: 56rem) {
   .js .editor, .importar, .rejilla-receta { grid-template-columns: minmax(0, 1fr); }
@@ -425,7 +398,7 @@
   .padron-fila { grid-template-columns: minmax(0, 1fr); grid-template-areas: "persona" "etiquetas" "libreta"; padding-inline: 1rem 0.5rem; }
   .paso { padding: 4.2rem 1.1rem 1.25rem; }
   .paso::before { top: 1.1rem; left: 1.1rem; }
-  .libreta { grid-template-columns: 1.1rem minmax(0, 1fr); }
+  .libreta { grid-template-columns: 0.4rem minmax(0, 1fr); }
   .vacio { flex-direction: column; }
   .busqueda .boton { flex: 1 1 100%; }
   .tabla-apilable thead { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
@@ -452,10 +425,10 @@
   padding: 0.3rem 0.5rem 0.3rem 1.1rem;
   color: var(--panel-texto);
   background: var(--panel-fondo);
-  border: 2px solid var(--tinta);
-  border-radius: 999px;
+  border: 1px solid var(--borde);
+  border-radius: 0.5rem;
   font: inherit;
-  font-weight: 700;
+  font-weight: 600;
   cursor: pointer;
   transition: background-color 0.15s, color 0.15s;
 }
@@ -497,7 +470,7 @@
 }
 
 /* ------------------------------------------------------------------ Sección con pestañas: cabecera y ficha del paciente */
-.seccion { margin: 1.5rem 0 1.5rem; }
+.seccion { margin: 0 0 1.75rem; }
 .seccion-fila { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 0.75rem 2rem; margin-bottom: 1.1rem; }
 .seccion-fila h1 { margin-bottom: 0.3rem; }
 .seccion-fila p { margin: 0; color: var(--secundario-texto); font-size: 1.05rem; }
@@ -521,7 +494,7 @@
 }
 .pestanas a:hover { color: var(--panel-texto); background: var(--suave-fondo); }
 .pestanas a:focus-visible { outline-offset: -3px; }
-.pestanas a[aria-current="page"] { color: var(--panel-texto); border-bottom-color: var(--ladrillo); font-weight: 700; }
+.pestanas a[aria-current="page"] { color: var(--enlace-texto); border-bottom-color: var(--ladrillo); font-weight: 700; }
 .pestana-cantidad {
   min-width: 1.7rem;
   padding: 0.05rem 0.5rem;

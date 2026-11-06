@@ -1,14 +1,22 @@
 /* El ingreso se lee de izquierda a derecha; el número ocupa el centro del resultado. */
 .totem { max-width: 32rem; }
+.acceso-panel:has(.totem) { padding-block: 2rem; }
+.acceso-contenido:has(.totem) { max-width: 32rem; }
 .totem [hidden] { display: none !important; }
-.totem .campo input { font-size: 1.5rem; letter-spacing: .04em; }
+.totem h1 { font-size: clamp(2rem, 3vw, 2.8rem); letter-spacing: -0.035em; }
+.totem .campo input { min-height: 3.75rem; font-size: 1.6rem; letter-spacing: .04em; background: var(--suave-fondo); }
+.totem #rut-ayuda { margin-top: 0.5rem; color: var(--secundario-texto); font-size: 1rem; }
 .totem-teclado { display: grid; grid-template-columns: repeat(3, 1fr); gap: .6rem; margin: 1rem 0; }
-.totem-teclado button { min-height: 3.6rem; border: 2px solid var(--borde); border-radius: .4rem; background: var(--suave-fondo); color: var(--suave-texto); font: 700 1.4rem var(--fuente-texto); cursor: pointer; }
+.totem-teclado button { min-height: 3.6rem; border: 1px solid var(--borde); border-radius: .6rem; background: var(--panel-fondo); color: var(--suave-texto); font: 600 1.5rem var(--fuente-texto); cursor: pointer; }
 .totem-teclado button:hover { background: var(--arena-fondo); }
-.totem-teclado .totem-limpiar { grid-column: 1 / -1; font-size: 1rem; }
+.totem-teclado .totem-limpiar { grid-column: 1 / -1; min-height: 2.75rem; font-size: 1rem; }
+.totem > form > .boton-bloque:not(.boton-secundario), .totem [data-imprimir] { min-height: 3.5rem; margin-top: 0.5rem; background: var(--eucalipto); border-color: var(--eucalipto); font-size: 1.15rem; }
+.totem > form > .boton-bloque:not(.boton-secundario):hover, .totem [data-imprimir]:hover { background: var(--tinta); border-color: var(--tinta); }
+.totem [data-imprimir] { margin-bottom: 0.75rem; }
+.totem > form { margin-bottom: 1.25rem; }
 .totem-resultado { text-align: center; }
-.totem-numero { font: 800 clamp(5rem, 18vw, 9rem)/1.1 var(--fuente-texto); margin: 1rem 0; font-variant-numeric: tabular-nums; }
-.totem-tiempo { padding: 1rem; margin: 1rem 0; background: var(--aviso-fondo); color: var(--aviso-texto); border: 2px solid var(--borde); }
+.totem-numero { font: 750 clamp(5rem, 18vw, 9rem)/1.1 var(--fuente-texto); padding: 1.5rem 0; margin: 1.25rem 0; color: var(--eucalipto); background: var(--menta); border-bottom: 2px dashed var(--eucalipto); border-radius: var(--radio-panel); font-variant-numeric: tabular-nums; }
+.totem-tiempo { padding: 1rem; margin: 1rem 0; background: var(--aviso-fondo); color: var(--aviso-texto); border: 1px solid var(--borde); border-radius: 0.6rem; }
 .totem form + p { color: var(--secundario-texto); }
 @media (max-width: 30rem) { .totem-teclado { gap: .4rem; } .totem h1 { font-size: 1.8rem; } }
 .comprobante { display: none; }

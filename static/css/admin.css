@@ -1,7 +1,7 @@
 /*
   Piel de la administración de Django con la identidad de la Unidad de Farmacia.
   Solo redefine las variables que Django expone; no toca la estructura de sus pantallas.
-  Cada texto sobre fondo de color cumple 4,5:1 (blanco sobre #0b3d7a / #1f5fae / #44546a; tinta sobre trigo).
+  Cada texto sobre fondo de color cumple 4,5:1 (blanco sobre #18378f / #244bc3 / #536273; tinta sobre trigo).
 */
 @font-face {
   font-family: "Figtree";
@@ -22,55 +22,55 @@
 html[data-theme="light"],
 html[data-theme="auto"],
 :root {
-  --primary: #c3d6ee;
-  --secondary: #1f5fae;
-  --accent: #e3edf9;
+  --primary: #dce7f4;
+  --secondary: #244bc3;
+  --accent: #eaf0ff;
   --primary-fg: #ffffff;
 
-  --body-fg: #0b2545;
+  --body-fg: #182c42;
   --body-bg: #ffffff;
-  --body-quiet-color: #44546a;
+  --body-quiet-color: #536273;
   --body-medium-color: #2a3a52;
-  --body-loud-color: #0b2545;
+  --body-loud-color: #182c42;
 
   --header-color: #ffffff;
-  --header-branding-color: #e3edf9;
-  --header-bg: #1f5fae;
+  --header-branding-color: #eaf0ff;
+  --header-bg: #244bc3;
   --header-link-color: #ffffff;
 
   --breadcrumbs-fg: #dbe7f7;
   --breadcrumbs-link-fg: #ffffff;
-  --breadcrumbs-bg: #0b3d7a;
+  --breadcrumbs-bg: #18378f;
 
-  --link-fg: #0b3d7a;
-  --link-hover-color: #0b2545;
-  --link-selected-fg: #0b3d7a;
+  --link-fg: #18378f;
+  --link-hover-color: #182c42;
+  --link-selected-fg: #18378f;
 
-  --hairline-color: #d5e0ee;
-  --border-color: #5b7da8;
+  --hairline-color: #dce3ec;
+  --border-color: #718198;
 
   --error-fg: #7e2222;
-  --message-success-bg: #e8f3df;
-  --message-warning-bg: #fef2a0;
-  --message-error-bg: #fdeceb;
+  --message-success-bg: #e7f2ef;
+  --message-warning-bg: #fff3dc;
+  --message-error-bg: #fceef0;
 
-  --darkened-bg: #eef4fb;
-  --selected-bg: #c3d6ee;
-  --selected-row: #e3edf9;
+  --darkened-bg: #f3f6fa;
+  --selected-bg: #dce7f4;
+  --selected-row: #eaf0ff;
 
   --button-fg: #ffffff;
-  --button-bg: #0b3d7a;
+  --button-bg: #18378f;
   --button-hover-bg: #082a52;
-  --default-button-bg: #1f5fae;
-  --default-button-hover-bg: #0b3d7a;
-  --close-button-bg: #44546a;
-  --close-button-hover-bg: #0b2545;
+  --default-button-bg: #244bc3;
+  --default-button-hover-bg: #18378f;
+  --close-button-bg: #536273;
+  --close-button-hover-bg: #182c42;
   --delete-button-bg: #9a3636;
   --delete-button-hover-bg: #7e2222;
 
   --object-tools-fg: #ffffff;
-  --object-tools-bg: #44546a;
-  --object-tools-hover-bg: #0b2545;
+  --object-tools-bg: #536273;
+  --object-tools-hover-bg: #182c42;
 
   --font-family-primary: "Atkinson Hyperlegible Next", "Segoe UI", system-ui, -apple-system, sans-serif;
 }
@@ -81,8 +81,20 @@ body { font-size: 1rem; }
   letter-spacing: -0.01em;
 }
 #site-name a { font-weight: 700; }
+#header { padding: 1.25rem 2rem; }
+#user-tools { font-size: 0.8rem; text-transform: none; letter-spacing: 0; }
+#content { padding: 2rem; }
+.module { overflow: hidden; border: 1px solid var(--hairline-color); border-radius: 0.75rem; }
+.module h2, .module caption { padding: 0.85rem 1rem; color: var(--body-fg); background: var(--darkened-bg); font-size: 1rem; font-weight: 600; text-transform: none; }
+.module caption a:link, .module caption a:visited { color: var(--link-fg); }
+.dashboard .module table th, .dashboard .module table td { padding: 0.85rem 1rem; }
+#content-related { overflow: hidden; border: 1px solid var(--hairline-color); border-radius: 0.75rem; }
+#content-related .module { border: 0; }
+@media (max-width: 48rem) {
+  #header, #content { padding: 1.25rem 1rem; }
+}
 a:focus-visible, button:focus-visible, input:focus-visible, select:focus-visible, textarea:focus-visible {
-  outline: 3px solid #0b2545;
+  outline: 3px solid #182c42;
   outline-offset: 2px;
   box-shadow: 0 0 0 2px #ffffff;
 }

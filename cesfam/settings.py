@@ -103,6 +103,7 @@ if not DB_NAME:
         "Debes definir DB_NAME (y DB_USER, DB_PASSWORD, DB_HOST, DB_PORT) en el archivo .env."
     )
 
+#django - enviromen
 DATABASES = {
     "default": {
         "ENGINE": "django.db.backends.postgresql",

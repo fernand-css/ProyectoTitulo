@@ -13,7 +13,7 @@ from pathlib import Path
 
 from PIL import Image, ImageDraw
 
-FONDO, CRUZ = "#1F5FAE", "#FFFFFF"
+FONDO, CRUZ = "#244BC3", "#FFFFFF"
 UNIDADES = 48
 SUPERMUESTREO = 4
 

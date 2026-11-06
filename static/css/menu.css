@@ -1,5 +1,5 @@
 /*
-  Menú principal. En computador (más de 70 rem) es una columna azul marino que se pliega a una franja angosta;
+  Menú principal. En computador (más de 70 rem) es una columna blanca que se pliega a una franja angosta;
   en celular y tableta (hasta 70 rem) es una barra superior con la marca y un dock flotante abajo. Las dos
   salen de la misma lista (coreapp/navegacion.py). Todo el color viene de las variables de base.css, donde
   se verifica el contraste: esta hoja no declara colores (una prueba lo exige). Tamaños en rem, para que el
@@ -28,7 +28,7 @@
   color: var(--panel-texto);
   background: transparent;
   border: 0;
-  border-radius: 0.9rem;
+  border-radius: 0.55rem;
   font: inherit;
   font-weight: 600;
   line-height: 1.2;
@@ -81,7 +81,7 @@
 /* ------------------------------------------------------------------ Computador: columna lateral */
 @media (min-width: 70.0625rem) {
   .app-con-menu {
-    --menu-ancho: min(16rem, 26vw);
+    --menu-ancho: min(15.5rem, 26vw);
     grid-template-columns: var(--menu-ancho) minmax(0, 1fr);
     transition: grid-template-columns 0.22s ease;
   }
@@ -103,12 +103,13 @@
     overflow: hidden;
     color: var(--menu-texto);
     background: var(--menu-fondo);
+    border-right: 1px solid var(--linea);
   }
   .menu-marca {
     display: flex;
     align-items: center;
     gap: 0.75rem;
-    padding: 1.4rem 1.2rem 1.1rem;
+    padding: 1.75rem 1.25rem 2rem;
     color: var(--menu-activo-texto);
     text-decoration: none;
   }
@@ -118,20 +119,21 @@
   .menu-marca-texto strong { font-family: var(--fuente-titulo); font-size: 1.4rem; font-weight: 700; letter-spacing: -0.01em; }
   .menu-marca-texto span { color: var(--menu-grupo-texto); font-size: 0.95rem; }
 
-  .menu-nav { flex: 1; min-height: 0; padding: 0.25rem 0.8rem 0.75rem; overflow-y: auto; overscroll-behavior: contain; }
-  .menu-grupo + .menu-grupo { margin-top: 0.5rem; }
-  .menu-grupo-titulo { max-width: none; margin: 0.9rem 0.85rem 0.3rem; color: var(--menu-grupo-texto); font-size: 0.95rem; font-weight: 700; }
-  .menu-grupo > ul > li + li { margin-top: 0.1rem; }
+  .menu-nav { flex: 1; min-height: 0; padding: 0.25rem 0.85rem 1rem; overflow-y: auto; overscroll-behavior: contain; }
+  .menu-grupo + .menu-grupo { margin-top: 1.25rem; }
+  .menu-grupo-titulo { max-width: none; margin: 0.9rem 0.85rem 0.5rem; color: var(--menu-grupo-texto); font-size: 0.82rem; font-weight: 500; }
+  .menu-grupo > ul > li + li { margin-top: 0.3rem; }
 
-  /* Sobre el azul marino cada estado usa sus propios pares de color (verificados en base.css). */
+  /* La selección lleva fondo, peso de texto y una marca lateral. */
   .menu .menu-enlace { color: var(--menu-texto); font-weight: 500; }
   .menu .menu-enlace .icono { color: inherit; }
   .menu .menu-enlace:hover { color: var(--menu-hover-texto); background: var(--menu-hover-fondo); }
   .menu .menu-enlace[aria-current="page"] { color: var(--menu-activo-texto); background: var(--menu-activo-fondo); font-weight: 700; }
+  .menu .menu-enlace[aria-current="page"]::before { content: ""; position: absolute; left: 0; top: 0.75rem; bottom: 0.75rem; width: 0.2rem; border-radius: 0.2rem; background: currentColor; }
   .menu .menu-enlace[aria-current="page"]:hover { color: var(--menu-activo-texto); background: var(--menu-activo-fondo); }
   .menu :focus-visible { outline-color: var(--menu-activo-texto); box-shadow: none; }
 
-  .menu-cuenta { padding: 0.6rem 0.8rem 0.8rem; border-top: 1px solid var(--menu-hover-fondo); }
+  .menu-cuenta { padding: 1rem 0.85rem; border-top: 1px solid var(--linea); }
   .menu-cuenta > .menu-enlace, .menu-cuenta form { margin-top: 0.1rem; }
   .menu .menu-persona-texto strong { color: var(--menu-activo-texto); }
   .menu .menu-persona-texto span { color: var(--menu-grupo-texto); }
@@ -193,10 +195,10 @@
 
 /* ------------------------------------------------------------------ Celular y tableta: barra superior y dock */
 @media (max-width: 70rem) {
-  .barra-superior { display: block; padding: 0.7rem 1rem; color: var(--marca-texto); background: var(--marca-fondo); }
+  .barra-superior { display: block; padding: 0.85rem 1rem; color: var(--panel-texto); background: var(--panel-fondo); border-bottom: 1px solid var(--linea); }
   .barra-superior .marca-svg { width: 2.6rem; height: 2.6rem; }
   .barra-superior .marca-texto strong { font-size: 1.3rem; }
-  .barra-superior .marca:focus-visible { outline: 3px solid var(--trigo); box-shadow: none; }
+  .barra-superior .marca:focus-visible { outline: 3px solid var(--tinta); box-shadow: none; }
 
   /* Deja libre el alto del dock (y la zona del indicador de inicio de iOS) al final de cada pantalla. */
   .app-con-menu .app-columna { padding-bottom: calc(6.25rem + env(safe-area-inset-bottom, 0px)); }
@@ -217,9 +219,10 @@
     margin: 0;
     padding: 0.4rem;
     list-style: none;
-    background: var(--suave-fondo);
-    border: 2px solid var(--borde);
-    border-radius: 1.75rem;
+    background: var(--panel-fondo);
+    border: 1px solid var(--borde);
+    border-radius: 1rem;
+    box-shadow: var(--sombra-panel);
   }
   .dock-item { flex: 1 1 0; min-width: 0; }
   .dock-enlace {
@@ -232,7 +235,7 @@
     min-height: 3.6rem;
     padding: 0.35rem 0.1rem;
     color: var(--suave-texto);
-    border-radius: 1.3rem;
+    border-radius: 0.7rem;
     font-weight: 700;
     line-height: 1.1;
     text-align: center;
@@ -282,7 +285,7 @@
     overscroll-behavior: contain;
     background: var(--panel-fondo);
     border: 2px solid var(--borde);
-    border-radius: 1.5rem;
+    border-radius: 1rem;
     animation: subir-hoja 0.2s ease-out both;
   }
   .dock-hoja .menu-enlace { min-height: 3.25rem; }

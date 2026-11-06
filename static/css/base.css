@@ -1,5 +1,5 @@
 /*
-  Identidad visual de la Unidad de Farmacia · CESFAM San Nicolás (azul institucional).
+  Mostrador claro · Unidad de Farmacia del CESFAM San Nicolás.
   Fuentes locales (static/fonts): Figtree para títulos y Atkinson Hyperlegible Next para todo lo demás.
 */
 @font-face {
@@ -20,63 +20,64 @@
 :root {
   color-scheme: light;
 
-  /* Paleta azul institucional. Los nombres vienen de la primera paleta (esmaltes del escudo) y se conservan
-     para no tocar cada hoja de estilos: «trigo» es hoy el azul más claro, «arena» su tono medio, «ladrillo»
-     el azul de marca y «naranja» el ámbar, único acento cálido (gráficos y detalles). */
-  --trigo: #e3edf9;
-  --arena: #c3d6ee;
-  --naranja: #de9230;
-  --ladrillo: #1f5fae;
-  --tinta: #0b2545;
-  --linea: #d5e0ee;
-  --borde: #5b7da8;
+  /* Nombres históricos compartidos por los módulos. La paleta se define solo aquí. */
+  --trigo: #eaf0ff;
+  --arena: #dce7f4;
+  --naranja: #955a12;
+  --ladrillo: #244bc3;
+  --tinta: #182c42;
+  --linea: #dce3ec;
+  --borde: #718198;
+  --eucalipto: #245d50;
+  --menta: #e7f2ef;
+  --sombra-panel: 0 0.75rem 2.5rem color-mix(in srgb, var(--tinta) 6%, transparent);
 
   /* Cada pareja texto/fondo se verifica con la fórmula de WCAG en las pruebas (mínimo 4,5:1). */
-  --pagina-texto: #0b2545;
-  --pagina-fondo: #f4f7fb;
-  --panel-texto: #0b2545;
+  --pagina-texto: #182c42;
+  --pagina-fondo: #f3f6fa;
+  --panel-texto: #182c42;
   --panel-fondo: #ffffff;
-  --secundario-texto: #44546a;
+  --secundario-texto: #536273;
   --secundario-fondo: #ffffff;
   --marca-texto: #ffffff;
-  --marca-fondo: #1f5fae;
+  --marca-fondo: #244bc3;
   --activo-texto: #ffffff;
-  --activo-fondo: #0b3d7a;
-  --enlace-texto: #0b3d7a;
+  --activo-fondo: #18378f;
+  --enlace-texto: #244bc3;
   --enlace-fondo: #ffffff;
   --accion-texto: #ffffff;
-  --accion-fondo: #1f5fae;
+  --accion-fondo: #244bc3;
   --hover-texto: #ffffff;
-  --hover-fondo: #0b2545;
-  --trigo-texto: #0b2545;
-  --trigo-fondo: #e3edf9;
-  --arena-texto: #0b2545;
-  --arena-fondo: #c3d6ee;
-  --suave-texto: #0b2545;
-  --suave-fondo: #eef4fb;
-  --error-texto: #7e2222;
-  --error-fondo: #fdeceb;
-  --exito-texto: #25521f;
-  --exito-fondo: #e8f3df;
-  --aviso-texto: #2a1613;
-  --aviso-fondo: #fef2a0;
-  --pie-texto: #dbe7f7;
-  --pie-fondo: #0b2545;
-  /* Menú lateral: columna azul marino. Cada texto declara su fondo para que las pruebas lo midan. */
-  --menu-texto: #dbe7f7;
-  --menu-fondo: #0b2545;
-  --menu-grupo-texto: #9fb6d6;
-  --menu-grupo-fondo: #0b2545;
-  --menu-activo-texto: #ffffff;
-  --menu-activo-fondo: #1f5fae;
-  --menu-hover-texto: #ffffff;
-  --menu-hover-fondo: #173a66;
+  --hover-fondo: #182c42;
+  --trigo-texto: #182c42;
+  --trigo-fondo: #eaf0ff;
+  --arena-texto: #182c42;
+  --arena-fondo: #dce7f4;
+  --suave-texto: #182c42;
+  --suave-fondo: #f3f6fa;
+  --error-texto: #932f3d;
+  --error-fondo: #fceef0;
+  --exito-texto: #245d50;
+  --exito-fondo: #e7f2ef;
+  --aviso-texto: #78470e;
+  --aviso-fondo: #fff3dc;
+  --pie-texto: #536273;
+  --pie-fondo: #f3f6fa;
+  /* Menú blanco: cada selección declara sus colores de texto y fondo. */
+  --menu-texto: #536273;
+  --menu-fondo: #ffffff;
+  --menu-grupo-texto: #536273;
+  --menu-grupo-fondo: #ffffff;
+  --menu-activo-texto: #244bc3;
+  --menu-activo-fondo: #eaf0ff;
+  --menu-hover-texto: #182c42;
+  --menu-hover-fondo: #f3f6fa;
   --velo: color-mix(in srgb, var(--tinta) 55%, transparent);
   /* Gráficos de Recetas: dos series (azul y ámbar oscuro), una rampa azul de cinco pasos para el mapa de calor
      y tres neutros para lo que no se destaca. Se validaron con el script del skill dataviz sobre fondo blanco
      (contraste, separación para daltonismo, pasos de luminosidad). */
-  --serie-1: #1f5fae;
-  --serie-2: #c4720a;
+  --serie-1: #244bc3;
+  --serie-2: #955a12;
   --rampa-1: #9bb9e0;
   --rampa-2: #6f9bd1;
   --rampa-3: #3f78bf;
@@ -89,14 +90,14 @@
   --fuente-titulo: "Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
   --fuente-texto: "Atkinson Hyperlegible Next", "Segoe UI", system-ui, -apple-system, sans-serif;
   --ancho-contenido: 72rem;
-  --radio-panel: 1.25rem;
-  --radio-atajo: 1.5rem;
+  --radio-panel: 0.9rem;
+  --radio-atajo: 1.15rem;
 }
 
 /* Tamaño de texto elegido por la persona (franja superior); todo el diseño usa rem. */
-html { font-size: 112.5%; }
-html[data-texto="grande"] { font-size: 131.25%; }
-html[data-texto="muy-grande"] { font-size: 150%; }
+html { font-size: 100%; }
+html[data-texto="grande"] { font-size: 118.75%; }
+html[data-texto="muy-grande"] { font-size: 137.5%; }
 
 * { box-sizing: border-box; }
 body {
@@ -108,7 +109,7 @@ body {
   color: var(--pagina-texto);
   background: var(--pagina-fondo);
   font-family: var(--fuente-texto);
-  line-height: 1.6;
+  line-height: 1.55;
   -webkit-text-size-adjust: 100%;
 }
 a { color: var(--enlace-texto); text-underline-offset: 0.2em; text-decoration-thickness: 0.08em; }
@@ -123,10 +124,10 @@ h1, h2, h3 {
   font-family: var(--fuente-titulo);
   font-weight: 600;
   line-height: 1.15;
-  letter-spacing: -0.012em;
+  letter-spacing: -0.025em;
   text-wrap: balance;
 }
-h1 { font-size: clamp(2rem, 1.35rem + 2.4vw, 2.75rem); font-weight: 700; }
+h1 { font-size: clamp(2rem, 1.5rem + 1.5vw, 2.6rem); font-weight: 700; }
 h2 { font-size: 1.4rem; }
 h3 { font-size: 1.15rem; }
 p { margin: 0 0 1rem; max-width: 62ch; }
@@ -173,11 +174,11 @@ ul, ol { margin-top: 0; }
 .marca-svg { flex: none; width: 3rem; height: 3rem; border-radius: 0.8rem; }
 
 /* ------------------------------------------------------------------ Franja superior */
-.franja { color: var(--trigo-texto); background: var(--trigo-fondo); font-size: 0.9rem; }
+.franja { color: var(--secundario-texto); background: var(--panel-fondo); border-bottom: 1px solid var(--linea); font-size: 0.85rem; }
 .franja-int {
   max-width: var(--ancho-contenido);
   margin: auto;
-  padding: 0.35rem 1.5rem;
+  padding: 0.5rem 2rem;
   display: flex;
   align-items: center;
   justify-content: space-between;
@@ -204,7 +205,7 @@ ul, ol { margin-top: 0; }
 .texto-control button:nth-of-type(2) { font-size: 1.15rem; }
 .texto-control button:nth-of-type(3) { font-size: 1.45rem; }
 .texto-control button:hover { border-color: var(--tinta); }
-.texto-control button[aria-pressed="true"] { color: var(--hover-texto); background: var(--hover-fondo); }
+.texto-control button[aria-pressed="true"] { color: var(--enlace-texto); background: var(--trigo-fondo); border-color: var(--enlace-texto); }
 
 /* ------------------------------------------------------------------ Marca */
 /* El menú principal (columna lateral y barra inferior) vive en menu.css. */
@@ -226,12 +227,12 @@ ul, ol { margin-top: 0; }
   justify-content: center;
   gap: 0.6rem;
   min-height: 3rem;
-  padding: 0.55rem 1.6rem;
+  padding: 0.65rem 1.2rem;
   color: var(--accion-texto);
   background: var(--accion-fondo);
   border: 2px solid var(--accion-fondo);
-  border-radius: 0.8rem;
-  font-size: 1.05rem;
+  border-radius: 0.6rem;
+  font-size: 1rem;
   font-weight: 700;
   line-height: 1.2;
   text-align: center;
@@ -240,9 +241,9 @@ ul, ol { margin-top: 0; }
 }
 .boton:hover { color: var(--hover-texto); background: var(--hover-fondo); border-color: var(--hover-fondo); }
 .boton:active { transform: translateY(1px); }
-.boton-secundario { color: var(--enlace-texto); background: var(--panel-fondo); border-color: var(--marca-fondo); }
+.boton-secundario { color: var(--enlace-texto); background: var(--panel-fondo); border-color: var(--borde); }
 .boton-secundario:hover { color: var(--trigo-texto); background: var(--trigo-fondo); border-color: var(--marca-fondo); }
-.boton-peligro { color: var(--enlace-texto); background: var(--enlace-fondo); border-color: var(--enlace-texto); }
+.boton-peligro { color: var(--error-texto); background: var(--panel-fondo); border-color: var(--error-texto); }
 .boton-peligro:hover { color: var(--error-texto); background: var(--error-fondo); }
 .boton-bloque { display: flex; width: 100%; }
 .boton, .boton-bloque { max-width: 100%; }
@@ -251,8 +252,8 @@ ul, ol { margin-top: 0; }
 /* ------------------------------------------------------------------ Contenido */
 .principal { flex: 1; }
 .principal:focus { outline: none; }
-.contenedor { max-width: var(--ancho-contenido); margin-inline: auto; padding-inline: 1.5rem; }
-.pagina { padding-block: 1.5rem 4.5rem; }
+.contenedor { max-width: var(--ancho-contenido); margin-inline: auto; padding-inline: clamp(1rem, 3vw, 2.5rem); }
+.pagina { padding-block: 2rem 3.5rem; }
 .migas { margin-bottom: 1.5rem; font-size: 0.95rem; }
 .migas ol { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.6rem; margin: 0; padding: 0; list-style: none; }
 .migas li + li::before {
@@ -274,7 +275,7 @@ ul, ol { margin-top: 0; }
   overflow-wrap: anywhere;
   color: var(--panel-texto);
   background: var(--panel-fondo);
-  border: 2px solid var(--linea);
+  border: 1px solid var(--linea);
   border-radius: var(--radio-panel);
   padding: clamp(1.25rem, 3vw, 2rem);
 }
@@ -285,7 +286,7 @@ ul, ol { margin-top: 0; }
 .panel-trigo .panel-titulo .icono { color: var(--tinta); }
 .panel a:not(.boton) { color: var(--enlace-texto); }
 .suave { color: var(--secundario-texto); }
-.rejilla { display: grid; gap: 1.5rem; }
+.rejilla { display: grid; gap: 1.25rem; }
 .rejilla-2 { grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); align-items: start; }
 .rejilla-cuentas { grid-template-columns: repeat(auto-fill, minmax(min(100%, 20rem), 1fr)); }
 
@@ -344,7 +345,7 @@ ul, ol { margin-top: 0; }
   color: var(--panel-texto);
   background: var(--panel-fondo);
   border: 2px solid var(--borde);
-  border-radius: 0.8rem;
+  border-radius: 0.55rem;
 }
 .campo select {
   padding-right: 2.75rem;
@@ -433,7 +434,7 @@ form .acciones { margin-top: 0.5rem; }
 .message > p, .message p:last-child { margin-bottom: 0; }
 
 /* ------------------------------------------------------------------ Pie de página */
-.pie { margin-top: auto; color: var(--pie-texto); background: var(--pie-fondo); }
+.pie { margin-top: auto; color: var(--pie-texto); background: var(--pie-fondo); border-top: 1px solid var(--linea); font-size: 0.85rem; }
 .banda { display: grid; grid-template-columns: repeat(4, 1fr); height: 0.5rem; }
 .banda span:nth-child(1) { background: var(--trigo); }
 .banda span:nth-child(2) { background: var(--arena); }
@@ -442,17 +443,19 @@ form .acciones { margin-top: 0.5rem; }
 .pie-int {
   max-width: var(--ancho-contenido);
   margin: auto;
-  padding: 2rem 1.5rem 2.25rem;
+  padding: 1.5rem 2rem;
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
   gap: 1.5rem 2.5rem;
 }
 .pie p { margin: 0 0 0.35rem; }
 .pie-marca { display: flex; align-items: center; gap: 0.9rem; }
-.pie-marca strong { font-family: var(--fuente-titulo); font-size: 1.2rem; }
+.pie-marca .marca-svg { width: 2.2rem; height: 2.2rem; }
+.pie-marca strong { color: var(--tinta); font-family: var(--fuente-titulo); font-size: 1rem; }
 .pie-dato { display: flex; align-items: flex-start; gap: 0.6rem; }
-.pie-dato .icono { margin-top: 0.2rem; color: var(--trigo); }
-.pie-demo { color: var(--trigo); font-weight: 600; }
+.pie-dato .icono { margin-top: 0.2rem; color: var(--secundario-texto); }
+.pie-demo { color: var(--secundario-texto); }
+.pie .banda { display: none; }
 
 /* ------------------------------------------------------------------ Paginación */
 .paginacion { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem 1.25rem; margin-top: 2rem; }
@@ -461,8 +464,8 @@ form .acciones { margin-top: 0.5rem; }
   align-items: center;
   min-height: 2.75rem;
   padding: 0.4rem 1.2rem;
-  border: 2px solid var(--tinta);
-  border-radius: 999px;
+  border: 1px solid var(--borde);
+  border-radius: 0.5rem;
   color: var(--panel-texto);
   font-weight: 700;
   text-decoration: none;
@@ -480,8 +483,8 @@ form .acciones { margin-top: 0.5rem; }
   gap: 1.25rem;
   min-height: 34rem;
   padding: clamp(1.5rem, 4vw, 3rem);
-  color: var(--trigo-texto);
-  background: var(--trigo-fondo);
+  color: var(--eucalipto);
+  background: var(--menta);
 }
 .paisaje .marca, .paisaje-lema { position: relative; z-index: 1; }
 .paisaje .marca-svg { width: 3.6rem; height: 3.6rem; border-radius: 1rem; }
@@ -490,7 +493,7 @@ form .acciones { margin-top: 0.5rem; }
 .paisaje-lema { margin: 0; font-size: 1rem; }
 .paisaje-arte, .paisaje-arte-movil { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
 .paisaje-arte-movil { display: none; }
-.acceso-panel { display: flex; flex-direction: column; padding: clamp(1.5rem, 5vw, 4rem) clamp(1.25rem, 5vw, 4rem); }
+.acceso-panel { display: flex; flex-direction: column; background: var(--panel-fondo); padding: clamp(1.5rem, 5vw, 4rem) clamp(1.25rem, 5vw, 4rem); }
 .acceso-contenido { width: 100%; max-width: 27rem; margin: auto; }
 .acceso-contenido h1 { font-size: clamp(2rem, 1.5rem + 1.8vw, 2.6rem); }
 .acceso-intro { color: var(--secundario-texto); font-size: 1.1rem; }
@@ -524,43 +527,47 @@ form .acciones { margin-top: 0.5rem; }
 /* ------------------------------------------------------------------ Acceso: tarjeta con el formulario y la ilustración */
 /* Inicio de sesión, recuperación de clave, verificación de correo y avisos 403 y 404 (layout base_acceso.html).
    El tótem sigue usando .acceso y .paisaje. */
-.entrada { flex: 1; display: grid; place-items: center; padding: clamp(1rem, 4vw, 3rem) clamp(0.75rem, 4vw, 2rem) clamp(1.5rem, 5vw, 3.5rem); }
+.entrada { flex: 1; display: grid; place-items: center; padding: clamp(1rem, 4vw, 3rem) clamp(0.75rem, 4vw, 2rem); }
 .entrada-tarjeta {
-  width: min(100%, 68rem);
-  min-height: 30rem;
+  width: min(100%, 72rem);
+  min-height: 38rem;
   display: grid;
   /* Dos columnas mientras cada una conserve 24 rem; si no (celular, texto muy ampliado) la ilustración baja. */
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 24rem), 1fr));
   overflow: hidden;
   background: var(--panel-fondo);
-  border-radius: 2rem;
-  box-shadow: 0 1.25rem 3.5rem color-mix(in srgb, var(--tinta) 14%, transparent);
+  border: 1px solid var(--linea);
+  border-radius: 1.25rem;
+  box-shadow: var(--sombra-panel);
 }
-.entrada-formulario { display: flex; flex-direction: column; gap: 2.25rem; min-width: 0; padding: clamp(1.5rem, 4vw, 3rem); }
+.entrada-formulario { display: flex; flex-direction: column; gap: 3rem; min-width: 0; padding: clamp(1.5rem, 4vw, 3.25rem); }
 .entrada-formulario .marca-svg { width: 2.6rem; height: 2.6rem; border-radius: 0.75rem; }
 .entrada-formulario .marca-texto strong { font-size: 1.25rem; }
 .entrada-formulario .marca-texto span { font-size: 0.85rem; }
-.entrada .acceso-contenido { max-width: 28rem; margin: 0; }
-.entrada .acceso-contenido h1 { margin-bottom: 0.6rem; font-weight: 800; letter-spacing: -0.02em; }
+.entrada .acceso-contenido { max-width: 28rem; margin-block: auto; }
+.entrada .acceso-contenido h1 { margin-bottom: 0.75rem; font-weight: 700; letter-spacing: -0.035em; }
 .entrada .acceso-intro { margin-bottom: 1.6rem; font-size: 1.02rem; }
 .entrada .campo { margin-bottom: 1.15rem; }
 .entrada .campo label { font-size: 0.95rem; }
-.entrada .campo input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]) { padding-inline: 1.3rem; border-radius: 999px; }
-.entrada .campo-clave-ver { right: 0.4rem; border-radius: 50%; }
-.entrada .boton { border-radius: 999px; }
+.entrada .campo input:not([type="hidden"]):not([type="checkbox"]):not([type="radio"]) { padding-inline: 1rem; border-radius: 0.55rem; }
+.entrada .campo-clave-ver { right: 0.4rem; border-radius: 0.4rem; }
 .entrada .boton-bloque { min-height: 3.25rem; font-size: 1.05rem; }
 .entrada .formulario-pie { margin-top: 1.1rem; }
 .entrada .acceso-ayuda { margin-top: 1.5rem; }
 .entrada .acceso-codigo { margin-bottom: 0; }
 
-.entrada-arte { --relleno: clamp(1.25rem, 3vw, 2.5rem); display: flex; flex-direction: column; min-height: 20rem; padding: var(--relleno); color: var(--trigo-texto); background: var(--trigo-fondo); }
-.entrada-lema { align-self: flex-end; margin: 0 0 0.75rem; font-size: 0.95rem; line-height: 1.5; text-align: right; }
+.entrada-arte { --relleno: clamp(1.5rem, 3vw, 3rem); display: flex; flex-direction: column; min-height: 24rem; padding: var(--relleno); color: var(--eucalipto); background: var(--menta); }
+.entrada-titulo { max-width: 12ch; margin: 0 0 1.25rem; font: 650 clamp(2rem, 3.2vw, 3.25rem)/1.07 var(--fuente-titulo); letter-spacing: -0.04em; text-wrap: balance; }
+.entrada-lema { margin: 0 0 1.5rem; color: var(--eucalipto); font-size: 0.95rem; line-height: 1.5; }
 /* La ilustración ocupa el espacio que deja la dirección y se ajusta a él sin pasar por encima del texto; su base
    baja hasta el borde de la tarjeta, donde queda apoyado el mostrador. */
-.entrada-ilustracion { flex: 1 1 0; min-height: 0; width: 100%; margin-bottom: calc(var(--relleno) * -1); }
+.entrada-ilustracion { flex: 1 1 0; min-height: 14rem; width: 100%; margin-top: auto; margin-bottom: calc(var(--relleno) * -1); }
 @media (max-width: 44rem) {
-  .entrada-tarjeta { border-radius: 1.5rem; }
+  .entrada-tarjeta { min-height: 0; border-radius: 1rem; }
   .entrada-formulario { gap: 1.75rem; }
+  .entrada-arte { min-height: 18rem; }
+  .entrada-titulo { max-width: 20ch; }
+  .entrada-ilustracion { max-height: 16rem; }
 }
 @media (forced-colors: active) {
   .entrada-tarjeta { border: 2px solid CanvasText; }
@@ -572,11 +579,11 @@ form .acciones { margin-top: 0.5rem; }
 }
 @media (max-width: 44rem) {
   .acceso { grid-template-columns: minmax(0, 1fr); }
-  .paisaje { min-height: 17.5rem; padding: 1.25rem 1.25rem 1.5rem; }
+  .paisaje { min-height: 0; padding: 1rem 1.25rem; }
   .paisaje .marca-svg { width: 3rem; height: 3rem; }
   .paisaje .marca-texto strong { font-size: 1.6rem; }
   .paisaje-lema, .paisaje-arte { display: none; }
-  .paisaje-arte-movil { display: block; }
+  .paisaje-arte-movil { display: none; }
   .acceso-panel { padding-top: 2rem; }
   .franja-int, .contenedor { padding-inline: 1rem; }
   .texto-control-etiqueta { display: none; }

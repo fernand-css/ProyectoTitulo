@@ -1,15 +1,15 @@
-.preparacion-resumen { margin: 1.25rem 0 1.5rem; padding: 1rem 1.2rem; color: var(--trigo-texto); background: var(--trigo-fondo); border-left: 0.55rem solid var(--ladrillo); }
+.preparacion-resumen { margin: 1.25rem 0 1.5rem; padding: 1.15rem 1.4rem; color: var(--eucalipto); background: var(--menta); border-left: 0.25rem solid var(--eucalipto); border-radius: 0 var(--radio-panel) var(--radio-panel) 0; }
 .preparacion-resumen p { margin: 0.2rem 0; }
 .preparacion-estimacion { font-family: var(--fuente-titulo); font-size: 1.25rem; font-weight: 700; }
-.preparacion-lista { border-top: 2px solid var(--linea); }
+.preparacion-lista { background: var(--panel-fondo); border: 1px solid var(--linea); border-radius: var(--radio-panel); }
 .preparacion-filas { margin: 0; padding: 0; list-style: none; }
 .preparacion-fila {
   display: grid;
   grid-template-columns: minmax(9rem, 0.8fr) minmax(12rem, 1.2fr) minmax(12rem, 0.9fr);
   align-items: center;
   gap: 1rem;
-  padding: 1.1rem 0.75rem;
-  border-bottom: 2px solid var(--linea);
+  padding: 1.2rem 1.25rem;
+  border-bottom: 1px solid var(--linea);
 }
 .preparacion-fila:nth-child(even) { background: var(--suave-fondo); }
 .preparacion-turno, .preparacion-receta { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.25rem 0.75rem; }
@@ -18,7 +18,7 @@
 .preparacion-estado { display: flex; flex-wrap: wrap; align-items: center; justify-content: flex-end; gap: 0.7rem; }
 .preparacion-estado p { margin: 0; font-weight: 700; }
 .preparacion-estado form { margin: 0; }
-.preparacion-vacia { margin-top: 1.5rem; padding: clamp(1.25rem, 3vw, 2rem); background: var(--suave-fondo); border: 3px dashed var(--borde); border-radius: var(--radio-panel); }
+.preparacion-vacia { margin-top: 1.5rem; padding: clamp(1.25rem, 3vw, 2rem); background: var(--panel-fondo); border: 1px solid var(--linea); border-radius: var(--radio-panel); }
 .preparacion-vacia h2 { margin: 0 0 0.4rem; font-family: var(--fuente-titulo); }
 .preparacion-vacia p { margin: 0; }
 .preparacion-busqueda { max-width: 50rem; margin: 1.25rem 0; }

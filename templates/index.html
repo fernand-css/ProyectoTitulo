@@ -8,7 +8,8 @@
   <section class="inicio-saludo" aria-labelledby="titulo-inicio">
     <h1 id="titulo-inicio">{% if hora|add:0 < 12 %}Buenos días{% elif hora|add:0 < 20 %}Buenas tardes{% else %}Buenas noches{% endif %}, {% firstof request.user.first_name request.user.get_username %}</h1>
     <p class="rol-chip"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-escudo-ok"/></svg>{{ nombre_rol }}</p>
-    <p class="inicio-lugar">Estás en la Unidad de Farmacia del CESFAM San Nicolás.</p>
+    <p class="inicio-lugar">Todo listo para una nueva jornada en Farmacia.</p>
+    <p class="inicio-fecha"><time datetime="{% now 'Y-m-d' %}">{% now 'l j \d\e F' %}</time></p>
   </section>
 
   {% if hoy_en_espera is not None %}

@@ -7,7 +7,7 @@
 .cola-cabecera h1 { margin-bottom: 0.3rem; }
 .cola-cabecera p, .cola-formulario + p { max-width: 70ch; }
 .cola-acciones, .cola-refresco { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin: 1rem 0; }
-.cola-refresco { margin-top: 0; padding: 0.6rem 0.9rem; color: var(--trigo-texto); background: var(--trigo-fondo); border-radius: 0.8rem; }
+.cola-refresco { margin-top: 0; padding: 0.75rem 1rem; color: var(--secundario-texto); background: var(--panel-fondo); border: 1px solid var(--linea); border-radius: 0.55rem; }
 .cola-refresco p { margin: 0; }
 .cola-refresco [hidden] { display: none; }
 .cola-ayuda { margin: 0.4rem 0 0; font-size: 0.95rem; }
@@ -31,12 +31,12 @@
 
 /* La mesa: el puesto va primero en el orden de lectura y se dibuja a la derecha. */
 .cola-mesa { display: grid; grid-template-columns: minmax(17rem, 22rem) minmax(0, 1fr); grid-template-areas: "lateral puesto"; gap: 1.5rem; align-items: start; margin: 0 0 2rem; }
-.cola-puesto { grid-area: puesto; min-width: 0; padding: 1.5rem; background: var(--panel-fondo); border: 1px solid var(--linea); border-radius: 1.5rem; }
+.cola-puesto { grid-area: puesto; min-width: 0; padding: 1.5rem; background: var(--panel-fondo); border: 1px solid var(--linea); border-radius: var(--radio-panel); }
 .cola-puesto-activo { border: 2px solid var(--marca-fondo); padding: 0; overflow: hidden; }
 .cola-puesto-activo > :not(.cola-puesto-cab):not(.cola-ahora):not(.cola-controles) { margin-inline: 1.5rem; }
 .cola-lateral { grid-area: lateral; display: flex; flex-direction: column; gap: 1.25rem; min-width: 0; }
 .cola-puesto-cab { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 0.5rem 1rem; margin-bottom: 1rem; }
-.cola-puesto-activo .cola-puesto-cab { margin: 0; padding: 1.1rem 1.5rem; background: var(--trigo-fondo); }
+.cola-puesto-activo .cola-puesto-cab { margin: 0; padding: 1.1rem 1.5rem; color: var(--marca-texto); background: var(--marca-fondo); }
 .cola-puesto-cab h2 { margin: 0; font-size: 1.3rem; }
 .cola-situacion { margin: 0; padding: 0.15rem 0.8rem; color: var(--trigo-texto); background: var(--panel-fondo); border: 1px solid var(--linea); border-radius: 999px; font-size: 0.95rem; font-weight: 700; }
 .cola-puesto:not(.cola-puesto-activo) .cola-situacion { background: var(--trigo-fondo); border-color: var(--trigo-fondo); }
@@ -45,7 +45,7 @@
 /* Quien se atiende ahora */
 .cola-ahora { padding: 1.25rem 1.5rem 1.5rem; }
 .cola-ahora-cab { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem 1.5rem; }
-.cola-numero { margin: 0; font: 700 4.2rem/1 var(--fuente-titulo); font-variant-numeric: tabular-nums; }
+.cola-numero { margin: 0; padding: 0.6rem 0.9rem; color: var(--enlace-texto); background: var(--trigo-fondo); border-radius: 0.65rem; font: 650 4.2rem/1 var(--fuente-titulo); font-variant-numeric: tabular-nums; }
 .cola-paciente { min-width: 0; }
 .cola-paciente p { margin: 0; }
 .cola-paciente-nombre { font-family: var(--fuente-titulo); font-size: 1.5rem; line-height: 1.2; }
@@ -73,7 +73,7 @@
 .cola-ocupar { display: grid; gap: 0.5rem; padding: 0.75rem 0; border-bottom: 1px solid var(--linea); }
 
 /* Fila de espera */
-.cola-espera, .cola-ventanillas { padding: 1.25rem 1.25rem 1rem; background: var(--panel-fondo); border: 1px solid var(--linea); border-radius: 1.25rem; }
+.cola-espera, .cola-ventanillas { padding: 1.25rem 1.25rem 1rem; background: var(--panel-fondo); border: 1px solid var(--linea); border-radius: var(--radio-panel); }
 .cola-espera h2, .cola-ventanillas h2 { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 0.2rem 0.75rem; margin: 0 0 0.4rem; font-size: 1.25rem; }
 .cola-total { color: var(--secundario-texto); font-family: var(--fuente-texto); font-size: 0.95rem; font-weight: 500; }
 .cola-ciclo { margin: 0 0 0.5rem; color: var(--secundario-texto); font-size: 0.95rem; }
