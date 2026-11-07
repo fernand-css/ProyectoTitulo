@@ -1,0 +1,10 @@
+# Dependencias directas del stack aprobado; se conservan sus rangos.
+# Versiones instaladas, incluidas transitivas: requirements-frozen.txt.
+# La instantánea no instala paquetes ni sustituye la revisión por plataforma.
+Django>=5.2.1,<5.3
+djangorestframework>=3.16,<4
+channels>=4.3,<5
+daphne>=4.2,<5
+channels-redis>=4.3,<5
+psycopg[binary]>=3.2.2,<4
+redis>=6,<8

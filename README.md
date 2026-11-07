@@ -1,55 +1,83 @@
 # Proyecto CESFAM San Nicolás
 
-Proyecto académico orientado a estudiar una solución para apoyar procesos de farmacia del CESFAM San Nicolás. Este prototipo se desarrolla de forma independiente de los otros prototipos del equipo.
+Prototipo académico independiente para procesos de farmacia del CESFAM San Nicolás. Rama exclusiva: `irubio`.
 
-**Estado al 2026-11-03:** Etapa 1, planificación y organización documental. No existe una aplicación ejecutable en la copia inspeccionada de `irubio`. Se consolidaron fuentes, selección tecnológica, trazabilidad preliminar e inconsistencias; el stack completo está aprobado, mientras el alcance funcional, la configuración y el diseño detallado permanecen por validar.
+**Estado documental al 2026-11-07:** motor de turnos y administración segura de ventanillas implementados, con validación PostgreSQL de los escenarios descritos. Todavía no existe un flujo web operativo: API REST, interfaces HTML5/Alpine.js, tótem y consumidor WebSocket permanecen pendientes de autorización e implementación.
 
-## Tecnologías seleccionadas
+## Tecnologías seleccionadas y entorno observado
 
-Decisión explícita de la usuaria del 2026-11-03, confirmada en la autorización documental F-17:
+| Componente | Selección aprobada | Estado observado |
+| --- | --- | --- |
+| Frontend | HTML5 + Alpine.js + JavaScript | Interfaces pendientes |
+| Backend | Python + Django | Python 3.13.3; Django 5.2.19 en `.venv` |
+| API REST | Django REST Framework | 3.18.3 instalado; endpoints del prototipo pendientes |
+| Tiempo real | Django Channels + WebSockets | Channels 4.3.2 instalado; consumidor y recuperación pendientes |
+| Servidor ASGI | Daphne | 4.2.3 instalado; configuración ASGI HTTP preparada |
+| Mensajería y caché | Redis | Cliente redis 7.4.1 y channels-redis 4.3.0; integración real no validada |
+| Base de datos | PostgreSQL | Instancia local 18.6 confirmada por la usuaria; Psycopg y psycopg-binary 3.3.8 |
 
-| Componente | Tecnología aprobada |
+PostgreSQL es la fuente de verdad. Redis es infraestructura auxiliar y estuvo sustituido por un publicador simulado durante las pruebas. Instalar un componente no acredita su integración funcional.
+
+`requirements.txt` conserva los siete requerimientos directos y sus rangos. [requirements-frozen.txt](requirements-frozen.txt) registra 31 paquetes instalados, directos y transitivos, obtenidos con `pip freeze --local`, sin modificar el entorno. Es una instantánea de Windows x64/Python 3.13.3, no un lockfile con hashes ni una garantía de portabilidad. Pip no forma parte de esa salida predeterminada.
+
+## Funcionalidades implementadas
+
+- Usuario personalizado, grupos y permisos; pacientes exclusivamente ficticios con identificadores `SINT-000001`. No se declara cumplida la validación RUT de HU-07.
+- Categorías GENERAL/PREFERENCIAL, FIFO por emisión y PK dentro de cada categoría y ronda ponderada inicial 2:1, configurable con pesos enteros de 1 a 100. El 2:1 es provisional y aprobado para el prototipo.
+- Números visibles G-001/P-001, independientes de la PK y únicos por jornada local, categoría y correlativo.
+- Flujo PENDIENTE → LLAMADO → EN_ATENCION → ATENDIDO; cancelación administrativa de pendientes y ausencia manual desde LLAMADO. Sin ausencia automática ni reapertura de estados terminales.
+- Reemisión que devuelve el turno activo sin modificar categoría ni consumir correlativo.
+- Un turno activo por paciente y un turno LLAMADO/EN_ATENCION por ventanilla, respaldados por restricciones PostgreSQL.
+- Transacciones, coordinación mediante fila compartida y bitácora persistente. Los cambios de pesos reinician el ciclo sin créditos anteriores.
+- Administración de ventanillas mediante `configurar_ventanilla`: permiso administrativo, operador válido, motivo y auditoría de cambios efectivos.
+- Prohibición de deshabilitar, reasignar o retirar operador con turnos LLAMADO/EN_ATENCION. Las solicitudes sin cambios no generan auditoría.
+- Orden de bloqueos cola → ventanilla → turno y revalidación de referencias. Las inconsistencias externas se rechazan, sin reparación automática ni transferencia de autoría histórica.
+
+Solo se llaman pendientes de la jornada actual. Un activo antiguo bloquea reemisión hasta su cierre autorizado; cambiar de fecha no lo cierra automáticamente. La capacidad del bloqueo global no ha sido medida.
+
+## Evidencia de verificación y límites
+
+| Evidencia | Resultado y procedencia |
 | --- | --- |
-| Frontend | HTML5 + Alpine.js + JavaScript |
-| Backend | Python + Django |
-| API REST | Django REST Framework (DRF) |
-| Comunicación en tiempo real | Django Channels + WebSockets |
-| Servidor ASGI | Daphne |
-| Mensajería y caché | Redis |
-| Base de datos | PostgreSQL |
+| Reglas puras e inspección estructural | 18 pruebas puras y comprobación de modelos aprobadas en el bloque inicial; no repetidas en esta consolidación |
+| Conexión Django/PostgreSQL | Seis comprobaciones coincidentes y `manage.py check` con código 0, confirmados por la usuaria |
+| Regresión del motor | 16 pruebas de `ServicioPostgreSQLTests` |
+| Administración de ventanillas | 28 pruebas de `VentanillasPostgreSQLTests` |
+| Ejecución conjunta | **44/44 aprobadas; 0 errores y 0 fallos; 19.027 segundos; código 0; System Check sin incidencias**, según resultado comunicado y aceptado por la usuaria |
 
-PostgreSQL es la fuente de verdad para persistencia e integridad; Redis cumple un papel auxiliar de mensajería y caché. La aprobación de los componentes no autoriza instalarlos ni desarrollar código.
+Las migraciones automáticas y la limpieza se ejecutaron **exclusivamente en `test_cesfam_desarrollo`**. La usuaria confirmó que no quedaron migraciones pendientes en esa base y que permaneció conservada y accesible. No se afirma que `cesfam_desarrollo` tenga las migraciones aplicadas. Las migraciones originales conservan sus cabeceras de generación con Django 5.2.1; el entorno instalado posterior usa 5.2.19.
 
-Quedan pendientes versiones, configuración, estructura de aplicaciones, contratos de API/eventos, esquemas, políticas de caché y criterios PWA/offline y de sincronización. Un eventual respaldo mediante polling no está decidido. El reparto lógico de responsabilidades está en [alcance y pendientes](docs/03-alcance-y-pendientes.md); no fija configuraciones ni despliegue.
+Los resultados comunicados no son una nueva ejecución ni un registro de terminal incorporado al repositorio. Los 19.027 segundos son duración de la suite, no evidencia de latencia, carga ni cumplimiento de dos segundos. Tampoco certifican aprobación académica, cumplimiento integral de HU/RNF/NS o funcionamiento en producción.
 
-## Antecedentes y alcance
+## Configuración local y pruebas
 
-Se mantienen seis antecedentes funcionales por validar: gestión de turnos, atención preferencial, visualización de llamados, recetas, importación masiva CSV/Excel y trazabilidad domiciliaria.
+Django lee las variables del proceso. Copiar [.env.example](.env.example) a `.env` no lo carga automáticamente. La plantilla no contiene credenciales y mantiene `POSTGRES_PORT=5432` como ejemplo configurable para otros equipos.
 
-La guía académica, el informe del equipo, las entrevistas, las transcripciones y los dos diagramas están inventariados en [fuentes y diagnóstico](docs/01-fuentes-y-diagnostico.md). Las copias permiten identificar INACAP y TIHI84; quedan pendientes su vigencia y las aprobaciones correspondientes. Las 23 HU, 9 RNF y 8 NS del informe son propuestas documentadas, no un alcance automáticamente aprobado para este prototipo.
+El entorno local validado de la usuaria utiliza PostgreSQL 18.6 en `127.0.0.1:5433`, rol `cesfam_app`, base de desarrollo `cesfam_desarrollo` y base de pruebas precreada `test_cesfam_desarrollo`. Cada integrante debe seleccionar explícitamente su instancia; el puerto 5433 no es una obligación compartida. No se modifica PostgreSQL 17.
 
-La [matriz preliminar](docs/02-requisitos-y-trazabilidad.md) enlaza RF-P con HU, RNF y NS, distinguiendo exigencias académicas, necesidades levantadas, propuestas y acuerdos. Las contradicciones académicas y técnicas no se resolvieron por suposición. Ambos diagramas PNG son propuestas técnicas sujetas a validación; su coincidencia con el stack no aprueba sus relaciones o diseño detallado. El Informe N.º 1 permanece como antecedente intacto y el Informe N.º 2 no se ha iniciado.
+Las credenciales se introducen localmente mediante ingreso oculto y se conservan solo durante la comprobación. No publicar secretos, volcados ni datos reales. El perfil HTTP local y las cookies seguras requieren configuración consciente; no se habilitan servidores en esta consolidación.
 
-## Condiciones del trabajo
+La validación conjunta utilizó un script Python temporal, iniciado desde PowerShell integrado en VS Code, que:
+- verificó rama, identidad, versión, propietario y permisos;
+- configuró en memoria `NAME` y `TEST.NAME` como `test_cesfam_desarrollo`;
+- bloqueó conexiones Django a otros destinos, incluidos los hilos, y creación, clonación o eliminación de bases;
+- seleccionó exactamente las dos clases y 44 pruebas, con `keepdb=True`, `parallel=1` e `interactive=False`;
+- aplicó migraciones pendientes y limpieza solo mediante el runner, usando el publicador simulado, y eliminó el archivo temporal.
 
-- Rama exclusiva: `irubio`, sin operaciones de ramas, commits ni push.
-- Datos exclusivamente sintéticos; sin datos clínicos reales ni integración con Rayén.
-- La importación descrita en los antecedentes no autoriza usar exportaciones reales.
-- Actualización limitada a AGENTS, README y los cinco documentos 00–04.
-- Antecedentes, diagramas, skills y configuraciones conservados sin modificaciones.
-- Sin código, instalación de dependencias, migraciones ni despliegue.
-- Detención después de la entrega documental; diseño e implementación requieren aprobación posterior.
+El script protector no es un archivo versionado. Un comando genérico `manage.py test` no reproduce por sí solo sus protecciones; `keepdb` conserva la base, pero permite migraciones y limpieza de datos. Cualquier nueva ejecución requiere procedimiento revisado y autorización expresa. No es necesario migrar desarrollo para preparar la base aislada de pruebas.
 
-Las instrucciones operativas completas están en [AGENTS.md](AGENTS.md).
+## Pendientes y restricciones actuales
 
-## Documentación
+- Emisión controlada desde tótem: identidad, activación/revocación, caducidad, cuotas, CSRF y contrato REST pendientes de aprobación; sin implementación autorizada.
+- API REST e interfaces, permisos por endpoint, WebSockets, recuperación desde PostgreSQL, sonido y accesibilidad pendientes.
+- Recuperación ante escrituras externas, cambios concurrentes de usuarios/permisos y capacidad del bloqueo global pendientes.
+- Recetas, importación, reparto, PWA/offline y sincronización fuera de los incrementos implementados.
+- Solo datos sintéticos; sin Rayén, datos clínicos reales ni reutilización automática de otras ramas.
+- Informe N.º 1 y anexos originales intactos; Informe N.º 2 no iniciado; PNG sujetos a validación.
+- Esta consolidación autoriza documentación e instantánea de dependencias. No autoriza cambios de código, nuevas pruebas, migraciones, servicios, staging, commits ni push.
 
-| Documento | Contenido |
-| --- | --- |
-| [Índice y estado](docs/00-indice-y-estado.md) | Estado, revisión y límites de la entrega |
-| [Fuentes y diagnóstico](docs/01-fuentes-y-diagnostico.md) | Inventario, versiones conocidas, limitaciones e inconsistencias |
-| [Requisitos y trazabilidad](docs/02-requisitos-y-trazabilidad.md) | Correspondencias preliminares y evidencias por validar |
-| [Alcance y pendientes](docs/03-alcance-y-pendientes.md) | Alcance autorizado y decisiones pendientes priorizadas |
-| [Registro de decisiones](docs/04-registro-de-decisiones.md) | Acuerdos históricos, decisiones actuales y asuntos abiertos |
+## Documentación y versionado pendiente
 
-No hay instrucciones de instalación o ejecución porque no se creó una aplicación. La actualización documental no autoriza avanzar al diseño ni a la implementación.
+Consultar [AGENTS.md](AGENTS.md) y [docs/00-indice-y-estado.md](docs/00-indice-y-estado.md). Fuentes y límites están en [01](docs/01-fuentes-y-diagnostico.md), trazabilidad en [02](docs/02-requisitos-y-trazabilidad.md), alcance en [03](docs/03-alcance-y-pendientes.md) e historia en [04](docs/04-registro-de-decisiones.md).
+
+Los cierres documentales locales anteriores son históricos; no existe todavía un commit del código de estos incrementos. `docs/referencias/` permanece sin seguimiento y fuera de la selección futura. Se excluyen `.env`, `.venv/`, configuración local de VS Code, cachés, credenciales y datos sensibles. La revisión de archivos, staging y commit requieren autorizaciones separadas.

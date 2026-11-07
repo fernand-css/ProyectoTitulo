@@ -1,46 +1,49 @@
 # 00. Índice y estado
 
-Fecha de actualización: 2026-11-03.
+Fecha de actualización: 2026-11-07.
 
-## Etapa actual
+## Estado actual
 
-**Etapa 1: planificación y organización documental.** La autorización vigente F-17 permite actualizar siete documentos para reflejar la aprobación del stack completo (F-16). F-07 corresponde a la actualización anterior. Esta revisión conserva contradicciones pendientes y no autoriza configuración técnica, diseño detallado ni implementación.
+Motor de turnos y administración segura de ventanillas implementados; escenarios PostgreSQL validados por la usuaria. El código permanece pendiente de versionado. API REST, interfaces, tótem y consumidor WebSocket no están implementados.
 
-## Estado verificado y antecedentes históricos
+| Dimensión | Estado |
+| --- | --- |
+| Implementado | Modelos/migraciones, usuarios y pacientes sintéticos, motor ponderado, restricciones, servicios y bitácora; administración de ventanillas |
+| Verificado | Sintaxis revisada y 44 pruebas PostgreSQL aprobadas según F-24–25: 16 del motor y 28 de ventanillas |
+| Entorno | Python 3.13.3, Django 5.2.19; 31 paquetes exactos en requirements-frozen.txt |
+| PostgreSQL local | 18.6 en 127.0.0.1:5433, rol cesfam_app; recursos confirmados por la usuaria |
+| Persistencia probada | Solo test_cesfam_desarrollo, con migraciones al día, conservada y accesible según la usuaria |
+| No acreditado | Migraciones aplicadas en cesfam_desarrollo, Redis real, rendimiento, latencia o cumplimiento integral académico |
 
-- Rama activa al inicio de esta actualización: `irubio`.
-- Estado inicial de esta revisión: los siete documentos están versionados y sin cambios; solo `docs/referencias/` aparece sin seguimiento. El cierre anterior creó el commit local `cefc8e0` con autorización específica (F-18), sin push. `.vscode/settings.json` permanece intacto y excluido localmente.
-- No existe código de aplicación ejecutable en la copia inspeccionada. No se consultaron ni incorporaron otras ramas.
-- El registro del 2026-10-31 (F-03) describía un estado inicialmente limpio y el commit `69ad505`. Es información histórica, no el estado inicial de esta actualización.
-- Se dispone de cinco antecedentes Markdown y dos diagramas PNG en `docs/referencias/`. Hay fuentes académicas recibidas, con vigencia y aprobaciones pendientes de confirmar.
-- Stack completo aprobado por F-16–17: HTML5 + Alpine.js + JavaScript; Python + Django; Django REST Framework (DRF); Django Channels + WebSockets; Daphne; Redis; PostgreSQL. D-12 amplía D-09 y sustituye el estado anterior de D-10.
-- Se conservaron los seis RF-P y se ampliaron sus correspondencias con el informe: 23 HU, 9 RNF y 8 NS. Esto no aprueba sus prioridades ni su alcance.
-- Se registraron discrepancias de plazos, despliegue, roles, prioridades, indicadores, importación, arquitectura y modelo de datos.
-- PostgreSQL es la fuente de verdad; Redis es infraestructura auxiliar de mensajería y caché (D-13). Versiones, configuración, estructura, esquemas, políticas de caché y PWA/offline/sincronización siguen pendientes.
-- Los antecedentes originales, diagramas y skills no se modifican. Ambos PNG son propuestas sujetas a validación, no diseños definitivos para implementar. El Informe N.º 1 permanece intacto y el Informe N.º 2 no se ha iniciado. El diagnóstico previo de skills se conserva sin ejecutar sus flujos.
+La suite conjunta duró 19.027 segundos, con 0 errores/fallos, código 0 y System Check sin incidencias según el mensaje de resultado F-24. No se ejecutó de nuevo durante la consolidación ni se incorporó un log original. La duración no demuestra respuesta de dos segundos.
 
 ## Índice documental
 
 | Archivo | Propósito |
 | --- | --- |
-| [01-fuentes-y-diagnostico.md](01-fuentes-y-diagnostico.md) | Fuentes, versiones conocidas, limitaciones y hallazgos |
-| [02-requisitos-y-trazabilidad.md](02-requisitos-y-trazabilidad.md) | Clases de evidencia y correspondencias RF-P/HU/RNF/NS |
-| [03-alcance-y-pendientes.md](03-alcance-y-pendientes.md) | Alcance autorizado y decisiones pendientes priorizadas |
-| [04-registro-de-decisiones.md](04-registro-de-decisiones.md) | Acuerdos, sustituciones parciales y cuestiones abiertas |
+| [README](../README.md) | Estado técnico, entorno y límites de ejecución |
+| [AGENTS](../AGENTS.md) | Autorización actual, restricciones e historia operativa |
+| [01-fuentes-y-diagnostico.md](01-fuentes-y-diagnostico.md) | Inventario, fuentes, observaciones académicas y limitaciones |
+| [02-requisitos-y-trazabilidad.md](02-requisitos-y-trazabilidad.md) | Correspondencias académicas y evidencia técnica parcial |
+| [03-alcance-y-pendientes.md](03-alcance-y-pendientes.md) | Trabajo concluido y pendientes sin autorización de implementación |
+| [04-registro-de-decisiones.md](04-registro-de-decisiones.md) | Decisiones históricas, sustituciones y acuerdos posteriores |
+| [requirements-frozen.txt](../requirements-frozen.txt) | Instantánea revisada de dependencias instaladas |
 
-Consultar también [README](../README.md) y [AGENTS.md](../AGENTS.md). El inventario completo de los siete documentos de control y los siete antecedentes está en el documento 01.
+## Autorización y versionado
 
-## Límites de evidencia
+F-26 autoriza solo siete documentos, comentarios de .env.example/requirements.txt y creación de requirements-frozen.txt. No habilita código, instalaciones, bases, migraciones, pruebas, staging, commits o push. Solo irubio; detenerse después de las verificaciones.
 
-Se revisaron los textos Markdown y los dos PNG independientes. No se inspeccionaron visualmente las imágenes incrustadas en el informe y la guía, ni se consultaron anexos externos, AAI, fuentes bibliográficas originales o normativa. No se certifica aprobación académica, fidelidad de transcripciones ni integridad de las conversiones.
+Los commits documentales cefc8e0 y 2184d47 son históricos y locales. En la revisión previa había 39 candidatos; con los seis documentos adicionales y la instantánea resultan 46 candidatos para una selección futura, todavía no preparada. docs/referencias/ permanece fuera; no usar selección indiscriminada del repositorio.
 
-Las fechas de archivo no acreditan una versión. La selección tecnológica tiene evidencia en mensajes de la usuaria; no se atribuye a una aprobación del docente o del CESFAM.
+## Límites y próximos pasos
 
-## Verificación de entrega
+Informe N.º 1 intacto e Informe N.º 2 no iniciado; diagramas de referencia sin modificar. Persisten limitaciones de conversión, imágenes incrustadas, anexos, vigencia y aprobación académica descritas en 01.
 
-Comprobar coherencia entre los siete documentos, enlaces locales, fuentes e identificadores; comparar el contenido con el estado inicial y verificar que solo cambien los siete archivos autorizados. Informar rama y estado final de Git. Los siete documentos ya están versionados, de modo que el diff ordinario muestra esta actualización; `docs/referencias/` permanece fuera del commit anterior y no se incorpora en esta revisión.
+El siguiente incremento propuesto es emisión controlada desde tótem. Identidad, revocación, cuotas, contrato y migraciones requieren aprobación específica. También siguen pendientes API, interfaces, recuperación, carga, latencia y criterios offline.
 
-La revisión es documental. No corresponden pruebas de aplicación porque no se creó código ni se instalaron dependencias.
+## Registros documentales históricos al 2026-11-03
+
+Los siguientes registros se conservan como evidencia de revisiones anteriores. Sus estados de archivos y prohibiciones describen esas revisiones, no el estado actual ni una autorización nueva.
 
 ## Verificación histórica anterior al commit local cefc8e0
 
@@ -54,11 +57,6 @@ Se verificó coherencia de fuentes, decisiones y estados de selección en los si
 
 No se ejecutaron operaciones Git de escritura ni se modificaron el Informe N.º 1, anexos, entrevistas, transcripciones, PNG, skills o configuraciones. No se inició el Informe N.º 2 ni se crearon código, dependencias o migraciones. El resultado se entrega para revisión y se detiene el trabajo.
 
-## Próximos pasos, sujetos a validación y autorización
+## Verificación de esta consolidación
 
-1. Confirmar fuentes académicas vigentes y calendario.
-2. Validar alcance funcional, roles, prioridades y criterios de aceptación.
-3. Resolver las cuestiones de importación sintética, configuración, diseño detallado y modelo registradas en 01 y 03; no reabrir la selección de componentes ya aprobada.
-4. Obtener aprobación específica antes del diseño o la implementación.
-
-**Punto de detención:** entregar esta actualización y detenerse. La lista anterior no autoriza su ejecución.
+La comparación SHA-256 debe confirmar cambios exclusivamente en los diez archivos autorizados. Revisar coherencia, enlaces, valores no comentados de la plantilla y requerimientos directos; comprobar que la instantánea no contenga secretos, URLs o rutas locales. Entregar diff, lista exacta de candidatos y Git final sin preparar staging.

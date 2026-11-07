@@ -1,64 +1,48 @@
 # 03. Alcance y pendientes
 
-Fecha de actualización: 2026-11-03.
+Fecha de actualización: 2026-11-07.
 
-## Alcance autorizado de la actualización
+## Alcance actual de la consolidación
 
-F-17 autoriza actualizar exclusivamente `AGENTS.md`, `README.md` y los cinco documentos 00–04 de `docs/` para registrar el stack completo aprobado por F-16–17, su historial, las responsabilidades de PostgreSQL/Redis y las configuraciones pendientes. F-07 corresponde a la actualización documental anterior.
+F-26 autoriza únicamente README, AGENTS, docs/00–04, comentarios de .env.example/requirements.txt y creación revisada de requirements-frozen.txt. No permite tocar código, modelos, migraciones, pruebas, bases, originales, diagramas o skills; no permite instalar, ejecutar pruebas/migraciones ni realizar staging, commits o push.
 
-El Informe N.º 1 permanece como antecedente intacto y el Informe N.º 2 no se ha iniciado. Esta actualización no modifica F-09–F-15, no corrige requisitos por suposición y no aprueba automáticamente las propuestas del informe. El diagnóstico central está en [01](01-fuentes-y-diagnostico.md); la trazabilidad está en [02](02-requisitos-y-trazabilidad.md).
+El Informe N.º 1 y sus anexos permanecen intactos. El Informe N.º 2 no está iniciado. Los antecedentes académicos y diagramas siguen sujetos a validación; las autorizaciones de la usuaria no sustituyen aprobaciones institucionales.
 
-## Selección tecnológica y decisiones aún abiertas
+## Estado del prototipo y stack
 
-**Stack completo aprobado por la usuaria (F-16–17; D-12):**
+El stack completo de D-12 y los papeles PostgreSQL/Redis de D-13 se mantienen. Python 3.13.3 y los paquetes instalados están registrados en README y requirements-frozen.txt. No se seleccionan componentes nuevos.
 
-| Componente | Tecnología aprobada |
-| --- | --- |
-| Frontend | HTML5 + Alpine.js + JavaScript |
-| Backend | Python + Django |
-| API REST | Django REST Framework (DRF) |
-| Comunicación en tiempo real | Django Channels + WebSockets |
-| Servidor ASGI | Daphne |
-| Mensajería y caché | Redis |
-| Base de datos | PostgreSQL |
+| Área | Implementado | Verificado o pendiente |
+| --- | --- | --- |
+| Persistencia | Usuario, paciente sintético, ventanilla, turno, cola, contador y bitácora | Modelo/migraciones probados en test_cesfam_desarrollo; desarrollo no se declara migrada |
+| Motor | GENERAL/PREFERENCIAL, FIFO, ponderación 2:1 provisional configurable, numeración, estados y cierres explícitos | 16 pruebas PostgreSQL dentro de la ejecución conjunta |
+| Ventanillas | Configuración administrativa, ocupación protegida, auditoría y bloqueos coherentes | 28 pruebas PostgreSQL dentro de la ejecución conjunta |
+| API e interfaces | Configuración DRF y ASGI HTTP inicial | Endpoints operativos, HTML5/Alpine y flujo web pendientes |
+| Tiempo real | Publicador on_commit y configuración auxiliar Redis | Redis simulado en pruebas; consumidor, recuperación y validación real pendientes |
+| Tótem | Propuesta conceptual de emisión controlada | Identidad técnica, revocación, caducidad, cuota, CSRF, contrato y migraciones no aprobados para implementar |
+| Otros módulos | Sin implementación en estos incrementos | Recetas, importación, reparto y criterios PWA/offline pendientes |
 
-D-12 amplía D-09 y sustituye D-10. Los componentes ya no están pendientes de selección. D-13 establece PostgreSQL como fuente de verdad para persistencia e integridad del negocio, con Redis como infraestructura auxiliar de mensajería y caché.
+F-24–25 registra el resultado comunicado y aceptado por la usuaria: 44/44, 0 errores/fallos, 19.027 segundos, System Check sin incidencias y código 0. Solo test_cesfam_desarrollo tuvo migraciones/limpieza autorizadas, sin pendientes al finalizar y conservada/accesible. No es una nueva ejecución ni una medición de carga o latencia.
 
-### Reparto lógico de responsabilidades
+## Reglas operativas implementadas y límites
 
-- Presentación: HTML5 + Alpine.js + JavaScript para las interfaces del prototipo.
-- Aplicación y API: Python + Django y DRF para API REST.
-- Tiempo real y servicio ASGI: Channels + WebSockets y Daphne.
-- Persistencia: PostgreSQL como registro de referencia de los datos y estados del negocio.
-- Apoyo: Redis para mensajería y caché; los mensajes o entradas de caché no son el único registro de turnos, recetas o entregas.
+- Número visible separado de PK, secuencia independiente por categoría y fecha local.
+- Un activo por paciente y un ocupante LLAMADO/EN_ATENCION por ventanilla.
+- Ausencia manual, cancelación administrativa de pendientes y sin reapertura terminal.
+- Reemisión reutiliza el activo; los pendientes antiguos no se cierran por cambio de fecha.
+- Configurar ventanilla requiere permiso administrativo, operador válido y motivo de cambio.
+- No deshabilitar, reasignar ni retirar operador con ocupación; sin auditoría si no hay cambios.
+- Cola → ventanilla → turno, con revalidación; bitácora JSON atómica y autoría histórica preservada.
+- Escrituras externas, cambios de usuarios/permisos fuera del protocolo, recuperación y capacidad permanecen como riesgos.
+- La validación mediante mocks no demuestra publicación real ni entrega ordenada de eventos.
 
-Este reparto documenta la selección aprobada; no fija topología, número de procesos, módulos, endpoints, eventos, algoritmos ni parámetros. Los diagramas F-14/F-15 siguen siendo propuestas técnicas sujetas a validación, aunque reflejen tecnologías seleccionadas. No se modifican.
+## Exclusiones y siguiente trabajo
 
-### Configuraciones y criterios pendientes
+Solo irubio; sin cambiar ramas, reutilizar otros prototipos ni incorporar docs/referencias/ al versionado. Mantener datos exclusivamente sintéticos y ausencia de integración Rayén. No instalar herramientas adicionales ni modificar PostgreSQL 17 u otras bases.
 
-Versiones y compatibilidad, configuración ASGI y conexiones, estructura de aplicaciones, uso concreto de plantillas, contratos API/eventos, autenticación y permisos, esquemas de datos, transacciones, recuperación, alojamiento y despliegue requieren decisiones posteriores. Para Redis quedan pendientes backend de mensajería, conexiones, aislamiento, claves, caducidad, invalidación y comportamiento ante fallos.
+La aprobación de la implementación y de las 44 pruebas no autoriza repetir escrituras. El procedimiento protector fue temporal: nuevas pruebas requieren revisar base dedicada, rol, aislamiento y bloqueo de creación/eliminación, con autorización separada.
 
-WebSockets es la comunicación en tiempo real seleccionada. Un respaldo mediante polling no queda aprobado. Las plantillas pueden coexistir con una API REST; su uso concreto no está decidido.
-
-PWA, funcionamiento sin conexión y sincronización se conservan como requisitos o propuestas por precisar según F-10: alcance instalable, almacenamiento local, eventos sincronizables, conflictos y recuperación siguen abiertos (INC-08). La selección del stack no demuestra estos comportamientos ni las métricas RNF/NS.
-
-## Alcance funcional propuesto, por validar
-
-Se mantienen RF-P-01 a RF-P-06: turnos, atención preferencial, llamados, recetas, importación CSV/Excel y trazabilidad domiciliaria. Las 23 HU y los RNF/NS de F-10 son fuentes de detalle y propuestas a contrastar.
-
-Autenticación, recuperación de contraseña, perfil, mapas, sugerencias de ruta, notificaciones, confirmación del receptor y panel de mermas no se incorporan automáticamente como obligaciones nuevas por aparecer en el informe. Las correspondencias no son aprobación de alcance o de prioridades.
-
-La importación futura, si se valida y autoriza, solo puede usar datos sintéticos sin origen clínico real. Sigue pendiente conciliar HU-23/RNF-07 con esa restricción; no se autoriza acceder a Rayén o pedir exportaciones.
-
-## Exclusiones vigentes
-
-- Código, instalación de dependencias, migraciones, ejecución o despliegue de aplicación.
-- Diseño detallado, configuración técnica o modificación de interfaces, modelo o diagramas. Registrar los componentes aprobados, su papel lógico y observaciones de las propuestas existentes sí está autorizado.
-- Creación, cambio, fusión o eliminación de ramas; commits, push y cualquier operación Git de escritura.
-- Modificaciones de antecedentes originales, PNG, skills, recursos, configuraciones u otros archivos.
-- Datos clínicos reales, identificadores, domicilios, fotografías o exportaciones de pacientes; integración con Rayén.
-- Adopción de tecnologías adicionales al stack aprobado y reutilización de otros prototipos sin autorización. DRF, Channels, Daphne y Redis ya pertenecen al stack aprobado, pero no se autoriza instalarlos.
-- Avance automático a otra etapa al aprobar documentación o requisitos.
+El siguiente incremento propuesto es emisión controlada desde tótem. No se inicia con esta consolidación. Las interfaces, WebSockets, recuperación y métricas tampoco se consideran aprobados por figurar como pendientes.
 
 ## Decisiones pendientes priorizadas
 
@@ -68,18 +52,20 @@ P1: condiciona alcance, evidencia o reglas centrales. P2: condiciona coherencia 
 | --- | --- | --- |
 | P1 / Q-01 | Vigencia de F-09–10, instrumentos sumativos y relación entre trabajo grupal y prototipo independiente | Confirmación de encargo, versión vigente y reglas aplicables; completar A-01, A-02 y A-06 |
 | P1 / Q-06 | Calendario de 14, 6 y 5 semanas; INC-01 | Calendario confirmado y alcance temporal de cada cifra, sin asumir precedencia por el orden de archivos |
-| P1 / Q-02 | Alcance, prioridades y flujo completo de turnos/despacho; INC-03, INC-09 | Aprobar HU aplicables, dependencias, categorías, reglas de prioridad, ausencia y atención presencial |
+| P1 / Q-02 | Alcance, prioridades y flujo completo de turnos/despacho; INC-03, INC-09 | Reglas locales del motor y ventanillas aprobadas/validadas; no equivale a aprobar íntegramente las HU o su alcance académico |
 | P1 / Q-07 | Importación sintética y autonomía; INC-06 | Delimitar HU-23/RNF-07 y contrato de archivo ficticio, sin exportaciones reales ni integración |
 | P1 / Q-08 | Roles y responsabilidades; INC-04 | Matriz validada de jefatura/dirección, técnico, conductor/TENS/encargado, paciente/cuidador y RACI |
 | P1 / Q-09 | Demostración, cloud, capacitación, acta e implementación física; INC-02 | Acordar entregables académicos y separar futura implementación; no habilita despliegue ahora |
-| P2 / Q-03 | Configuración y diseño detallado del stack aprobado; INC-07–08 | Selección resuelta por D-12; precisar versiones, ASGI, conexiones, aplicaciones, contratos API/eventos, permisos, caché, recuperación y PWA/offline/sincronización. No decidir parámetros por suposición |
-| P2 / Q-10 | Cardinalidades, esquemas e integridad del modelo; MOD-01–12 | PostgreSQL es fuente de verdad por D-13; aún se requieren reglas validadas de asignación, recetas, entregas, ubicaciones, historial, auditoría y numeración antes de rediseñar |
+| P2 / Q-03 | Configuración y diseño detallado del stack aprobado; INC-07–08 | Stack seleccionado; entorno, modelo mínimo y servicios observados/validados parcialmente. Pendientes API, tótem, WebSockets, permisos por endpoint, caché, recuperación y offline; sin nuevas decisiones por suposición |
+| P2 / Q-10 | Cardinalidades, esquemas e integridad del modelo; MOD-01–12 | Modelo mínimo y reglas de numeración/asignación del prototipo implementados y probados; conservar observaciones del PNG y pendientes de recetas, entregas y ubicaciones sin corregir originales |
 | P2 / Q-04 | Métricas y pruebas RNF/NS; INC-10 | Aprobar umbrales, carga, entorno, recuperación y evidencias; no prometer resultados productivos |
 | P2 / Q-11 | Indicadores y merma; INC-05 | Fuente, fórmula, período, población y distinción entre ausencia, no retiro y merma. No sumar poblaciones como disjuntas sin evidencia |
 | P3 / Q-12 | Citas, imágenes incrustadas y anexos no consultados; INC-11 | Verificar originales y conversiones cuando se autorice; no editar documentos académicos en esta actualización |
 | P3 / P-03 | Adaptación futura de skills | Propuesta y autorización separadas; no generar configuraciones ni ejecutar flujos ahora |
-| Control / Q-05 | Paso al diseño o implementación | Aprobación posterior explícita que delimite actividades y archivos |
+| Control / Q-05 | Paso al diseño o implementación | Autorizaciones posteriores consumidas para los incrementos concluidos; F-26 permite solo consolidar. Nuevo código, pruebas o Git requieren otra aprobación explícita |
 
-## Condición de cierre
+## Alcances históricos y condición de cierre
 
-Comprobar coherencia de los siete documentos y preservar los archivos ajenos al alcance. Entregar resumen del diff, estado de Git y decisiones pendientes. Detenerse después de la entrega. La selección de componentes y sus responsabilidades se consideran aprobadas por F-16–17; las cuestiones aún abiertas no se consideran resueltas por estar registradas.
+F-17 cubrió exclusivamente el cierre documental del 2026-11-03. Sus prohibiciones de implementación se conservan históricamente en 04, con las ampliaciones puntuales posteriores F-19–25. No se reconstruyen como permisos generales.
+
+Conservar las contradicciones de plazos, despliegue, roles, indicadores, importación y arquitectura académica. No ampliar funcionalidad ni dar por cumplidos todos los RF-P/HU/RNF/NS. Entregar verificaciones, lista de candidatos y Git final; staging/commit y cualquier siguiente implementación quedan pendientes de aprobación expresa.

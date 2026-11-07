@@ -1,6 +1,6 @@
 # 01. Fuentes y diagnóstico
 
-Fecha de actualización: 2026-11-03. Revisión documental; sin modificación de antecedentes.
+Fecha de actualización: 2026-11-07. Consolidación de fuentes y estado técnico; sin modificación de antecedentes académicos.
 
 ## Fuentes operativas e históricas
 
@@ -18,19 +18,35 @@ Fecha de actualización: 2026-11-03. Revisión documental; sin modificación de 
 | F-17 | Autorización de actualización exclusivamente documental del stack completo, 2026-11-03 | Autoriza solo los siete documentos, historial, responsabilidades y pendientes; prohíbe cambios de configuración, diseño detallado, código y operaciones Git de escritura. |
 | F-18 | Autorización anterior de cierre documental y verificación local del commit, 2026-11-03 | Excepción ya ejecutada: commit local cefc8e0 de los siete documentos y exclusión local de settings.json. Sin push ni referencias incorporadas; no habilita operaciones nuevas. |
 
+## Fuentes posteriores incorporadas en la consolidación del 2026-11-07
+
+La fecha de incorporación no se atribuye como fecha original a mensajes sin fecha explícita. Estas entradas describen mensajes y evidencia disponibles en la conversación, no actas institucionales ni registros de ejecución independientes.
+
+| ID | Fuente | Alcance y limitaciones |
+| --- | --- | --- |
+| F-19 | Autorización del primer incremento y reglas aprobadas, posteriores a F-17; inicio técnico documentado al 2026-11-04 | Modelos, motor y pruebas. Categorías, ronda provisional 2:1, numeración, estados y roles del prototipo; no aprobación integral del informe |
+| F-20 | Autorizaciones de .venv, ajuste de Psycopg e instalación; validación del entorno por la usuaria | Instalación controlada concluida. No permiso permanente para actualizar paquetes |
+| F-21 | Confirmaciones y autorizaciones locales de PostgreSQL 18.6 en 127.0.0.1:5433 | Rol cesfam_app sin privilegios administrativos y bases dedicadas cesfam_desarrollo/test_cesfam_desarrollo. No se afirma que desarrollo esté migrada |
+| F-22 | Resultado comunicado de las primeras 16 pruebas y comprobación de conexión/Django | Pruebas del motor aprobadas en la base dedicada. Resultado comunicado, no nueva ejecución en esta revisión |
+| F-23 | Diseño aprobado e implementación autorizada de ventanillas en dos archivos | services.py y test_ventanillas.py; sin modelos/migraciones nuevas. Bloqueo de cambios con ocupación y bitácora JSON |
+| F-24 | Resultado comunicado de ejecución conjunta de 44 pruebas | 16 del motor y 28 de ventanillas; 44 aprobadas, 0 errores/fallos, 19.027 segundos, código 0 y System Check sin incidencias. Base de pruebas conservada/accesible y sin migraciones pendientes; no hay log original incorporado |
+| F-25 | Aceptación de la usuaria del cierre técnico y de la evidencia de 44 escenarios | Validación de lo implementado, sin certificar requisitos académicos completos ni resultados productivos |
+| F-26 | Autorización actual de consolidación documental y dependencias | Diez archivos: siete documentos, comentarios de .env.example/requirements.txt e instantánea revisada requirements-frozen.txt. Sin código, bases, pruebas, instalaciones o staging/commit/push |
+| F-27 | Consultas locales de lectura durante esta consolidación, 2026-11-07 | Rama irubio; commits documentales cefc8e0 y 2184d47; archivos, metadatos y pip freeze --local. Se revisan 31 paquetes sin URLs/rutas ni paquetes ajenos identificables; no se ejecutan pruebas PostgreSQL |
+
 F-01 a F-05 conservan el registro previo; no se reconstituyen mensajes ni aprobaciones académicas ausentes. F-06, F-07 y F-16–18 se identifican por fecha y contenido de esta conversación, sin inventar un ID externo o una transcripción exportada.
 
 ## Inventario de documentos de control
 
 | Archivo | Fecha y versión conocida | Propósito |
 | --- | --- | --- |
-| [AGENTS.md](../AGENTS.md) | Actualización 2026-11-03; sin versión numerada | Restricciones y autorizaciones operativas |
-| [README.md](../README.md) | Actualización 2026-11-03; sin versión numerada | Presentación y estado del repositorio |
-| [00-indice-y-estado.md](00-indice-y-estado.md) | Actualización 2026-11-03; sin versión numerada | Índice, estado y verificación |
-| Este documento 01 | Actualización 2026-11-03; sin versión numerada | Fuentes, límites de evidencia y diagnóstico |
-| [02-requisitos-y-trazabilidad.md](02-requisitos-y-trazabilidad.md) | Actualización 2026-11-03; matriz preliminar | Clases de requisitos y correspondencias |
-| [03-alcance-y-pendientes.md](03-alcance-y-pendientes.md) | Actualización 2026-11-03; sin versión numerada | Alcance y validaciones pendientes |
-| [04-registro-de-decisiones.md](04-registro-de-decisiones.md) | Actualización 2026-11-03; sin versión numerada | Decisiones y evolución del registro |
+| [AGENTS.md](../AGENTS.md) | Actualización 2026-11-07; sin versión numerada | Restricciones y autorizaciones operativas |
+| [README.md](../README.md) | Actualización 2026-11-07; sin versión numerada | Presentación y estado del repositorio |
+| [00-indice-y-estado.md](00-indice-y-estado.md) | Actualización 2026-11-07; sin versión numerada | Índice, estado y verificación |
+| Este documento 01 | Actualización 2026-11-07; sin versión numerada | Fuentes, límites de evidencia y diagnóstico |
+| [02-requisitos-y-trazabilidad.md](02-requisitos-y-trazabilidad.md) | Actualización 2026-11-07; matriz preliminar | Clases de requisitos y correspondencias |
+| [03-alcance-y-pendientes.md](03-alcance-y-pendientes.md) | Actualización 2026-11-07; sin versión numerada | Alcance y validaciones pendientes |
+| [04-registro-de-decisiones.md](04-registro-de-decisiones.md) | Actualización 2026-11-07; sin versión numerada | Decisiones y evolución del registro |
 
 Estas son fechas de actualización documental, no aprobaciones académicas.
 
@@ -53,7 +69,7 @@ Todos están en `docs/referencias/`, fueron revisados el 2026-11-03 y se conserv
 - **Exigencias académicas identificadas:** F-09, actividades 1 a 8, criterios 1.1.1 a 1.1.6 e indicaciones de entrega. Su vigencia debe confirmarse.
 - **Necesidades levantadas:** F-11 y diálogo de F-12; F-13 recoge orientaciones, no una aprobación verificable de todas las HU.
 - **Propuestas del equipo:** F-10, incluidos MoSCoW, métricas, arquitectura y mecanismos; F-14 y F-15 son propuestas gráficas.
-- **Decisiones aprobadas por la usuaria:** F-06–07 y F-16–17, dentro de su ámbito operativo y tecnológico. No constituyen aprobación académica ni autorización de implementación.
+- **Decisiones aprobadas por la usuaria:** F-06–07/F-16–17 describen las aprobaciones documentales y tecnológicas iniciales; F-19–26 incorporan autorizaciones y resultados posteriores. Las actividades autorizadas y concluidas no habilitan su repetición. No constituyen aprobación académica.
 
 El Informe N.º 1 y sus anexos son antecedentes de referencia que permanecen intactos. El Informe N.º 2 no se ha comenzado; no se atribuyen avances, resultados ni entregables. La guía identifica trabajo grupal con evaluación individual. El prototipo independiente descrito por la usuaria no debe confundirse con una exención académica del trabajo grupal.
 
@@ -83,7 +99,7 @@ D-12 registra HTML5 + Alpine.js + JavaScript, Python + Django, Django REST Frame
 
 D-13 establece PostgreSQL como fuente de verdad para persistencia e integridad de los datos del negocio y Redis como infraestructura auxiliar. Los mensajes o entradas de caché no constituyen el único registro de turnos, recetas o entregas. No se aprueba un esquema de datos, algoritmo de concurrencia o política de caché por esta descripción.
 
-Versiones y compatibilidad, configuración, estructura de aplicaciones, contratos de API/eventos, autenticación y permisos, esquemas, caducidad e invalidación de caché y recuperación siguen pendientes. PWA, operación sin conexión y sincronización se conservan como requisitos o propuestas académicas por precisar; WebSockets y Redis no acreditan por sí solos ese funcionamiento. El desglose lógico se registra en el documento 03 sin modificar los PNG.
+Python/Django y las dependencias instaladas se registran en README y requirements-frozen.txt. Existen aplicaciones usuarios, pacientes y turnos, restricciones, servicios y configuración ASGI HTTP/DRF/Redis. Solo la persistencia del motor y las ventanillas fue validada mediante las 44 pruebas comunicadas: API, autenticación del tótem, WebSocket real, caché y recuperación siguen pendientes. PWA, operación sin conexión y sincronización se conservan como requisitos o propuestas académicas por precisar; WebSockets y Redis no acreditan por sí solos ese funcionamiento. El desglose lógico se registra en el documento 03 sin modificar los PNG.
 
 ## Observaciones del modelo lógico F-14
 
@@ -136,4 +152,14 @@ Revisión registrada el 2026-10-31 (F-05), sin nueva ejecución ni modificación
 | [spec-impl](../.agents/skills/spec-impl/SKILL.md) | Puede crear/cambiar ramas por defecto; incompatible con irubio exclusivo |
 | [web-design-guidelines](../.agents/skills/web-design-guidelines/SKILL.md) | Descarga pautas y revisa UI; no existe UI ni se autoriza ese flujo |
 
-Las skills no son fuentes académicas ni amplían F-17. No se creó configuración para adaptar sus automatismos.
+Las skills no son fuentes académicas ni amplían las autorizaciones. El diagnóstico anterior se conserva como histórico; F-26 tampoco autoriza modificarlas ni ejecutar sus flujos. No se creó configuración para adaptar sus automatismos.
+
+## Evidencia técnica y límite frente a los antecedentes
+
+La inspección actual identifica código y pruebas; sustituye la afirmación inicial de ausencia de implementación para irubio. Las observaciones INC/MOD sobre fuentes académicas y PNG se conservan. Los modelos del prototipo implementan algunas reglas propias aprobadas, sin corregir automáticamente esos originales ni dar por resueltas todas sus cardinalidades.
+
+Las migraciones originales se generaron con Django 5.2.1 y se probaron después con Django 5.2.19. F-24 solo acredita su aplicación y ausencia de pendientes en test_cesfam_desarrollo. No hay evidencia aquí de migraciones aplicadas en cesfam_desarrollo.
+
+Los 19.027 segundos corresponden a duración de suite; no demuestran latencia, carga, disponibilidad, accesibilidad ni operación offline. El publicador estuvo simulado; Redis y WebSockets reales no se probaron. La lista exacta de pruebas está en sus clases de código; su aprobación proviene del mensaje de la usuaria.
+
+F-26 no autoriza iniciar el módulo de tótem, aplicar cambios de código, operar PostgreSQL o preparar Git. Las limitaciones académicas A-01–06 continúan abiertas.

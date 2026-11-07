@@ -1,78 +1,73 @@
 # AGENTS.md
 
-Fecha de actualización: 2026-11-03.
+Fecha de actualización: 2026-11-07.
 
-## Contexto y estado real
+## Estado real y fuentes
 
-Proyecto académico CESFAM San Nicolás, repositorio `fernand-css/ProyectoTitulo`, desarrollado de forma independiente en Visual Studio Code con Codex. Las copias locales de la guía y del informe identifican INACAP y la asignatura Proyecto de Título, TIHI84. La vigencia de los instrumentos, su revisión y las aprobaciones académicas siguen pendientes de confirmación.
+Proyecto académico CESFAM San Nicolás, repositorio `fernand-css/ProyectoTitulo`, prototipo independiente desarrollado en Visual Studio Code con Codex. Trabajar exclusivamente en `irubio`; no extrapolar su estado a otras ramas.
 
-El proyecto permanece en la **Etapa 1: planificación y organización documental**. No existe código de aplicación ejecutable en la copia inspeccionada de `irubio`. Existen documentación, antecedentes en `docs/referencias/` y cuatro skills en `.agents/skills/`. No extrapolar este estado a otras ramas.
+Existen modelos, migraciones, servicios del motor de turnos y administración segura de ventanillas. La usuaria confirmó y aceptó 44 pruebas PostgreSQL aprobadas en `test_cesfam_desarrollo`. No existe aún un flujo web operativo: API, interfaces, tótem y consumidor WebSocket permanecen pendientes.
 
-El antiguo AGENTS.md describía un MVP Django y seis specs ausentes de esta rama. No reconstruir esas afirmaciones como implementación, requisitos o decisiones aprobadas. La selección tecnológica actual tiene una fuente nueva y explícita.
+Consultar primero README y docs/00; fuentes y limitaciones en docs/01, trazabilidad en docs/02, alcance en docs/03 e historia en docs/04. Las copias académicas identifican INACAP, Proyecto de Título TIHI84; vigencia, instrumentos y aprobaciones académicas siguen pendientes de confirmación.
 
-## Autorización y límites
+## Autorización actual y límites
 
-- Trabajar exclusivamente en `irubio`. Verificar rama y estado de Git antes de actuar. Si la rama activa es otra, detenerse e informar; no cambiarla.
+- Verificar rama y estado de Git antes de actuar. Si la rama activa no es `irubio`, detenerse e informar; no cambiarla.
 - No crear, cambiar, fusionar ni eliminar ramas.
-- Solicitar autorización explícita antes de cambios sustanciales. Presentar alcance, archivos afectados y plan breve; una autorización existente cubre solamente las actividades aprobadas.
-- La autorización vigente del 2026-11-03 (F-17) cubre actualizar únicamente este archivo, `README.md` y `docs/00-indice-y-estado.md` a `docs/04-registro-de-decisiones.md`: registrar el stack completo aprobado, sus responsabilidades, la evolución histórica y las configuraciones pendientes.
-- No modificar los antecedentes de `docs/referencias/`, documentos académicos originales, diagramas PNG, skills, recursos, configuraciones ni otros archivos.
-- No crear código, instalar dependencias, ejecutar migraciones, realizar commits, push ni otras operaciones Git de escritura. El cierre local anterior fue una excepción expresamente autorizada y ya ejecutada; no habilita nuevos commits.
-- Registrar las contradicciones como pendientes; no corregir requisitos por suposición ni ampliar automáticamente el alcance funcional.
-- Detenerse después de entregar la actualización documental. Diseño e implementación requieren aprobación posterior.
-- Aprobar documentación, requisitos o tecnologías no autoriza su implementación. No modificar el Informe N.º 1 ni sus anexos originales; no comenzar ni redactar el Informe N.º 2.
+- La autorización actual F-26 cubre exclusivamente README, AGENTS, docs/00–04, comentarios de `.env.example`, comentarios de `requirements.txt` y creación revisada de `requirements-frozen.txt`.
+- Conservar `POSTGRES_PORT=5432` en la plantilla; explicar que 5433 corresponde al entorno local de la usuaria. No modificar valores de configuración.
+- No modificar modelos, servicios, migraciones, pruebas, configuraciones, skills ni otros archivos. No modificar originales académicos, PNG ni `docs/referencias/`.
+- No instalar, actualizar o eliminar dependencias ni modificar Python global o `.venv`. Consultar sus versiones para la instantánea no autoriza instalar.
+- No modificar bases, ejecutar migraciones, pruebas PostgreSQL, servicios o despliegues. No realizar `git add`, commits, push ni otras operaciones Git de escritura.
+- Registrar contradicciones como pendientes; no corregir requisitos por suposición ni ampliar alcance.
+- Entregar verificaciones y detenerse. La siguiente implementación, ejecución de pruebas, staging y commit requieren autorización explícita separada.
 
-## Datos y autonomía del prototipo
+## Autorizaciones históricas: no reutilizables
 
-Usar exclusivamente datos sintéticos, inventados para el proyecto y sin vínculo con personas reales. No acceder, importar, copiar ni incorporar datos clínicos reales, identificadores reales, recetas, domicilios, fotografías o exportaciones de pacientes. Un archivo anonimizado de origen clínico no se considera automáticamente sintético.
+F-17 limitó el trabajo al cierre documental del 2026-11-03; ya no describe toda la implementación existente. Los commits documentales locales `cefc8e0` y `2184d47` fueron excepciones autorizadas y consumidas, sin push.
 
-No integrar Rayén ni solicitar acceso a sus sistemas. Las menciones a exportaciones desde Rayén en el informe son antecedentes en conflicto con estos límites, no permisos. Para describir formatos, usar especificaciones sin datos personales o ejemplos totalmente ficticios.
+Autorizaciones posteriores permitieron el motor, la creación de `.venv`, instalación controlada, preparación local PostgreSQL, dos archivos de ventanillas y ejecución aislada de 16 y luego 44 pruebas. Son actividades terminadas, no permisos permanentes para repetirlas. Las fuentes F-19–27 y decisiones D-16–23 documentan alcance, evidencia y límites. El antiguo AGENTS que describía un MVP y specs ausentes no se convierte retrospectivamente en evidencia de esta implementación.
 
-Las otras ramas corresponden a prototipos independientes del equipo, según la usuaria. No incorporar su código, arquitectura, requisitos o decisiones como propios o aprobados. Toda eventual reutilización requiere evaluación y autorización expresa.
+## Datos y contexto académico
 
-## Tecnologías seleccionadas
+Usar únicamente datos sintéticos sin vínculo con personas reales. No acceder, importar o copiar datos clínicos, identificadores reales, recetas, domicilios, fotografías ni exportaciones de pacientes. Anonimizar un origen clínico no lo convierte automáticamente en sintético.
 
-Decisión explícita de la usuaria del 2026-11-03 (F-16), reiterada en F-17:
+No integrar Rayén ni solicitar acceso. Sus menciones en el informe son antecedentes en conflicto con estos límites. Las otras ramas son prototipos independientes del equipo: no incorporar su código o decisiones sin evaluación y autorización expresa.
+
+Informe N.º 1 y anexos originales intactos; no comenzar ni redactar el Informe N.º 2. Las 44 pruebas acreditan escenarios técnicos del prototipo, no aprobación docente, institucional o cumplimiento completo de HU/RNF/NS. Los diagramas PNG siguen siendo propuestas sujetas a validación.
+
+## Stack seleccionado y verificación
 
 | Componente | Tecnología aprobada |
 | --- | --- |
 | Frontend | HTML5 + Alpine.js + JavaScript |
 | Backend | Python + Django |
-| API REST | Django REST Framework (DRF) |
-| Comunicación en tiempo real | Django Channels + WebSockets |
+| API REST | Django REST Framework |
+| Tiempo real | Django Channels + WebSockets |
 | Servidor ASGI | Daphne |
 | Mensajería y caché | Redis |
 | Base de datos | PostgreSQL |
 
-PostgreSQL es la fuente de verdad para la persistencia e integridad de los datos del negocio. Redis es infraestructura auxiliar de mensajería y caché; no constituye el único registro de estados de turnos, recetas o entregas.
+D-12 aprobó el stack completo, sustituyendo el carácter pendiente histórico de DRF, Channels, Daphne y Redis. PostgreSQL es fuente de verdad; Redis es auxiliar.
 
-Todos estos componentes están aprobados. Las antiguas referencias a DRF, Channels, Daphne y Redis como no aprobados se conservan solo como antecedentes sustituidos por D-12; no describen el estado vigente.
+Entorno observado: Python 3.13.3, Django 5.2.19, DRF 3.18.3, Channels 4.3.2, Daphne 4.2.3, channels-redis 4.3.0, Psycopg/psycopg-binary 3.3.8 y redis 7.4.1. La instantánea exacta de 31 paquetes está en `requirements-frozen.txt`, sin sustituir los siete requerimientos directos.
 
-Quedan pendientes versiones y compatibilidad, configuración ASGI y conexiones, estructura de aplicaciones, contratos de API y eventos, autenticación y permisos, esquemas de datos, políticas de caché, recuperación y despliegue. No adoptar configuraciones o arquitectura detallada sin autorización. Un eventual respaldo mediante polling tampoco está decidido.
+La usuaria confirmó PostgreSQL 18.6 local en `127.0.0.1:5433`, rol `cesfam_app` y bases dedicadas. La ejecución conjunta aplicó migraciones y limpieza solo en `test_cesfam_desarrollo`, conservada y accesible. No afirmar que desarrollo está migrada. El resultado de 44/44, sin errores/fallos, código 0 y System Check sin incidencias proviene del mensaje de la usuaria; 19.027 segundos es duración de suite, no latencia. Redis estuvo simulado.
 
-PWA, funcionamiento sin conexión y sincronización permanecen como requisitos o propuestas por precisar según las fuentes académicas; no se deducen de la selección de componentes. Los dos PNG siguen siendo propuestas técnicas sujetas a validación, aunque reflejen tecnologías seleccionadas. React, SQLite y las menciones bibliográficas a Node.js no son decisiones vigentes.
+## Reglas implementadas y pendientes
 
-## Requisitos y decisiones
+El motor usa GENERAL/PREFERENCIAL, FIFO por categoría, pesos iniciales provisionales 2:1, numeración separada de PK, estados y cierres explícitos, ausencia manual y unicidades PostgreSQL.
 
-Gestión de turnos, atención preferencial, visualización de llamados, recetas, importación CSV/Excel y trazabilidad domiciliaria siguen como antecedentes por validar. Las correspondencias RF-P, HU, RNF y NS documentan relaciones entre fuentes, no aprueban el alcance ni las prioridades del informe.
+Ventanillas ocupadas por LLAMADO/EN_ATENCION no pueden deshabilitarse, reasignarse ni perder operador. `configurar_ventanilla` valida permiso y operador; audita cambios efectivos y preserva historia. Se bloquea cola → ventanilla → turno; inconsistencias externas se rechazan sin recuperación automática.
 
-Separar exigencias académicas identificadas en la guía, necesidades levantadas, propuestas del equipo y decisiones explícitas de la usuaria. Registrar fuente, fecha, versión conocida, fundamento y evidencia de aprobación. No inventar citas, páginas, fechas, aprobaciones ni criterios institucionales.
+Pendientes: identidad del tótem, API e interfaces, WebSockets reales y recuperación, cuotas, seguridad por endpoint, capacidad y latencia, recetas/importación/reparto, PWA/offline y sincronización. No seleccionar configuraciones adicionales por suposición ni atribuir al prototipo aprobación integral de requisitos académicos.
 
-Los hallazgos sobre cardinalidades, integridad referencial y relaciones faltantes se registran en el documento 01. Son observaciones y alternativas condicionadas a validación; no autorizan rediseñar los diagramas o el modelo.
+Separar exigencias académicas, necesidades levantadas, propuestas del equipo, decisiones de la usuaria, implementación y verificación. Registrar fuente, fecha conocida y limitaciones; no inventar aprobaciones, citas o fechas de mensajes.
 
-Escribir la documentación y la comunicación del proyecto en español. Mantener coherencia entre README, índice, fuentes, requisitos, alcance y decisiones.
+## Skills y comunicación
 
-## Skills existentes
+Escribir en español. Las skills son material auxiliar y no amplían autorización. No modificarlas ni invocar sus flujos en esta consolidación.
 
-Las skills son material auxiliar; no amplían la autorización. Su diagnóstico previo está en `docs/01-fuentes-y-diagnostico.md`. No invocar sus flujos ni modificarlas en esta actualización.
+`frontend-design` y `web-design-guidelines` quedan para una UI autorizada; `spec` puede generar configuración de ramas y `spec-impl` contempla crear/cambiar ramas, en conflicto con la restricción vigente. No generar configuraciones para adaptar esos automatismos. Prevalecen las instrucciones de la usuaria.
 
-- `frontend-design`: orienta diseño y código; no corresponde ejecutarla en esta etapa.
-- `spec`: escribe specs y puede generar `specs/.spec-config.yml` con `AutoCreateBranch: true`.
-- `spec-impl`: contempla crear y cambiar de rama automáticamente; contradice la restricción vigente.
-- `web-design-guidelines`: consulta pautas externas para revisar UI; no existe UI que revisar.
-
-Prevalecen las restricciones de la usuaria. No crear configuraciones para corregir estos conflictos sin autorización.
-
-## Fuentes documentales
-
-Consultar primero `README.md` y `docs/00-indice-y-estado.md`. El inventario y las limitaciones de consulta están en el documento 01. Hay copias locales de antecedentes académicos y levantamientos; su recepción no certifica vigencia, autenticidad ni aprobación. Los mensajes de la usuaria acreditan acuerdos operativos y la selección tecnológica, sin sustituir el encargo académico.
+Mantener `docs/referencias/` fuera de cualquier futuro staging hasta autorización expresa. No versionar `.env`, `.venv/`, configuración local, cachés, credenciales, volcados o datos sensibles.
