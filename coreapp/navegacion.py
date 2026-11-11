@@ -27,6 +27,8 @@ GESTION = frozenset({JEFA, SUPERUSUARIO})
 
 # Pantallas de turnosapp que configuran la atención (las usa la Jefa de Farmacia): no son «Atención».
 CONFIGURACION_DE_TURNOS = ("gestion", "ventanilla_nueva", "ventanilla_configurar", "pesos")
+# Pantallas de entregasapp que la farmacia abre desde «Entregas» (spec 08).
+ENTREGAS_FARMACIA = ("indice", "programacion", "programar", "pendientes", "detalle", "reasignar", "anular", "receta_revisada")
 
 
 def _en(app, *nombres, prefijos=()):
@@ -57,7 +59,6 @@ ENTRADAS = (
     Entrada(
         "inicio", "Inicio", "coreapp:inicio", "i-inicio", roles=None, corta="Inicio", en_barra=True,
         activa=_en("coreapp", "inicio"),
-        etiquetas_por_rol=((ENCARGADO, "Entregas en terreno"),),
     ),
     Entrada(
         "turnos", "Atención", "turnosapp:panel", "i-turno", grupo="Trabajo", roles=PERSONAL_DE_FARMACIA,
@@ -69,8 +70,17 @@ ENTRADAS = (
     Entrada("recetas", "Recetas", "recetasapp:recetas", "i-documento", grupo="Trabajo", roles=PERSONAL_DE_FARMACIA,
             en_barra=True, contador="por_preparar", contador_texto="por preparar",
             activa=_en("recetasapp", "recetas", "recetas_lista", "entrega_confirmar", prefijos=("receta_", "preparacion"))),
+    # Spec 08: la farmacia ve Programación, Pendientes de gestión y Domicilios como pestañas de «Entregas».
+    Entrada("entregas", "Entregas", "entregasapp:indice", "i-mapa", grupo="Trabajo", roles=PERSONAL_DE_FARMACIA,
+            activa=_en("entregasapp", *ENTREGAS_FARMACIA, prefijos=("domicilio", "foto", "excepcion"))),
     Entrada("sala", "Sala de espera", "turnosapp:sala", "i-sala", grupo="Trabajo", roles=PERSONAL_DE_FARMACIA,
             corta="Sala", otra_pestana=True),
+    # El encargado de terreno: su inicio abre «Mis entregas» (coreapp.views.InicioView).
+    Entrada("mis_entregas", "Mis entregas", "entregasapp:mis", "i-ubicacion", grupo="Entregas en terreno",
+            roles=frozenset({ENCARGADO}), corta="Entregas", en_barra=True,
+            activa=_en("entregasapp", "mis", "registro", "intento_entregada", "intento_no_entregada", "detalle")),
+    Entrada("domicilios", "Domicilios", "entregasapp:domicilios", "i-casa", grupo="Entregas en terreno",
+            roles=frozenset({ENCARGADO}), activa=_en("entregasapp", prefijos=("domicilio", "foto"))),
     Entrada("ventanillas", "Ventanillas y pesos", "turnosapp:gestion", "i-ventanilla", grupo="Equipo", roles=GESTION,
             corta="Ventan.", activa=lambda app, nombre: app == "turnosapp" and nombre in CONFIGURACION_DE_TURNOS),
     Entrada("usuarios", "Usuarios", "usuariosapp:gestion_usuarios", "i-usuarios", grupo="Equipo", roles=GESTION,

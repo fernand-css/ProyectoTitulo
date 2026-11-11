@@ -1,0 +1,38 @@
+{% load core_tags l10n %}
+{# Tarjeta de una visita en «Mis entregas». Espera `intento` preparado por la vista, `registrable` (hoy o atrasada) y, en la página de registro, `sin_acciones`. #}
+{% if intento %}
+<article class="visita{% if intento.atrasada %} visita-atrasada{% endif %}" aria-labelledby="visita-{{ intento.pk }}">
+  {% if intento.atrasada %}<p class="visita-aviso"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-alerta"/></svg>Atrasada desde el {{ intento.fecha_programada|date:"d/m" }}</p>{% endif %}
+  <h3 id="visita-{{ intento.pk }}">{{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</h3>
+  <dl class="visita-datos">
+    <div><dt>Teléfono</dt><dd>{% if intento.paciente.telefono %}<a href="tel:{{ intento.paciente.telefono|cut:' ' }}">{{ intento.paciente.telefono }}</a>{% else %}No registrado{% endif %}</dd></div>
+    {% if intento.domicilio %}
+    <div><dt>Sector y localidad</dt><dd>{% if intento.domicilio.sector %}Sector {{ intento.domicilio.get_sector_display }}{% else %}Sin sector{% endif %}{% if intento.domicilio.localidad %} · {{ intento.domicilio.localidad }}{% endif %}</dd></div>
+    <div><dt>Dirección</dt><dd>{{ intento.domicilio.direccion }}</dd></div>
+    {% if intento.domicilio.referencias %}<div><dt>Referencias</dt><dd>{{ intento.domicilio.referencias }}</dd></div>{% endif %}
+    {% if intento.domicilio.latitud is not None %}<div><dt>Coordenadas</dt><dd>{{ intento.domicilio.latitud|unlocalize }}, {{ intento.domicilio.longitud|unlocalize }}{% if intento.domicilio.precision_metros is not None %} (±{{ intento.domicilio.precision_metros }} m){% endif %}</dd></div>{% endif %}
+    {% else %}
+    <div><dt>Dirección del padrón</dt><dd>{{ intento.paciente.direccion|default:"No registrada" }}</dd></div>
+    {% endif %}
+    <div><dt>Domicilio</dt><dd>{% include 'entregas/_estado_domicilio.html' with estado=intento.domicilio_estado domicilio=intento.domicilio %}</dd></div>
+    <div><dt>Recetas</dt><dd><ul class="visita-recetas">{% for receta in intento.lista_recetas %}<li>{{ receta.codigo }} (entrega {{ receta.numero }} de {{ receta.maximo }})</li>{% endfor %}</ul></dd></div>
+  </dl>
+  {% if intento.fotos %}
+  <ul class="fotos-miniaturas" aria-label="Fotos del entorno">
+    {% for foto in intento.fotos %}<li><a href="{% url 'entregasapp:foto' foto.pk %}"><img src="{% url 'entregasapp:foto' foto.pk %}" alt="{{ foto.descripcion }}" width="{{ foto.ancho }}" height="{{ foto.alto }}" loading="lazy"></a></li>{% endfor %}
+  </ul>
+  {% endif %}
+  <div class="acciones visita-acciones">
+    {% if sin_acciones %}
+    {% elif registrable %}
+    <a class="boton" href="{% url 'entregasapp:registro' intento.pk %}?resultado=entregada#registrar-entregada"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg>Entregada<span class="sr-only">: {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></a>
+    <a class="boton boton-secundario" href="{% url 'entregasapp:registro' intento.pk %}?resultado=no_entregada#registrar-no-entregada">No entregada<span class="sr-only">: {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></a>
+    {% else %}
+    <p class="suave">Programada para el {{ intento.fecha_programada|date:"d/m/Y" }}. Podrás registrarla desde ese día.</p>
+    {% endif %}
+    <a class="enlace-secundario" href="{% url 'entregasapp:domicilio' intento.paciente.pk %}">Ver domicilio<span class="sr-only"> de {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></a>
+  </div>
+</article>
+{% else %}
+<p class="suave">No hay datos de esta visita.</p>
+{% endif %}

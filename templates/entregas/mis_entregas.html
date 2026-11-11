@@ -1,0 +1,35 @@
+{% extends 'entregas/base.html' %}
+{% block titulo %}Mis entregas · Entregas en terreno{% endblock %}
+{% block entregas %}
+{% include 'entregas/_cabecera.html' with titulo='Mis entregas' texto='Tus visitas de hoy, las atrasadas y las próximas. Registra cada una al visitar el domicilio.' %}
+
+<p class="resumen-visitas"><time datetime="{{ hoy|date:'Y-m-d' }}">{{ hoy|date:"l d/m" }}</time> · Hoy ({{ lista.hoy|length }}) · Atrasadas ({{ lista.atrasadas|length }}) · Próximas ({{ lista.proximas|length }})</p>
+
+{% if not lista.total %}
+<div class="vacio">
+  <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ubicacion"/></svg>
+  <div>
+    <h2>No tienes entregas asignadas</h2>
+    <p>Cuando la Q.F. programe una visita a tu nombre, aparecerá aquí con la dirección, las referencias y las recetas.</p>
+    <div class="acciones"><a class="boton boton-secundario" href="{% url 'entregasapp:domicilios' %}">Ver domicilios</a></div>
+  </div>
+</div>
+{% else %}
+{% if lista.atrasadas %}
+<section class="visitas" aria-labelledby="titulo-atrasadas">
+  <h2 id="titulo-atrasadas">Atrasadas ({{ lista.atrasadas|length }})</h2>
+  {% for intento in lista.atrasadas %}{% include 'entregas/_tarjeta_intento.html' with registrable=True %}{% endfor %}
+</section>
+{% endif %}
+<section class="visitas" aria-labelledby="titulo-hoy">
+  <h2 id="titulo-hoy">Hoy ({{ lista.hoy|length }})</h2>
+  {% for intento in lista.hoy %}{% include 'entregas/_tarjeta_intento.html' with registrable=True %}{% empty %}<p class="suave">No tienes visitas programadas para hoy.</p>{% endfor %}
+</section>
+{% if lista.proximas %}
+<section class="visitas" aria-labelledby="titulo-proximas">
+  <h2 id="titulo-proximas">Próximas ({{ lista.proximas|length }})</h2>
+  {% for intento in lista.proximas %}{% include 'entregas/_tarjeta_intento.html' with registrable=False %}{% endfor %}
+</section>
+{% endif %}
+{% endif %}
+{% endblock %}

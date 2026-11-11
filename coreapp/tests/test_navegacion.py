@@ -15,11 +15,12 @@ from coreapp.navegacion import ENTRADAS, MAXIMO_EN_BARRA, PERFIL, armar_menu
 from coreapp.roles import ENCARGADO, JEFA, SUPERUSUARIO, TECNICO
 from usuariosapp.tests.test_gestion_usuarios import cuenta_personal
 
+# Spec 08 (RF-08-13): «Entregas» para la farmacia; «Mis entregas» y «Domicilios» para el encargado de terreno.
 VISIBLES = {
-    JEFA: ["Inicio", "Atención", "Pacientes", "Recetas", "Sala de espera", "Ventanillas y pesos", "Usuarios"],
-    TECNICO: ["Inicio", "Atención", "Pacientes", "Recetas", "Sala de espera"],
-    ENCARGADO: ["Entregas en terreno"],
-    SUPERUSUARIO: ["Inicio", "Atención", "Pacientes", "Recetas", "Sala de espera", "Ventanillas y pesos", "Usuarios", "Administración"],
+    JEFA: ["Inicio", "Atención", "Pacientes", "Recetas", "Entregas", "Sala de espera", "Ventanillas y pesos", "Usuarios"],
+    TECNICO: ["Inicio", "Atención", "Pacientes", "Recetas", "Entregas", "Sala de espera"],
+    ENCARGADO: ["Inicio", "Mis entregas", "Domicilios"],
+    SUPERUSUARIO: ["Inicio", "Atención", "Pacientes", "Recetas", "Entregas", "Sala de espera", "Ventanillas y pesos", "Usuarios", "Administración"],
     "": ["Inicio"],
 }
 
@@ -37,8 +38,8 @@ class MenuPorPerfilTests(TestCase):
     def test_los_grupos_tienen_titulo_y_el_inicio_va_suelto(self):
         menu = armar_menu(JEFA)
         self.assertEqual([grupo.titulo for grupo in menu.grupos], ["", "Trabajo", "Equipo"])
-        self.assertEqual([len(grupo.opciones) for grupo in menu.grupos], [1, 4, 2])
-        self.assertEqual([grupo.titulo for grupo in armar_menu(ENCARGADO).grupos], [""])
+        self.assertEqual([len(grupo.opciones) for grupo in menu.grupos], [1, 5, 2])
+        self.assertEqual([grupo.titulo for grupo in armar_menu(ENCARGADO).grupos], ["", "Entregas en terreno"])
 
     def test_una_cuenta_sin_perfil_solo_ve_el_inicio_y_no_tiene_mi_perfil(self):
         menu = armar_menu("")
@@ -49,10 +50,10 @@ class MenuPorPerfilTests(TestCase):
 
     def test_la_barra_del_celular_lleva_el_trabajo_y_el_resto_va_en_mas_sin_perder_nada(self):
         esperado = {
-            JEFA: (["inicio", "turnos", "padron", "recetas"], ["sala", "ventanillas", "usuarios"]),
-            TECNICO: (["inicio", "turnos", "padron", "recetas"], ["sala"]),
-            ENCARGADO: (["inicio"], []),
-            SUPERUSUARIO: (["inicio", "turnos", "padron", "recetas"], ["sala", "ventanillas", "usuarios", "administracion"]),
+            JEFA: (["inicio", "turnos", "padron", "recetas"], ["entregas", "sala", "ventanillas", "usuarios"]),
+            TECNICO: (["inicio", "turnos", "padron", "recetas"], ["entregas", "sala"]),
+            ENCARGADO: (["inicio", "mis_entregas"], ["domicilios"]),
+            SUPERUSUARIO: (["inicio", "turnos", "padron", "recetas"], ["entregas", "sala", "ventanillas", "usuarios", "administracion"]),
         }
         for rol, (barra, mas) in esperado.items():
             with self.subTest(rol=rol):
@@ -77,6 +78,11 @@ class MenuPorPerfilTests(TestCase):
             (("recetasapp", "pacientes"), "padron"), (("recetasapp", "paciente_detalle"), "padron"),
             (("recetasapp", "importacion_nueva"), "padron"), (("recetasapp", "plantilla"), "padron"),
             (("usuariosapp", "gestion_editar"), "usuarios"),
+            # Spec 08: todas las pantallas de entregas de la farmacia marcan «Entregas».
+            (("entregasapp", "indice"), "entregas"), (("entregasapp", "programacion"), "entregas"),
+            (("entregasapp", "programar"), "entregas"), (("entregasapp", "pendientes"), "entregas"),
+            (("entregasapp", "detalle"), "entregas"), (("entregasapp", "domicilios"), "entregas"),
+            (("entregasapp", "domicilio"), "entregas"), (("entregasapp", "excepciones"), "entregas"),
         )
         for (app, nombre), clave in casos:
             with self.subTest(pagina=f"{app}:{nombre}"):
@@ -200,9 +206,18 @@ class MenuRenderizadoTests(TestCase):
 
     def test_el_encargado_no_recibe_enlaces_a_secciones_ajenas(self):
         menu, dock = self.partes(self.pagina(ENCARGADO))
-        for ajeno in ("/turnos/", "/recetas/", "/usuarios/gestion/", "/admin/"):
+        for ajeno in ("/turnos/", "/recetas/", "/usuarios/gestion/", "/admin/", "/entregas/programacion/", "/entregas/pendientes/"):
             self.assertNotIn(f'href="{ajeno}', menu + dock)
         self.assertIn('href="/usuarios/perfil/"', menu)
+        self.assertIn('href="/entregas/mis/"', menu)
+        self.assertIn('href="/entregas/domicilios/"', menu)
+
+    def test_el_encargado_marca_mis_entregas_o_domicilios_segun_la_pagina(self):
+        for nombre, clave in (("mis", "mis_entregas"), ("registro", "mis_entregas"), ("domicilios", "domicilios"),
+                              ("domicilio", "domicilios"), ("foto_agregar", "domicilios")):
+            with self.subTest(pagina=nombre):
+                menu = armar_menu(ENCARGADO, "entregasapp", nombre)
+                self.assertEqual([o.clave for g in menu.grupos for o in g.opciones if o.activa], [clave])
 
     def test_una_sola_entrada_marcada_como_pagina_actual_en_cada_navegacion(self):
         for rol, ruta in ((JEFA, "/"), (JEFA, reverse("recetasapp:preparacion")), (TECNICO, reverse("turnosapp:panel")),

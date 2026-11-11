@@ -1,0 +1,60 @@
+{% extends 'entregas/base.html' %}
+{% load core_tags %}
+{% block titulo %}Domicilios · Entregas · Farmacia{% endblock %}
+{% block entregas %}
+{% if es_encargado %}
+{% include 'entregas/_cabecera.html' with titulo='Domicilios' texto='Pacientes del reparto con su domicilio. Regístralo o corrígelo y márcalo como verificado al visitarlo.' %}
+{% else %}
+{% include 'entregas/_cabecera.html' with titulo='Entregas a domicilio' texto='Domicilios de los pacientes del reparto: postrados, mayores de 80 años y excepciones.' %}
+{% endif %}
+
+<form class="filtros-entregas" method="post" role="search" aria-label="Buscar y filtrar domicilios">
+  {% csrf_token %}
+  {% if form.non_field_errors %}<div class="message message-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="filtros-campos">
+    <div class="campo"><label for="{{ form.buscar.id_for_label }}">{{ form.buscar.label }}</label>{{ form.buscar }}</div>
+    <div class="campo"><label for="{{ form.sector.id_for_label }}">{{ form.sector.label }}</label>{{ form.sector }}</div>
+    <div class="campo"><label for="{{ form.estado.id_for_label }}">{{ form.estado.label }}</label>{{ form.estado }}</div>
+  </div>
+  <div class="acciones">
+    <button class="boton" type="submit">Buscar</button>
+    {% if filtros.buscar or filtros.sector or filtros.estado %}<a class="boton boton-secundario" href="{% url 'entregasapp:domicilios' %}">Quitar filtros</a>{% endif %}
+  </div>
+</form>
+
+{% if page_obj.object_list %}
+<div class="tabla-caja">
+  <table class="tabla tabla-apilable">
+    <caption>{{ page_obj.paginator.count }} paciente{{ page_obj.paginator.count|pluralize }} del reparto</caption>
+    <thead><tr><th scope="col">Paciente</th><th scope="col">Sector y localidad</th><th scope="col">Dirección</th><th scope="col">Estado</th><th scope="col">Fotos</th><th scope="col"><span class="sr-only">Acción</span></th></tr></thead>
+    <tbody>
+      {% for persona in page_obj %}
+      <tr>
+        <th scope="row" data-etiqueta="Paciente"><strong>{{ persona.apellidos }}, {{ persona.nombres }}</strong><span class="dato-secundario">RUT {{ persona.rut|rut }}{% if persona.es_postrado %} · Postrado{% endif %}</span></th>
+        <td data-etiqueta="Sector y localidad">{% if persona.domicilio_registrado.sector %}{{ persona.domicilio_registrado.get_sector_display }}{% else %}Sin sector{% endif %}{% if persona.domicilio_registrado.localidad %} · {{ persona.domicilio_registrado.localidad }}{% endif %}</td>
+        <td data-etiqueta="Dirección">{% if persona.domicilio_registrado %}{{ persona.domicilio_registrado.direccion }}{% else %}{{ persona.direccion|default:"Sin dirección" }} <span class="dato-secundario">(del padrón)</span>{% endif %}</td>
+        <td data-etiqueta="Estado">{% include 'entregas/_estado_domicilio.html' with estado=persona.domicilio_estado domicilio=persona.domicilio_registrado %}</td>
+        <td data-etiqueta="Fotos" class="num">{{ persona.fotos_cantidad }}</td>
+        <td data-etiqueta="Acción"><a href="{% url 'entregasapp:domicilio' persona.pk %}">{% if persona.domicilio_registrado %}Ver domicilio{% else %}Registrar domicilio{% endif %}<span class="sr-only"> de {{ persona.apellidos }}, {{ persona.nombres }}</span></a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if page_obj.has_other_pages %}
+<nav class="paginacion" aria-label="Páginas de domicilios">
+  {% if page_obj.has_previous %}<form method="post">{% csrf_token %}<input type="hidden" name="buscar" value="{{ filtros.buscar }}"><input type="hidden" name="sector" value="{{ filtros.sector }}"><input type="hidden" name="estado" value="{{ filtros.estado }}"><button class="boton boton-secundario" name="pagina" value="{{ page_obj.previous_page_number }}">Anterior</button></form>{% endif %}
+  <span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<form method="post">{% csrf_token %}<input type="hidden" name="buscar" value="{{ filtros.buscar }}"><input type="hidden" name="sector" value="{{ filtros.sector }}"><input type="hidden" name="estado" value="{{ filtros.estado }}"><button class="boton boton-secundario" name="pagina" value="{{ page_obj.next_page_number }}">Siguiente</button></form>{% endif %}
+</nav>
+{% endif %}
+{% else %}
+<div class="vacio">
+  <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-casa"/></svg>
+  <div>
+    <h2>No encontramos pacientes del reparto con esos filtros</h2>
+    <p>Revisa el RUT o el apellido. Solo aparecen pacientes postrados, mayores de 80 años o con una excepción vigente.</p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

@@ -1,0 +1,6 @@
+{# Estado del domicilio en palabras y con ícono: nunca solo con color. Espera `estado` (consultas.EstadoDomicilio) y, opcional, `domicilio`. #}
+<span class="estado-domicilio estado-{{ estado.clave }}">
+  <svg class="icono" aria-hidden="true" focusable="false"><use href="#{% if estado.clave == 'verificado' %}i-ok{% elif estado.clave == 'pendiente' %}i-alerta{% else %}i-info{% endif %}"/></svg>
+  {% if estado.clave == 'verificado' and domicilio.verificado_en %}Verificado el {{ domicilio.verificado_en|date:"d/m/Y" }}{% if domicilio.verificado_por %} por {% firstof domicilio.verificado_por.get_full_name domicilio.verificado_por.get_username %}{% endif %}{% else %}{{ estado.texto }}{% endif %}
+</span>
+{% if estado.padron_cambio %}<span class="aviso-padron"><strong>La dirección del padrón cambió:</strong> {{ estado.direccion_padron|default:"(sin dirección en el padrón)" }}</span>{% endif %}

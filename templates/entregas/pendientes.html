@@ -1,0 +1,64 @@
+{% extends 'entregas/base.html' %}
+{% load core_tags %}
+{% block titulo %}Pendientes de gestión · Entregas · Farmacia{% endblock %}
+{% block entregas %}
+{% include 'entregas/_cabecera.html' with titulo='Entregas a domicilio' texto='Visitas que no se pudieron entregar: reasígnalas con otra fecha y encargado, o anúlalas con su motivo.' %}
+
+{% url 'entregasapp:pendientes' as limpiar %}
+{% include 'entregas/_filtros.html' with limpiar=limpiar %}
+
+{% if page_obj.object_list %}
+<div class="tabla-caja">
+  <table class="tabla tabla-apilable">
+    <caption>{{ page_obj.paginator.count }} entrega{{ page_obj.paginator.count|pluralize }} pendiente{{ page_obj.paginator.count|pluralize }} de gestión</caption>
+    <thead><tr><th scope="col">Paciente</th><th scope="col">Sector</th><th scope="col">Último intento</th><th scope="col">Motivo</th><th scope="col">Intentos</th><th scope="col"><span class="sr-only">Gestionar</span></th></tr></thead>
+    <tbody>
+      {% for entrega in page_obj %}
+      <tr>
+        <th scope="row" data-etiqueta="Paciente"><strong>{{ entrega.paciente.apellidos }}, {{ entrega.paciente.nombres }}</strong><span class="dato-secundario">RUT {{ entrega.paciente.rut|rut }}</span></th>
+        <td data-etiqueta="Sector">{{ entrega.paciente.domicilio.get_sector_display|default:"Sin sector" }}</td>
+        <td data-etiqueta="Último intento">N° {{ entrega.ultimo_numero }} · {{ entrega.ultimo_fecha|date:"d/m/Y" }} · {{ entrega.encargado_nombre }}</td>
+        <td data-etiqueta="Motivo">{{ entrega.motivo_texto }}{% if entrega.ultimo_nota %}<span class="dato-secundario">«{{ entrega.ultimo_nota }}»</span>{% endif %}</td>
+        <td data-etiqueta="Intentos" class="num">{{ entrega.ultimo_numero }}</td>
+        <td data-etiqueta="Gestionar"><a class="boton boton-secundario" href="{% url 'entregasapp:detalle' entrega.pk %}">{% if puede_gestionar %}Reasignar o anular{% else %}Ver entrega{% endif %}<span class="sr-only"> de {{ entrega.paciente.apellidos }}, {{ entrega.paciente.nombres }}</span></a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'components/paginator.html' %}
+{% else %}
+<div class="vacio">
+  <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg>
+  <div>
+    <h2>{% if filtrado %}No hay pendientes con esos filtros{% else %}No hay entregas pendientes de gestión{% endif %}</h2>
+    <p>Cuando un encargado registre una visita como no entregada, aparecerá aquí con su motivo.</p>
+  </div>
+</div>
+{% endif %}
+
+<section class="no-descontadas" id="no-descontadas" aria-labelledby="titulo-no-descontadas">
+  <h2 id="titulo-no-descontadas">Recetas no descontadas ({{ no_descontadas|length }})</h2>
+  <p class="suave">Recetas que no seguían vigentes el día de la visita. La entrega se cerró sin descontarlas; revísalas y marca cada una al resolverla.</p>
+  {% if no_descontadas %}
+  <ul class="lista-revision">
+    {% for vinculo in no_descontadas %}
+    <li>
+      <div>
+        <strong>{{ vinculo.entrega.paciente.apellidos }}, {{ vinculo.entrega.paciente.nombres }}</strong> · Receta {{ vinculo.receta.codigo }} · {{ vinculo.entrega.cerrada_en|date:"d/m/Y" }}
+        <span class="dato-secundario">{{ vinculo.causa }}</span>
+      </div>
+      {% if puede_gestionar %}
+      <form method="post" action="{% url 'entregasapp:receta_revisada' vinculo.pk %}">
+        {% csrf_token %}
+        <button class="boton boton-secundario" type="submit">Marcar revisada<span class="sr-only">: receta {{ vinculo.receta.codigo }}</span></button>
+      </form>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>No queda ninguna receta por revisar.</p>
+  {% endif %}
+</section>
+{% endblock %}

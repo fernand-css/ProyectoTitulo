@@ -94,7 +94,7 @@ El índice central de funcionalidades es [specs/README.md](../specs/README.md); 
 | `README.md`, este archivo, `verificacion-spec-01.md`, `specs/README.md`, `specs/00-indice.md` | 01 y organización documental | Instalación, arquitectura, evidencia y mapa de specs. |
 | `docs/Informe.md`, guías y skills | Anteriores al 01 | Fuentes del proyecto; el 01 alinea las guías con el árbol acordado. |
 
-`venv/`, `.env`, `db.sqlite3` (base antigua), `media/` y `staticfiles/` se generan localmente y no se versionan.
+`venv/`, `.env`, `db.sqlite3` (base antigua), `media/`, `privado/` (fotos de domicilios, spec 08) y `staticfiles/` se generan localmente y no se versionan.
 
 ## Modelo–Vista–Controlador en Django
 
@@ -296,3 +296,20 @@ Medición final aislada: p95 confirmación → recepción en ambas pantallas **4
 | `tools/verificar_spec_07_http.py` | SQLite temporal, HTTP real en loopback, 670 pacientes sintéticos, cuatro ventanillas y 100 recorridos de emisión, marca, ausencia y retiro; p50/p95/máximo por acción y panel. |
 
 La sección vive en Recetas y no agrega entrada al menú. La cifra de trabajo mide tiempo desde la recepción o la marca anterior del mismo usuario ese día, la que sea posterior; no equivale al tiempo total de espera del paciente. HU-18 se cubre parcialmente: la estimación actualiza la interfaz del personal, pero no la sala, el tótem ya emitido ni el comprobante impreso. El p95 HTTP de loopback con SQLite sintética fue menor de 110 ms en cada escenario; ver `specs/07-preparacion-y-tiempos-de-espera/validation.md` para valores detallados y límites. Revisión visual/axe y usabilidad siguen pendientes; no declarar el spec Implementado ni migrar la base del proyecto automáticamente.
+
+## Domicilios y entregas a domicilio — spec 08
+
+| Archivo | Responsabilidad |
+|---|---|
+| `entregasapp/models.py`, `migrations/0001_initial.py` | `Domicilio` (uno por paciente, versión para edición concurrente), `FotoDomicilio` (posición 1–3 única), `InscripcionReparto` (una vigente por paciente), `Entrega` (una abierta por paciente, restricción parcial), `RecetaEntrega` (recetas fijadas y su resultado) e `IntentoEntrega` (un pendiente por entrega, resultado inmutable, `operacion_id` del registro y `creado_con` de la operación que lo creó). Sin registro en el Admin. |
+| `entregasapp/services.py` | Única vía de escritura: domicilios, verificación (solo el encargado, comprobación exacta sin `tiene_rol`), fotos, excepciones, programación, registro, reasignación, anulación y revisión. UPDATE condicional sobre campos propios, restricciones, reintentos y auditoría sin datos personales; la programación y el ciclo de la entrega toman `bloquear_cola(hoy)`. |
+| `entregasapp/consultas.py` | Lectura: elegibilidad (postrado, `edad > 80` o excepción), estado derivado del domicilio (con aviso de padrón cambiado), «Mis entregas», pendientes de gestión y programadas con su último intento (una consulta), recetas no descontadas y `recetas_con_despacho_abierto`, que usan el 03, el 04 y el 05 para el bloqueo de doble vía. |
+| `entregasapp/fotos.py`, `coreapp/utils/custom_image.py` | Almacenamiento privado en `ARCHIVOS_PRIVADOS_ROOT`, sin URL pública; validación JPEG/PNG, límites de 5 MB y 40 MP, orientación, aplanado, lado mayor de 1600 px y JPEG nuevo sin metadatos. |
+| `entregasapp/views.py`, `forms.py`, `urls.py`, `templates/entregas/*.html` | Pantallas privadas `no-store` con la matriz de permisos del spec. Búsquedas por RUT en POST; los filtros sin datos personales van en GET. Las URL solo llevan identificadores internos. |
+| `static/css/entregas.css`, `static/js/entregas/ubicacion.js` | Tarjetas de «Mis entregas» para celular, estados con texto e ícono, sin colores propios. La ubicación se pide solo al pulsar el botón y se anuncia en una región `aria-live`. |
+| `recetasapp/models.py` (`edad_en`, `requiere_despacho_en`), `turnosapp/services.py`, `recetasapp/services.py`, `turnosapp/atencion.py` | Regla única de edad/postración compartida con el tótem; el tótem omite las recetas en despacho (`despacho_abierto` sin consumir número); la confirmación del 03/05 rechaza la receta con entrega abierta y acepta el camino `desde_despacho` del encargado; la reincorporación del 05 se rechaza si una receta del turno está en una entrega abierta. |
+| `coreapp/navegacion.py`, `coreapp/views.py`, `templates/index.html`, `templates/components/iconos.html` | Entrada «Entregas» para la farmacia; «Mis entregas» y «Domicilios» (ícono `i-casa`) para el encargado, cuyo inicio (`/`) muestra «Mis entregas» sin redirigir. |
+| `recetasapp/views.py`, `templates/recetas/paciente_detalle.html`, `receta_detalle.html`, `entrega_confirmar.html` | Bloque «Domicilio de reparto» en la pestaña Datos, rótulo «A domicilio» en Entregas y aviso «En entrega a domicilio abierta» sin botón de confirmar. |
+| `tools/verificar_spec_08_http.py` | SQLite y carpeta privada temporales, 670 pacientes sintéticos, 10 excepciones, cuatro encargados; recorre el ciclo completo por HTTP y mide p50/p95/máximo por escenario. |
+
+Las fotos (`privado/`) son datos personales: nunca se versionan ni se sirven por `/media/`. La parte sin conexión de HU-15 queda para la reserva 11; el mapa y el orden de visita, para el 09. Ver `specs/08-domicilios-y-entregas/validation.md` para la evidencia y los límites.

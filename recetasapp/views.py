@@ -152,8 +152,27 @@ class PacienteView(FarmaciaView):
         if actual == "recetas":
             contexto["recetas"] = recetas
         elif actual == "entregas":
-            contexto["entregas"] = list(entregas.select_related("receta", "creado_por").order_by("-creado_en", "-pk")[:200])
+            contexto["entregas"] = list(entregas.select_related("receta", "creado_por", "despacho").order_by("-creado_en", "-pk")[:200])
+        else:
+            contexto["reparto"] = _reparto_del_paciente(paciente)
         return self.render("paciente_detalle.html", contexto)
+
+
+def _reparto_del_paciente(paciente):
+    """Domicilio de reparto, su estado y la entrega abierta del paciente (spec 08), para la pestaña Datos."""
+    from entregasapp import consultas as reparto
+
+    domicilio = reparto.domicilio_de(paciente)
+    return {
+        "elegible": reparto.es_elegible(paciente), "domicilio": domicilio,
+        "estado": reparto.estado_domicilio(paciente, domicilio), "abierta": reparto.entrega_abierta(paciente),
+        "excepcion": reparto.excepcion_vigente(paciente),
+    }
+
+
+def _despacho_abierto(receta):
+    from entregasapp.consultas import despacho_abierto_de_receta
+    return despacho_abierto_de_receta(receta.pk)
 
 
 class RecetaView(FarmaciaView):
@@ -167,6 +186,7 @@ class RecetaView(FarmaciaView):
             "receta": receta, "estado": receta.estado, "entregas": entregas,
             "vigencia": presentacion.linea_vigencia(receta), "sello_nuevo": sello_nuevo,
             "puede_crear": tiene_rol(request.user, JEFA), "puede_entregar": tiene_rol(request.user, TECNICO),
+            "despacho": _despacho_abierto(receta),
         })
 
 
@@ -207,7 +227,7 @@ class ConfirmarEntregaView(FarmaciaView):
         presentacion.preparar_receta(receta, proxima=True)
         from .confirmacion import preparar_contexto
         operacion = uuid.uuid4()
-        return self.render("entrega_confirmar.html", {"receta": receta, "estado": receta.estado,
+        return self.render("entrega_confirmar.html", {"receta": receta, "estado": receta.estado, "despacho": _despacho_abierto(receta),
             "form": EntregaForm(initial={"operacion_id": operacion, "contexto": preparar_contexto(request.user, receta, operacion)})})
 
     def post(self, request, pk):
@@ -230,7 +250,8 @@ class ConfirmarEntregaView(FarmaciaView):
                 return redirect("recetasapp:receta_detalle", pk=pk)
         receta.refresh_from_db()
         presentacion.preparar_receta(receta, proxima=True)
-        return self.render("entrega_confirmar.html", {"receta": receta, "estado": receta.estado, "form": form})
+        return self.render("entrega_confirmar.html", {"receta": receta, "estado": receta.estado, "form": form,
+                                                      "despacho": _despacho_abierto(receta)})
 
 
 class ImportacionesView(FarmaciaView):

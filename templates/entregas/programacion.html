@@ -1,0 +1,40 @@
+{% extends 'entregas/base.html' %}
+{% load core_tags %}
+{% block titulo %}Programación · Entregas · Farmacia{% endblock %}
+{% block entregas %}
+{% include 'entregas/_cabecera.html' with titulo='Entregas a domicilio' texto='Visitas programadas a pacientes postrados, mayores de 80 años y excepciones, con su encargado de terreno.' %}
+
+{% url 'entregasapp:programacion' as limpiar %}
+{% include 'entregas/_filtros.html' with limpiar=limpiar %}
+
+{% if page_obj.object_list %}
+<div class="tabla-caja">
+  <table class="tabla tabla-apilable">
+    <caption>{{ page_obj.paginator.count }} entrega{{ page_obj.paginator.count|pluralize }} programada{{ page_obj.paginator.count|pluralize }}</caption>
+    <thead><tr><th scope="col">Fecha</th><th scope="col">Paciente</th><th scope="col">Sector y localidad</th><th scope="col">Domicilio</th><th scope="col">Encargado</th><th scope="col">Recetas</th><th scope="col"><span class="sr-only">Detalle</span></th></tr></thead>
+    <tbody>
+      {% for entrega in page_obj %}
+      <tr>
+        <th scope="row" data-etiqueta="Fecha">{{ entrega.ultimo_fecha|date:"d/m/Y" }}{% if entrega.ultimo_fecha < hoy %} <span class="etiqueta etiqueta-aviso">Atrasada</span>{% endif %}</th>
+        <td data-etiqueta="Paciente"><strong>{{ entrega.paciente.apellidos }}, {{ entrega.paciente.nombres }}</strong><span class="dato-secundario">RUT {{ entrega.paciente.rut|rut }}</span></td>
+        <td data-etiqueta="Sector y localidad">{% if entrega.paciente.domicilio.sector %}{{ entrega.paciente.domicilio.get_sector_display }}{% if entrega.paciente.domicilio.localidad %} · {{ entrega.paciente.domicilio.localidad }}{% endif %}{% else %}Sin sector{% endif %}</td>
+        <td data-etiqueta="Domicilio">{% include 'entregas/_estado_domicilio.html' with estado=entrega.domicilio_estado domicilio=entrega.paciente.domicilio %}</td>
+        <td data-etiqueta="Encargado">{{ entrega.encargado_nombre }}</td>
+        <td data-etiqueta="Recetas" class="num">{{ entrega.recetas_cantidad }}</td>
+        <td data-etiqueta="Detalle"><a href="{% url 'entregasapp:detalle' entrega.pk %}">Ver entrega<span class="sr-only"> de {{ entrega.paciente.apellidos }}, {{ entrega.paciente.nombres }}</span></a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% include 'components/paginator.html' %}
+{% else %}
+<div class="vacio">
+  <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-calendario"/></svg>
+  <div>
+    <h2>{% if filtrado %}No hay entregas programadas con esos filtros{% else %}No hay entregas programadas{% endif %}</h2>
+    <p>{% if puede_gestionar %}Usa «Programar entrega» para asignar una visita a un encargado de terreno.{% else %}La Q.F. programa las entregas; aparecerán aquí con su fecha y encargado.{% endif %}</p>
+  </div>
+</div>
+{% endif %}
+{% endblock %}

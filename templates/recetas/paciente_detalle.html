@@ -56,7 +56,7 @@
         <tr>
           <th scope="row" data-etiqueta="Fecha y hora">{{ entrega.creado_en|date:"j b Y, H:i" }}</th>
           <td data-etiqueta="Receta"><a href="{% url 'recetasapp:receta_detalle' pk=entrega.receta_id %}">{{ entrega.receta.codigo }}</a></td>
-          <td data-etiqueta="Entrega">{{ entrega.numero }} de {{ entrega.receta.max_entregas }}</td>
+          <td data-etiqueta="Entrega">{{ entrega.numero }} de {{ entrega.receta.max_entregas }}{% if entrega.despacho %} <span class="etiqueta">A domicilio</span>{% endif %}</td>
           <td data-etiqueta="Responsable">{{ entrega.creado_por.get_username|default:"Cuenta retirada" }}</td>
         </tr>
         {% endfor %}
@@ -83,6 +83,26 @@
     <dt>Dirección</dt><dd>{{ paciente.direccion|default:"No registrada" }}</dd>
     <dt>Condición</dt><dd>{% if paciente.es_cronico or paciente.es_postrado %}{% if paciente.es_cronico %}Crónico{% endif %}{% if paciente.es_cronico and paciente.es_postrado %} · {% endif %}{% if paciente.es_postrado %}Postrado{% endif %}{% else %}Sin condición registrada{% endif %}</dd>
   </dl>
+  <h3 id="titulo-reparto">Domicilio de reparto</h3>
+  {% if reparto.domicilio or reparto.elegible %}
+  <dl class="ficha ficha-datos" aria-labelledby="titulo-reparto">
+    <dt>Estado</dt><dd>{% include 'entregas/_estado_domicilio.html' with estado=reparto.estado domicilio=reparto.domicilio %}</dd>
+    {% if reparto.domicilio %}
+    <dt>Sector</dt><dd>{{ reparto.domicilio.get_sector_display|default:"Sin sector" }}{% if reparto.domicilio.localidad %} · {{ reparto.domicilio.localidad }}{% endif %}</dd>
+    <dt>Dirección</dt><dd>{{ reparto.domicilio.direccion }}</dd>
+    {% if reparto.domicilio.referencias %}<dt>Referencias</dt><dd>{{ reparto.domicilio.referencias }}</dd>{% endif %}
+    {% endif %}
+    {% if reparto.excepcion %}<dt>Excepción</dt><dd>{{ reparto.excepcion.get_motivo_display }}</dd>{% endif %}
+    <dt>Entrega abierta</dt><dd>{% if reparto.abierta %}<a href="{% url 'entregasapp:detalle' reparto.abierta.pk %}">{{ reparto.abierta.get_estado_display }} · ver entrega</a>{% else %}No tiene{% endif %}</dd>
+  </dl>
+  <div class="acciones">
+    <a class="boton boton-secundario" href="{% url 'entregasapp:domicilio' paciente.pk %}">{% if reparto.domicilio %}Ver domicilio{% else %}Registrar domicilio{% endif %}</a>
+    {% if puede_crear and reparto.elegible and not reparto.abierta %}<a class="boton boton-secundario" href="{% url 'entregasapp:programar' %}?paciente={{ paciente.pk }}">Programar entrega</a>{% endif %}
+  </div>
+  {% else %}
+  <p>No es parte del reparto a domicilio: no es postrado, no es mayor de 80 años y no tiene una excepción vigente.</p>
+  {% if puede_crear %}<div class="acciones"><a class="boton boton-secundario" href="{% url 'entregasapp:excepciones' %}?paciente={{ paciente.pk }}">Inscribir excepción de reparto</a></div>{% endif %}
+  {% endif %}
 </section>
 {% endif %}
 {% endif %}

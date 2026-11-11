@@ -187,6 +187,10 @@ def _operar(actor, tipo, destino, identidad, datos, huella):
             raise ValidationError("Todas las recetas de este turno ya se retiraron; no se puede reincorporar.")
         if Turno.objects.filter(paciente_id=turno.paciente_id, estado__in=["esperando", "llamado"]).exclude(pk=turno.pk).exists():
             raise ValidationError("El paciente ya tiene otro turno activo.")
+        # Spec 08: una receta no puede estar a la vez en un turno activo y en una entrega a domicilio abierta.
+        from entregasapp.consultas import recetas_con_despacho_abierto
+        if recetas_con_despacho_abierto(vinculos.filter(entrega__isnull=True).values_list("receta_id", flat=True)):
+            raise ValidationError("Una receta de este turno tiene una entrega a domicilio abierta. Anula la entrega antes de reincorporar.")
         from .services import clasificar_atencion
         clasificar_atencion(turno.paciente, hoy)
         turno.estado, turno.cerrado_en, turno.entrada_cola = "esperando", None, ahora

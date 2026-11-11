@@ -58,6 +58,7 @@ Las variables del proceso prevalecen sobre `.env`.
 | `EMAIL_USE_TLS`, `EMAIL_USE_SSL` | `True` y `False`. Selecciona solo uno según el servidor. |
 | `DEFAULT_FROM_EMAIL` | `farmacia@example.invalid`. |
 | `SMS_PROVIDER`, `SMS_API_KEY`, `SMS_SENDER` | Reservadas en la plantilla para el spec 12; todavía no se usan. |
+| `ARCHIVOS_PRIVADOS_ROOT` | Carpeta de las fotos privadas de domicilios (spec 08). Vacía: `privado/` dentro del proyecto. Está fuera de `/media/`, no tiene URL pública y no se versiona; respaldarla junto con la base. |
 
 Los booleanos aceptan `true/false`, `1/0`, `yes/no` y `on/off`, sin distinguir mayúsculas. Valores desconocidos producen un error claro. Con `DEBUG=False` las cookies de sesión y CSRF usan `Secure`. HTTPS y el servicio de estáticos en producción corresponden al despliegue, fuera del spec 01.
 
@@ -232,7 +233,7 @@ Verificación aislada (la dependencia `websockets` es solo para esta herramienta
 ```powershell
 python -m pip install websockets==16.1.1
 python tools/verificar_spec_06_http.py
-node --test turnosapp/tests/*.test.cjs recetasapp/tests/*.test.cjs
+node --test turnosapp/tests/*.test.cjs recetasapp/tests/*.test.cjs entregasapp/tests/*.test.cjs
 ```
 
 La herramienta crea/elimina SQLite temporal y 670 pacientes/turnos sintéticos; usa un proceso ASGI aparte, dos clientes WebSocket, cuatro ventanillas y sondeo de cuatro paneles privados. Mide 100 llamados y 96 cierres con entrega/selección posterior; informa p50, p95 y máximo, HTTP y servicio del 05. La medición final dio **p95 444,12 ms** hasta recibir en ambas pantallas (máximo 536,66 ms). Es recepción por loopback, sin medir dibujo/voz en navegador ni la red del CESFAM. [Evidencia y pendientes del 06](specs/06-pantalla-sala-y-voz/validation.md): revisión visual/axe bloqueada por el host de Windows, voz real, cinco personas y aceptación pendientes. El spec conserva **Aprobado**, sin declarar aceptación completa.
@@ -246,6 +247,20 @@ El tótem, su comprobante y el panel del 05 comparten una frase aproximada calcu
 En la base de demostración elegida, aplicar `python manage.py migrate` antes de usar el módulo; `recetasapp/0004_preparacionreceta` agrega el registro de preparación. La revisión técnica de esta tarea solo aplicó migraciones en bases temporales/de pruebas, sin migrar la base del proyecto.
 
 Verificación aislada: `python tools/verificar_spec_07_http.py` crea y elimina SQLite temporal, usa 670 pacientes sintéticos y cuatro ventanillas, y mide 100 solicitudes por escenario para emisión con estimación, lista, marca, ausencia, consulta de pendientes, retiro y panel. La medición final quedó bajo 2 s de p95 en todos los escenarios. [Evidencia y límites](specs/07-preparacion-y-tiempos-de-espera/validation.md): la revisión visual/axe, usabilidad con cinco personas y aceptación funcional siguen pendientes; el spec conserva **Aprobado**, no Implementado.
+
+## Domicilios y entregas a domicilio (spec 08)
+
+El menú **Entregas** (Q.F., Técnico y superusuario) tiene tres pestañas: **Programación**, **Pendientes de gestión** y **Domicilios**. El encargado de terreno ve **Mis entregas** y **Domicilios**, y su inicio abre «Mis entregas». Son elegibles para el reparto los pacientes postrados, los mayores de 80 años (la misma regla `edad > 80` del tótem) y los que la Q.F. inscribe en **Excepciones de reparto**.
+
+- **Domicilio:** sector MAIS (Verde, Azul o Rojo), localidad, dirección, referencias y coordenadas opcionales («Usar mi ubicación actual» exige HTTPS o `localhost`; si no, se escriben a mano). Solo el encargado lo marca como verificado; cualquier cambio de ubicación lo devuelve a «pendiente». La importación del padrón nunca lo modifica: si trae otra dirección, el domicilio muestra «La dirección del padrón cambió».
+- **Fotos:** hasta tres por domicilio, JPEG o PNG de 5 MB o menos, con descripción obligatoria. Se recomprimen a JPEG (lado mayor de 1600 px), sin EXIF, GPS ni otros metadatos, y se guardan en `ARCHIVOS_PRIVADOS_ROOT`. Solo las entrega `/entregas/fotos/<id>/` con sesión y rol, sin caché. Requiere **Pillow** (`requirements.txt`).
+- **Programación:** la Q.F. elige fecha y encargado, revisa las recetas que se fijarán (las vigentes a esa fecha, sin las de un turno activo ni las que esperan retiro) y confirma. Hay una sola entrega abierta por paciente. Mientras está abierta, sus recetas no se dispensan en el tótem ni en la ventanilla.
+- **Registro (con conexión):** el encargado registra «Entregada» (descuenta cada receta que sigue vigente el día de la visita; las demás quedan «no descontadas» para revisión de la Q.F.) o «No entregada» con motivo. Repetir el envío no descuenta dos veces. El trabajo sin conexión queda para la reserva 11.
+- **Gestión:** la Q.F. filtra los pendientes por motivo, sector, encargado y fechas, y los **reasigna** (nuevo intento; el historial no cambia) o los **anula** con motivo.
+
+En la base de demostración elegida, aplicar `python manage.py migrate` antes de usar el módulo; `entregasapp/0001_initial` crea sus seis tablas. La implementación solo aplicó migraciones en bases temporales y de pruebas. Respaldar la base **y** la carpeta de fotos antes de revertir la migración.
+
+Verificación aislada: `python tools/verificar_spec_08_http.py` crea y elimina una SQLite y una carpeta privada temporales, con 670 pacientes sintéticos, 10 excepciones y cuatro encargados, y mide p50, p95 y máximo por escenario (domicilios, fotos, programación, tótem con despacho abierto, «Mis entregas», registro, filtros y reasignación). La medición final quedó con un p95 máximo de 137,71 ms. [Evidencia y límites](specs/08-domicilios-y-entregas/validation.md): navegador, axe, ubicación y cámara reales, usabilidad con cinco personas y aceptación funcional siguen pendientes.
 
 ## Recursos de Alpine.js
 

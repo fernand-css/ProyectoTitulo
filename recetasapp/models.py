@@ -46,11 +46,22 @@ class Paciente(ModeloAuditado):
 
     @property
     def edad(self):
-        hoy = timezone.localdate()
+        return self.edad_en(timezone.localdate())
+
+    def edad_en(self, fecha):
+        """Años cumplidos a `fecha` (la jornada local de America/Santiago)."""
         nacimiento = self.fecha_nacimiento
-        return hoy.year - nacimiento.year - (
-            (hoy.month, hoy.day) < (nacimiento.month, nacimiento.day)
+        return fecha.year - nacimiento.year - (
+            (fecha.month, fecha.day) < (nacimiento.month, nacimiento.day)
         )
+
+    def requiere_despacho_en(self, fecha):
+        """Postrado o mayor de 80 años cumplidos a `fecha`.
+
+        Es la única regla de edad y postración: el tótem del 04 la usa para orientar al personal y el
+        reparto del 08 para decidir quién es elegible para el despacho a domicilio.
+        """
+        return self.es_postrado or self.edad_en(fecha) > 80
 
     def __str__(self):
         return f"Paciente {self.pk}"

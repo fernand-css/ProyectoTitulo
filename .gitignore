@@ -13,6 +13,8 @@ __pycache__/
 db.sqlite3
 db.sqlite3-*
 media
+# Fotos privadas de domicilios (spec 08): datos personales, nunca al repositorio.
+privado/
 staticfiles/
 
 # Herramientas y sistema operativo.

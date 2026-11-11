@@ -292,3 +292,20 @@ Al implementar: `README.md` (Pillow, `ARCHIVOS_PRIVADOS_ROOT` y respaldo de `pri
 ## Decisiones para implementar
 
 Ninguna bloqueante. Por confirmar en la revisión: los catálogos de motivos, la versión de Pillow y que la programación masiva quede fuera. Esta fase termina antes del código.
+
+## Notas de implementación (2026-11-11)
+
+Ajustes tomados al implementar, sin cambiar los requisitos del spec:
+
+- **`IntentoEntrega.creado_con`** (UUID único y nulo): identifica la operación que creó el intento (la programación o una reasignación) para que reenviar «Reasignar» devuelva el mismo intento sin crear otro. El `operacion_id` del plan sigue siendo solo el del registro del resultado.
+- **`reasignar(..., intento_id, operacion_id, resultado_visto)`**: además del último intento, la pantalla envía el resultado que la Q.F. vio. El escenario concurrente 5 mostró que, sin él, una «no entregada» registrada justo antes y la reasignación se aceptaban ambas; ahora gana exactamente una (RF-08-15).
+- **Reincorporación del 05** (`turnosapp/atencion.py`): se rechaza si una receta del turno ausente quedó en una entrega abierta («Anula la entrega antes de reincorporar»). Sin esto, un turno ausente reincorporado podía dejar una receta a la vez en un turno activo y en una entrega abierta. Es aditivo y no cambia aserciones del 05.
+- **Guardar un domicilio cuyo padrón cambió** limpia también la verificación: quita el aviso y lo deja «pendiente de verificar» hasta que el encargado lo verifique en terreno. Crear exige paciente elegible; editar un domicilio existente se permite aunque la excepción se haya retirado.
+- **Menú:** la entrada `inicio` deja de rotularse «Entregas en terreno» para el encargado; ese texto pasa a ser el título del grupo de «Mis entregas» y «Domicilios». En el dock del celular, «Domicilios» va en «Más» porque su nombre supera los nueve caracteres que admite la barra. El contador opcional del menú no se implementó (el menú del encargado sigue sin consultas); la cantidad aparece en la pestaña «Mis entregas».
+- **Inicio del encargado sin redirección:** el plan proponía redirigir `/` a «Mis entregas». Se probó y rompía seis pruebas del 02, del 06 y del tablero de Recetas, que esperan 200 en `/` para todo perfil, y el spec exige no cambiar las aserciones del 03 al 07. `InicioView` muestra la vista «Mis entregas» en la misma dirección: el inicio abre «Mis entregas» (RF-08-13) y `/entregas/` sí redirige al encargado a `/entregas/mis/`.
+- **Dependencia de la migración:** `entregasapp/0001_initial` depende de `recetasapp/0002` (no de `0004`): solo usa `Paciente`, `Receta` y `EntregaReceta`, que existen desde `recetasapp/0001`, y así las pruebas de migración del 04 y del 05, que retroceden recetas a `0002` con las demás apps en su última migración, siguen pasando sin cambios.
+- **Excepciones de reparto** se abren con un botón de la cabecera de Entregas (Q.F. y superusuario), no como cuarta pestaña.
+- **Programar** tiene dos pasos (revisar y confirmar); el paso de confirmación reenvía la fecha, el encargado y el `operacion_id` revisados.
+- **Paginación:** las listas usan `components/paginator.html` (`?page=`), que conserva los filtros.
+- **Pillow 12.3.0**, fijada como `Pillow>=12.3,<13`.
+- **Pruebas del 01/02 ajustadas por RF-08-13:** `coreapp/tests/test_navegacion.py` (entradas, grupos, dock y páginas activas del 08), `test_inicio.py` (el inicio del encargado muestra «Mis entregas»), `test_plantillas.py` (las listas de `entregas/` se renderizan con una página vacía, como las de `recetas/`) y `test_estaticos.py` (la regla de paleta se extiende a `entregas.css`). Las pruebas del 03 al 07 no cambiaron.

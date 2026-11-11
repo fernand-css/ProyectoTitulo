@@ -10,9 +10,16 @@
   </div>
   <div class="acciones">
     {% if puede_crear %}<a class="boton boton-secundario" href="{% url 'recetasapp:receta_renovar' pk=receta.pk %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-renovar"/></svg>Registrar renovación</a>{% endif %}
-    {% if puede_entregar and estado.elegible %}<a class="boton" href="{% url 'recetasapp:entrega_confirmar' pk=receta.pk %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-sello"/></svg>Confirmar entrega</a>{% endif %}
+    {% if puede_entregar and estado.elegible and not despacho %}<a class="boton" href="{% url 'recetasapp:entrega_confirmar' pk=receta.pk %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-sello"/></svg>Confirmar entrega</a>{% endif %}
   </div>
 </header>
+
+{% if despacho %}
+<div class="message message-warning" role="status">
+  <div><p><strong>En entrega a domicilio abierta.</strong> La receta tiene una entrega a domicilio abierta: no se dispensa en farmacia hasta que la entrega se cierre o se anule.</p>
+  <p><a href="{% url 'entregasapp:detalle' despacho.pk %}">Ver la entrega a domicilio</a></p></div>
+</div>
+{% endif %}
 
 <div class="rejilla rejilla-2 rejilla-receta">
   <section class="libreta{% if receta.situacion.clave != 'vigente' %} libreta-cerrada{% endif %}" aria-labelledby="titulo-libreta">

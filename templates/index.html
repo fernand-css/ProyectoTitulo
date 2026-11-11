@@ -82,7 +82,7 @@
       {% if rol == 'Encargado de entrega' %}
         <h3 id="titulo-perfil" class="panel-titulo"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ubicacion"/></svg>{{ nombre_rol }}</h3>
         <p>Este es el punto de acceso a tus herramientas de entrega en terreno.</p>
-        <p class="suave">Las rutas y el registro de entregas se sumarán en las próximas versiones del prototipo.</p>
+        <div class="acciones"><a class="boton" href="{% url 'entregasapp:mis' %}">Mis entregas</a><a class="boton boton-secundario" href="{% url 'entregasapp:domicilios' %}">Domicilios</a></div>
       {% else %}
         <h3 id="titulo-perfil" class="panel-titulo"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-alerta"/></svg>{{ nombre_rol }}</h3>
         <p>Tu cuenta aún no tiene un perfil asignado. Solicita su asignación a la administración.</p>

@@ -25,7 +25,13 @@
 
   {% if form.non_field_errors %}<div class="message message-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
 
-  {% if estado.elegible %}
+  {% if despacho %}
+  <div class="message message-warning" role="alert">
+    <div><p><strong>En entrega a domicilio abierta.</strong> La receta tiene una entrega a domicilio abierta. No se puede confirmar en farmacia hasta que la entrega se cierre o se anule.</p>
+    <p><a href="{% url 'entregasapp:detalle' despacho.pk %}">Ver la entrega a domicilio</a></p></div>
+  </div>
+  <div class="acciones"><a class="boton boton-secundario" href="{% url 'recetasapp:receta_detalle' pk=receta.pk %}">Volver a la receta</a></div>
+  {% elif estado.elegible %}
   <form method="post" class="panel">
     {% csrf_token %}
     {{ form.operacion_id }}

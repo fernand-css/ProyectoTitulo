@@ -15,7 +15,7 @@ from django.utils import timezone
 
 from coreapp.auditoria import registrar_accion
 from coreapp.mixins import tiene_rol
-from coreapp.roles import JEFA, TECNICO
+from coreapp.roles import ENCARGADO, JEFA, TECNICO, estado_acceso
 from .models import EntregaReceta, Paciente, PreparacionReceta, Receta
 
 
@@ -117,9 +117,22 @@ _CONTEXTO_AUTOMATICO = object()
 
 def _registrar_entrega_sin_reintento(actor, receta_id, operacion_id, *,
         turno_receta_id=_CONTEXTO_AUTOMATICO, contador_esperado=None, fecha=None,
-        desde_preparado=None):
-    """Requiere atomic y cola reservada. El llamador reintenta la unidad completa."""
-    autorizar(actor, JEFA, TECNICO) if desde_preparado is not None else autorizar(actor, TECNICO)
+        desde_preparado=None, desde_despacho=None):
+    """Requiere atomic y cola reservada. El llamador reintenta la unidad completa.
+
+    `desde_despacho` (spec 08) es la receta de una entrega a domicilio que el encargado de terreno registra
+    como entregada: sin turno y con la vigencia de la fecha de la visita. Sin él, una receta fijada a una
+    entrega a domicilio abierta no se dispensa en farmacia (bloqueo de doble vía).
+    """
+    if desde_despacho is not None:
+        if estado_acceso(actor) != (True, ENCARGADO):
+            raise PermissionDenied
+        if turno_receta_id is not None or desde_despacho.receta_id != receta_id:
+            raise ValidationError("La receta no corresponde a este despacho.")
+    elif desde_preparado is not None:
+        autorizar(actor, JEFA, TECNICO)
+    else:
+        autorizar(actor, TECNICO)
     from turnosapp.models import TurnoReceta
     try:
         operacion_id = UUID(str(operacion_id))
@@ -157,6 +170,10 @@ def _registrar_entrega_sin_reintento(actor, receta_id, operacion_id, *,
             return asociada  # Conservar actor/fecha reales, sin otro descuento.
         if vinculo.turno.estado != "llamado" and desde_preparado is None:
             raise ValidationError("La atención ya no está vigente. Revisa su resultado.")
+    if desde_despacho is None:
+        from entregasapp.consultas import recetas_con_despacho_abierto
+        if recetas_con_despacho_abierto([receta_id]):
+            raise ValidationError("La receta tiene una entrega a domicilio abierta.")
     receta = Receta.objects.get(pk=receta_id)
     if contador_esperado is not None and receta.entregas_completadas != contador_esperado:
         raise ValidationError("La receta cambió. Revisa las entregas antes de confirmar.")

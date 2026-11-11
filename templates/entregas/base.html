@@ -1,0 +1,10 @@
+{% extends 'components/Layout/base.html' %}
+{% load static %}
+{# Entregas a domicilio (spec 08). Reutiliza tablas, pestañas y avisos de recetas.css; lo propio vive en entregas.css. #}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/recetas.css' %}"><link rel="stylesheet" href="{% static 'css/entregas.css' %}">{% endblock %}
+{% block contenido %}
+<div class="contenedor pagina entregas">
+  {% block migas_contenedor %}{% endblock %}
+  {% block entregas %}{% endblock %}
+</div>
+{% endblock %}

@@ -71,7 +71,8 @@ class InicioPorPerfilTests(TestCase):
 
     def test_encargado_ve_su_panel_sin_atencion_pacientes_ni_usuarios(self):
         html = self.entrar(ENCARGADO)
-        self.assertIn("herramientas de entrega en terreno", html)
+        # Spec 08 (RF-08-13): su inicio abre «Mis entregas».
+        self.assertIn("<h1>Mis entregas</h1>", html)
         for ausente in ("Recetas y pacientes", "Abrir atención y cola", "Crea y administra las cuentas del equipo.", "hoy-lista"):
             with self.subTest(ausente=ausente):
                 self.assertNotIn(ausente, html)

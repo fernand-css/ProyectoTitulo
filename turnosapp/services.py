@@ -62,10 +62,10 @@ def _anterior(paciente, fecha, operacion):
 
 
 def clasificar_atencion(paciente, fecha):
-    nacimiento = paciente.fecha_nacimiento
-    edad = fecha.year - nacimiento.year - ((fecha.month, fecha.day) < (nacimiento.month, nacimiento.day))
-    if paciente.es_postrado or edad > 80:
+    # Regla compartida con el reparto a domicilio (spec 08): postrado o mayor de 80 años.
+    if paciente.requiere_despacho_en(fecha):
         raise ErrorEmision("domicilio", "Consulta tu despacho con el personal.")
+    edad = paciente.edad_en(fecha)
     if edad >= 60:
         return Turno.TipoAtencion.PREFERENCIAL
     return Turno.TipoAtencion.CRONICOS if paciente.es_cronico else Turno.TipoAtencion.GENERAL
@@ -98,6 +98,14 @@ def _emitir(rut, operacion):
         raise _Recuperado(anterior)  # Revierte la reserva que no se utilizará.
     recetas = list(paciente.recetas.order_by("pk"))
     elegibles = [r for r in recetas if evaluar_elegibilidad(r, fecha)["elegible"]]
+    if elegibles:
+        # Spec 08: las recetas de una entrega a domicilio abierta no se dispensan en farmacia.
+        from entregasapp.consultas import recetas_con_despacho_abierto
+        en_despacho = recetas_con_despacho_abierto(r.pk for r in elegibles)
+        elegibles = [r for r in elegibles if r.pk not in en_despacho]
+        if not elegibles:
+            # Revierte la reserva del correlativo: no se consume número.
+            raise ErrorEmision("despacho_abierto", "Tienes un despacho a domicilio programado. Consulta con el personal.")
     if not elegibles:
         renovacion = any(fecha >= r.fecha_fin_exclusiva or r.entregas_completadas >= r.max_entregas for r in recetas)
         mensaje = "No hay recetas disponibles. Consulta con el personal."

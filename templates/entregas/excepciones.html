@@ -1,0 +1,71 @@
+{% extends 'entregas/base.html' %}
+{% load core_tags %}
+{% block titulo %}Excepciones de reparto · Entregas · Farmacia{% endblock %}
+{% block migas_contenedor %}<nav class="migas" aria-label="Ruta de navegación"><ol><li><a href="{% url 'entregasapp:programacion' %}">Entregas</a></li><li><span aria-current="page">Excepciones de reparto</span></li></ol></nav>{% endblock %}
+{% block entregas %}
+<h1>Excepciones de reparto</h1>
+<p class="suave">Pacientes que no son postrados ni mayores de 80 años, pero necesitan despacho a domicilio. La excepción no vence sola: retírala cuando ya no corresponda.</p>
+
+<section class="panel" aria-labelledby="titulo-inscribir">
+  <h2 id="titulo-inscribir">Inscribir a un paciente</h2>
+  <form class="busqueda-entregas" method="post" role="search" aria-label="Buscar paciente del padrón">
+    {% csrf_token %}
+    <input type="hidden" name="accion" value="buscar">
+    <label for="{{ busqueda.buscar.id_for_label }}">{{ busqueda.buscar.label }}</label>
+    <div class="busqueda-caja">{{ busqueda.buscar }}<button class="boton" type="submit">Buscar</button></div>
+  </form>
+  {% if resultados is not None %}
+    {% if resultados %}
+    <ul class="lista-candidatos">
+      {% for persona in resultados %}
+      <li>
+        <h3>{{ persona.apellidos }}, {{ persona.nombres }} <span class="dato-secundario">RUT {{ persona.rut|rut }} · {{ persona.edad }} años</span></h3>
+        {% if persona.ya_elegible %}
+        <p>Ya es elegible por edad o postración; no necesita excepción.</p>
+        {% elif persona.excepcion %}
+        <p>Ya tiene una excepción vigente: {{ persona.excepcion.get_motivo_display }}.</p>
+        {% else %}
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="prefijo" value="{{ persona.formulario.prefix }}">
+          {% include 'recetas/campos.html' with form=persona.formulario %}
+          <button class="boton" type="submit">Inscribir excepción<span class="sr-only"> de {{ persona.apellidos }}, {{ persona.nombres }}</span></button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p role="status">No encontramos pacientes con esa búsqueda.</p>
+    {% endif %}
+  {% endif %}
+</section>
+
+<section aria-labelledby="titulo-vigentes">
+  <h2 id="titulo-vigentes">Excepciones vigentes ({{ vigentes|length }})</h2>
+  {% if vigentes %}
+  <div class="tabla-caja">
+    <table class="tabla tabla-apilable" aria-labelledby="titulo-vigentes">
+      <thead><tr><th scope="col">Paciente</th><th scope="col">Motivo</th><th scope="col">Inscrita</th><th scope="col"><span class="sr-only">Acción</span></th></tr></thead>
+      <tbody>
+        {% for inscripcion in vigentes %}
+        <tr>
+          <th scope="row" data-etiqueta="Paciente"><a href="{% url 'entregasapp:domicilio' inscripcion.paciente_id %}">{{ inscripcion.paciente.apellidos }}, {{ inscripcion.paciente.nombres }}</a></th>
+          <td data-etiqueta="Motivo">{{ inscripcion.get_motivo_display }}{% if inscripcion.nota %}<span class="dato-secundario">«{{ inscripcion.nota }}»</span>{% endif %}</td>
+          <td data-etiqueta="Inscrita">{{ inscripcion.creado_en|date:"d/m/Y" }} · {% firstof inscripcion.creado_por.get_full_name inscripcion.creado_por.get_username "cuenta retirada" %}</td>
+          <td data-etiqueta="Acción">
+            <form method="post" action="{% url 'entregasapp:excepcion_retirar' inscripcion.pk %}">
+              {% csrf_token %}
+              <button class="boton boton-secundario" type="submit">Retirar<span class="sr-only"> la excepción de {{ inscripcion.paciente.apellidos }}, {{ inscripcion.paciente.nombres }}</span></button>
+            </form>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p>No hay excepciones vigentes.</p>
+  {% endif %}
+</section>
+{% endblock %}

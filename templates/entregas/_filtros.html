@@ -1,0 +1,16 @@
+{# Filtros por GET de las listas de entregas (sin datos personales). Espera `form`, `filtrado` y `limpiar` (URL). #}
+<form class="filtros-entregas" method="get" role="search" aria-label="Filtrar entregas">
+  {% if form.non_field_errors %}<div class="message message-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="filtros-campos">
+    {% for field in form %}
+    <div class="campo">
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+      {% if field.errors %}<div class="campo-error" role="alert">{{ field.errors }}</div>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="acciones">
+    <button class="boton" type="submit">Filtrar</button>
+    {% if filtrado %}<a class="boton boton-secundario" href="{{ limpiar }}">Quitar filtros</a>{% endif %}
+  </div>
+</form>

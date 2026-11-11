@@ -110,7 +110,7 @@ class PlantillasTests(TestCase):
             if archivo.is_file():
                 nombre = archivo.relative_to(settings.BASE_DIR / "templates").as_posix()
                 with self.subTest(plantilla=nombre):
-                    datos = {**contexto, "page_obj": Paginator([], 20).page(1)} if nombre.startswith("recetas/") else contexto
+                    datos = {**contexto, "page_obj": Paginator([], 20).page(1)} if nombre.startswith(("recetas/", "entregas/")) else contexto
                     self.assertTrue(self.renderizar(nombre, **datos).strip())
 
     def test_layouts_con_idioma_salto_y_un_solo_main(self):

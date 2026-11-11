@@ -1,0 +1,115 @@
+{% extends 'entregas/base.html' %}
+{% load core_tags static l10n %}
+{% block titulo %}Domicilio · Entregas · Farmacia{% endblock %}
+{% block migas_contenedor %}<nav class="migas" aria-label="Ruta de navegación"><ol><li><a href="{% url 'entregasapp:domicilios' %}">Domicilios</a></li><li><span aria-current="page">{{ paciente.apellidos }}, {{ paciente.nombres }}</span></li></ol></nav>{% endblock %}
+{% block entregas %}
+<header class="encabezado">
+  <div>
+    <h1>Domicilio de {{ paciente.nombres }} {{ paciente.apellidos }}</h1>
+    <p class="padron-datos"><span>RUT {{ paciente.rut|rut }}</span> <span>{{ paciente.edad }} años</span>{% if paciente.es_postrado %} <span>Postrado</span>{% endif %}{% if excepcion %} <span>Excepción de reparto: {{ excepcion.get_motivo_display }}</span>{% endif %}</p>
+    <p>{% include 'entregas/_estado_domicilio.html' with estado=estado domicilio=domicilio %}</p>
+  </div>
+  {% if abierta %}<a class="boton boton-secundario" href="{% url 'entregasapp:detalle' abierta.pk %}">Ver entrega abierta</a>{% endif %}
+</header>
+
+{% if not elegible and not domicilio %}
+<div class="message message-warning" role="alert">El paciente no es elegible para el reparto: no es postrado, no es mayor de 80 años y no tiene una excepción vigente.</div>
+{% endif %}
+
+{% if puede_verificar %}
+<section class="panel panel-verificar" aria-labelledby="titulo-verificar">
+  <h2 id="titulo-verificar"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg>Verificación en terreno</h2>
+  <p>Márcalo cuando hayas comprobado en el lugar que la dirección, las referencias y la ubicación son correctas. Cualquier cambio posterior lo devuelve a «pendiente de verificar».</p>
+  <form method="post" action="{% url 'entregasapp:domicilio_verificar' domicilio.pk %}">
+    {% csrf_token %}{{ verificar_form.version }}
+    <button class="boton" type="submit">Marcar verificado</button>
+  </form>
+</section>
+{% endif %}
+
+{% if form %}
+<section class="panel" aria-labelledby="titulo-datos">
+  <h2 id="titulo-datos">{% if domicilio %}Datos del domicilio{% else %}Registrar domicilio{% endif %}</h2>
+  {% if not domicilio %}<p class="suave">El formulario parte con la dirección del padrón: corrígela y agrega las referencias para llegar.</p>{% endif %}
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="message message-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    {{ form.version }}
+    <div class="campos-grid">
+      {% for field in form %}{% if not field.is_hidden and field.name != 'latitud' and field.name != 'longitud' and field.name != 'precision_metros' %}
+      <div class="campo{% if field.name == 'direccion' or field.name == 'referencias' %} campo-ancho{% endif %}">
+        <label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+        {% if field.help_text %}<div class="campo-ayuda" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</div>{% endif %}
+        {% if field.errors %}<div class="campo-error" role="alert">{{ field.errors }}</div>{% endif %}
+      </div>
+      {% endif %}{% endfor %}
+    </div>
+    <fieldset class="coordenadas" x-data="ubicacion">
+      <legend>Coordenadas (opcional)</legend>
+      <p class="campo-ayuda">Puedes tomarlas con la ubicación de tu celular estando en el domicilio, o escribirlas a mano. Solo se guarda la ubicación del domicilio, nunca la tuya.</p>
+      <div class="acciones">
+        <button class="boton boton-secundario" type="button" @click="usar()" :disabled="ocupado"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ubicacion"/></svg>Usar mi ubicación actual</button>
+      </div>
+      <p class="ubicacion-estado" role="status" aria-live="polite" x-text="estado"></p>
+      <div class="campos-grid">
+        {% for field in form %}{% if field.name == 'latitud' or field.name == 'longitud' or field.name == 'precision_metros' %}
+        <div class="campo">
+          <label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+          {% if field.errors %}<div class="campo-error" role="alert">{{ field.errors }}</div>{% endif %}
+        </div>
+        {% endif %}{% endfor %}
+      </div>
+    </fieldset>
+    <div class="acciones"><button class="boton" type="submit">Guardar domicilio</button></div>
+  </form>
+</section>
+{% elif domicilio %}
+<section class="panel" aria-labelledby="titulo-datos">
+  <h2 id="titulo-datos">Datos del domicilio</h2>
+  <dl class="ficha">
+    <dt>Sector</dt><dd>{{ domicilio.get_sector_display|default:"Sin sector" }}</dd>
+    <dt>Localidad</dt><dd>{{ domicilio.localidad|default:"No registrada" }}</dd>
+    <dt>Dirección</dt><dd>{{ domicilio.direccion }}</dd>
+    <dt>Referencias</dt><dd>{{ domicilio.referencias|default:"Sin referencias" }}</dd>
+    <dt>Coordenadas</dt><dd>{% if domicilio.latitud is not None %}{{ domicilio.latitud|unlocalize }}, {{ domicilio.longitud|unlocalize }}{% if domicilio.precision_metros is not None %} (±{{ domicilio.precision_metros }} m){% endif %}{% else %}Sin coordenadas{% endif %}</dd>
+  </dl>
+</section>
+{% endif %}
+
+{% if domicilio %}
+<section class="panel" id="fotos" aria-labelledby="titulo-fotos">
+  <h2 id="titulo-fotos">Fotos del entorno ({{ fotos|length }} de {{ maximo_fotos }})</h2>
+  {% if fotos %}
+  <ul class="fotos-domicilio">
+    {% for foto in fotos %}
+    <li>
+      <figure>
+        <a href="{% url 'entregasapp:foto' foto.pk %}"><img src="{% url 'entregasapp:foto' foto.pk %}" alt="{{ foto.descripcion }}" width="{{ foto.ancho }}" height="{{ foto.alto }}" loading="lazy"></a>
+        <figcaption>{{ foto.descripcion }}</figcaption>
+      </figure>
+      {% if form %}
+      <form method="post" action="{% url 'entregasapp:foto_eliminar' foto.pk %}">
+        {% csrf_token %}
+        <button class="boton boton-peligro" type="submit">Borrar foto<span class="sr-only">: {{ foto.descripcion }}</span></button>
+      </form>
+      {% endif %}
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p>Este domicilio aún no tiene fotos.</p>
+  {% endif %}
+  {% if foto_form and fotos|length < maximo_fotos %}
+  <form class="form-angosto" method="post" action="{% url 'entregasapp:foto_agregar' domicilio.pk %}" enctype="multipart/form-data" novalidate>
+    {% csrf_token %}
+    <p class="aviso-foto"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-alerta"/></svg>Fotografía solo el entorno (portón, fachada, camino). No fotografíes personas ni patentes. La foto se guarda sin ubicación ni metadatos.</p>
+    {% include 'recetas/campos.html' with form=foto_form %}
+    <button class="boton" type="submit">Agregar foto</button>
+  </form>
+  {% elif foto_form %}
+  <p class="suave">Ya hay {{ maximo_fotos }} fotos. Borra una para agregar otra.</p>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}{% if form %}<script src="{% static 'js/entregas/ubicacion.js' %}"></script>{% endif %}{% endblock %}

@@ -1,0 +1,99 @@
+{% extends 'entregas/base.html' %}
+{% load core_tags %}
+{% block titulo %}Programar entrega · Entregas · Farmacia{% endblock %}
+{% block migas_contenedor %}<nav class="migas" aria-label="Ruta de navegación"><ol><li><a href="{% url 'entregasapp:programacion' %}">Entregas</a></li><li><span aria-current="page">Programar entrega</span></li></ol></nav>{% endblock %}
+{% block entregas %}
+<h1>Programar entrega a domicilio</h1>
+
+{% if not paciente %}
+<p class="suave">Busca a un paciente del reparto: postrado, mayor de 80 años o con una excepción vigente.</p>
+<form class="busqueda-entregas" method="post" role="search" aria-label="Buscar paciente del reparto">
+  {% csrf_token %}
+  <input type="hidden" name="accion" value="buscar">
+  <label for="{{ busqueda.buscar.id_for_label }}">{{ busqueda.buscar.label }}</label>
+  <div class="busqueda-caja">{{ busqueda.buscar }}<button class="boton" type="submit">Buscar</button></div>
+  {% if busqueda.buscar.errors %}<div class="campo-error" role="alert">{{ busqueda.buscar.errors }}</div>{% endif %}
+</form>
+{% if buscado %}
+  {% if resultados %}
+  <div class="tabla-caja">
+    <table class="tabla tabla-apilable">
+      <caption>{{ resultados|length }} paciente{{ resultados|length|pluralize }} del reparto</caption>
+      <thead><tr><th scope="col">Paciente</th><th scope="col">Domicilio</th><th scope="col"><span class="sr-only">Acción</span></th></tr></thead>
+      <tbody>
+        {% for persona in resultados %}
+        <tr>
+          <th scope="row" data-etiqueta="Paciente"><strong>{{ persona.apellidos }}, {{ persona.nombres }}</strong><span class="dato-secundario">RUT {{ persona.rut|rut }}</span></th>
+          <td data-etiqueta="Domicilio">{% include 'entregas/_estado_domicilio.html' with estado=persona.domicilio_estado domicilio=persona.domicilio %}</td>
+          <td data-etiqueta="Acción">{% if persona.tiene_abierta %}<span class="etiqueta">Ya tiene una entrega abierta</span>{% else %}<a class="boton boton-secundario" href="{% url 'entregasapp:programar' %}?paciente={{ persona.pk }}">Elegir<span class="sr-only"> a {{ persona.apellidos }}, {{ persona.nombres }}</span></a>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% else %}
+  <p role="status">No encontramos pacientes del reparto con esa búsqueda. Si no es postrado ni mayor de 80, inscríbelo antes en <a href="{% url 'entregasapp:excepciones' %}">Excepciones de reparto</a>.</p>
+  {% endif %}
+{% endif %}
+
+{% else %}
+<section class="panel" aria-labelledby="titulo-paciente">
+  <h2 id="titulo-paciente">{{ paciente.nombres }} {{ paciente.apellidos }}</h2>
+  <p class="padron-datos"><span>RUT {{ paciente.rut|rut }}</span> <span>{{ paciente.edad }} años</span></p>
+  <p>{% include 'entregas/_estado_domicilio.html' with estado=domicilio_estado %}</p>
+  {% if domicilio_estado.clave != 'verificado' %}<p class="suave">Puedes programar igual; el encargado verá el aviso. <a href="{% url 'entregasapp:domicilio' paciente.pk %}">Revisar el domicilio</a></p>{% endif %}
+</section>
+
+{% if abierta %}
+<div class="message message-warning" role="alert">
+  <div><p>Este paciente ya tiene una entrega a domicilio abierta. No se puede programar otra.</p>
+  <p><a href="{% url 'entregasapp:detalle' abierta.pk %}">Ver la entrega abierta</a></p></div>
+</div>
+{% elif not elegible %}
+<div class="message message-warning" role="alert">
+  <div><p>El paciente no es elegible para el reparto en la fecha elegida: no es postrado, no es mayor de 80 años y no tiene una excepción vigente.</p>
+  <p><a href="{% url 'entregasapp:excepciones' %}?paciente={{ paciente.pk }}">Inscribir una excepción de reparto</a></p></div>
+</div>
+{% else %}
+  {% if revision %}
+  <section class="panel" aria-labelledby="titulo-revision">
+    <h2 id="titulo-revision">Revisa y confirma</h2>
+    <dl class="ficha">
+      <dt>Fecha de la visita</dt><dd>{{ revision.fecha|date:"l d/m/Y" }}</dd>
+      <dt>Encargado</dt><dd>{% firstof revision.encargado.get_full_name revision.encargado.get_username %}</dd>
+    </dl>
+    {% if revision.recetas %}
+    <h3>Recetas que llevará la entrega ({{ revision.recetas|length }})</h3>
+    <ul class="lista-recetas">
+      {% for receta, estado in revision.recetas %}<li>Receta {{ receta.codigo }} · entrega {{ estado.completadas|add:1 }} de {{ estado.maximo }}</li>{% endfor %}
+    </ul>
+    <p class="suave">Se excluyen las recetas vencidas, agotadas o que aún no inician a esa fecha, las que están en un turno activo y las que esperan retiro en farmacia. Mientras la entrega esté abierta, estas recetas no se dispensan en farmacia.</p>
+    {% if form.non_field_errors %}<div class="message message-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    <form method="post">
+      {% csrf_token %}
+      <input type="hidden" name="paciente" value="{{ paciente.pk }}">
+      <input type="hidden" name="fecha" value="{{ revision.fecha|date:'Y-m-d' }}">
+      <input type="hidden" name="encargado" value="{{ revision.encargado.pk }}">
+      <input type="hidden" name="operacion_id" value="{{ form.operacion_id.value }}">
+      <div class="acciones">
+        <button class="boton" type="submit" name="accion" value="confirmar"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-calendario"/></svg>Programar entrega</button>
+        <a class="boton boton-secundario" href="{% url 'entregasapp:programar' %}?paciente={{ paciente.pk }}">Cambiar fecha o encargado</a>
+      </div>
+    </form>
+    {% else %}
+    <div class="message message-warning" role="alert">El paciente no tiene recetas disponibles para despacho en esa fecha: están vencidas, agotadas, aún no inician, en un turno activo o esperando retiro en farmacia.</div>
+    <div class="acciones"><a class="boton boton-secundario" href="{% url 'entregasapp:programar' %}?paciente={{ paciente.pk }}">Elegir otra fecha</a></div>
+    {% endif %}
+  </section>
+  {% else %}
+  <form class="panel form-angosto" method="post" novalidate>
+    {% csrf_token %}
+    <input type="hidden" name="paciente" value="{{ paciente.pk }}">
+    {% include 'recetas/campos.html' %}
+    {% if not form.fields.encargado.queryset.exists %}<p class="message message-warning">No hay encargados de terreno con cuenta activa. Crea o habilita una cuenta en Usuarios.</p>{% endif %}
+    <div class="acciones"><button class="boton" type="submit" name="accion" value="revisar">Revisar recetas</button></div>
+  </form>
+  {% endif %}
+{% endif %}
+{% endif %}
+{% endblock %}

@@ -1,0 +1,88 @@
+{% extends 'entregas/base.html' %}
+{% load core_tags %}
+{% block titulo %}Entrega a domicilio · Entregas · Farmacia{% endblock %}
+{% block migas_contenedor %}<nav class="migas" aria-label="Ruta de navegación"><ol><li><a href="{% if es_encargado %}{% url 'entregasapp:mis' %}{% else %}{% url 'entregasapp:programacion' %}{% endif %}">Entregas</a></li><li><span aria-current="page">Entrega a domicilio</span></li></ol></nav>{% endblock %}
+{% block entregas %}
+{% if entrega %}
+<header class="encabezado">
+  <div>
+    <h1>Entrega a domicilio</h1>
+    <p class="padron-datos"><span>{{ paciente.nombres }} {{ paciente.apellidos }}</span> <span>RUT {{ paciente.rut|rut }}</span></p>
+  </div>
+  <p class="estado-entrega estado-entrega-{{ entrega.estado }}">{{ entrega.get_estado_display }}</p>
+</header>
+
+<div class="detalle-rejilla">
+  <section class="panel" aria-labelledby="titulo-domicilio">
+    <h2 id="titulo-domicilio">Domicilio</h2>
+    {% if domicilio %}
+    <dl class="ficha">
+      <dt>Sector</dt><dd>{{ domicilio.get_sector_display|default:"Sin sector" }}{% if domicilio.localidad %} · {{ domicilio.localidad }}{% endif %}</dd>
+      <dt>Dirección</dt><dd>{{ domicilio.direccion }}</dd>
+      {% if domicilio.referencias %}<dt>Referencias</dt><dd>{{ domicilio.referencias }}</dd>{% endif %}
+      <dt>Teléfono</dt><dd>{{ paciente.telefono|default:"No registrado" }}</dd>
+    </dl>
+    {% else %}
+    <p>Sin domicilio registrado. Dirección del padrón: {{ paciente.direccion|default:"no registrada" }}.</p>
+    {% endif %}
+    <p>{% include 'entregas/_estado_domicilio.html' with estado=domicilio_estado %}</p>
+    <p><a href="{% url 'entregasapp:domicilio' paciente.pk %}">Ver o editar el domicilio</a></p>
+  </section>
+
+  <section class="panel" aria-labelledby="titulo-recetas">
+    <h2 id="titulo-recetas">Recetas de la entrega ({{ recetas|length }})</h2>
+    <p class="suave">Se fijaron al programar y no cambian al reasignar.</p>
+    <ul class="lista-recetas">
+      {% for vinculo in recetas %}
+      <li>Receta {{ vinculo.receta.codigo }} · {{ vinculo.get_resultado_display }}{% if vinculo.entrega_receta %} (entrega {{ vinculo.entrega_receta.numero }} de {{ vinculo.receta.max_entregas }}){% endif %}
+        {% if vinculo.causa %}<span class="dato-secundario">{{ vinculo.causa }}{% if vinculo.revisada_en %} Revisada el {{ vinculo.revisada_en|date:"d/m/Y" }}.{% endif %}</span>{% endif %}</li>
+      {% endfor %}
+    </ul>
+  </section>
+</div>
+
+<section aria-labelledby="titulo-historial">
+  <h2 id="titulo-historial">Historial de intentos</h2>
+  <div class="tabla-caja">
+    <table class="tabla tabla-apilable" aria-labelledby="titulo-historial">
+      <thead><tr><th scope="col">N°</th><th scope="col">Fecha programada</th><th scope="col">Encargado</th><th scope="col">Resultado</th><th scope="col">Registro</th></tr></thead>
+      <tbody>
+        {% for intento in intentos %}
+        <tr>
+          <th scope="row" data-etiqueta="N°">{{ intento.numero }}</th>
+          <td data-etiqueta="Fecha programada">{{ intento.fecha_programada|date:"d/m/Y" }}</td>
+          <td data-etiqueta="Encargado">{% firstof intento.encargado.get_full_name intento.encargado.get_username %}</td>
+          <td data-etiqueta="Resultado">{{ intento.get_resultado_display }}{% if intento.motivo %}: {{ intento.get_motivo_display }}{% endif %}{% if intento.nota %}<span class="dato-secundario">«{{ intento.nota }}»</span>{% endif %}</td>
+          <td data-etiqueta="Registro">{% if intento.registrado_en %}{{ intento.registrado_en|date:"d/m/Y H:i" }} · {% firstof intento.registrado_por.get_full_name intento.registrado_por.get_username %}{% else %}—{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  <p class="suave">Programada por {% firstof entrega.creado_por.get_full_name entrega.creado_por.get_username "cuenta retirada" %} el {{ entrega.creado_en|date:"d/m/Y H:i" }}.{% if entrega.estado == 'anulada' %} Anulada el {{ entrega.cerrada_en|date:"d/m/Y H:i" }} por {% firstof entrega.anulada_por.get_full_name entrega.anulada_por.get_username %}: {{ entrega.get_motivo_anulacion_display }}{% if entrega.nota_anulacion %} («{{ entrega.nota_anulacion }}»){% endif %}.{% elif entrega.estado == 'entregada' %} Cerrada el {{ entrega.cerrada_en|date:"d/m/Y H:i" }}.{% endif %}</p>
+</section>
+
+{% if reasignar %}
+<div class="detalle-rejilla">
+  <section class="panel" aria-labelledby="titulo-reasignar">
+    <h2 id="titulo-reasignar">Reasignar</h2>
+    <p class="suave">{% if ultimo.resultado == 'pendiente' %}El intento {{ ultimo.numero }} aún no tiene resultado: quedará como «reasignado».{% else %}Se crea el intento {{ ultimo.numero|add:1 }}; los anteriores no cambian.{% endif %}</p>
+    <form method="post" action="{% url 'entregasapp:reasignar' entrega.pk %}" novalidate>
+      {% csrf_token %}
+      {% include 'recetas/campos.html' with form=reasignar %}
+      <button class="boton" type="submit">Reasignar entrega</button>
+    </form>
+  </section>
+  <section class="panel" aria-labelledby="titulo-anular">
+    <h2 id="titulo-anular">Anular</h2>
+    <p class="suave">Cierra la entrega con un motivo y libera sus recetas para la farmacia.</p>
+    <form method="post" action="{% url 'entregasapp:anular' entrega.pk %}" novalidate>
+      {% csrf_token %}
+      {% include 'recetas/campos.html' with form=anular %}
+      <button class="boton boton-peligro" type="submit">Anular entrega</button>
+    </form>
+  </section>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}

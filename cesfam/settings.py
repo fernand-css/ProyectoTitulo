@@ -148,6 +148,10 @@ STORAGES = {
 MEDIA_URL = "/media/"
 MEDIA_ROOT = BASE_DIR / "media"
 
+# Fotos de domicilios (spec 08): fuera de MEDIA_ROOT y sin URL pública; solo las sirve una vista con rol.
+# Respaldar esta carpeta junto con la base. Nunca se versiona (ver .gitignore).
+ARCHIVOS_PRIVADOS_ROOT = Path(os.getenv("ARCHIVOS_PRIVADOS_ROOT", "").strip() or BASE_DIR / "privado")
+
 # En desarrollo no se envía correo real; fuera de él se usa SMTP.
 EMAIL_BACKEND = (
     "django.core.mail.backends.console.EmailBackend"

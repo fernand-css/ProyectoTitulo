@@ -1,0 +1,148 @@
+/*
+  Entregas a domicilio (spec 08). Sin colores propios: todo sale de las variables de base.css, donde se verifica
+  el contraste AA. «Mis entregas» se diseña primero para celular: tarjetas a todo el ancho, botones de 48 px o
+  más, sin desplazamiento horizontal y con el texto ampliable. Los estados se dicen con palabras e ícono.
+*/
+
+.entregas h1 { margin-bottom: 0.5rem; }
+.dato-secundario { display: block; color: var(--secundario-texto); font-size: 0.95rem; font-weight: 400; }
+.enlace-secundario { display: inline-flex; align-items: center; min-height: 3rem; font-weight: 700; }
+
+/* Estado del domicilio: texto + ícono; el fondo solo acompaña. */
+.estado-domicilio {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.4rem;
+  padding: 0.15rem 0.75rem 0.15rem 0.55rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-weight: 700;
+  line-height: 1.4;
+}
+.estado-domicilio .icono { flex: none; width: 1.1em; height: 1.1em; }
+.estado-verificado { color: var(--exito-texto); background: var(--exito-fondo); }
+.estado-pendiente { color: var(--aviso-texto); background: var(--aviso-fondo); }
+.estado-sin_registrar { color: var(--arena-texto); background: var(--arena-fondo); }
+.aviso-padron { display: block; margin-top: 0.4rem; color: var(--aviso-texto); }
+.etiqueta-aviso { color: var(--aviso-texto); background: var(--aviso-fondo); }
+
+.estado-entrega { margin: 0; padding: 0.35rem 1rem; border: 2px solid currentColor; border-radius: 999px; font-weight: 700; }
+.estado-entrega-programada { color: var(--trigo-texto); background: var(--trigo-fondo); }
+.estado-entrega-pendiente_gestion { color: var(--aviso-texto); background: var(--aviso-fondo); }
+.estado-entrega-entregada { color: var(--exito-texto); background: var(--exito-fondo); }
+.estado-entrega-anulada { color: var(--arena-texto); background: var(--arena-fondo); }
+
+/* Filtros y búsqueda */
+.filtros-entregas, .busqueda-entregas { margin: 1.25rem 0 1.5rem; }
+.filtros-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: 0 1rem; }
+.busqueda-entregas label { display: block; margin-bottom: 0.45rem; font-weight: 700; }
+.busqueda-caja { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.busqueda-caja input {
+  flex: 1 1 16rem;
+  min-width: 0;
+  min-height: 3.25rem;
+  padding: 0.55rem 0.9rem;
+  color: var(--panel-texto);
+  background: var(--panel-fondo);
+  border: 2px solid var(--borde);
+  border-radius: 0.55rem;
+  font: inherit;
+}
+
+/* Mis entregas: una tarjeta por visita */
+.resumen-visitas { margin: 1rem 0 0.5rem; font-weight: 700; }
+.visitas { margin-top: 1.75rem; }
+.visitas > h2 { margin-bottom: 0.75rem; font-size: 1.35rem; }
+.visita {
+  margin: 0 0 1rem;
+  padding: clamp(1rem, 4vw, 1.5rem);
+  color: var(--panel-texto);
+  background: var(--panel-fondo);
+  border: 1px solid var(--linea);
+  border-left: 0.35rem solid var(--borde);
+  border-radius: var(--radio-panel);
+  box-shadow: var(--sombra-panel);
+  overflow-wrap: anywhere;
+}
+.visita-atrasada { border-left-color: var(--aviso-texto); }
+.visita h3 { margin: 0 0 0.75rem; font-size: 1.25rem; }
+.visita-aviso {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.45rem;
+  margin: 0 0 0.6rem;
+  padding: 0.2rem 0.75rem;
+  color: var(--aviso-texto);
+  background: var(--aviso-fondo);
+  border-radius: 999px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.02em;
+}
+.visita-aviso .icono { width: 1.1em; height: 1.1em; }
+.visita-datos { display: grid; gap: 0.55rem; margin: 0 0 1rem; }
+.visita-datos > div { display: grid; grid-template-columns: minmax(7rem, max-content) minmax(0, 1fr); gap: 0.15rem 1rem; }
+.visita-datos dt { color: var(--secundario-texto); font-weight: 600; }
+.visita-datos dd { margin: 0; }
+.visita-recetas { margin: 0; padding-left: 1.1rem; }
+.visita-acciones { margin-top: 0.5rem; }
+.visita-acciones .boton { flex: 1 1 10rem; min-height: 3.25rem; }
+.visita-acciones p { margin: 0; }
+
+/* Fotos */
+.fotos-miniaturas, .fotos-domicilio { display: grid; gap: 0.75rem; margin: 0 0 1rem; padding: 0; list-style: none; }
+.fotos-miniaturas { grid-template-columns: repeat(auto-fill, minmax(6.5rem, 1fr)); }
+.fotos-domicilio { grid-template-columns: repeat(auto-fill, minmax(min(100%, 14rem), 1fr)); }
+.fotos-miniaturas img, .fotos-domicilio img {
+  display: block;
+  width: 100%;
+  height: auto;
+  aspect-ratio: 4 / 3;
+  object-fit: cover;
+  border: 1px solid var(--linea);
+  border-radius: 0.6rem;
+}
+.fotos-domicilio figure { margin: 0 0 0.5rem; }
+.fotos-domicilio figcaption { margin-top: 0.35rem; color: var(--secundario-texto); }
+.aviso-foto { display: flex; gap: 0.5rem; align-items: flex-start; color: var(--aviso-texto); font-weight: 600; }
+.aviso-foto .icono { flex: none; width: 1.3rem; height: 1.3rem; margin-top: 0.1rem; }
+
+/* Domicilio y registro */
+.campo-ancho { grid-column: 1 / -1; }
+.campo textarea { min-height: 5rem; font: inherit; }
+.coordenadas { margin: 0.5rem 0 1.25rem; padding: 1rem 1.25rem 0.25rem; border: 1px solid var(--linea); border-radius: var(--radio-panel); }
+.coordenadas legend { padding: 0 0.4rem; font-weight: 700; }
+.ubicacion-estado { min-height: 1.5em; margin: 0.75rem 0; font-weight: 600; }
+.panel-verificar { border-left: 0.35rem solid var(--exito-texto); }
+.registro-opciones { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 20rem), 1fr)); gap: 1.25rem; margin-top: 1.5rem; }
+.registro-opciones h2 { display: flex; align-items: center; gap: 0.5rem; }
+.registro-elegido { outline: 3px solid var(--ladrillo); outline-offset: 2px; }
+.detalle-rejilla { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 22rem), 1fr)); gap: 1.25rem; margin: 1.5rem 0; }
+.lista-recetas { margin: 0 0 1rem; padding-left: 1.2rem; }
+.lista-recetas li { margin-bottom: 0.4rem; }
+
+/* Pendientes, revisión y excepciones */
+.no-descontadas { margin-top: 2.5rem; }
+.lista-revision, .lista-candidatos { display: grid; gap: 0.75rem; margin: 1rem 0; padding: 0; list-style: none; }
+.lista-revision li, .lista-candidatos li {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: space-between;
+  gap: 0.75rem 1.5rem;
+  padding: 1rem 1.25rem;
+  background: var(--panel-fondo);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-panel);
+}
+.lista-candidatos li { display: block; }
+.lista-candidatos h3 { margin: 0 0 0.75rem; font-size: 1.15rem; }
+.lista-revision form, .lista-candidatos form { margin: 0; }
+
+.entregas .boton:focus-visible, .entregas a:focus-visible, .entregas input:focus-visible,
+.entregas select:focus-visible, .entregas textarea:focus-visible { outline: 3px solid var(--ladrillo); outline-offset: 2px; }
+
+@media (max-width: 40rem) {
+  .visita-datos > div { grid-template-columns: minmax(0, 1fr); }
+  .visita-acciones .boton { flex-basis: 100%; }
+}

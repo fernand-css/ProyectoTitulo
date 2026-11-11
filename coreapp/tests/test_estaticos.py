@@ -84,8 +84,8 @@ class EstaticosTests(SimpleTestCase):
     def test_libreta_del_padron_usa_solo_colores_de_la_paleta_y_variables_definidas(self):
         """recetas.css no declara colores propios: todo sale de base.css, donde se verifica el contraste."""
         base = (settings.BASE_DIR / "static/css/base.css").read_text(encoding="utf-8")
-        # El tablero (tablero.css) y el menú (menu.css) siguen la misma regla que la libreta.
-        for nombre in ("recetas.css", "tablero.css", "menu.css", "inicio.css"):
+        # El tablero (tablero.css), el menú (menu.css) y las entregas (entregas.css, spec 08) siguen la misma regla.
+        for nombre in ("recetas.css", "tablero.css", "menu.css", "inicio.css", "entregas.css"):
             with self.subTest(hoja=nombre):
                 recetas = (settings.BASE_DIR / "static/css" / nombre).read_text(encoding="utf-8")
                 self.assertNotRegex(recetas, r"#[0-9a-fA-F]{3,8}\b")

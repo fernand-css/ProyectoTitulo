@@ -6,7 +6,7 @@
 > **Objetivo:** Registrar y verificar los domicilios de los pacientes del reparto, programar y asignar sus entregas a un encargado de terreno, registrar con conexión si se entregaron y reprogramar las no realizadas, conservando el historial.
 
 Módulo: `entregasapp` (domicilios, programación y registro), con cambios acotados en `recetasapp` (servicio de entregas y ficha del paciente), `turnosapp` (emisión del tótem) y `coreapp` (menú, inicio y procesamiento de imágenes). Fuente: HU-12, HU-13, HU-15 (parte con conexión), HU-16 y HU-21; RNF-01/02/04/05/07; IG03 e IG04 del [informe](../../docs/Informe.md); respuestas del usuario del 2026-11-11.
-Implementación autorizada: NO. Revisión del usuario: pendiente.
+Implementación autorizada: sí, el 2026-11-11 (`/spec-impl 08-domicilios-y-entregas` en `crojas-base`, todos los pasos). Revisión del usuario: Aprobado; aceptación funcional pendiente.
 
 Documentos: [plan.md](plan.md), [tasks.md](tasks.md), [validation.md](validation.md), [índice](../README.md).
 
@@ -190,3 +190,5 @@ No hay bloqueos críticos para redactar. Por confirmar: los catálogos de motivo
 ## Revisión y cambios
 
 2026-11-11: cuatro bloques de preguntas: alcance (ciclo completo), domicilio aparte, sector MAIS con localidad y coordenadas con fotos; elegibles con excepciones, descuento al entregar, una entrega abierta por paciente y permisos; fotos, motivos, intentos y vigencia; menú, excepciones, fecha y doble vía. Se corrige el corte de edad a «mayores de 80». Se guardan los cuatro documentos como Borrador, sin código ni migraciones.
+
+2026-11-11 (implementación, `crojas-base`): T-08-01 a T-08-08 ejecutadas sin cambiar requisitos. Ajustes técnicos anotados en [plan.md](plan.md#notas-de-implementación-2026-11-11): el inicio del encargado muestra «Mis entregas» en `/` sin redirigir (los specs anteriores esperan 200 en `/`); la reasignación exige el último intento y el resultado que la Q.F. vio (lo exige RF-08-15); la reincorporación del 05 se rechaza si una receta del turno está en una entrega abierta; `IntentoEntrega.creado_con` hace idempotente la reasignación. Estado: sigue **Aprobado**; navegador, axe, usabilidad y aceptación pendientes.

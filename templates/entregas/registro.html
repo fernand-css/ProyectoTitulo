@@ -1,0 +1,50 @@
+{% extends 'entregas/base.html' %}
+{% block titulo %}Registrar visita · Entregas en terreno{% endblock %}
+{% block migas_contenedor %}<nav class="migas" aria-label="Ruta de navegación"><ol><li><a href="{% url 'entregasapp:mis' %}">Mis entregas</a></li><li><span aria-current="page">Registrar visita</span></li></ol></nav>{% endblock %}
+{% block entregas %}
+<h1>Registrar visita</h1>
+{% if intento %}
+<p class="suave">Intento {{ intento.numero }} · programado para el {{ intento.fecha_programada|date:"d/m/Y" }}. Se guarda con la fecha y hora reales del servidor.</p>
+
+<section class="visitas" aria-labelledby="titulo-visita">
+  <h2 id="titulo-visita" class="sr-only">Datos de la visita</h2>
+  {% include 'entregas/_tarjeta_intento.html' with registrable=False sin_acciones=True %}
+</section>
+
+{% if not registrable %}
+{% for formulario in errores %}<div class="message message-error" role="alert">{{ formulario.non_field_errors }}</div>{% endfor %}
+<div class="message message-warning">
+  {% if intento.resultado != 'pendiente' %}Este intento ya tiene resultado: {{ intento.get_resultado_display }}.{% else %}Esta visita está programada para el {{ intento.fecha_programada|date:"d/m/Y" }}. Podrás registrarla desde ese día.{% endif %}
+</div>
+<div class="acciones"><a class="boton boton-secundario" href="{% url 'entregasapp:mis' %}">Volver a mis entregas</a></div>
+{% else %}
+<div class="registro-opciones">
+  <section class="panel{% if foco == 'entregada' %} registro-elegido{% endif %}" id="registrar-entregada" aria-labelledby="titulo-entregada">
+    <h2 id="titulo-entregada"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg>Entregada</h2>
+    <p>Se descuenta cada receta que sigue vigente hoy. Las que no, quedan para revisión de la Q.F.</p>
+    <form method="post" action="{% url 'entregasapp:intento_entregada' intento.pk %}">
+      {% csrf_token %}
+      {{ entregada.operacion_id }}
+      {% if entregada.non_field_errors %}<div class="message message-error" role="alert">{{ entregada.non_field_errors }}</div>{% endif %}
+      {% if entregada.operacion_id.errors %}<div class="campo-error" role="alert">{{ entregada.operacion_id.errors }}</div>{% endif %}
+      <div class="campo campo-casilla">
+        {{ entregada.confirmar }}
+        <label for="{{ entregada.confirmar.id_for_label }}">{{ entregada.confirmar.label }}</label>
+      </div>
+      {% if entregada.confirmar.errors %}<div class="campo-error" role="alert">{{ entregada.confirmar.errors }}</div>{% endif %}
+      <button class="boton boton-bloque" type="submit">Registrar entregada</button>
+    </form>
+  </section>
+  <section class="panel{% if foco == 'no_entregada' %} registro-elegido{% endif %}" id="registrar-no-entregada" aria-labelledby="titulo-no-entregada">
+    <h2 id="titulo-no-entregada"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-alerta"/></svg>No entregada</h2>
+    <p>No se descuenta nada. La Q.F. reprogramará la visita.</p>
+    <form method="post" action="{% url 'entregasapp:intento_no_entregada' intento.pk %}">
+      {% csrf_token %}
+      {% include 'recetas/campos.html' with form=no_entregada %}
+      <button class="boton boton-bloque boton-secundario" type="submit">Registrar no entregada</button>
+    </form>
+  </section>
+</div>
+{% endif %}
+{% endif %}
+{% endblock %}
