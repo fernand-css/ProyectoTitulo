@@ -152,6 +152,27 @@ MEDIA_ROOT = BASE_DIR / "media"
 # Respaldar esta carpeta junto con la base. Nunca se versiona (ver .gitignore).
 ARCHIVOS_PRIVADOS_ROOT = Path(os.getenv("ARCHIVOS_PRIVADOS_ROOT", "").strip() or BASE_DIR / "privado")
 
+
+def _numero_entorno(nombre, predeterminado, tipo=float):
+    """Número de .env (acepta coma decimal). Si no es válido, deja el texto: `check` lo informa (entregasapp.E00x)."""
+    valor = os.getenv(nombre, "").strip()
+    if not valor:
+        return predeterminado
+    try:
+        return tipo(valor.replace(",", ".") if "." not in valor else valor)
+    except ValueError:
+        return valor
+
+
+# Mapa y orden de visita (spec 09). El recorrido sale del CESFAM y vuelve a él; el punto lo entregó el equipo
+# el 2026-11-12. Las teselas del mapa base las pide el navegador al proveedor configurado (por defecto,
+# OpenStreetMap, que exige atribución visible y prohíbe la descarga masiva). Leaflet se sirve desde static/vendor.
+REPARTO_ORIGEN_LATITUD = _numero_entorno("REPARTO_ORIGEN_LATITUD", -36.4988773)
+REPARTO_ORIGEN_LONGITUD = _numero_entorno("REPARTO_ORIGEN_LONGITUD", -72.2123601)
+MAPA_TESELAS_URL = os.getenv("MAPA_TESELAS_URL", "").strip() or "https://tile.openstreetmap.org/{z}/{x}/{y}.png"
+MAPA_TESELAS_ATRIBUCION = os.getenv("MAPA_TESELAS_ATRIBUCION", "").strip() or "© colaboradores de OpenStreetMap"
+MAPA_ZOOM_MAXIMO = _numero_entorno("MAPA_ZOOM_MAXIMO", 19, int)
+
 # En desarrollo no se envía correo real; fuera de él se usa SMTP.
 EMAIL_BACKEND = (
     "django.core.mail.backends.console.EmailBackend"

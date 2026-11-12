@@ -139,10 +139,203 @@
 .lista-candidatos h3 { margin: 0 0 0.75rem; font-size: 1.15rem; }
 .lista-revision form, .lista-candidatos form { margin: 0; }
 
+/* Ruta del día (spec 09): rótulo del orden, número de parada, controles de orden y registradas hoy.
+   El número, el estado y el tipo se dicen siempre con texto; la forma y el color solo acompañan. */
+.ruta-rotulo {
+  display: flex;
+  gap: 0.6rem;
+  align-items: flex-start;
+  margin: 1rem 0 0.25rem;
+  padding: 0.75rem 1rem;
+  color: var(--trigo-texto);
+  background: var(--trigo-fondo);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-panel);
+  font-weight: 600;
+}
+.ruta-rotulo .icono { flex: none; width: 1.4rem; height: 1.4rem; margin-top: 0.1rem; }
+.ruta-titulo { margin: 1.5rem 0 0.5rem; font-size: 1.2rem; }
+.parada-rotulos { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; margin: 0 0 0.6rem; }
+.parada-rotulos:empty { display: none; }
+.parada-numero {
+  display: inline-flex;
+  align-items: center;
+  min-height: 2.25rem;
+  padding: 0.1rem 0.85rem;
+  color: var(--marca-texto);
+  background: var(--marca-fondo);
+  border: 2px solid var(--tinta);
+  border-radius: 999px;
+  font-family: var(--fuente-titulo);
+  font-size: 1.15rem;
+  font-weight: 800;
+}
+.etiqueta-ruta {
+  display: inline-flex;
+  align-items: center;
+  gap: 0.35rem;
+  padding: 0.15rem 0.75rem;
+  border: 1px solid currentColor;
+  border-radius: 999px;
+  font-weight: 700;
+}
+.etiqueta-ruta .icono { width: 1.1em; height: 1.1em; }
+.etiqueta-nueva { color: var(--trigo-texto); background: var(--trigo-fondo); }
+.etiqueta-sin-coordenadas { color: var(--arena-texto); background: var(--arena-fondo); }
+.visita-nueva { border-left-color: var(--marca-fondo); }
+.grupo-sector { margin: 1.25rem 0 0.5rem; color: var(--secundario-texto); font-weight: 700; }
+
+.orden-controles {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.6rem 1rem;
+  align-items: flex-end;
+  margin-top: 1rem;
+  padding-top: 0.85rem;
+  border-top: 1px dashed var(--borde);
+}
+.orden-titulo { flex-basis: 100%; margin: 0; color: var(--secundario-texto); font-weight: 700; }
+.orden-flechas, .orden-mover { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: flex-end; margin: 0; }
+.orden-controles .boton { min-height: 3rem; }
+.orden-mover label { flex-basis: 100%; font-weight: 600; }
+.orden-mover select {
+  min-height: 3rem;
+  min-width: 5rem;
+  padding: 0.4rem 0.75rem;
+  color: var(--panel-texto);
+  background: var(--panel-fondo);
+  border: 2px solid var(--borde);
+  border-radius: 0.55rem;
+  font: inherit;
+}
+.restablecer-orden { margin: 1.5rem 0; }
+.restablecer-orden summary { min-height: 3rem; display: flex; align-items: center; cursor: pointer; font-weight: 700; color: var(--enlace-texto); }
+.restablecer-orden form { margin-top: 0.75rem; }
+
+.lista-registradas, .lista-mapa { display: grid; gap: 0.6rem; margin: 0.75rem 0; padding: 0; list-style: none; }
+.lista-mapa { padding-left: 0; }
+.registrada, .lista-mapa li {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem 0.9rem;
+  align-items: center;
+  padding: 0.75rem 1rem;
+  background: var(--panel-fondo);
+  border: 1px solid var(--linea);
+  border-radius: var(--radio-panel);
+  overflow-wrap: anywhere;
+}
+.registrada-marca {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.25rem;
+  height: 2.25rem;
+  border: 2px solid var(--tinta);
+  border-radius: 0.35rem;
+  font-weight: 800;
+}
+.registrada-entregada .registrada-marca { color: var(--exito-texto); background: var(--exito-fondo); }
+.registrada-no_entregada .registrada-marca { color: var(--error-texto); background: var(--error-fondo); }
+.lista-mapa-enlaces { display: inline-flex; flex-wrap: wrap; gap: 0.25rem 1rem; }
+.lista-mapa-enlaces a { display: inline-flex; align-items: center; min-height: 3rem; font-weight: 700; }
+
+/* Mapas (Leaflet). El contenedor crea su propio contexto de apilamiento: las capas de Leaflet nunca tapan el
+   menú ni la barra inferior. Marcadores y línea tienen borde de tinta (3:1 o más sobre el mapa base). */
+.mapa-seccion { margin-top: 1.75rem; }
+.mapa-seccion > h2 { margin-bottom: 0.5rem; font-size: 1.35rem; }
+.saltar-mapa { margin-bottom: 0.25rem; }
+.mapa-leyenda { margin: 0.25rem 0 0.75rem; }
+.mapa {
+  position: relative;
+  z-index: 0;
+  isolation: isolate;
+  width: 100%;
+  background: var(--suave-fondo);
+  border: 2px solid var(--borde);
+  border-radius: var(--radio-panel);
+  overflow: hidden;
+}
+.mapa-ruta { height: min(70vh, 34rem); min-height: 20rem; }
+.mapa-guia { height: min(55vh, 26rem); min-height: 18rem; margin-top: 1rem; }
+.mapa-punto { height: 16rem; }
+.mapa-aviso {
+  margin: 0.6rem 0 0;
+  padding: 0.6rem 0.9rem;
+  color: var(--aviso-texto);
+  background: var(--aviso-fondo);
+  border-radius: 0.6rem;
+  font-weight: 700;
+}
+.mapa-aviso[hidden] { display: none; }
+.mapa-simbolos { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin: 0.75rem 0 0; padding: 0; list-style: none; }
+.mapa-simbolos li { display: inline-flex; gap: 0.5rem; align-items: center; }
+.simbolo {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 1.9rem;
+  height: 1.9rem;
+  border: 2px solid var(--tinta);
+  font-weight: 800;
+  font-size: 0.95rem;
+}
+.simbolo-parada { color: var(--panel-texto); background: var(--panel-fondo); border-radius: 50%; }
+.simbolo-registrada { color: var(--exito-texto); background: var(--exito-fondo); border-radius: 0.3rem; }
+.simbolo-cesfam { color: var(--marca-texto); background: var(--marca-fondo); transform: rotate(45deg); width: 1.6rem; height: 1.6rem; }
+.simbolo-cesfam > span { transform: rotate(-45deg); }
+.simbolo-linea { width: 2.5rem; height: 0; border: 0; border-top: 0.25rem dashed var(--tinta); }
+
+.marcador {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  box-sizing: border-box;
+  border: 0.2rem solid var(--tinta);
+  font-family: var(--fuente-titulo);
+  font-weight: 800;
+  line-height: 1;
+  box-shadow: 0 0 0 0.15rem var(--panel-fondo);
+}
+.marcador-parada { color: var(--panel-texto); background: var(--panel-fondo); border-radius: 50%; font-size: 1.1rem; }
+.marcador-atrasada { color: var(--aviso-texto); background: var(--aviso-fondo); }
+.marcador-nueva { border-style: double; border-width: 0.3rem; }
+.marcador-destino { color: var(--marca-texto); background: var(--marca-fondo); font-size: 1.25rem; }
+.marcador-registrada { border-radius: 0.3rem; font-size: 1.05rem; }
+.marcador-entregada { color: var(--exito-texto); background: var(--exito-fondo); }
+.marcador-no-entregada { color: var(--error-texto); background: var(--error-fondo); }
+.marcador-cesfam { color: var(--marca-texto); background: var(--marca-fondo); transform-origin: center; border-radius: 0.3rem; }
+.marcador-cesfam > span { font-size: 1.05rem; }
+.marcador-domicilio { background: var(--marca-fondo); border-radius: 50%; }
+.leaflet-container .marcador:focus-visible, .leaflet-container a:focus-visible { outline: 3px solid var(--ladrillo); outline-offset: 3px; }
+.leaflet-container .linea-recorrido { stroke: var(--tinta); stroke-opacity: 0.9; }
+.leaflet-container .circulo-precision { stroke: var(--ladrillo); stroke-width: 2; fill: var(--ladrillo); fill-opacity: 0.12; }
+.leaflet-container .mi-posicion { stroke: var(--panel-fondo); stroke-width: 3; fill: var(--ladrillo); fill-opacity: 1; }
+.leaflet-container { font: inherit; }
+.mapa-resumen { min-width: 12rem; font-size: 1rem; }
+.mapa-resumen p { margin: 0.2rem 0; }
+.mapa-resumen-titulo { font-weight: 800; }
+.mapa-resumen-enlaces { display: flex; flex-wrap: wrap; gap: 0.25rem 0.9rem; }
+.mapa-resumen-enlaces a { display: inline-flex; align-items: center; min-height: 2.75rem; font-weight: 700; }
+
+/* «Ir a esta parada» y «Rutas» */
+.guia h2 { display: flex; align-items: center; gap: 0.5rem; }
+.guia-botones .boton { min-height: 3.25rem; }
+.guia-estado { min-height: 1.5em; margin: 1rem 0 0; font-size: 1.25rem; font-weight: 700; }
+.coordenadas-texto { font-variant-numeric: tabular-nums; font-weight: 700; }
+.rutas-rejilla { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); gap: 1.5rem; align-items: start; }
+
 .entregas .boton:focus-visible, .entregas a:focus-visible, .entregas input:focus-visible,
-.entregas select:focus-visible, .entregas textarea:focus-visible { outline: 3px solid var(--ladrillo); outline-offset: 2px; }
+.entregas select:focus-visible, .entregas textarea:focus-visible, .entregas summary:focus-visible { outline: 3px solid var(--ladrillo); outline-offset: 2px; }
+
+@media (forced-colors: active) {
+  .marcador, .simbolo { forced-color-adjust: none; border-color: CanvasText; }
+}
 
 @media (max-width: 40rem) {
   .visita-datos > div { grid-template-columns: minmax(0, 1fr); }
   .visita-acciones .boton { flex-basis: 100%; }
+  .orden-flechas .boton { flex: 1 1 8rem; }
 }

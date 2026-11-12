@@ -282,6 +282,26 @@ class EstaticosTests(SimpleTestCase):
         self.assertGreater(len(alpine), 10000)
         self.assertIn("MIT License", (settings.BASE_DIR / "static/js/alpine.LICENSE.md").read_text(encoding="utf-8"))
 
+    def test_leaflet_fijo_local_y_con_licencia(self):
+        """Spec 09 (RF-09-12): Leaflet 1.9.4 se sirve desde el proyecto, con su licencia BSD-2-Clause, sin CDN."""
+        carpeta = settings.BASE_DIR / "static/vendor/leaflet"
+        leaflet = (carpeta / "leaflet.js").read_text(encoding="utf-8")
+        self.assertIn("Leaflet 1.9.4", leaflet[:200])
+        self.assertGreater(len(leaflet), 100000)
+        self.assertIn("BSD 2-Clause License", (carpeta / "LICENSE").read_text(encoding="utf-8"))
+        css = (carpeta / "leaflet.css").read_text(encoding="utf-8")
+        for imagen in re.findall(r"url\((images/[^)]+)\)", css):
+            with self.subTest(imagen=imagen):
+                self.assertTrue((carpeta / imagen).is_file())
+        self.assertTrue((carpeta / "leaflet.js.map").is_file())  # la referencia del final del archivo existe
+        for recurso in ("vendor/leaflet/leaflet.js", "vendor/leaflet/leaflet.css"):
+            self.assertTrue(finders.find(recurso))
+        # Solo las páginas del mapa cargan Leaflet, y siempre desde los estáticos del proyecto.
+        for archivo in (settings.BASE_DIR / "templates").rglob("*.html"):
+            texto = archivo.read_text(encoding="utf-8")
+            with self.subTest(archivo=archivo.name):
+                self.assertNotRegex(texto, r"unpkg|jsdelivr|cdnjs|leafletjs\.com/dist")
+
     def test_service_worker_sin_cache_de_datos(self):
         worker = (settings.BASE_DIR / "templates/pwa/sw.js").read_text(encoding="utf-8")
         self.assertNotIn("caches.", worker)

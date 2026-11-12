@@ -59,8 +59,12 @@ Las variables del proceso prevalecen sobre `.env`.
 | `DEFAULT_FROM_EMAIL` | `farmacia@example.invalid`. |
 | `SMS_PROVIDER`, `SMS_API_KEY`, `SMS_SENDER` | Reservadas en la plantilla para el spec 12; todavía no se usan. |
 | `ARCHIVOS_PRIVADOS_ROOT` | Carpeta de las fotos privadas de domicilios (spec 08). Vacía: `privado/` dentro del proyecto. Está fuera de `/media/`, no tiene URL pública y no se versiona; respaldarla junto con la base. |
+| `REPARTO_ORIGEN_LATITUD`, `REPARTO_ORIGEN_LONGITUD` | Origen y fin del recorrido sugerido (spec 09): el CESFAM San Nicolás, `-36.4988773` y `-72.2123601`. Aceptan punto o coma decimal. |
+| `MAPA_TESELAS_URL` | Mapa base: `https://tile.openstreetmap.org/{z}/{x}/{y}.png`. Debe usar `https://` e incluir `{z}`, `{x}` e `{y}`. |
+| `MAPA_TESELAS_ATRIBUCION` | Texto de la atribución visible: `© colaboradores de OpenStreetMap`. |
+| `MAPA_ZOOM_MAXIMO` | Zoom máximo del proveedor, entre 1 y 22: `19`. |
 
-Los booleanos aceptan `true/false`, `1/0`, `yes/no` y `on/off`, sin distinguir mayúsculas. Valores desconocidos producen un error claro. Con `DEBUG=False` las cookies de sesión y CSRF usan `Secure`. HTTPS y el servicio de estáticos en producción corresponden al despliegue, fuera del spec 01.
+Los booleanos aceptan `true/false`, `1/0`, `yes/no` y `on/off`, sin distinguir mayúsculas. Valores desconocidos producen un error claro. Un origen fuera de rango, una URL de teselas sin `{z}`, `{x}` o `{y}` o un zoom fuera de rango hacen que `python manage.py check` informe `entregasapp.E001`, `E002` o `E003`. Con `DEBUG=False` las cookies de sesión y CSRF usan `Secure`. HTTPS y el servicio de estáticos en producción corresponden al despliegue, fuera del spec 01.
 
 ## Pruebas
 
@@ -261,6 +265,29 @@ El menú **Entregas** (Q.F., Técnico y superusuario) tiene tres pestañas: **Pr
 En la base de demostración elegida, aplicar `python manage.py migrate` antes de usar el módulo; `entregasapp/0001_initial` crea sus seis tablas. La implementación solo aplicó migraciones en bases temporales y de pruebas. Respaldar la base **y** la carpeta de fotos antes de revertir la migración.
 
 Verificación aislada: `python tools/verificar_spec_08_http.py` crea y elimina una SQLite y una carpeta privada temporales, con 670 pacientes sintéticos, 10 excepciones y cuatro encargados, y mide p50, p95 y máximo por escenario (domicilios, fotos, programación, tótem con despacho abierto, «Mis entregas», registro, filtros y reasignación). La medición final quedó con un p95 máximo de 137,71 ms. [Evidencia y límites](specs/08-domicilios-y-entregas/validation.md): navegador, axe, ubicación y cámara reales, usabilidad con cinco personas y aceptación funcional siguen pendientes.
+
+## Mapa y orden de visita (spec 09)
+
+El encargado de terreno ve en **Mis entregas** sus visitas de hoy y las atrasadas numeradas en un **orden sugerido**: distancia en línea recta (haversine), vecino más cercano y mejora 2-opt, saliendo del CESFAM y volviendo a él. Después de cada visita registrada, el orden se recalcula desde ese domicilio. Las visitas sin coordenadas van al final, rotuladas; «Registradas hoy» y «Próximas» van aparte. El orden **no considera caminos**: la lista y el mapa lo dicen.
+
+- **Orden propio:** «Subir», «Bajar» y «Mover a la posición» guardan el orden del día; desde ahí manda ese orden. Una visita que llega después entra donde menos alarga el recorrido, rotulada «Nueva». «Volver al orden sugerido» lo descarta. Al día siguiente vuelve la sugerencia. Si dos dispositivos guardan a la vez, el segundo recibe «Tu orden cambió en otro dispositivo; revisa la lista.».
+- **Mapa:** pestaña **Mapa** con marcadores numerados (los mismos números de la lista), las visitas registradas hoy, el CESFAM y la línea punteada del recorrido con su total aproximado en km. Si el mapa base no carga, los puntos siguen y un texto lo avisa.
+- **Ir a esta parada:** con «Mostrar mi posición», el navegador sigue la ubicación hasta «Detener» y muestra la distancia en línea recta y la dirección. La posición **nunca se envía al servidor**. Exige HTTPS o `localhost`; sin eso, ofrece el enlace «Abrir en app de navegación» (`geo:`) y las coordenadas.
+- **Rutas (Q.F. y superusuario):** en **Entregas › Rutas**, eligen un encargado y una fecha (hoy o posterior) y ven su lista y su mapa, solo para consultar. El Técnico no la ve.
+- **Domicilio:** si tiene coordenadas, su página muestra un mapa pequeño de solo lectura.
+
+**Cartografía y privacidad.** Leaflet 1.9.4 se sirve desde `static/vendor/leaflet/` con su licencia BSD-2-Clause, sin CDN. Las teselas del mapa base las pide el navegador a OpenStreetMap (o al proveedor de `MAPA_TESELAS_URL`) con un referente reducido al origen del sitio. El proveedor ve la dirección IP del equipo y el área visible del mapa, pero nunca recibe nombres, direcciones ni coordenadas de pacientes. La política de uso de OpenStreetMap exige la atribución visible y prohíbe la descarga masiva. Para una implementación real, el DESAMU elige el proveedor o teselas propias.
+
+**Domicilios de demostración.** Solo para la base de demostración, `generar_domicilios_demo` crea domicilios sintéticos con coordenadas aleatorias reproducibles dentro de un radio alrededor del CESFAM, para los pacientes elegibles que aún no tienen uno. Usa el servicio auditado del 08, no verifica domicilios, no modifica los existentes y no programa entregas. Sin `--aplicar` solo informa lo que haría:
+
+```powershell
+python manage.py generar_domicilios_demo
+python manage.py generar_domicilios_demo --aplicar --cuenta <usuario Q.F.> --semilla 909 --radio-km 15
+```
+
+Las entregas de la demostración se programan después en **Entregas › Programación**. En la base de demostración elegida, aplicar `python manage.py migrate` antes de usar el módulo: `entregasapp/0002_ordenruta` agrega el orden guardado. Revertirla solo borra los órdenes manuales. La implementación solo aplicó migraciones en bases temporales y de pruebas.
+
+Verificación aislada: `python tools/verificar_spec_09_http.py` crea y elimina una SQLite temporal con 670 pacientes sintéticos, 660 domicilios generados y 10 sin coordenadas, y cuatro encargados con 50 visitas cada uno. Mide «Mis entregas», «Mapa», «Ir a esta parada», «Rutas», mover y volver al orden sugerido, y aparte el cálculo con 200 paradas. [Evidencia y límites](specs/09-mapa-y-orden-de-visita/validation.md): navegador, axe, teselas y ubicación reales, usabilidad con cinco personas y aceptación funcional siguen pendientes.
 
 ## Recursos de Alpine.js
 

@@ -6,7 +6,7 @@
 > **Objetivo:** Mostrar al encargado de terreno sus visitas del día en una lista numerada y en un mapa, con un orden de visita sugerido que puede ajustar y guardar y una guía hacia cada parada calculada solo en su celular, y permitir a la Q.F. consultar el mapa y el orden de cada encargado.
 
 Módulo: `entregasapp` (orden de visita, mapa y rutas), con cambios acotados en `cesfam/settings.py` (origen y cartografía), `coreapp/navegacion.py` (páginas activas) y los estáticos (Leaflet local). Fuente: HU-14 y la parte de HU-12 que pide identificar los domicilios en un mapa; RNF-01/04/05/09; §2.1 y §5 del [informe](../../docs/Informe.md); respuestas del usuario del 2026-11-11 y 2026-11-12.
-Implementación autorizada: NO. Revisión del usuario: pendiente.
+Implementación autorizada: sí, el 2026-11-12 (`/spec-impl 09-mapa-y-orden-de-visita` en `crojas-base`, todos los pasos). Revisión del usuario: Aprobado; aceptación funcional pendiente.
 
 Documentos: [plan.md](plan.md), [tasks.md](tasks.md), [validation.md](validation.md), [índice](../README.md).
 
@@ -123,7 +123,7 @@ Como en el 02, el servidor revalida en cada solicitud que la cuenta esté activa
 - **Rumbo:** ocho direcciones desde la posición hacia la parada: norte, noreste, este, sureste, sur, suroeste, oeste y noroeste.
 - **Coordenadas:** las del domicilio del 08 (6 decimales). Este spec no las modifica.
 - **Jornada:** «hoy» y «registradas hoy» usan `America/Santiago`, como el 08.
-- **Origen y cartografía:** `REPARTO_ORIGEN_LATITUD`, `REPARTO_ORIGEN_LONGITUD`, `MAPA_TESELAS_URL`, `MAPA_TESELAS_ATRIBUCION` y `MAPA_ZOOM_MAXIMO`, leídas de `.env`. Por defecto, el origen es un valor de demostración aproximado del centro de San Nicolás, rotulado como tal, que el equipo reemplaza por el punto exacto del CESFAM. Las teselas son las de OpenStreetMap, con la atribución «© colaboradores de OpenStreetMap».
+- **Origen y cartografía:** `REPARTO_ORIGEN_LATITUD`, `REPARTO_ORIGEN_LONGITUD`, `MAPA_TESELAS_URL`, `MAPA_TESELAS_ATRIBUCION` y `MAPA_ZOOM_MAXIMO`, leídas de `.env`. Por defecto, el origen es el punto del CESFAM que entregó el usuario el 2026-11-12 (−36,4988773; −72,2123601); el `.env` puede reemplazarlo. Las teselas son las de OpenStreetMap, con la atribución «© colaboradores de OpenStreetMap».
 - **Datos sintéticos:** el padrón de 670 pacientes de demostración y domicilios generados con coordenadas aleatorias. Una coordenada sintética no representa ninguna vivienda real.
 
 ## Criterios de aceptación
@@ -220,7 +220,7 @@ Supuestos técnicos reversibles, sujetos a la revisión del borrador:
 - El radio por defecto del comando de demostración es de 15 km alrededor del origen, con localidades sintéticas rotuladas como de demostración, no nombres reales de lugares.
 - Leaflet 1.9.4; nombres de modelos, rutas y archivos son propuestas de `plan.md`.
 
-No hay bloqueos críticos para redactar. Queda por confirmar el valor exacto del origen (el CESFAM) antes de la demostración.
+No hay bloqueos críticos para redactar. El valor exacto del origen (el CESFAM) lo entregó el usuario el 2026-11-12: −36,4988773; −72,2123601.
 
 ## Revisión y cambios
 
@@ -231,3 +231,5 @@ No hay bloqueos críticos para redactar. Queda por confirmar el valor exacto del
 4. Seguimiento de la posición, visitas nuevas en un orden guardado, visitas sin coordenadas en el orden manual, origen, «Registradas hoy», línea del recorrido, controles para reordenar y alcance del comando.
 
 Se guardan los cuatro documentos como Borrador, sin código ni migraciones.
+
+2026-11-12 (implementación): el usuario cambió el estado a Aprobado, hizo el commit de los documentos (`5751ec5`) y entregó las coordenadas del CESFAM (−36,4988773; −72,2123601). El origen por defecto pasa a ser ese punto en lugar del valor aproximado del centro de San Nicolás.

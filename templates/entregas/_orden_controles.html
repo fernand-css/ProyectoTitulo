@@ -1,0 +1,29 @@
+{# Subir, bajar y mover a una posición (spec 09, RF-09-04). Formularios POST con CSRF que funcionan sin JavaScript, con teclado y lector de pantalla. Espera `parada`, `ruta` (versión y cantidad) y `posiciones`. #}
+{% if parada %}
+{% with total=ruta.paradas|length nombre=parada.intento.paciente.nombres|add:" "|add:parada.intento.paciente.apellidos %}
+{% if total > 1 %}
+<div class="orden-controles" role="group" aria-labelledby="orden-titulo-{{ parada.intento.pk }}">
+  <p class="orden-titulo" id="orden-titulo-{{ parada.intento.pk }}">Cambiar el orden<span class="sr-only"> de {% if parada.numerada %}la parada {{ parada.numero }}{% else %}la visita sin coordenadas{% endif %}: {{ nombre }}</span></p>
+  <form method="post" action="{% url 'entregasapp:orden_mover' %}" class="orden-flechas">
+    {% csrf_token %}
+    <input type="hidden" name="intento" value="{{ parada.intento.pk }}">
+    <input type="hidden" name="version" value="{{ ruta.version }}">
+    <input type="hidden" name="operacion_id" value="{{ parada.operacion_id }}">
+    {% if parada.numero > 1 %}<button class="boton boton-secundario" type="submit" name="destino" value="subir"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-arriba"/></svg>Subir<span class="sr-only"> {% if parada.numerada %}parada {{ parada.numero }}{% else %}visita sin coordenadas{% endif %}: {{ nombre }}</span></button>{% endif %}
+    {% if parada.numero < total %}<button class="boton boton-secundario" type="submit" name="destino" value="bajar"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-abajo"/></svg>Bajar<span class="sr-only"> {% if parada.numerada %}parada {{ parada.numero }}{% else %}visita sin coordenadas{% endif %}: {{ nombre }}</span></button>{% endif %}
+  </form>
+  <form method="post" action="{% url 'entregasapp:orden_mover' %}" class="orden-mover">
+    {% csrf_token %}
+    <input type="hidden" name="intento" value="{{ parada.intento.pk }}">
+    <input type="hidden" name="version" value="{{ ruta.version }}">
+    <input type="hidden" name="operacion_id" value="{{ parada.operacion_id }}">
+    <label for="mover-{{ parada.intento.pk }}">Mover a la posición</label>
+    <select id="mover-{{ parada.intento.pk }}" name="destino">{% for posicion in posiciones %}<option value="{{ posicion }}"{% if posicion == parada.numero %} selected{% endif %}>{{ posicion }}</option>{% endfor %}</select>
+    <button class="boton boton-secundario" type="submit">Mover<span class="sr-only"> {% if parada.numerada %}parada {{ parada.numero }}{% else %}visita sin coordenadas{% endif %}: {{ nombre }}</span></button>
+  </form>
+</div>
+{% endif %}
+{% endwith %}
+{% else %}
+<p class="suave">No hay datos para cambiar el orden.</p>
+{% endif %}

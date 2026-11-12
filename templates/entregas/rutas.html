@@ -1,0 +1,32 @@
+{% extends 'entregas/base.html' %}
+{% load static %}
+{% block titulo %}Rutas · Entregas · Farmacia{% endblock %}
+{% block estilos %}{{ block.super }}{% if ruta %}<link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}">{% endif %}{% endblock %}
+{% block entregas %}
+{% include 'entregas/_cabecera.html' with titulo='Rutas' texto='Consulta la lista y el mapa de la ruta de un encargado, tal como los ve él. Solo consulta: el orden lo ajusta el encargado en su celular.' %}
+
+<form class="filtros-entregas" method="get" novalidate>
+  {% if form.non_field_errors %}<div class="message message-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+  <div class="filtros-campos">
+    {% for field in form %}
+    <div class="campo">
+      <label for="{{ field.id_for_label }}">{{ field.label }}</label>{{ field }}
+      {% if field.help_text %}<div class="campo-ayuda" id="{{ field.auto_id }}_helptext">{{ field.help_text }}</div>{% endif %}
+      {% if field.errors %}<div class="campo-error" role="alert">{{ field.errors }}</div>{% endif %}
+    </div>
+    {% endfor %}
+  </div>
+  <div class="acciones"><button class="boton" type="submit"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-mapa"/></svg>Ver ruta</button></div>
+</form>
+
+{% if ruta %}
+<p class="ruta-titulo"><strong>Ruta de {{ encargado_nombre }}</strong> · <time datetime="{{ ruta.fecha|date:'Y-m-d' }}">{{ ruta.fecha|date:"l d/m/Y" }}</time>{% if not ruta.es_hoy %} · fecha posterior: orden sugerido desde el CESFAM, solo con las visitas de ese día{% endif %}</p>
+<div class="rutas-rejilla">
+  <div class="rutas-lista">{% include 'entregas/_ruta.html' with controles=False %}</div>
+  <div class="rutas-mapa">{% include 'entregas/_mapa.html' with destino_saltar='lista-paradas' %}</div>
+</div>
+{% elif not form.is_bound %}
+<p class="suave">Elige un encargado y una fecha (hoy o posterior) para ver su ruta.</p>
+{% endif %}
+{% endblock %}
+{% block scripts %}{% if ruta %}<script src="{% static 'vendor/leaflet/leaflet.js' %}"></script><script src="{% static 'js/entregas/mapa.js' %}"></script>{% endif %}{% endblock %}

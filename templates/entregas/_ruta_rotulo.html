@@ -1,0 +1,5 @@
+{# De dónde sale el orden de la ruta (spec 09). Espera `ruta` y, en «Rutas», `consulta`. #}
+<p class="ruta-rotulo">
+  <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-mapa"/></svg>
+  <span>{% if ruta.manual %}{% if consulta %}Orden guardado por el encargado a las {{ ruta.guardado_en|time:"H:i" }}{% else %}Tu orden de hoy, guardado a las {{ ruta.guardado_en|time:"H:i" }}{% endif %}. Las visitas que llegan después entran donde menos alargan el recorrido.{% else %}Orden sugerido desde {% if ruta.parte_del_origen %}el CESFAM{% else %}la última visita registrada{% endif %}, según distancia en línea recta; no considera caminos.{% endif %}</span>
+</p>

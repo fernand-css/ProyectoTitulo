@@ -27,8 +27,12 @@ GESTION = frozenset({JEFA, SUPERUSUARIO})
 
 # Pantallas de turnosapp que configuran la atención (las usa la Jefa de Farmacia): no son «Atención».
 CONFIGURACION_DE_TURNOS = ("gestion", "ventanilla_nueva", "ventanilla_configurar", "pesos")
-# Pantallas de entregasapp que la farmacia abre desde «Entregas» (spec 08).
-ENTREGAS_FARMACIA = ("indice", "programacion", "programar", "pendientes", "detalle", "reasignar", "anular", "receta_revisada")
+# Pantallas de entregasapp que la farmacia abre desde «Entregas» (spec 08; «Rutas» desde el 09).
+ENTREGAS_FARMACIA = ("indice", "programacion", "programar", "pendientes", "detalle", "reasignar", "anular", "receta_revisada",
+                     "rutas")
+# Pantallas del encargado bajo «Mis entregas»: lista, registro y, desde el 09, mapa, guía y orden de visita.
+MIS_ENTREGAS = ("mis", "registro", "intento_entregada", "intento_no_entregada", "detalle", "mapa", "ir_a", "orden_mover",
+                "orden_sugerido")
 
 
 def _en(app, *nombres, prefijos=()):
@@ -78,7 +82,7 @@ ENTRADAS = (
     # El encargado de terreno: su inicio abre «Mis entregas» (coreapp.views.InicioView).
     Entrada("mis_entregas", "Mis entregas", "entregasapp:mis", "i-ubicacion", grupo="Entregas en terreno",
             roles=frozenset({ENCARGADO}), corta="Entregas", en_barra=True,
-            activa=_en("entregasapp", "mis", "registro", "intento_entregada", "intento_no_entregada", "detalle")),
+            activa=_en("entregasapp", *MIS_ENTREGAS)),
     Entrada("domicilios", "Domicilios", "entregasapp:domicilios", "i-casa", grupo="Entregas en terreno",
             roles=frozenset({ENCARGADO}), activa=_en("entregasapp", prefijos=("domicilio", "foto"))),
     Entrada("ventanillas", "Ventanillas y pesos", "turnosapp:gestion", "i-ventanilla", grupo="Equipo", roles=GESTION,

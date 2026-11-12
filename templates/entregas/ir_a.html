@@ -1,0 +1,49 @@
+{% extends 'entregas/base.html' %}
+{% load static %}
+{% block titulo %}Ir a la parada {{ parada.numero }} · Mis entregas · Entregas en terreno{% endblock %}
+{% block estilos %}{{ block.super }}<link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}">{% endblock %}
+{% block migas_contenedor %}<nav class="migas" aria-label="Ruta de navegación"><ol><li><a href="{% url 'entregasapp:mis' %}">Mis entregas</a></li><li><span aria-current="page">Ir a la parada {{ parada.numero }}</span></li></ol></nav>{% endblock %}
+{% block entregas %}
+{% if intento %}
+<header class="encabezado">
+  <div>
+    <h1>Ir a la parada {{ parada.numero }}<span class="dato-secundario">{{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></h1>
+    <p>{% if intento.domicilio.sector %}Sector {{ intento.domicilio.get_sector_display }}{% endif %}{% if intento.domicilio.localidad %} · {{ intento.domicilio.localidad }}{% endif %} · {{ intento.domicilio.direccion }}{% if intento.domicilio.referencias %}. {{ intento.domicilio.referencias }}{% endif %}</p>
+  </div>
+</header>
+
+<section class="panel guia" aria-labelledby="titulo-guia" data-guia="datos-ir-a">
+  <h2 id="titulo-guia"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-brujula"/></svg>Guía en línea recta</h2>
+  <p class="suave">Tu posición se calcula solo en este celular: nunca se envía al servidor ni se guarda. La guía indica la distancia y la dirección en línea recta; no sigue los caminos.</p>
+  <div class="acciones guia-botones">
+    <button class="boton" type="button" id="guia-iniciar"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ubicacion"/></svg>Mostrar mi posición</button>
+    <button class="boton boton-secundario" type="button" id="guia-leer" disabled>Leer distancia</button>
+    <button class="boton boton-secundario" type="button" id="guia-detener" disabled>Detener</button>
+  </div>
+  <p class="guia-estado" id="guia-estado">Pulsa «Mostrar mi posición» para ver a qué distancia y en qué dirección está la parada {{ parada.numero }}.</p>
+  <p class="sr-only" id="guia-anuncio" role="status" aria-live="polite"></p>
+  <div class="mapa mapa-guia" id="mapa-guia" role="region" aria-label="Mapa con la parada {{ parada.numero }} y tu posición" data-mapa="ir_a" data-datos="datos-ir-a" data-aviso="aviso-mapa-guia"></div>
+  <noscript><p class="suave">La guía necesita JavaScript. Usa el enlace a tu aplicación de navegación o las coordenadas.</p></noscript>
+  <p class="mapa-aviso" id="aviso-mapa-guia" role="status" aria-live="polite" hidden></p>
+</section>
+
+<section class="panel" aria-labelledby="titulo-apoyo">
+  <h2 id="titulo-apoyo">Otras formas de llegar</h2>
+  <div class="acciones">
+    <a class="boton boton-secundario" href="{{ geo }}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-externo"/></svg>Abrir en app de navegación</a>
+  </div>
+  <p>Coordenadas de la parada: <span class="coordenadas-texto">{{ coordenadas }}</span>{% if intento.domicilio.precision_metros is not None %} (±{{ intento.domicilio.precision_metros }} m){% endif %}</p>
+</section>
+
+<div class="acciones visita-acciones">
+  <a class="boton" href="{% url 'entregasapp:registro' intento.pk %}?resultado=entregada#registrar-entregada"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg>Entregada<span class="sr-only">: {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></a>
+  <a class="boton boton-secundario" href="{% url 'entregasapp:registro' intento.pk %}?resultado=no_entregada#registrar-no-entregada">No entregada<span class="sr-only">: {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></a>
+  <a class="enlace-secundario" href="{% url 'entregasapp:domicilio' intento.paciente.pk %}">Ver domicilio<span class="sr-only"> de {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></a>
+</div>
+{{ datos_ir_a|json_script:"datos-ir-a" }}
+{% else %}
+<h1>Ir a esta parada</h1>
+<p class="suave">No hay datos de esta parada. Vuelve a <a href="{% url 'entregasapp:mis' %}">Mis entregas</a>.</p>
+{% endif %}
+{% endblock %}
+{% block scripts %}<script src="{% static 'vendor/leaflet/leaflet.js' %}"></script><script src="{% static 'js/entregas/mapa.js' %}"></script><script src="{% static 'js/entregas/ir_a.js' %}"></script>{% endblock %}

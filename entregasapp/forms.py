@@ -188,3 +188,38 @@ class NoEntregadaForm(forms.Form):
         if datos.get("motivo") == "otro" and not (datos.get("nota") or "").strip():
             self.add_error("nota", "Con el motivo «Otro», escribe una nota breve.")
         return datos
+
+
+# Orden de visita y rutas (spec 09) ---------------------------------------------------------------------------
+
+class MoverParadaForm(forms.Form):
+    """Subir, bajar o mover a una posición. La versión y la operación se fijan al dibujar la página."""
+    intento = forms.IntegerField(min_value=1, widget=forms.HiddenInput)
+    destino = forms.CharField(max_length=6)
+    version = forms.IntegerField(min_value=0, widget=forms.HiddenInput)
+    operacion_id = forms.UUIDField(widget=forms.HiddenInput)
+
+
+class RestablecerOrdenForm(forms.Form):
+    version = forms.IntegerField(min_value=0, widget=forms.HiddenInput)
+    operacion_id = forms.UUIDField(widget=forms.HiddenInput)
+
+
+class RutaForm(forms.Form):
+    """«Rutas» de la Q.F.: encargado y fecha por GET (solo identificador interno y fecha, nunca datos personales)."""
+    fecha = forms.DateField(label="Fecha", widget=forms.DateInput(attrs=FECHA, format="%Y-%m-%d"),
+                            help_text="Hoy o una fecha posterior.")
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        self.fields["encargado"] = _encargado()
+        self.fields["encargado"].error_messages["invalid_choice"] = "Elige un encargado de terreno con cuenta activa."
+        self.fields["fecha"].widget.attrs["min"] = timezone.localdate().isoformat()
+        self.order_fields(["encargado", "fecha"])
+
+    def clean_fecha(self):
+        fecha = self.cleaned_data["fecha"]
+        if fecha < timezone.localdate():
+            raise forms.ValidationError("Elige hoy o una fecha posterior: el orden sugerido no se guarda, así que "
+                                        "no se pueden consultar rutas de días pasados.")
+        return fecha

@@ -1,0 +1,16 @@
+{# Mapa de una ruta (spec 09, RF-09-08): Leaflet local y teselas configurables; los datos van en json_script, sin RUT. Complementa la lista, que sigue siendo la alternativa completa. Espera `ruta`, `datos_mapa`, `sin_marcador_texto` y `destino_saltar` (id de la lista). #}
+<section class="mapa-seccion" aria-labelledby="titulo-mapa">
+  <h2 id="titulo-mapa">Mapa del recorrido</h2>
+  <a class="enlace-secundario saltar-mapa" href="#{{ destino_saltar }}">Saltar el mapa e ir a la lista</a>
+  <p class="mapa-leyenda">Recorrido en línea recta; no sigue los caminos. Total aprox.: <strong>{{ ruta.total_km }} km</strong>.{% if ruta.sin_marcador %} <strong>{{ sin_marcador_texto }}</strong>: están en la lista.{% endif %}</p>
+  <div class="mapa mapa-ruta" id="mapa-ruta" role="region" aria-label="Mapa de las paradas{% if ruta.es_hoy %} de hoy{% else %} del {{ ruta.fecha|date:'d/m/Y' }}{% endif %}" data-mapa="ruta" data-datos="datos-mapa" data-aviso="aviso-mapa-ruta"></div>
+  <noscript><p class="suave">El mapa necesita JavaScript. La lista tiene toda la información.</p></noscript>
+  <p class="mapa-aviso" id="aviso-mapa-ruta" role="status" aria-live="polite" hidden></p>
+  <ul class="mapa-simbolos" aria-label="Símbolos del mapa">
+    <li><span class="simbolo simbolo-parada" aria-hidden="true">1</span>Parada por visitar, con el número de la lista</li>
+    <li><span class="simbolo simbolo-registrada" aria-hidden="true">✓</span>Registrada hoy: ✓ entregada, ✗ no entregada</li>
+    <li><span class="simbolo simbolo-cesfam" aria-hidden="true"><span>C</span></span>CESFAM: inicio y fin del recorrido</li>
+    <li><span class="simbolo simbolo-linea" aria-hidden="true"></span>Recorrido en línea recta (punteado)</li>
+  </ul>
+  {{ datos_mapa|json_script:"datos-mapa" }}
+</section>

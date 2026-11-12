@@ -330,3 +330,45 @@ class IntentoEntrega(ModeloAuditado):
 
     def __str__(self):
         return f"Intento {self.numero} de entrega {self.entrega_id}"
+
+
+class OrdenRuta(ModeloAuditado):
+    """Orden de visita que el encargado guardó para un día (spec 09). Sin paradas, vale el orden sugerido.
+
+    Es una preferencia de presentación, no historial: se reemplaza o se vacía. No guarda coordenadas ni datos del
+    paciente, solo la secuencia de intentos. `version` controla las ediciones simultáneas y `ultima_operacion`
+    hace idempotente el reenvío del mismo formulario.
+    """
+
+    encargado = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="ordenes_ruta")
+    fecha = models.DateField()
+    version = models.PositiveIntegerField(default=1)
+    ultima_operacion = models.UUIDField(null=True, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["encargado", "fecha"], name="orden_ruta_unico"),
+            models.CheckConstraint(condition=Q(version__gte=1), name="orden_ruta_version_positiva"),
+        ]
+
+    def __str__(self):
+        return f"Orden de ruta {self.pk}"
+
+
+class ParadaRuta(models.Model):
+    """Posición de un intento en un orden guardado. Al guardar se reemplazan todas las del orden."""
+
+    orden = models.ForeignKey(OrdenRuta, on_delete=models.CASCADE, related_name="paradas")
+    intento = models.ForeignKey(IntentoEntrega, on_delete=models.PROTECT, related_name="paradas_ruta")
+    posicion = models.PositiveSmallIntegerField(validators=[MinValueValidator(1)])
+
+    class Meta:
+        ordering = ["posicion"]
+        constraints = [
+            models.UniqueConstraint(fields=["orden", "intento"], name="parada_ruta_intento_unico"),
+            models.UniqueConstraint(fields=["orden", "posicion"], name="parada_ruta_posicion_unica"),
+            models.CheckConstraint(condition=Q(posicion__gte=1), name="parada_ruta_posicion_positiva"),
+        ]
+
+    def __str__(self):
+        return f"Parada {self.posicion} del orden {self.orden_id}"

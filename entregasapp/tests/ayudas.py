@@ -97,3 +97,40 @@ def archivo(contenido, nombre="foto.jpg", tipo="image/jpeg"):
     from django.core.files.uploadedfile import SimpleUploadedFile
 
     return SimpleUploadedFile(nombre, contenido, content_type=tipo)
+
+
+# Ruta del día (spec 09) ------------------------------------------------------------------------------------------
+
+def punto_km(dx, dy):
+    """(latitud, longitud) a `dx` km al este y `dy` km al norte del origen configurado (el CESFAM).
+
+    Coordenadas sintéticas: no representan viviendas reales.
+    """
+    import math
+
+    from django.conf import settings
+
+    metros_por_grado = 6_371_000 * math.pi / 180
+    latitud = settings.REPARTO_ORIGEN_LATITUD + dy * 1000 / metros_por_grado
+    longitud = settings.REPARTO_ORIGEN_LONGITUD + dx * 1000 / (metros_por_grado * math.cos(math.radians(settings.REPARTO_ORIGEN_LATITUD)))
+    return f"{latitud:.6f}", f"{longitud:.6f}"
+
+
+def visita(equipo, en=None, *, fecha=None, encargado=None, domicilio=True, sector="verde", localidad="Localidad demo 1"):
+    """Programa una entrega con su intento para el encargado. `en=(dx, dy)` en km del CESFAM; None = sin coordenadas.
+
+    Con `domicilio=False` el paciente no tiene domicilio registrado. Devuelve el intento.
+    """
+    from entregasapp.services import guardar_domicilio, programar_entrega
+
+    persona = paciente(edad=88)
+    receta(persona)
+    if domicilio:
+        datos = {"sector": sector, "localidad": localidad, "direccion": "Camino sintético km 2",
+                 "referencias": "Portón sintético"}
+        if en is not None:
+            datos["latitud"], datos["longitud"] = punto_km(*en)
+            datos["precision_metros"] = "10"
+        guardar_domicilio(equipo["qf"], persona.pk, datos)
+    entrega = programar_entrega(equipo["qf"], persona.pk, fecha or hoy(), (encargado or equipo["encargado"]).pk, uuid.uuid4())
+    return entrega.intentos.get()

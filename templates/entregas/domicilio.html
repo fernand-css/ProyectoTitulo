@@ -1,6 +1,7 @@
 {% extends 'entregas/base.html' %}
 {% load core_tags static l10n %}
 {% block titulo %}Domicilio · Entregas · Farmacia{% endblock %}
+{% block estilos %}{{ block.super }}{% if datos_punto %}<link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}">{% endif %}{% endblock %}
 {% block migas_contenedor %}<nav class="migas" aria-label="Ruta de navegación"><ol><li><a href="{% url 'entregasapp:domicilios' %}">Domicilios</a></li><li><span aria-current="page">{{ paciente.apellidos }}, {{ paciente.nombres }}</span></li></ol></nav>{% endblock %}
 {% block entregas %}
 <header class="encabezado">
@@ -76,6 +77,8 @@
 </section>
 {% endif %}
 
+{% if datos_punto %}{% include 'entregas/_mapa_punto.html' %}{% endif %}
+
 {% if domicilio %}
 <section class="panel" id="fotos" aria-labelledby="titulo-fotos">
   <h2 id="titulo-fotos">Fotos del entorno ({{ fotos|length }} de {{ maximo_fotos }})</h2>
@@ -112,4 +115,4 @@
 </section>
 {% endif %}
 {% endblock %}
-{% block scripts %}{% if form %}<script src="{% static 'js/entregas/ubicacion.js' %}"></script>{% endif %}{% endblock %}
+{% block scripts %}{% if form %}<script src="{% static 'js/entregas/ubicacion.js' %}"></script>{% endif %}{% if datos_punto %}<script src="{% static 'vendor/leaflet/leaflet.js' %}"></script><script src="{% static 'js/entregas/mapa.js' %}"></script>{% endif %}{% endblock %}

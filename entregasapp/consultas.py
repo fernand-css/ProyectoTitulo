@@ -3,9 +3,11 @@
 Nada aquí escribe en la base. Las escrituras viven en `entregasapp.services`.
 """
 
+import time as reloj
 from dataclasses import dataclass
-from datetime import date
+from datetime import date, datetime, time, timedelta
 
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Exists, F, Max, OuterRef, Prefetch, Q, Subquery
 from django.utils import timezone
@@ -13,7 +15,8 @@ from django.utils import timezone
 from coreapp.roles import ENCARGADO
 from coreapp.utils.rut import normalizar_rut
 from recetasapp.models import Paciente
-from .models import Domicilio, Entrega, InscripcionReparto, IntentoEntrega, RecetaEntrega
+from .models import Domicilio, Entrega, InscripcionReparto, IntentoEntrega, OrdenRuta, RecetaEntrega
+from .ruta import Punto, formatear_km, insertar, longitud_m, ordenar
 
 EDAD_DESPACHO = 80  # Elegible si tiene más de 80 años cumplidos: la misma regla del tótem (04).
 
@@ -244,3 +247,205 @@ def no_descontadas():
     return RecetaEntrega.objects.filter(
         resultado=RecetaEntrega.Resultado.NO_DESCONTADA, revisada_en__isnull=True,
     ).select_related("receta", "entrega__paciente").order_by("entrega__cerrada_en", "pk")
+
+
+# Ruta del día (spec 09) -----------------------------------------------------------------------------------------
+
+SUGERIDO = "sugerido"
+MANUAL = "manual"
+REGISTRADOS = (IntentoEntrega.Resultado.ENTREGADA, IntentoEntrega.Resultado.NO_ENTREGADA)
+
+
+def origen_ruta():
+    """El CESFAM: punto de partida y destino final del recorrido (configurable en .env)."""
+    return Punto("origen", float(settings.REPARTO_ORIGEN_LATITUD), float(settings.REPARTO_ORIGEN_LONGITUD))
+
+
+def punto_de(intento):
+    """Coordenadas del domicilio del paciente de la visita, o None si no tiene domicilio o coordenadas."""
+    domicilio = domicilio_de(intento.entrega.paciente)
+    if domicilio is None or domicilio.latitud is None:
+        return None
+    return Punto(intento.pk, float(domicilio.latitud), float(domicilio.longitud))
+
+
+@dataclass
+class Parada:
+    """Una visita de la ruta. `numero` es su posición; `numerada` dice si la lista y el mapa muestran el número
+    (en el orden sugerido, las visitas sin coordenadas quedan fuera del cálculo, al final y sin número)."""
+    numero: int
+    intento: IntentoEntrega
+    punto: object  # ruta.Punto o None
+    atrasada: bool
+    nueva: bool = False
+    numerada: bool = True
+
+
+@dataclass
+class RutaDelDia:
+    fecha: date
+    hoy: date
+    modo: str                    # SUGERIDO o MANUAL
+    version: int                 # 0 si el encargado no tiene un orden guardado para hoy
+    guardado_en: object          # fecha y hora del orden guardado (modo manual), o None
+    origen: object               # ruta.Punto del CESFAM
+    partida: object              # ruta.Punto desde donde se calcula (el CESFAM o la última visita registrada)
+    partida_intento: object      # intento registrado desde cuyo domicilio parte, o None
+    paradas: list                # Parada en orden; en el modo sugerido, las sin coordenadas van al final sin número
+    registradas: list            # intentos registrados hoy (solo si la fecha es hoy)
+    proximas: list               # intentos de fechas posteriores (solo para el encargado)
+    total_m: float               # partida → paradas con coordenadas → CESFAM, en línea recta
+    segundos_calculo: float
+    limite_2opt_excedido: bool
+
+    @property
+    def es_hoy(self):
+        return self.fecha == self.hoy
+
+    @property
+    def manual(self):
+        return self.modo == MANUAL
+
+    @property
+    def numeradas(self):
+        return [parada for parada in self.paradas if parada.numerada]
+
+    @property
+    def sin_coordenadas(self):
+        """En el orden sugerido: visitas sin coordenadas, fuera del cálculo, ya ordenadas por sector y localidad."""
+        return [parada for parada in self.paradas if not parada.numerada]
+
+    @property
+    def sin_marcador(self):
+        return sum(1 for parada in self.paradas if parada.punto is None)
+
+    @property
+    def parte_del_origen(self):
+        return self.partida_intento is None
+
+    @property
+    def total_km(self):
+        return formatear_km(self.total_m)
+
+    def parada_de(self, intento_id):
+        return next((parada for parada in self.paradas if parada.intento.pk == intento_id), None)
+
+
+def _inicio_y_fin(dia):
+    inicio = timezone.make_aware(datetime.combine(dia, time.min))
+    return inicio, timezone.make_aware(datetime.combine(dia + timedelta(days=1), time.min))
+
+
+def registradas_hoy(encargado, hoy=None):
+    """Visitas que el encargado registró hoy como «entregada» o «no entregada», de la más antigua a la última."""
+    hoy = hoy or timezone.localdate()
+    inicio, fin = _inicio_y_fin(hoy)
+    return list(
+        IntentoEntrega.objects.select_related("entrega__paciente__domicilio")
+        .filter(encargado=encargado, resultado__in=REGISTRADOS, registrado_en__gte=inicio, registrado_en__lt=fin)
+        .order_by("registrado_en", "pk")
+    )
+
+
+def partida_del_dia(encargado, hoy=None, registradas=None):
+    """(punto, intento): el domicilio con coordenadas de la última visita registrada hoy, o (CESFAM, None).
+
+    Las visitas registradas cuyo domicilio no tiene coordenadas se ignoran.
+    """
+    if registradas is None:
+        registradas = registradas_hoy(encargado, hoy)
+    for intento in reversed(registradas):
+        punto = punto_de(intento)
+        if punto is not None:
+            return punto, intento
+    return origen_ruta(), None
+
+
+def _clave_sin_coordenadas(intento):
+    domicilio = domicilio_de(intento.entrega.paciente)
+    sector = domicilio.sector if domicilio else ""
+    localidad = domicilio.localidad.strip().lower() if domicilio else ""
+    return (sector == "", sector, localidad == "", localidad, intento.pk)
+
+
+def orden_guardado(encargado, fecha):
+    """(OrdenRuta o None, ids de intentos en su orden). Un orden sin paradas vale la sugerencia."""
+    orden = OrdenRuta.objects.filter(encargado=encargado, fecha=fecha).first()
+    if orden is None:
+        return None, []
+    return orden, list(orden.paradas.order_by("posicion").values_list("intento_id", flat=True))
+
+
+def _aplicar_orden_guardado(guardados, vigentes, partida, origen, hoy):
+    """Cruza el orden guardado con la ruta vigente e inserta las visitas nuevas (RF-09-05).
+
+    Las guardadas que ya no están en la ruta (registradas, reasignadas o anuladas) desaparecen. Cada nueva con
+    coordenadas entra donde menos alarga el recorrido, sin mover las demás; las nuevas sin coordenadas, al final.
+    """
+    secuencia = [(intento_id, False) for intento_id in guardados if intento_id in vigentes]
+    presentes = {intento_id for intento_id, _ in secuencia}
+    nuevas = [vigentes[pk] for pk in sorted(vigentes) if pk not in presentes]
+    puntos = {pk: punto_de(intento) for pk, intento in vigentes.items()}
+    for intento in nuevas:
+        punto = puntos[intento.pk]
+        if punto is None:
+            continue
+        con_coordenadas = [indice for indice, (pk, _) in enumerate(secuencia) if puntos[pk] is not None]
+        lugar = insertar([puntos[secuencia[indice][0]] for indice in con_coordenadas], partida, origen, punto)
+        if lugar < len(con_coordenadas):
+            posicion = con_coordenadas[lugar]
+        else:
+            posicion = con_coordenadas[-1] + 1 if con_coordenadas else len(secuencia)
+        secuencia.insert(posicion, (intento.pk, True))
+    secuencia += [(intento.pk, True) for intento in nuevas if puntos[intento.pk] is None]
+    return [
+        Parada(numero, vigentes[pk], puntos[pk], vigentes[pk].fecha_programada < hoy, nueva=nueva)
+        for numero, (pk, nueva) in enumerate(secuencia, start=1)
+    ]
+
+
+def ruta_del_dia(encargado, fecha=None, hoy=None, *, incluir_proximas=False):
+    """Ruta de un encargado para `fecha` (hoy por defecto): orden guardado o sugerido. No escribe nada.
+
+    Hoy: visitas sin resultado de hoy y atrasadas, partida desde la última visita registrada y orden guardado si
+    existe. Fecha posterior (consulta de la Q.F.): solo las de esa fecha, sugeridas desde el CESFAM.
+    """
+    hoy = hoy or timezone.localdate()
+    fecha = fecha or hoy
+    es_hoy = fecha == hoy
+    pendientes = _intentos_con_contexto().filter(encargado=encargado, resultado=IntentoEntrega.Resultado.PENDIENTE)
+    if not es_hoy:
+        pendientes = pendientes.filter(fecha_programada=fecha)
+    elif not incluir_proximas:
+        pendientes = pendientes.filter(fecha_programada__lte=hoy)
+    pendientes = list(pendientes.order_by("fecha_programada", "pk"))
+    proximas = [i for i in pendientes if i.fecha_programada > hoy] if es_hoy else []
+    vigentes = {i.pk: i for i in pendientes if not es_hoy or i.fecha_programada <= hoy}
+    origen = origen_ruta()
+    registradas, partida, partida_intento, orden, guardados = [], origen, None, None, []
+    if es_hoy:
+        registradas = registradas_hoy(encargado, hoy)
+        partida, partida_intento = partida_del_dia(encargado, hoy, registradas)
+        orden, guardados = orden_guardado(encargado, hoy)
+    inicio = reloj.perf_counter()
+    excedido = False
+    if guardados:
+        modo = MANUAL
+        paradas = _aplicar_orden_guardado(guardados, vigentes, partida, origen, hoy)
+    else:
+        modo = SUGERIDO
+        puntos = {pk: punto_de(intento) for pk, intento in vigentes.items()}
+        sugerido = ordenar(partida, origen, [punto for punto in puntos.values() if punto is not None])
+        excedido = sugerido.limite_excedido
+        paradas = [Parada(numero, vigentes[punto.clave], punto, vigentes[punto.clave].fecha_programada < hoy)
+                   for numero, punto in enumerate(sugerido.paradas, start=1)]
+        sin = sorted((intento for pk, intento in vigentes.items() if puntos[pk] is None), key=_clave_sin_coordenadas)
+        paradas += [Parada(numero, intento, None, intento.fecha_programada < hoy, numerada=False)
+                    for numero, intento in enumerate(sin, start=len(paradas) + 1)]
+    total = longitud_m([partida, *[parada.punto for parada in paradas if parada.punto is not None], origen])
+    return RutaDelDia(
+        fecha=fecha, hoy=hoy, modo=modo, version=orden.version if orden else 0,
+        guardado_en=orden.modificado_en if guardados else None, origen=origen, partida=partida,
+        partida_intento=partida_intento, paradas=paradas, registradas=registradas, proximas=proximas,
+        total_m=total, segundos_calculo=reloj.perf_counter() - inicio, limite_2opt_excedido=excedido,
+    )

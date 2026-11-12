@@ -1,0 +1,43 @@
+{# Lista de la ruta del día (spec 09): la vista principal y accesible; el mapa la complementa. Espera `ruta` (consultas.RutaDelDia); `controles` agrega subir, bajar y mover (solo el encargado); `consulta` es «Rutas» de la Q.F., sin acciones. #}
+{% include 'entregas/_ruta_rotulo.html' %}
+<p class="resumen-visitas">Recorrido aprox.: {{ ruta.total_km }} km · Por visitar ({{ ruta.paradas|length }}){% if ruta.es_hoy %} · Registradas hoy ({{ ruta.registradas|length }}){% endif %}</p>
+{% if ruta.limite_2opt_excedido %}<p class="suave">Con más de 200 paradas, el orden sugerido solo elige la parada más cercana en cada paso.</p>{% endif %}
+
+<section class="visitas" id="lista-paradas" aria-labelledby="titulo-por-visitar" tabindex="-1">
+  <h2 id="titulo-por-visitar">Por visitar en orden ({{ ruta.numeradas|length }})</h2>
+  {% for parada in ruta.numeradas %}
+  {% include 'entregas/_tarjeta_intento.html' with intento=parada.intento registrable=ruta.es_hoy sin_acciones=consulta %}
+  {% empty %}
+  <p class="suave">{% if ruta.sin_coordenadas %}Ninguna visita tiene coordenadas: el orden no se puede calcular. Usa la dirección y las referencias.{% elif ruta.es_hoy %}No quedan visitas por hacer hoy.{% else %}No hay visitas programadas para esta fecha.{% endif %}</p>
+  {% endfor %}
+</section>
+
+{% if ruta.sin_coordenadas %}
+<section class="visitas" aria-labelledby="titulo-sin-coordenadas">
+  <h2 id="titulo-sin-coordenadas">Sin coordenadas: fuera del orden sugerido ({{ ruta.sin_coordenadas|length }})</h2>
+  <p class="suave">No entran al cálculo del recorrido ni tienen marcador en el mapa. Van agrupadas por sector y localidad{% if controles %}; puedes ubicarlas en tu orden con «Subir» o «Mover a la posición»{% endif %}.</p>
+  {% for parada in ruta.sin_coordenadas %}
+  {% ifchanged parada.intento.domicilio.sector parada.intento.domicilio.localidad %}<p class="grupo-sector">{% if parada.intento.domicilio.sector %}Sector {{ parada.intento.domicilio.get_sector_display }}{% else %}Sin sector{% endif %}{% if parada.intento.domicilio.localidad %} · {{ parada.intento.domicilio.localidad }}{% endif %}</p>{% endifchanged %}
+  {% include 'entregas/_tarjeta_intento.html' with intento=parada.intento registrable=ruta.es_hoy sin_acciones=consulta %}
+  {% endfor %}
+</section>
+{% endif %}
+
+{% if ruta.es_hoy %}
+<section class="visitas" aria-labelledby="titulo-registradas">
+  <h2 id="titulo-registradas">Registradas hoy ({{ ruta.registradas|length }})</h2>
+  {% if ruta.registradas %}
+  <ul class="lista-registradas">
+    {% for intento in ruta.registradas %}
+    <li class="registrada registrada-{{ intento.resultado }}">
+      <span class="registrada-marca" aria-hidden="true">{% if intento.resultado == 'entregada' %}✓{% else %}✗{% endif %}</span>
+      <span><strong>{% if intento.resultado == 'entregada' %}Entregada{% else %}No entregada: {{ intento.get_motivo_display }}{% endif %}</strong> · <time datetime="{{ intento.registrado_en|date:'c' }}">{{ intento.registrado_en|time:"H:i" }}</time> · {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span>
+      <a class="enlace-secundario" href="{% url 'entregasapp:detalle' intento.entrega_id %}">Ver entrega<span class="sr-only"> de {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></a>
+    </li>
+    {% endfor %}
+  </ul>
+  {% else %}
+  <p class="suave">Todavía no hay visitas registradas hoy.</p>
+  {% endif %}
+</section>
+{% endif %}

@@ -1,4 +1,4 @@
-"""Rutas del reparto a domicilio (spec 08). Solo identificadores internos: nunca RUT ni nombres."""
+"""Rutas del reparto a domicilio (specs 08 y 09). Solo identificadores internos: nunca RUT ni nombres."""
 
 from django.urls import path
 
@@ -16,6 +16,11 @@ urlpatterns = [
     path("<int:pk>/anular/", views.AnularView.as_view(), name="anular"),
     path("recetas/<int:pk>/revisada/", views.RevisadaView.as_view(), name="receta_revisada"),
     path("mis/", views.MisEntregasView.as_view(), name="mis"),
+    path("mis/mapa/", views.MapaView.as_view(), name="mapa"),
+    path("mis/ir/<int:pk>/", views.IrAView.as_view(), name="ir_a"),
+    path("mis/orden/mover/", views.MoverParadaView.as_view(), name="orden_mover"),
+    path("mis/orden/sugerido/", views.RestablecerOrdenView.as_view(), name="orden_sugerido"),
+    path("rutas/", views.RutasView.as_view(), name="rutas"),
     path("intentos/<int:pk>/", views.RegistroView.as_view(), name="registro"),
     path("intentos/<int:pk>/entregada/", views.EntregadaView.as_view(), name="intento_entregada"),
     path("intentos/<int:pk>/no-entregada/", views.NoEntregadaView.as_view(), name="intento_no_entregada"),

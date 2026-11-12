@@ -25,7 +25,9 @@ from coreapp.roles import ENCARGADO, JEFA, estado_acceso
 from recetasapp.models import Paciente, Receta
 from recetasapp.services import ConflictoOperacion, auditar, evaluar_elegibilidad, reintentar_conflictos
 from . import consultas, fotos
-from .models import Domicilio, Entrega, FotoDomicilio, InscripcionReparto, IntentoEntrega, RecetaEntrega
+from .models import (
+    Domicilio, Entrega, FotoDomicilio, InscripcionReparto, IntentoEntrega, OrdenRuta, ParadaRuta, RecetaEntrega,
+)
 
 CAMPOS_UBICACION = ("sector", "localidad", "direccion", "referencias", "latitud", "longitud")
 CAMPOS_DOMICILIO = (*CAMPOS_UBICACION, "precision_metros")
@@ -555,6 +557,121 @@ def anular_entrega(actor, entrega_id, motivo, nota=""):
     entrega.refresh_from_db()
     auditar(actor, "entrega.anulada", entrega)
     return entrega
+
+
+# Orden de visita (spec 09) -------------------------------------------------------------------------------------
+
+MENSAJE_ORDEN_CAMBIO = "Tu orden cambió en otro dispositivo; revisa la lista."
+SUBIR = "subir"
+BAJAR = "bajar"
+
+
+def _version_leida(version):
+    try:
+        version = int(version)
+    except (TypeError, ValueError):
+        raise ValidationError(MENSAJE_ORDEN_CAMBIO) from None
+    if version < 0:
+        raise ValidationError(MENSAJE_ORDEN_CAMBIO)
+    return version
+
+
+def _tomar_orden(actor, hoy, version, operacion, ahora):
+    """Toma el orden de hoy desde la versión que vio el encargado. Devuelve (orden, repetido).
+
+    Sin `select_for_update()`: el primer guardado crea el orden (la restricción `orden_ruta_unico` deja uno solo y
+    el perdedor reintenta, ya con otra versión) y los siguientes suben la versión con un UPDATE condicional sobre
+    campos propios. Una versión distinta de la actual nunca sobrescribe: devuelve el aviso, sin reintento.
+    """
+    orden = OrdenRuta.objects.filter(encargado=actor, fecha=hoy).first()
+    if orden is not None and orden.ultima_operacion == operacion:
+        return orden, True
+    if orden is None:
+        if version != 0:
+            raise ValidationError(MENSAJE_ORDEN_CAMBIO)
+        try:
+            with transaction.atomic():
+                orden = OrdenRuta.objects.create(encargado=actor, fecha=hoy, version=1, ultima_operacion=operacion,
+                                                 creado_por=actor, modificado_por=actor)
+        except IntegrityError:
+            raise ConflictoOperacion("Otro dispositivo guardó el orden en paralelo.") from None
+        return orden, False
+    if not OrdenRuta.objects.filter(pk=orden.pk, version=version).update(
+        version=F("version") + 1, ultima_operacion=operacion, modificado_por=actor, modificado_en=ahora,
+    ):
+        raise ValidationError(MENSAJE_ORDEN_CAMBIO)
+    orden.refresh_from_db()
+    return orden, False
+
+
+def _destino_valido(destino, indice, cantidad):
+    if destino == SUBIR:
+        if indice == 0:
+            raise ValidationError("Esta parada ya es la primera.")
+        return indice - 1
+    if destino == BAJAR:
+        if indice == cantidad - 1:
+            raise ValidationError("Esta parada ya es la última.")
+        return indice + 1
+    try:
+        posicion = int(destino)
+    except (TypeError, ValueError):
+        raise ValidationError("Elige subir, bajar o una posición de la lista.") from None
+    if not 1 <= posicion <= cantidad:
+        raise ValidationError(f"Elige una posición entre 1 y {cantidad}.")
+    return posicion - 1
+
+
+@reintentar_conflictos
+@transaction.atomic
+def mover_parada(actor, intento_id, destino, version, operacion_id):
+    """Sube, baja o mueve a una posición una visita de la ruta de hoy y guarda el orden completo (RF-09-04).
+
+    Parte de la ruta que el encargado ve (sugerida o guardada, con las visitas nuevas ya insertadas), así que al
+    guardar las nuevas quedan incorporadas. Solo el encargado asignado (comprobación exacta del rol).
+    """
+    _exigir_encargado(actor)
+    actor = get_user_model().objects.get(pk=actor.pk)
+    operacion = _uuid(operacion_id)
+    version = _version_leida(version)
+    ahora = timezone.now()
+    hoy = timezone.localdate(ahora)
+    orden, repetido = _tomar_orden(actor, hoy, version, operacion, ahora)
+    if repetido:
+        return orden
+    secuencia = [parada.intento.pk for parada in consultas.ruta_del_dia(actor, hoy, hoy).paradas]
+    try:
+        indice = secuencia.index(int(intento_id))
+    except (TypeError, ValueError):
+        raise ValidationError("Esa visita ya no está en tu ruta de hoy. Revisa la lista.") from None
+    nuevo = _destino_valido(destino, indice, len(secuencia))
+    secuencia.insert(nuevo, secuencia.pop(indice))
+    ParadaRuta.objects.filter(orden=orden).delete()
+    ParadaRuta.objects.bulk_create([
+        ParadaRuta(orden=orden, intento_id=pk, posicion=posicion) for posicion, pk in enumerate(secuencia, start=1)
+    ])
+    auditar(actor, "ruta.ordenada", orden)
+    return orden
+
+
+@reintentar_conflictos
+@transaction.atomic
+def restablecer_orden(actor, version, operacion_id):
+    """«Volver al orden sugerido»: vacía el orden de hoy (RF-09-06). Sin un orden con paradas no hace nada."""
+    _exigir_encargado(actor)
+    actor = get_user_model().objects.get(pk=actor.pk)
+    operacion = _uuid(operacion_id)
+    version = _version_leida(version)
+    ahora = timezone.now()
+    hoy = timezone.localdate(ahora)
+    if not ParadaRuta.objects.filter(orden__encargado=actor, orden__fecha=hoy).exists():
+        return None
+    orden, repetido = _tomar_orden(actor, hoy, version, operacion, ahora)
+    if repetido:
+        return orden
+    ParadaRuta.objects.filter(orden=orden).delete()
+    auditar(actor, "ruta.restablecida", orden)
+    return orden
 
 
 @transaction.atomic

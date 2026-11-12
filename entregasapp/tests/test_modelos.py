@@ -1,13 +1,17 @@
 """Restricciones de la base del reparto: cada regla de integridad tiene su prueba (T-08-01)."""
 
 import uuid
+from datetime import timedelta
 from decimal import Decimal
 
 from django.db import IntegrityError, transaction
+from django.db.models import ProtectedError
 from django.test import TestCase
 from django.utils import timezone
 
-from entregasapp.models import Domicilio, Entrega, FotoDomicilio, InscripcionReparto, IntentoEntrega, RecetaEntrega
+from entregasapp.models import (
+    Domicilio, Entrega, FotoDomicilio, InscripcionReparto, IntentoEntrega, OrdenRuta, ParadaRuta, RecetaEntrega,
+)
 from recetasapp.models import EntregaReceta
 from .ayudas import cuenta, hoy, paciente, receta
 
@@ -122,3 +126,47 @@ class RestriccionesTests(TestCase):
         self.rechaza(lambda: vinculo(entrega_receta=entrega_receta))
         vinculo(resultado="descontada", entrega_receta=entrega_receta)
         self.rechaza(lambda: vinculo())  # la misma receta dos veces en una entrega
+
+
+class OrdenRutaRestriccionesTests(TestCase):
+    """Spec 09 (T-09-03): un orden por encargado y día; cada intento y cada posición una sola vez por orden."""
+
+    def setUp(self):
+        self.encargado = cuenta("modelos_ruta")
+        self.otro = cuenta("modelos_ruta_2")
+        self.intentos = []
+        for _ in range(2):
+            entrega = Entrega.objects.create(paciente=paciente(), operacion_id=uuid.uuid4())
+            self.intentos.append(IntentoEntrega.objects.create(entrega=entrega, numero=1, fecha_programada=hoy(),
+                                                               encargado=self.encargado))
+
+    def rechaza(self, crear):
+        with self.assertRaises(IntegrityError), transaction.atomic():
+            crear()
+
+    def test_un_orden_por_encargado_y_dia_con_version_positiva(self):
+        OrdenRuta.objects.create(encargado=self.encargado, fecha=hoy())
+        self.rechaza(lambda: OrdenRuta.objects.create(encargado=self.encargado, fecha=hoy()))
+        self.rechaza(lambda: OrdenRuta.objects.create(encargado=self.otro, fecha=hoy(), version=0))
+        OrdenRuta.objects.create(encargado=self.otro, fecha=hoy())
+        OrdenRuta.objects.create(encargado=self.encargado, fecha=hoy() + timedelta(days=1))
+        self.assertEqual(OrdenRuta.objects.count(), 3)
+
+    def test_parada_intento_y_posicion_unicos_y_posicion_desde_1(self):
+        orden = OrdenRuta.objects.create(encargado=self.encargado, fecha=hoy())
+        primero, segundo = self.intentos
+        ParadaRuta.objects.create(orden=orden, intento=primero, posicion=1)
+        self.rechaza(lambda: ParadaRuta.objects.create(orden=orden, intento=primero, posicion=2))
+        self.rechaza(lambda: ParadaRuta.objects.create(orden=orden, intento=segundo, posicion=1))
+        self.rechaza(lambda: ParadaRuta.objects.create(orden=orden, intento=segundo, posicion=0))
+        ParadaRuta.objects.create(orden=orden, intento=segundo, posicion=2)
+        self.assertEqual([p.intento_id for p in orden.paradas.all()], [primero.pk, segundo.pk])
+
+    def test_vaciar_el_orden_no_toca_los_intentos_y_un_intento_con_parada_no_se_borra(self):
+        orden = OrdenRuta.objects.create(encargado=self.encargado, fecha=hoy())
+        ParadaRuta.objects.create(orden=orden, intento=self.intentos[0], posicion=1)
+        with self.assertRaises(ProtectedError):
+            self.intentos[0].delete()
+        orden.delete()
+        self.assertEqual(ParadaRuta.objects.count(), 0)
+        self.assertEqual(IntentoEntrega.objects.count(), 2)

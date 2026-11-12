@@ -24,10 +24,10 @@ from coreapp.mixins import RolRequeridoMixin, tiene_rol
 from coreapp.roles import ENCARGADO, JEFA, TECNICO
 from recetasapp.models import Paciente
 from recetasapp.services import evaluar_elegibilidad
-from . import consultas, fotos, services
+from . import consultas, fotos, mapa, services
 from .forms import (
     AnularForm, BusquedaForm, DomicilioForm, EntregadaForm, ExcepcionForm, FiltroDomiciliosForm, FiltroEntregasForm,
-    FotoForm, NoEntregadaForm, ProgramarForm, ReasignarForm, VersionForm,
+    FotoForm, MoverParadaForm, NoEntregadaForm, ProgramarForm, ReasignarForm, RestablecerOrdenForm, RutaForm, VersionForm,
 )
 from .models import Domicilio, Entrega, FotoDomicilio, InscripcionReparto, IntentoEntrega, RecetaEntrega
 
@@ -60,11 +60,14 @@ class EntregasView(RolRequeridoMixin, View):
     def pestanas(self, actual):
         if services.es_encargado(self.request.user):
             opciones = [("mis", "Mis entregas", "entregasapp:mis", consultas.contar_mis_entregas(self.request.user)),
+                        ("mapa", "Mapa", "entregasapp:mapa", None),
                         ("domicilios", "Domicilios", "entregasapp:domicilios", None)]
         else:
             opciones = [("programacion", "Programación", "entregasapp:programacion", None),
-                        ("pendientes", "Pendientes de gestión", "entregasapp:pendientes", consultas.pendientes_gestion().count()),
-                        ("domicilios", "Domicilios", "entregasapp:domicilios", None)]
+                        ("pendientes", "Pendientes de gestión", "entregasapp:pendientes", consultas.pendientes_gestion().count())]
+            if tiene_rol(self.request.user, JEFA):  # spec 09: «Rutas» es de la Q.F. y el superusuario, no del Técnico
+                opciones.append(("rutas", "Rutas", "entregasapp:rutas", None))
+            opciones.append(("domicilios", "Domicilios", "entregasapp:domicilios", None))
         return [{"clave": clave, "texto": texto, "url": reverse(destino), "cantidad": cantidad, "actual": clave == actual}
                 for clave, texto, destino, cantidad in opciones]
 
@@ -313,13 +316,123 @@ def _preparar_intentos(intentos, hoy):
     return intentos
 
 
+def _preparar_ruta(ruta, hoy, *, controles=False):
+    """Datos de las tarjetas de la ruta (spec 09). Con `controles`, una operación por parada para reordenar."""
+    _preparar_intentos([parada.intento for parada in ruta.paradas] + list(ruta.proximas), hoy)
+    for parada in ruta.paradas:
+        parada.intento.parada = parada
+        if controles:
+            parada.operacion_id = uuid.uuid4()
+    for intento in ruta.registradas:
+        intento.paciente = intento.entrega.paciente
+    return ruta
+
+
+def _contexto_ruta(ruta):
+    cantidad = ruta.sin_marcador
+    return {
+        "ruta": ruta, "posiciones": range(1, len(ruta.paradas) + 1),
+        "sin_marcador_texto": f"{cantidad} visita sin marcador" if cantidad == 1 else f"{cantidad} visitas sin marcador",
+    }
+
+
 class MisEntregasView(SoloEncargadoView):
+    """Ruta numerada del día (spec 09): paradas en orden, sin coordenadas, registradas hoy y próximas."""
+
     def get(self, request):
         hoy = timezone.localdate()
-        lista = consultas.mis_entregas(request.user, hoy)
-        for grupo in (lista.hoy, lista.atrasadas, lista.proximas):
-            _preparar_intentos(grupo, hoy)
-        return self.render("mis_entregas.html", {"lista": lista, "hoy": hoy, "pestanas": self.pestanas("mis")})
+        ruta = _preparar_ruta(consultas.ruta_del_dia(request.user, hoy=hoy, incluir_proximas=True), hoy, controles=True)
+        return self.render("mis_entregas.html", {
+            **_contexto_ruta(ruta), "hoy": hoy, "pestanas": self.pestanas("mis"), "controles": True,
+            "restablecer": RestablecerOrdenForm(initial={"version": ruta.version, "operacion_id": uuid.uuid4()}),
+        })
+
+
+class MapaView(SoloEncargadoView):
+    def get(self, request):
+        hoy = timezone.localdate()
+        ruta = _preparar_ruta(consultas.ruta_del_dia(request.user, hoy=hoy), hoy)
+        return self.render("mapa.html", {
+            **_contexto_ruta(ruta), "hoy": hoy, "pestanas": self.pestanas("mapa"), "datos_mapa": mapa.datos_mapa(ruta),
+        })
+
+
+class IrAView(SoloEncargadoView):
+    """«Ir a esta parada»: la posición se calcula y se queda en el navegador; aquí solo va el destino."""
+
+    def get(self, request, pk):
+        intento = get_object_or_404(IntentoEntrega, pk=pk)
+        if intento.encargado_id != request.user.pk:
+            raise PermissionDenied
+        hoy = timezone.localdate()
+        ruta = consultas.ruta_del_dia(request.user, hoy=hoy)
+        parada = ruta.parada_de(intento.pk)
+        if parada is None:
+            messages.info(request, "Esa visita ya no está en tu ruta de hoy. Revisa la lista actualizada.")
+            return redirect("entregasapp:mis")
+        if parada.punto is None:
+            messages.info(request, "Esta visita no tiene coordenadas: usa la dirección y las referencias para llegar.")
+            return redirect(reverse("entregasapp:mis") + f"#parada-{intento.pk}")
+        _preparar_intentos([parada.intento], hoy)
+        datos = mapa.datos_ir_a(parada)
+        return self.render("ir_a.html", {
+            "parada": parada, "intento": parada.intento, "datos_ir_a": datos, "hoy": hoy, "pestanas": self.pestanas("mis"),
+            "geo": f"geo:{datos['lat']:.6f},{datos['lon']:.6f}", "coordenadas": f"{datos['lat']:.6f}, {datos['lon']:.6f}",
+        })
+
+
+class MoverParadaView(SoloEncargadoView):
+    def post(self, request):
+        form = MoverParadaForm(request.POST)
+        destino = reverse("entregasapp:mis")
+        if not form.is_valid():
+            messages.error(request, "No se pudo cambiar el orden. Vuelve a intentarlo desde la lista.")
+            return redirect(destino)
+        datos = form.cleaned_data
+        try:
+            services.mover_parada(request.user, datos["intento"], datos["destino"], datos["version"], datos["operacion_id"])
+        except ValidationError as error:
+            messages.error(request, _mensaje(error))
+        except DatabaseError:
+            messages.error(request, "No pudimos guardar el orden. Inténtalo nuevamente.")
+        else:
+            messages.success(request, "Orden guardado. Desde ahora manda tu orden de hoy.")
+        return redirect(f"{destino}#parada-{datos['intento']}")
+
+
+class RestablecerOrdenView(SoloEncargadoView):
+    def post(self, request):
+        form = RestablecerOrdenForm(request.POST)
+        if not form.is_valid():
+            messages.error(request, "No se pudo volver al orden sugerido. Vuelve a intentarlo desde la lista.")
+            return redirect("entregasapp:mis")
+        try:
+            orden = services.restablecer_orden(request.user, form.cleaned_data["version"], form.cleaned_data["operacion_id"])
+        except ValidationError as error:
+            messages.error(request, _mensaje(error))
+        except DatabaseError:
+            messages.error(request, "No pudimos volver al orden sugerido. Inténtalo nuevamente.")
+        else:
+            messages.success(request, "Volviste al orden sugerido." if orden else "Ya estabas en el orden sugerido.")
+        return redirect("entregasapp:mis")
+
+
+class RutasView(EntregasView):
+    """Consulta de la Q.F. y el superusuario (spec 09, RF-09-10): ruta de un encargado por fecha, sin acciones."""
+
+    roles_permitidos = GESTION
+
+    def get(self, request):
+        hoy = timezone.localdate()
+        filtrado = "encargado" in request.GET or "fecha" in request.GET
+        form = RutaForm(request.GET if filtrado else None, initial={"fecha": hoy})
+        contexto = {"form": form, "hoy": hoy, "pestanas": self.pestanas("rutas"), "consulta": True}
+        if filtrado and form.is_valid():
+            encargado, fecha = form.cleaned_data["encargado"], form.cleaned_data["fecha"]
+            ruta = _preparar_ruta(consultas.ruta_del_dia(encargado, fecha, hoy), hoy)
+            contexto.update(_contexto_ruta(ruta), encargado=encargado, encargado_nombre=_nombre(encargado),
+                            datos_mapa=mapa.datos_mapa(ruta, consulta=True))
+        return self.render("rutas.html", contexto, status=400 if filtrado and not form.is_valid() else 200)
 
 
 class RegistroView(SoloEncargadoView):
@@ -437,6 +550,8 @@ class DomicilioView(EntregasView):
                 contexto["foto_form"] = foto_form or FotoForm()
         if domicilio is not None:
             contexto["verificar_form"] = VersionForm(initial={"version": domicilio.version})
+            if domicilio.latitud is not None:  # spec 09 (RF-09-11): mapa pequeño de solo lectura
+                contexto["datos_punto"] = mapa.datos_punto(domicilio)
         return contexto
 
     def get(self, request, pk):

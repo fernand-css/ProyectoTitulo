@@ -42,7 +42,10 @@ class MisEntregasVistaTests(TestCase):
         for texto in (de_hoy.apellidos, "+56 9 0000 0000", "Sector Verde · Dadinco", "Camino a Dadinco km 2",
                       "Casa roja, portón verde", "-36.512345, -72.211234 (±8 m)", "(entrega 4 de 12)",
                       "Pendiente de verificar", f"Atrasada desde el {(hoy() - timedelta(days=2)):%d/%m}",
-                      atrasado.apellidos, manana.apellidos, "Próximas (1)", "Hoy (1)", "Atrasadas (1)"):
+                      atrasado.apellidos, manana.apellidos, "Próximas (1)",
+                      # Spec 09 (RF-09-01 y RF-09-03): hoy y atrasadas forman una sola ruta numerada; la atrasada no
+                      # tiene domicilio, así que va aparte, sin número.
+                      "Por visitar (2)", "Parada 1", "Sin coordenadas: fuera del orden sugerido (1)"):
             with self.subTest(texto=texto):
                 self.assertIn(texto, html)
         self.assertNotIn(ajeno.apellidos, html)

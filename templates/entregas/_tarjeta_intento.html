@@ -1,7 +1,15 @@
 {% load core_tags l10n %}
-{# Tarjeta de una visita en «Mis entregas». Espera `intento` preparado por la vista, `registrable` (hoy o atrasada) y, en la página de registro, `sin_acciones`. #}
+{# Tarjeta de una visita. Espera `intento` preparado por la vista, `registrable` (hoy o atrasada) y, en la página de registro, `sin_acciones`. Spec 09: si el intento trae `parada`, muestra su número y rótulos; `controles` agrega subir, bajar y mover (solo el encargado) y `consulta` es «Rutas» de la Q.F. #}
 {% if intento %}
-<article class="visita{% if intento.atrasada %} visita-atrasada{% endif %}" aria-labelledby="visita-{{ intento.pk }}">
+{% with parada=intento.parada %}
+<article class="visita{% if intento.atrasada %} visita-atrasada{% endif %}{% if parada.nueva %} visita-nueva{% endif %}" id="parada-{{ intento.pk }}" aria-labelledby="visita-{{ intento.pk }}">
+  {% if parada %}
+  <p class="parada-rotulos">
+    {% if parada.numerada %}<span class="parada-numero">Parada {{ parada.numero }}</span>{% endif %}
+    {% if parada.nueva %}<span class="etiqueta-ruta etiqueta-nueva"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-mas"/></svg>Nueva: no estaba en {% if consulta %}el orden guardado{% else %}tu orden{% endif %}</span>{% endif %}
+    {% if parada.punto is None %}<span class="etiqueta-ruta etiqueta-sin-coordenadas"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-info"/></svg>Sin coordenadas</span>{% endif %}
+  </p>
+  {% endif %}
   {% if intento.atrasada %}<p class="visita-aviso"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-alerta"/></svg>Atrasada desde el {{ intento.fecha_programada|date:"d/m" }}</p>{% endif %}
   <h3 id="visita-{{ intento.pk }}">{{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</h3>
   <dl class="visita-datos">
@@ -28,11 +36,14 @@
     <a class="boton" href="{% url 'entregasapp:registro' intento.pk %}?resultado=entregada#registrar-entregada"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg>Entregada<span class="sr-only">: {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></a>
     <a class="boton boton-secundario" href="{% url 'entregasapp:registro' intento.pk %}?resultado=no_entregada#registrar-no-entregada">No entregada<span class="sr-only">: {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></a>
     {% else %}
-    <p class="suave">Programada para el {{ intento.fecha_programada|date:"d/m/Y" }}. Podrás registrarla desde ese día.</p>
+    <p class="suave">Programada para el {{ intento.fecha_programada|date:"d/m/Y" }}.{% if not consulta %} Podrás registrarla desde ese día.{% endif %}</p>
     {% endif %}
+    {% if parada.punto and registrable and not sin_acciones and not consulta %}<a class="boton boton-secundario" href="{% url 'entregasapp:ir_a' intento.pk %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-brujula"/></svg>Ir a esta parada<span class="sr-only">: {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></a>{% endif %}
     <a class="enlace-secundario" href="{% url 'entregasapp:domicilio' intento.paciente.pk %}">Ver domicilio<span class="sr-only"> de {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></a>
   </div>
+  {% if controles and parada %}{% include 'entregas/_orden_controles.html' %}{% endif %}
 </article>
+{% endwith %}
 {% else %}
 <p class="suave">No hay datos de esta visita.</p>
 {% endif %}

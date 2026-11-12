@@ -1,0 +1,9 @@
+{# Mapa pequeño de solo lectura del domicilio (spec 09, RF-09-11): su punto y su precisión, sin datos del paciente. Espera `datos_punto`. #}
+<section class="panel" aria-labelledby="titulo-ubicacion">
+  <h2 id="titulo-ubicacion"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-mapa"/></svg>Ubicación en el mapa</h2>
+  <p class="suave">Punto guardado del domicilio{% if datos_punto.precision is not None %}, con precisión de ±{{ datos_punto.precision }} m (el círculo){% endif %}. Solo para ver: las coordenadas se cambian en los datos del domicilio.</p>
+  <div class="mapa mapa-punto" id="mapa-domicilio" role="region" aria-label="Mapa con la ubicación del domicilio" data-mapa="punto" data-datos="datos-punto" data-aviso="aviso-mapa-domicilio"></div>
+  <noscript><p class="suave">El mapa necesita JavaScript. Las coordenadas están en los datos del domicilio.</p></noscript>
+  <p class="mapa-aviso" id="aviso-mapa-domicilio" role="status" aria-live="polite" hidden></p>
+  {{ datos_punto|json_script:"datos-punto" }}
+</section>

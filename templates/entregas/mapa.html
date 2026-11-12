@@ -1,0 +1,31 @@
+{% extends 'entregas/base.html' %}
+{% load static %}
+{% block titulo %}Mapa · Mis entregas · Entregas en terreno{% endblock %}
+{% block estilos %}{{ block.super }}<link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}">{% endblock %}
+{% block entregas %}
+{% include 'entregas/_cabecera.html' with titulo='Mapa de mis entregas' texto='Tus paradas de hoy con el mismo número de la lista, las visitas registradas y el CESFAM.' %}
+
+{% include 'entregas/_ruta_rotulo.html' %}
+{% include 'entregas/_mapa.html' with destino_saltar='lista-mapa' %}
+
+<section class="visitas" id="lista-mapa" aria-labelledby="titulo-lista-mapa" tabindex="-1">
+  <h2 id="titulo-lista-mapa">Paradas en orden ({{ ruta.paradas|length }})</h2>
+  {% if ruta.paradas %}
+  <ol class="lista-mapa">
+    {% for parada in ruta.paradas %}
+    <li>
+      <span><strong>{% if parada.numerada %}Parada {{ parada.numero }}{% else %}Sin coordenadas{% endif %}</strong>{% if parada.atrasada %} · Atrasada desde el {{ parada.intento.fecha_programada|date:"d/m" }}{% endif %}{% if parada.nueva %} · Nueva: no estaba en tu orden{% endif %} · {{ parada.intento.paciente.nombres }} {{ parada.intento.paciente.apellidos }}{% if parada.intento.domicilio.localidad %} · {{ parada.intento.domicilio.localidad }}{% endif %}{% if parada.punto is None %} · sin marcador{% endif %}</span>
+      <span class="lista-mapa-enlaces">
+        <a href="{% url 'entregasapp:registro' parada.intento.pk %}">Registrar<span class="sr-only"> {{ parada.intento.paciente.nombres }} {{ parada.intento.paciente.apellidos }}</span></a>
+        {% if parada.punto %}<a href="{% url 'entregasapp:ir_a' parada.intento.pk %}">Ir a esta parada<span class="sr-only">: {{ parada.intento.paciente.nombres }} {{ parada.intento.paciente.apellidos }}</span></a>{% endif %}
+      </span>
+    </li>
+    {% endfor %}
+  </ol>
+  {% else %}
+  <p class="suave">No quedan visitas por hacer hoy.</p>
+  {% endif %}
+  <p><a class="enlace-secundario" href="{% url 'entregasapp:mis' %}">Ver la lista completa en «Mis entregas»</a></p>
+</section>
+{% endblock %}
+{% block scripts %}<script src="{% static 'vendor/leaflet/leaflet.js' %}"></script><script src="{% static 'js/entregas/mapa.js' %}"></script>{% endblock %}

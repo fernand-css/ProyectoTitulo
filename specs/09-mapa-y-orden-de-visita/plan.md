@@ -1,8 +1,8 @@
 # Plan técnico — 09 / Mapa y orden de visita
 
 Spec: [spec.md](spec.md). Tareas: [tasks.md](tasks.md). Evidencia: [validation.md](validation.md).
-Fecha: 2026-11-12. Estado: propuesta; sin código.
-Autorización de implementación: pendiente.
+Fecha: 2026-11-12. Estado: implementado en `crojas-base` (cambios sin commit sobre `5751ec5`); verificación técnica en `validation.md`.
+Autorización de implementación: sí, el 2026-11-12 (ver `tasks.md`, «Autorización posterior»).
 
 ## Inspección de la base
 
@@ -158,7 +158,7 @@ Reglas comunes del 08: `@reintentar_conflictos`, `@transaction.atomic`, `auditar
 
 | Variable | Por defecto | Uso |
 |---|---|---|
-| `REPARTO_ORIGEN_LATITUD`, `REPARTO_ORIGEN_LONGITUD` | Valor de demostración aproximado del centro de San Nicolás (alrededor de −36,50 y −72,21; se verifica y rotula al implementar) | Origen y destino final del recorrido; marcador «CESFAM». |
+| `REPARTO_ORIGEN_LATITUD`, `REPARTO_ORIGEN_LONGITUD` | Punto del CESFAM entregado por el usuario el 2026-11-12: −36,4988773 y −72,2123601 | Origen y destino final del recorrido; marcador «CESFAM». |
 | `MAPA_TESELAS_URL` | `https://tile.openstreetmap.org/{z}/{x}/{y}.png` | Mapa base. |
 | `MAPA_TESELAS_ATRIBUCION` | `© colaboradores de OpenStreetMap` (con enlace a la página de derechos de autor de OSM, dibujado por Leaflet) | Atribución visible. |
 | `MAPA_ZOOM_MAXIMO` | 19 | Límite del proveedor. |
@@ -360,3 +360,28 @@ En esta fase solo se guardan los cuatro documentos y el índice.
 ## Decisiones para implementar
 
 Ninguna bloqueante. Quedan por confirmar en la revisión el valor exacto del origen y los supuestos del spec: el rótulo «Nueva», «Volver al orden sugerido», el límite de 200 paradas y el radio de demostración. Esta fase termina antes del código.
+
+## Notas de implementación (2026-11-12)
+
+Detalles que el plan no fijaba o que se resolvieron al implementar, sin cambiar el contrato del spec:
+
+- **Origen:** el valor por defecto es el punto del CESFAM que entregó el usuario (−36,4988773; −72,2123601), no el aproximado del centro. `_numero_entorno` acepta punto o coma decimal y deja el texto si no es un número, para que `check` lo informe.
+- **Auditoría:** `RegistroAuditoria` solo guarda la acción, el tipo y el id del objeto (regla del 01 y del 08), así que `ruta.ordenada` y `ruta.restablecida` registran el `OrdenRuta` con su id. La versión y la cantidad de paradas viven en el propio orden, no en la auditoría.
+- **`ParadaRuta`** no hereda `ModeloAuditado`: quién y cuándo guardó está en `OrdenRuta` (`modificado_por` y `modificado_en`).
+- **`restablecer_orden`** no hace nada si el orden de hoy no tiene paradas, aunque exista: así no sube la versión ni deja auditoría de un cambio vacío.
+- **Mismo punto:** las paradas seguidas con las mismas coordenadas (dos pacientes de una casa) quedan por clave del intento. No cambia el largo y hace el resultado más legible.
+- **Inserción de visitas nuevas:** si la posición más barata cae después de la última parada con coordenadas, la nueva queda justo después de ella, antes de las sin coordenadas del final. Las nuevas se insertan de una en una, por id de intento.
+- **Posiciones en el orden sugerido:** «Mover a la posición» ofrece 1..n sobre la secuencia completa: numeradas y, al final, las sin coordenadas, como dice el paso 4 de `mover_parada`.
+- **Operación por parada:** cada tarjeta lleva su propio `operacion_id` (los formularios de subir/bajar y de mover de esa tarjeta lo comparten); «Volver al orden sugerido» lleva el suyo.
+- **«Ir a esta parada»:** si la visita ya no está en la ruta de hoy, o no tiene coordenadas, la vista vuelve a «Mis entregas» con un aviso en texto en lugar de un 404. Una visita de otro encargado da 403.
+- **«Rutas»:** parámetros no válidos (fecha pasada, encargado que no es encargado activo o texto en lugar de un id) responden 400 con el texto del error y sin datos de la ruta.
+- **Leaflet:** se copiaron `leaflet.js`, `leaflet.css`, `leaflet.js.map` (lo referencia el final de `leaflet.js`), las imágenes y `LICENSE` del paquete npm `leaflet@1.9.4`. El prefijo de atribución es el texto «Leaflet», sin imagen.
+- **Aviso de teselas:** cuenta los errores entre `loading` y `load`; avisa al primer `tileerror` y lo quita solo si una carga completa termina sin errores.
+- **Íconos nuevos:** `i-arriba`, `i-abajo` e `i-brujula` en `templates/components/iconos.html`.
+- **403 sin `no-store`:** las respuestas 403 las genera Django sin datos, igual que en el 08; `no-store` se exige en todas las respuestas 200.
+
+### Pruebas del 08 ajustadas (RF-09-15)
+
+- `entregasapp/tests/test_vistas_encargado.py::MisEntregasVistaTests::test_hoy_atrasadas_y_proximas_con_los_datos_de_la_visita`: los títulos «Hoy (1)» y «Atrasadas (1)» se reemplazan por «Por visitar (2)», «Parada 1» y «Sin coordenadas: fuera del orden sugerido (1)», porque hoy y atrasadas forman una sola ruta numerada (RF-09-01) y la visita sin domicilio va aparte (RF-09-03). Las demás aserciones no cambian.
+
+Ninguna otra prueba del 08, y ninguna del 03 al 07, cambió. `coreapp/tests/test_navegacion.py` y `test_estaticos.py` solo suman casos.
