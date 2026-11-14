@@ -1,6 +1,6 @@
 # SPEC 08 — Domicilios y entregas a domicilio
 
-> **Estado:** Aprobado
+> **Estado:** Aprobado (versión del 2026-11-11). **Ampliación del 2026-11-13 en Aprobado:** cambia RF-08-01 (80 años o más) y agrega RF-08-16 y RF-08-17 (lista con filtros y búsqueda en vivo, y programación de varios pacientes a la vez).
 > **Depende de:** [SPEC 01](../01-base-del-proyecto/spec.md), [SPEC 02](../02-autenticacion-roles-auditoria/spec.md), [SPEC 03](../03-padron-y-recetas/spec.md), [SPEC 04](../04-emision-de-turnos/spec.md), [SPEC 05](../05-cola-ponderada-y-llamado/spec.md) y [SPEC 07](../07-preparacion-y-tiempos-de-espera/spec.md)
 > **Fecha:** 2026-11-11
 > **Objetivo:** Registrar y verificar los domicilios de los pacientes del reparto, programar y asignar sus entregas a un encargado de terreno, registrar con conexión si se entregaron y reprogramar las no realizadas, conservando el historial.
@@ -29,7 +29,7 @@ Resultado esperado:
 | Registrar o editar un domicilio, agregar o borrar fotos | No | No | Sí | Sí | Sí |
 | Marcar un domicilio como verificado | No | No | **Sí** | No | No |
 | Inscribir o retirar una excepción de reparto | No | No | No | Sí | Sí |
-| Programar, reasignar o anular una entrega; marcar revisada una receta no descontada | No | No | No | Sí | Sí |
+| Programar una o varias entregas, reasignar o anular una entrega; marcar revisada una receta no descontada | No | No | No | Sí | Sí |
 | Ver «Mis entregas» y registrar el resultado | No | No | Solo las suyas | No | No |
 | Emitir turno con una receta de entrega abierta | Rechazado con texto | — | — | — | — |
 | Confirmar en farmacia una receta de entrega abierta | — | Rechazado con motivo | — | — | — |
@@ -39,7 +39,9 @@ Revalidar cuenta activa, perfil y rol único en el servidor, como en el 02. **Ex
 ## Alcance y exclusiones
 
 **Incluye:**
-- Regla de elegibilidad para el reparto: postrado o mayor de 80 años, o inscrito como excepción por la Q.F.
+- Regla de elegibilidad para el reparto: postrado o de 80 años o más (cambio del 2026-11-13), o inscrito como excepción por la Q.F.
+- *(Ampliación 2026-11-13, Borrador)* En «Programar entrega», la lista completa de elegibles con filtros (sector, motivo del reparto, estado del domicilio y localidad) y búsqueda que actualiza la lista mientras se escribe.
+- *(Ampliación 2026-11-13, Borrador)* Programación de varios pacientes en una sola acción, con la misma fecha y el mismo encargado, revisión previa y resumen de los programados y omitidos.
 - Domicilio por paciente: sector MAIS (Verde, Azul o Rojo), localidad, dirección, referencias, coordenadas opcionales y estado de verificación.
 - Coordenadas tomadas con la ubicación del navegador del celular o escritas a mano. No usa ningún proveedor de mapas.
 - Hasta tres fotos privadas por domicilio, recomprimidas y sin metadatos.
@@ -55,15 +57,17 @@ Revalidar cuenta activa, perfil y rol único en el servidor, como en el 02. **Ex
 - Registro sin conexión, caché del service worker y sincronización diferida (HU-15 sin conexión, RNF-03, NS05): reserva 11. Aquí el registro exige conexión, pero el diseño deja preparada la idempotencia que necesitará.
 - Notificación de despacho en camino y confirmación por el paciente o cuidador (HU-19, HU-22): reserva 12. Este spec no envía mensajes ni usa el teléfono del paciente salvo para mostrarlo al encargado.
 - Panel de mermas y los indicadores IG03 e IG04 (HU-20, HU-11): spec 10. Este spec deja los datos con los que se calculan.
-- Programación masiva de varios pacientes en una sola acción; preparación o armado de la bolsa en farmacia; inventario; rutas, vehículos y geolocalización en tiempo real (fuera de alcance del informe).
+- Reasignación o anulación de varias entregas a la vez en Pendientes de gestión, y repartir un mismo lote entre varios encargados (la programación de varios del RF-08-17 usa un solo encargado). Preparación o armado de la bolsa en farmacia; inventario; rutas, vehículos y geolocalización en tiempo real (fuera de alcance del informe).
+- Marcar el punto del domicilio en un mapa, con latitud y longitud que se actualizan al mover el marcador: se registrará en el spec 09, que es dueño de la cartografía y ya muestra el mapa en la ficha del domicilio (decisión del usuario, 2026-11-13).
 - Escribir en `Paciente` o cambiar la importación del 03. Integración con Rayén (RNF-07).
 
 ## Historias y flujo
 
 1. **Domicilio (HU-12).** En **Entregas › Domicilios**, el encargado o la Q.F. buscan a un paciente del reparto por RUT o apellido. Si su domicilio aún no existe, el formulario parte con la dirección del padrón. Al guardar se registran sector, localidad, dirección, referencias y, si se quiere, coordenadas («Usar mi ubicación actual» o ingreso manual) y fotos.
 2. **Verificación.** En terreno, el encargado confirma que el domicilio es correcto y pulsa «Marcar verificado». Se guarda quién y cuándo. Cualquier cambio posterior en los datos de ubicación lo devuelve a «pendiente de verificar». Si una importación posterior trae otra dirección en el padrón, el domicilio también vuelve a pendiente y muestra la dirección nueva para revisarla.
-3. **Excepciones.** Si un paciente no es postrado ni mayor de 80 pero necesita despacho, la Q.F. lo inscribe con un motivo de catálogo. Puede retirar la inscripción después.
+3. **Excepciones.** Si un paciente no es postrado ni tiene 80 años o más, pero necesita despacho, la Q.F. lo inscribe con un motivo de catálogo. Puede retirar la inscripción después.
 4. **Programación (HU-13).** En **Entregas › Programación**, la Q.F. busca a un paciente elegible y elige una fecha (hoy o posterior) y un encargado activo. Revisa las recetas que el sistema seleccionó y confirma. Nace una entrega abierta con su primer intento. Si el paciente ya tiene una entrega abierta, el sistema lo impide y enlaza a ella. Si no tiene recetas elegibles, se rechaza con el motivo.
+   - *(Ampliación 2026-11-13, Borrador)* Al pulsar «Programar entrega», la Q.F. ve de inmediato a todos los pacientes del reparto, paginados. Bajo la barra de búsqueda hay filtros de sector, motivo del reparto, estado del domicilio y localidad. Al escribir o cambiar un filtro, la lista se actualiza sin recargar la página. Puede seguir eligiendo a un paciente («Elegir», flujo individual), o marcar varios con casillas o con «Seleccionar los N filtrados» (todos los que cumplen la búsqueda y los filtros, en todas las páginas). Con «Programar seleccionados» elige una fecha y un encargado para todos, revisa un resumen por paciente y confirma. El sistema programa a cada paciente por separado, muestra el avance y al final informa «Se programaron X de Y», con los omitidos y su motivo.
 5. **Mientras está abierta**, sus recetas no se dispensan en farmacia: el tótem orienta al personal y la confirmación de ventanilla muestra el motivo.
 6. **Terreno (HU-15).** El encargado abre **Mis entregas** en el celular. Ve los intentos asignados de hoy, los atrasados y los próximos, con paciente, teléfono, domicilio, referencias, fotos y recetas. Al visitar, registra «Entregada» o «No entregada» con motivo.
 7. **Entregada:** el sistema descuenta cada receta que sigue elegible en la fecha de la visita. Las que no lo son quedan «no descontadas» con su causa y aparecen a la Q.F. para revisión. La entrega se cierra.
@@ -72,7 +76,7 @@ Revalidar cuenta activa, perfil y rol único en el servidor, como en el 02. **Ex
 
 ## Requisitos funcionales
 
-- **RF-08-01 — Elegibilidad para el reparto:** EL SISTEMA considera elegible, en una fecha dada, a un paciente postrado, mayor de 80 años cumplidos a esa fecha (la misma regla `edad > 80` que bloquea el tótem del 04) o con una inscripción de excepción vigente. La regla de postrado y edad es una sola función compartida por el tótem y este módulo, y no cambia el comportamiento del 04.
+- **RF-08-01 — Elegibilidad para el reparto** *(modificado el 2026-11-13, Borrador)*: EL SISTEMA considera elegible, en una fecha dada, a un paciente postrado, con **80 años cumplidos o más** a esa fecha (`edad >= 80`) o con una inscripción de excepción vigente. La regla de postrado y edad sigue siendo una sola función, compartida por el tótem del 04 y este módulo. Por eso el tótem también cambia: a un paciente de 80 años no le da número y lo orienta al personal («Consulta tu despacho con el personal»), y el preferencial del tótem queda de 60 a 79 años. *Antes:* `edad > 80`, sin cambiar el 04.
 - **RF-08-02 — Excepciones:** CUANDO la Q.F. inscribe a un paciente no elegible por edad ni postración, EL SISTEMA guarda el motivo del catálogo, una nota opcional, quién y cuándo. Hay como máximo una inscripción vigente por paciente; no vence sola. Retirarla conserva el registro, con quién y cuándo. SI el paciente ya es elegible por edad o postración, ENTONCES no se inscribe y se informa. Retirar una excepción no cierra la entrega abierta que tenga.
 - **RF-08-03 — Registro de domicilio:** EL SISTEMA guarda un domicilio por paciente elegible, con sector MAIS, localidad, dirección, referencias y coordenadas opcionales (latitud y longitud juntas, con precisión opcional en metros). Al crearlo se ofrece la dirección del padrón como valor inicial y se recuerda esa dirección de origen. La importación del 03 nunca modifica el domicilio. SI dos personas editan el mismo domicilio a la vez, ENTONCES la segunda recibe «El domicilio cambió; revisa los datos nuevos» y no sobrescribe la primera.
 - **RF-08-04 — Verificación:** CUANDO el encargado marca un domicilio como verificado, EL SISTEMA guarda quién y cuándo, siempre que tenga sector y dirección. CUANDO cambian el sector, la localidad, la dirección, las referencias o las coordenadas, el domicilio vuelve a «pendiente de verificar». SI la dirección actual del padrón difiere de la dirección de origen recordada, ENTONCES el domicilio se muestra como pendiente con el aviso «La dirección del padrón cambió» y la dirección nueva, hasta que alguien lo guarde de nuevo. Agregar o borrar fotos no cambia la verificación.
@@ -86,7 +90,9 @@ Revalidar cuenta activa, perfil y rol único en el servidor, como en el 02. **Ex
 - **RF-08-12 — Recetas no descontadas:** EL SISTEMA muestra a la Q.F. las recetas que quedaron sin descontar al registrar una entrega, con paciente, receta, causa y fecha. Permite marcarlas «revisadas», con quién y cuándo. La lista indica con texto cuando no queda ninguna.
 - **RF-08-13 — Navegación:** EL MENÚ agrega «Entregas» para el Técnico, la Q.F. y el superusuario, con las pestañas Programación, Pendientes de gestión y Domicilios. El encargado ve «Mis entregas» y «Domicilios», y su inicio lo lleva a «Mis entregas». La pestaña Datos de la ficha del paciente muestra su domicilio, su estado de verificación y su entrega abierta, con enlaces, a los perfiles que pueden verlos.
 - **RF-08-14 — Permisos, privacidad y auditoría:** EL SISTEMA aplica la matriz de permisos en el servidor, exige POST con CSRF para todo cambio y revalida actor, asignación y estado en el servidor. Las vistas y las fotos son privadas y sin caché. En las URL solo hay identificadores internos, nunca RUT ni nombres. La auditoría registra quién creó, editó o verificó un domicilio, agregó o borró una foto, inscribió o retiró una excepción, programó, reasignó o anuló una entrega, registró un resultado y revisó una receta no descontada; no guarda RUT, nombres, direcciones, notas ni coordenadas. Si falla la auditoría, se revierte la operación.
-- **RF-08-15 — Concurrencia y compatibilidad:** EL SISTEMA no crea dos entregas abiertas por paciente ni dos intentos sin resultado por entrega. No registra dos resultados por intento. No descuenta dos veces una receta ni excede su cupo. Nunca deja una receta a la vez en una entrega abierta y en un turno activo. No pierde ediciones concurrentes de un domicilio. Esto vale incluso con operaciones simultáneas entre este módulo, el tótem, la ventanilla y el retiro del 07. Las pruebas existentes del 03 al 07 pasan sin cambiar sus aserciones.
+- **RF-08-15 — Concurrencia y compatibilidad:** EL SISTEMA no crea dos entregas abiertas por paciente ni dos intentos sin resultado por entrega. No registra dos resultados por intento. No descuenta dos veces una receta ni excede su cupo. Nunca deja una receta a la vez en una entrega abierta y en un turno activo. No pierde ediciones concurrentes de un domicilio. Esto vale incluso con operaciones simultáneas entre este módulo, el tótem, la ventanilla y el retiro del 07. Las pruebas existentes del 03 al 07 pasan sin cambiar sus aserciones, salvo las del límite de edad del 04 que cambia el RF-08-01 del 2026-11-13 (80 años pasa de preferencial a bloqueo).
+- **RF-08-16 — Lista de elegibles con filtros y búsqueda en vivo** *(2026-11-13, Borrador)*: CUANDO la Q.F. abre «Programar entrega» sin un paciente preseleccionado, EL SISTEMA muestra a todos los pacientes elegibles a hoy, en orden por apellido y nombre y en páginas de 50, con su motivo del reparto (Postrado, 80 años o más, Excepción; uno o varios), sector y localidad, estado del domicilio y si ya tiene una entrega abierta. Bajo la barra de búsqueda (RUT, nombre o apellido) ofrece cuatro filtros combinables: **sector** (Todos, Verde, Azul, Rojo, Sin sector), **motivo del reparto** (Todos, Postrado, 80 años o más, Excepción vigente), **estado del domicilio** (Todos, Verificado, Pendiente de verificar, Sin registrar) y **localidad** (Todas y las localidades registradas en los domicilios de los elegibles). MIENTRAS la Q.F. escribe o cambia un filtro, la lista y su cantidad se actualizan sin recargar la página y vuelven a la primera página. El foco se queda donde está y la cantidad nueva se anuncia a los lectores de pantalla. El RUT y los nombres buscados nunca van en la URL. Sin JavaScript, la misma búsqueda y los filtros funcionan con un botón «Buscar». Un paciente con entrega abierta aparece rotulado «Ya tiene una entrega abierta», con enlace a ella, y no se puede seleccionar. Sin resultados, se dice con texto y se ofrece «Excepciones de reparto».
+- **RF-08-17 — Programar varios pacientes a la vez** *(2026-11-13, Borrador)*: CUANDO la Q.F. marca pacientes con sus casillas, o pulsa «Seleccionar los N filtrados» (todos los que cumplen la búsqueda y los filtros vigentes, en todas las páginas, **sin tope**), y luego «Programar seleccionados», EL SISTEMA pide una fecha (hoy o posterior) y un encargado activo para todos. Después muestra un **resumen para revisar**: fecha, encargado, cantidad de pacientes y de recetas, y por paciente sus recetas con «entrega n de m» (desplegables), junto con los que no se programarán y su motivo. CUANDO la Q.F. confirma, programa **a cada paciente por separado** con las mismas reglas y garantías del RF-08-06 y muestra el avance («Programando 50 de 118»). Al terminar informa «Se programaron X de Y» y lista los omitidos con su motivo: ya tiene una entrega abierta (también si otra persona lo programó al mismo tiempo), sin recetas disponibles en esa fecha o ya no es elegible. Un fallo de un paciente no detiene ni revierte a los demás. Repetir la confirmación del mismo lote, completa o por partes, no crea entregas duplicadas y entrega el mismo resultado de los ya programados. La casilla se conserva al cambiar de página, buscar o filtrar mientras la Q.F. no salga de la pantalla. Cambiar la búsqueda o un filtro anula «Seleccionar los N filtrados» y lo dice con texto.
 
 ## Datos y reglas
 
@@ -101,14 +107,16 @@ Revalidar cuenta activa, perfil y rol único en el servidor, como en el 02. **Ex
 - **Fechas:** solo día, sin hora ni franja. La jornada usa `America/Santiago`. El resultado se registra desde la fecha programada en adelante, también con atraso, y siempre con la hora real del servidor.
 - **Descuento:** usa el contador del 03 y su restricción de cupo (`receta_contador_en_cupo`). La vigencia se evalúa en la fecha de la visita, no en la de programación. La entrega de receta generada no tiene turno.
 - **Historial:** nada se borra. Los intentos, resultados y anulaciones son definitivos; para corregir un error se reasigna o se anula, y queda el rastro.
+- **Lote de programación** *(2026-11-13, Borrador)*: no es un modelo nuevo. Al revisar nace un identificador de lote, y la lista revisada (pacientes, fecha y encargado) viaja firmada a la confirmación. Cada entrega del lote usa como identificador de operación uno derivado del lote y del paciente: así un reenvío, completo o por partes, devuelve la entrega ya creada. Los omitidos y sus motivos solo se muestran en el resumen final y no se guardan. Lo programado queda en «Programación» y en la auditoría de cada entrega. Las recetas se recalculan al confirmar, como en la programación individual.
+- **Motivo del reparto** *(2026-11-13)*: se deriva y no se guarda. Un paciente puede tener varios motivos a la vez (postrado y 80 años o más, por ejemplo) y aparece en el filtro de cada uno.
 - **Datos sintéticos:** el padrón de 670 pacientes de demostración (70 postrados y 600 mayores de 80) sirve como base. Las herramientas y pruebas generan domicilios y fotos sintéticas (imágenes generadas, nunca fotos reales de viviendas).
 
 ## Criterios de aceptación
 
 | RF | Escenario | Resultado verificable |
 |---|---|---|
-| RF-08-01 | Pacientes de 80 años y 364 días, 81 años, postrado de 50 y crónico de 60 sin excepción | Solo el de 81 y el postrado son elegibles; el tótem del 04 sigue clasificando igual que antes. |
-| RF-08-02 | Inscribir al crónico de 60 con «sin red de apoyo»; inscribirlo otra vez; inscribir al de 81 | Uno vigente; la segunda inscripción se rechaza; el de 81 se rechaza por ya ser elegible. |
+| RF-08-01 | *(2026-11-13)* Pacientes de 79 años y 364 días, 80 años recién cumplidos, 81 años, postrado de 50 y crónico de 60 sin excepción | Son elegibles el de 80, el de 81 y el postrado. En el tótem, el de 80 recibe «Consulta tu despacho con el personal» sin número y el de 79 años y 364 días recibe preferencial. |
+| RF-08-02 | Inscribir al crónico de 60 con «sin red de apoyo»; inscribirlo otra vez; inscribir al de 80 | Uno vigente; la segunda inscripción se rechaza; el de 80 se rechaza por ya ser elegible. |
 | RF-08-02 | Retirar la excepción con una entrega abierta | Excepción retirada con autor y fecha; la entrega sigue abierta. |
 | RF-08-03 | Crear un domicilio desde la dirección del padrón; reimportar el padrón con otra dirección | El domicilio no cambia; se muestra pendiente con «La dirección del padrón cambió» y la dirección nueva. |
 | RF-08-03 | Dos ediciones del mismo domicilio desde la misma versión | La primera se guarda; la segunda recibe el aviso y no sobrescribe. |
@@ -131,6 +139,15 @@ Revalidar cuenta activa, perfil y rol único en el servidor, como en el 02. **Ex
 | RF-08-13 | Entrar como Técnico, Q.F., Encargado y superusuario | Menú y pestañas según la matriz; el Técnico no ve botones de cambio; el inicio del encargado abre «Mis entregas». |
 | RF-08-14 | Anónimo, cuenta inactiva o sin perfil, Técnico haciendo POST, POST sin CSRF | Acceso rechazado; ninguna acción se ejecuta; la auditoría no contiene RUT, nombres, direcciones, notas ni coordenadas. |
 | RF-08-15 | Al menos tres escenarios concurrentes con hilos y conexiones separadas | Cero entregas abiertas duplicadas, resultados dobles o descuentos dobles; el cupo nunca se excede; ninguna receta queda a la vez en un turno activo y en una entrega abierta. |
+| RF-08-16 | Abrir «Programar entrega» con 670 pacientes sintéticos | Se ven los elegibles en páginas de 50 con su cantidad total; la URL no tiene RUT ni nombres. |
+| RF-08-16 | Escribir «Gonz» letra por letra; luego filtrar sector Verde, motivo «80 años o más», estado «Sin registrar» y una localidad | La lista y la cantidad cambian sin recargar; solo quedan los que cumplen todo; la cantidad se anuncia en una región `aria-live`; el foco sigue en el campo. |
+| RF-08-16 | Filtrar «Sin sector»; un paciente con entrega abierta en la lista; sin JavaScript | Aparecen los sin domicilio o sin sector; el paciente con entrega abierta está rotulado, enlazado y sin casilla activa; la búsqueda y los filtros funcionan con «Buscar». |
+| RF-08-17 | Marcar 3 en la página 1 y 2 en la página 2; buscar otra cosa y volver | Siguen marcados los 5; «Programar seleccionados (5)». |
+| RF-08-17 | «Seleccionar los N filtrados» con 120 filtrados, de los cuales 4 tienen entrega abierta y 2 no tienen recetas; fecha de mañana y un encargado | El resumen muestra 114 a programar, sus recetas, y 6 que no se programarán con su motivo; al confirmar: «Se programaron 114 de 120», los 114 aparecen en «Programación» con esa fecha y encargado. |
+| RF-08-17 | Cambiar un filtro después de «Seleccionar los N filtrados» | La selección de todos los filtrados se anula y se avisa con texto. |
+| RF-08-17 | Repetir la confirmación del mismo lote (doble clic, recarga o corte de red a mitad) | Ninguna entrega duplicada; los ya programados se informan como programados. |
+| RF-08-17 | Dos Q.F. programan lotes que comparten pacientes al mismo tiempo; un lote mientras el tótem emite a una excepción del lote | Cada paciente queda con una sola entrega abierta y sale como omitido en el otro lote; ninguna receta queda a la vez en un turno activo y en una entrega abierta. |
+| RF-08-17 | Fecha de ayer; encargado inactivo; Técnico que hace el POST; contexto firmado alterado | Rechazo con motivo y sin cambios; 403 para el Técnico; la firma alterada se rechaza. |
 
 ## No funcionales
 
@@ -139,6 +156,8 @@ Revalidar cuenta activa, perfil y rol único en el servidor, como en el 02. **Ex
 - WCAG 2.1 AA (RNF-04): «Mis entregas» se diseña primero para celular, con botones de 48 px o más, texto ampliable y sin desplazamiento horizontal. Estados y verificación con texto y no solo con color, foco visible, teclado y descripciones obligatorias en las fotos. La revisión de navegador, axe y la usabilidad con cinco personas requieren evidencia propia.
 - Privacidad (RNF-01): los datos de pacientes y las fotos solo aparecen en vistas privadas autorizadas. Las fotos no se publican en `/media/` ni van al repositorio, y pierden todos sus metadatos. La ubicación del navegador solo se pide con un gesto del usuario y no se guarda la del encargado, solo la del domicilio.
 - La ubicación del navegador exige contexto seguro (HTTPS o `localhost`). Sin él, el botón explica con texto que hay que ingresar las coordenadas a mano.
+- *(2026-11-13)* RNF-05 en la lista y la programación de varios: la lista, cada actualización de la búsqueda o los filtros y cada tramo de la confirmación responden en 2 s o menos en el p95. Como el lote no tiene tope, el navegador lo envía en tramos de hasta 25 pacientes. El tiempo total de un lote grande (el padrón completo, por ejemplo) se mide y se informa aparte, como la subida de fotos, sin prometer un valor. La revisión de un lote completo también se mide.
+- *(2026-11-13)* WCAG 2.1 AA: casillas con etiqueta que nombra al paciente, cantidad de seleccionados y de resultados anunciada con texto, avance con `<progress>` y texto, foco visible y uso completo con teclado. Actualizar la lista no cambia el contexto ni mueve el foco (criterio 3.2.2).
 
 ## Compatibilidad
 
@@ -148,6 +167,8 @@ Conservar el padrón y la importación del 03 (no se escribe en `Paciente`), el 
 - `turnosapp`: la emisión omite las recetas con entrega abierta y la regla de postrado o mayor de 80 pasa a una función compartida, sin cambiar su resultado.
 
 Todo cambio en la emisión exige las pruebas concurrentes de CLAUDE.md. Las pruebas del 03 al 07 deben pasar sin cambiar sus aserciones.
+
+*(2026-11-13, Borrador)* Excepción explícita: el RF-08-01 modificado cambia el contrato del 04 (RF-04-02, RF-04-04 y la regla de edad de sus «Datos y reglas»: «exactamente 80 sigue presencial»). Cambian solo las aserciones del límite de edad del tótem (80 años: de preferencial a bloqueo; se agrega 79 como preferencial). Las demás pruebas del 03 al 07 siguen sin cambios. Al implementar se anota el cambio en el `spec.md` del 04 con referencia a este spec. El 04 se trabajó en `fdaza`: conviene avisar al equipo.
 
 Preparación para otros specs:
 - El registro de resultados acepta un identificador de operación generado por el cliente, que la reserva 11 reutilizará para sincronizar sin duplicados.
@@ -162,7 +183,15 @@ Las dependencias existen en `specs/`. Sus pendientes de aceptación visual y fun
 - **`Domicilio` como modelo aparte** (decisión del usuario, recomendada). La importación del 03 sobrescribe `Paciente.direccion`; si el domicilio verificado viviera ahí, una carga borraría el trabajo de terreno. El cambio de la dirección del padrón no se escribe en el domicilio, sino que se detecta y lo deja pendiente. Se descartan los campos en `Paciente` y un domicilio desconectado del padrón.
 - **Sector MAIS más localidad** (decisión del usuario, recomendada). Permite filtrar por sector y agrupar visitas. Se descarta el texto libre.
 - **Coordenadas y fotos** (decisión del usuario; se recomendaba sin fotos). Consecuencias: una dependencia nueva (Pillow), almacenamiento privado fuera de `/media/`, recompresión sin metadatos y una vista con rol para servirlas. Se limitan a tres fotos privadas y con descripción obligatoria, por decisión del usuario.
-- **Elegibles: postrados, mayores de 80 y excepciones** (decisión del usuario). El corte de edad es `edad > 80`, igual que el tótem y el informe (se corrigió una pregunta que decía «80 o más»). Las excepciones usan un catálogo y no vencen (decisión del usuario, recomendada).
+- **Elegibles: postrados, mayores de 80 y excepciones** (decisión del usuario). El corte de edad era `edad > 80`, igual que el tótem y el informe (se corrigió una pregunta que decía «80 o más»). Las excepciones usan un catálogo y no vencen (decisión del usuario, recomendada).
+- **Corte de edad: 80 años o más** *(decisión del equipo, 2026-11-13; reemplaza el corte anterior)*. El usuario pidió que entren los de 80 años, no solo desde los 81. El informe dice «mayores de 80 años»; el equipo lo interpreta como 80 cumplidos o más y lo deja anotado aquí, como pide CLAUDE.md cuando una decisión se aparta del texto del informe. **Una sola regla para el tótem y el reparto** (decisión del usuario, recomendada): así no hay una persona de 80 años que saque número presencial y a la vez tenga despacho. Se descarta separar las reglas.
+- **Programación de varios pacientes a la vez** *(decisión del usuario, 2026-11-13; antes estaba fuera del spec)*. Se agrega con «Seleccionar los N filtrados».
+  - **Cada paciente por separado** (recomendada): se programan los válidos y se informan los omitidos, como la importación del padrón fila por fila. Se descarta todo o nada, porque un solo caso detendría al resto.
+  - **Resumen para revisar y confirmar una vez** (recomendada). Se descarta programar sin revisión previa.
+  - **Sin tope** (decisión del usuario; se recomendaba un tope de 50). Para cumplir RNF-05, el navegador envía el lote en tramos y muestra el avance. Se descartan la lista de solo la página visible y procesar el lote completo en una sola solicitud.
+  - **Sin modelo nuevo**: lista revisada firmada y operación derivada del lote y el paciente. Se descarta guardar el lote y sus omitidos (`LoteProgramacion`), que exigiría una migración sin una consulta que la necesite.
+- **Lista completa al entrar, con búsqueda en vivo** (decisión del usuario, recomendada). Permite elegir un sector completo sin escribir. Se descarta mostrar la lista solo al escribir.
+- **Cuatro filtros: sector, motivo, estado del domicilio y localidad** (decisión del usuario). La localidad se elige de una lista de las ya registradas, para no duplicar la barra de búsqueda.
 - **Descuento al registrar «entregada»** (decisión del usuario, recomendada). Así hay un único contador «n de m» para farmacia y domicilio. Se descartan el descuento al despachar (exigiría revertirlo si no se entrega) y la entrega sin recetas (el contador quedaría desalineado).
 - **Solo se descuentan las recetas válidas en la fecha de la visita** (decisión del usuario, recomendada). El encargado no decide en terreno y la Q.F. revisa lo no descontado. A diferencia del retiro del 07, la vigencia se evalúa en la fecha de la visita.
 - **Una entrega abierta por paciente** (decisión del usuario, recomendada), garantizada por una restricción única parcial. De ella se deduce que una receta está a lo más en una entrega abierta.
@@ -185,10 +214,24 @@ Supuestos técnicos reversibles, sujetos a revisión del borrador:
 - Las fotos se reducen a 1600 px en su lado mayor y se guardan como JPEG de calidad 80.
 - Nombres de modelos, rutas y servicios son propuestas del `plan.md`.
 
-No hay bloqueos críticos para redactar. Por confirmar: los catálogos de motivos y que la programación masiva quede fuera.
+Supuestos de la ampliación del 2026-11-13, sujetos a revisión del borrador:
+- Las inscripciones de excepción vigentes de pacientes que ya tienen 80 años se conservan; no se retiran solas. El paciente pasa a ser elegible también por edad y ambos motivos se muestran.
+- La lista de «Programar entrega» usa la elegibilidad a hoy. La revisión del lote la recalcula a la fecha elegida.
+- La búsqueda se actualiza unos 300 ms después de la última tecla. Las respuestas que llegan fuera de orden se descartan.
+- La localidad se agrupa sin distinguir mayúsculas ni espacios de los extremos («Dadinco» y «dadinco » son la misma).
+- Un lote usa un solo encargado; la distribución entre varios queda fuera.
+- El flujo individual («Elegir» y `?paciente=` para el spec 10) se conserva sin cambios.
+
+No hay bloqueos críticos para redactar. Por confirmar: los catálogos de motivos.
 
 ## Revisión y cambios
 
 2026-11-11: cuatro bloques de preguntas: alcance (ciclo completo), domicilio aparte, sector MAIS con localidad y coordenadas con fotos; elegibles con excepciones, descuento al entregar, una entrega abierta por paciente y permisos; fotos, motivos, intentos y vigencia; menú, excepciones, fecha y doble vía. Se corrige el corte de edad a «mayores de 80». Se guardan los cuatro documentos como Borrador, sin código ni migraciones.
 
 2026-11-11 (implementación, `crojas-base`): T-08-01 a T-08-08 ejecutadas sin cambiar requisitos. Ajustes técnicos anotados en [plan.md](plan.md#notas-de-implementación-2026-11-11): el inicio del encargado muestra «Mis entregas» en `/` sin redirigir (los specs anteriores esperan 200 en `/`); la reasignación exige el último intento y el resultado que la Q.F. vio (lo exige RF-08-15); la reincorporación del 05 se rechaza si una receta del turno está en una entrega abierta; `IntentoEntrega.creado_con` hace idempotente la reasignación. Estado: sigue **Aprobado**; navegador, axe, usabilidad y aceptación pendientes.
+
+2026-11-13 (ampliación, Borrador): el usuario pidió filtros y búsqueda en vivo en «Programar entrega», «seleccionar todo» y el corte de edad de 80 años o más. Hubo dos bloques de preguntas:
+- **Primer bloque:** programar varios a la vez; filtros de sector, motivo, estado del domicilio y localidad; una sola regla de 80 o más también para el tótem; el selector de punto en el mapa del domicilio va al spec 09.
+- **Segundo bloque:** programar los válidos e informar los omitidos; resumen para revisar y confirmar; «Seleccionar los N filtrados» sin tope; lista completa al entrar.
+
+Se modifican RF-08-01 y sus criterios, y se agregan RF-08-16 y RF-08-17 y las tareas T-08-09 a T-08-13 (propuestas). La versión aprobada del 2026-11-11 sigue vigente hasta que el usuario apruebe la ampliación. Sin código, migraciones ni cambios en otros specs.

@@ -3,6 +3,7 @@
 Spec: [spec.md](spec.md). Tareas: [tasks.md](tasks.md). Evidencia: [validation.md](validation.md).
 Fecha: 2026-11-11. Estado: propuesta; sin código.
 Autorización de implementación: pendiente.
+Ampliación del 2026-11-13 (RF-08-01 modificado, RF-08-16 y RF-08-17): **Borrador**, sin código; ver [la sección al final](#ampliación-del-2026-11-13-borrador).
 
 ## Inspección de la base
 
@@ -309,3 +310,171 @@ Ajustes tomados al implementar, sin cambiar los requisitos del spec:
 - **Paginación:** las listas usan `components/paginator.html` (`?page=`), que conserva los filtros.
 - **Pillow 12.3.0**, fijada como `Pillow>=12.3,<13`.
 - **Pruebas del 01/02 ajustadas por RF-08-13:** `coreapp/tests/test_navegacion.py` (entradas, grupos, dock y páginas activas del 08), `test_inicio.py` (el inicio del encargado muestra «Mis entregas»), `test_plantillas.py` (las listas de `entregas/` se renderizan con una página vacía, como las de `recetas/`) y `test_estaticos.py` (la regla de paleta se extiende a `entregas.css`). Las pruebas del 03 al 07 no cambiaron.
+
+## Ampliación del 2026-11-13 (Borrador)
+
+Cambia RF-08-01 y agrega RF-08-16 y RF-08-17. Sin modelos ni migraciones nuevos. No toca el registro en terreno, la gestión ni los servicios del 09.
+
+### Inspección del código actual
+
+- `recetasapp/models.py` › `Paciente.requiere_despacho_en`: `self.es_postrado or self.edad_en(fecha) > 80`. La usan `turnosapp/services.py` › `clasificar_atencion` (bloqueo `domicilio` antes de clasificar; `edad >= 60` da preferencial) y `entregasapp/consultas.py` › `es_elegible`.
+- `entregasapp/consultas.py`: `EDAD_DESPACHO = 80` y `limite_nacimiento(fecha)` (resta `EDAD_DESPACHO + 1`) alimentan `condicion_elegible`, la versión en consulta. `elegibles(fecha, buscar, sector, estado)` ya filtra por búsqueda, sector y estado; `filtrar_busqueda` acepta RUT exacto o nombre/apellido.
+- `ProgramarView` (`entregasapp/views.py`): sin paciente, solo muestra la barra; la búsqueda es un POST `accion=buscar` que devuelve hasta 20 resultados y calcula `estado_domicilio` por paciente. Con `?paciente=` o POST, sigue el flujo individual (revisar → confirmar con `operacion_id`).
+- `services.recetas_para_despacho(paciente, fecha)`: recorre las recetas del paciente con `evaluar_elegibilidad` (sin consultas) y hace dos consultas para excluir turnos activos y pendientes de retiro. `programar_entrega` es `@reintentar_conflictos` + `@transaction.atomic`, toma `_bloquear_jornada(hoy)` y es idempotente por `Entrega.operacion_id` (devuelve la previa si coinciden actor y paciente).
+- Pruebas con el límite actual: `entregasapp/tests/test_elegibilidad.py` (80 años y 364 días no; 81 sí; 64 combinaciones contra `edad > 80`) y `turnosapp/tests/test_servicios.py` (`(80, …, "preferencial")`, `(81, …, None)`). Textos con «mayor(es) de 80» en `templates/entregas/` (`programar.html`, `programacion.html`, `domicilios.html`, `domicilio.html`, `excepciones.html`) y `templates/recetas/paciente_detalle.html`.
+- JavaScript de entregas: `static/js/entregas/{ubicacion,mapa,ir_a}.js` con pruebas de Node en `entregasapp/tests/*.test.cjs`.
+- El padrón demo nace en 1940 (86 años): el cambio de corte no altera los 670 elegibles de las herramientas.
+
+### Mapa por requisito
+
+| RF | Archivos | Cambio previsto | Evidencia prevista |
+|---|---|---|---|
+| RF-08-01 | `recetasapp/models.py` (`requiere_despacho_en`: `>= 80`); `entregasapp/consultas.py` (`limite_nacimiento` resta `EDAD_DESPACHO`); comentario de `clasificar_atencion`; textos de las plantillas citadas | Una sola regla de 80 años o más para el tótem y el reparto | `test_elegibilidad.py` (79 años y 364 días no; 80 sí; comparación con `>= 80`, incluido el 29 de febrero); `turnosapp/tests/test_servicios.py` (80 → bloqueo; 79 → preferencial) |
+| RF-08-16 | `consultas.elegibles` (nuevos `motivo`, `localidad`, sector «sin»; anotaciones), `consultas.localidades_elegibles`; `forms.FiltroProgramarForm`; `ProgramarView` y `ProgramarListaView`; `entregas/programar.html`, `_programar_lista.html`; `static/js/entregas/programar.js` | Lista completa paginada, filtros y actualización en vivo por POST | `test_programar_lista.py`; `test_permisos.py`; `programar.test.cjs`; herramienta HTTP |
+| RF-08-17 | `services.programar_lote` y `services.recetas_para_despacho_lote`; `ProgramarVariosView` (revisar) y `ProgramarTramoView` (confirmar); `_programar_resumen.html`; `programar.js` | Revisión firmada, programación por paciente en tramos, resumen | `test_programar_lote.py`; escenarios concurrentes 7–10; herramienta HTTP |
+
+### RF-08-01 — Corte de 80 años o más
+
+- `Paciente.requiere_despacho_en(fecha)`: `self.es_postrado or self.edad_en(fecha) >= 80`. Docstring: «Postrado o con 80 años cumplidos o más».
+- `consultas.limite_nacimiento(fecha)`: último día de nacimiento con 80 años cumplidos a `fecha` (`fecha.year - EDAD_DESPACHO`, con el mismo manejo del 29 de febrero). `condicion_elegible` no cambia de forma.
+- `clasificar_atencion` no cambia de código: el bloqueo va antes y el preferencial queda de 60 a 79 años. Se actualiza el comentario.
+- Textos: «mayor(es) de 80 años» → «de 80 años o más» en las plantillas citadas y en el README. El mensaje del tótem no cambia.
+- Sin migración: es una regla derivada.
+
+### RF-08-16 — Lista, filtros y búsqueda en vivo
+
+- **Consultas** (`entregasapp/consultas.py`, sin escritura):
+  - `elegibles(fecha=None, *, buscar="", sector="", estado="", motivo="", localidad="")`:
+    - `sector="sin"` → `Q(domicilio__isnull=True) | Q(domicilio__sector="")`.
+    - `motivo`: `postrado` → `es_postrado=True`; `edad` → `fecha_nacimiento__lte=limite_nacimiento(fecha)`; `excepcion` → `Exists(_excepcion_vigente())`.
+    - `localidad` → `domicilio__localidad__iexact=<valor recortado>`.
+    - Anota `tiene_abierta = Exists(Entrega abierta del paciente)` y `con_excepcion = Exists(_excepcion_vigente())` para mostrar el motivo sin consultas por fila.
+    - Las llamadas existentes (Domicilios) siguen iguales.
+  - `localidades_elegibles(fecha)`: localidades distintas de los domicilios de elegibles, sin vacías, agrupadas con `Lower(Trim(...))` y mostradas con la primera grafía.
+  - `motivos_de(paciente, fecha)`: lista de rótulos (Postrado, 80 años o más, Excepción) a partir de los campos y anotaciones ya cargados.
+- **Formulario** `FiltroProgramarForm(BusquedaForm)`: `sector` (Todos, Verde, Azul, Rojo, Sin sector), `motivo`, `estado` y `localidad` (opciones dinámicas de `localidades_elegibles`), más `page`.
+- **Vistas:**
+  - `ProgramarView.get` sin `?paciente=` dibuja la página completa con la primera página de resultados y el formulario de filtros. `ProgramarView.post` con `accion=buscar` (respaldo sin JavaScript) dibuja lo mismo con los filtros enviados. Se quita el corte actual de 20 resultados.
+  - `ProgramarListaView` (`POST /entregas/programar/lista/`, Q.F. y superusuario, CSRF, `no-store`) devuelve solo el fragmento `_programar_lista.html`: cantidad, tabla, paginación y el valor `N` de «Seleccionar los N filtrados». Va por POST para que el RUT o el nombre buscado nunca queden en la URL ni en los registros del servidor.
+  - Paginación de 50 con botones `name="page"` dentro del formulario, en lugar de enlaces GET (`components/paginator.html` usa `?page=` y llevaría la búsqueda a la URL).
+  - Cada fila calcula `estado_domicilio` con el domicilio ya cargado, sin consultas extra.
+- **Cliente** `static/js/entregas/programar.js` (Alpine, como `ubicacion.js`):
+  - escucha `input` y `change` del formulario con espera de 300 ms;
+  - cancela la solicitud anterior con `AbortController` y descarta respuestas viejas por número de secuencia;
+  - envía `X-CSRFToken` y reemplaza solo el contenedor de la lista, sin mover el foco;
+  - escribe «N pacientes del reparto» en una región `role="status"`;
+  - con un error de red, muestra «No pudimos actualizar la lista. Reintentar» con texto.
+  - Sin JavaScript, el botón «Buscar» envía el mismo formulario.
+- **Fila:** casilla (`<label class="sr-only">Seleccionar a Apellido, Nombre</label>`), paciente y RUT, motivo(s), sector · localidad, estado del domicilio y acción («Elegir» o «Ya tiene una entrega abierta», con enlace y casilla desactivada).
+
+### RF-08-17 — Programar varios
+
+- **Selección (cliente):**
+  - `seleccionados` (conjunto de ids) vive en el estado de Alpine y sobrevive al reemplazo del fragmento. Las casillas de cada fragmento nuevo se marcan según el conjunto.
+  - «Seleccionar esta página» marca las casillas activas visibles.
+  - «Seleccionar los N filtrados» activa el modo `todos` con una copia de los filtros vigentes. Cualquier cambio de búsqueda o filtro lo anula y lo anuncia: «Se quitó la selección de todos los filtrados porque cambiaste la búsqueda».
+  - Barra fija inferior: «N seleccionados · [Quitar selección] [Programar seleccionados]».
+  - Sin JavaScript, las casillas de la página visible y un botón «Seleccionar los N filtrados» envían el mismo formulario de revisión.
+- **Revisión** `ProgramarVariosView` (`POST /entregas/programar/varios/`, Q.F. y superusuario):
+  - Recibe `ids` o `todos=1` con los filtros, más `fecha` y `encargado`. En el primer paso solo hay ids o filtros; se dibuja el formulario de fecha (por defecto hoy) y encargado.
+  - Con fecha y encargado válidos, resuelve la lista concreta en el servidor: con `todos`, `elegibles(...)` con los filtros, nunca los ids del navegador.
+  - Clasifica a cada paciente con `consultas.es_elegible` en versión de lote (la misma condición), entrega abierta (`Exists`) y `services.recetas_para_despacho_lote(pacientes, fecha)`.
+  - Dibuja `_programar_resumen.html`: fecha, encargado, «Se programarán P pacientes con R recetas», un `<details>` por paciente con sus recetas y «entrega n de m», y «No se programarán (k)» con el motivo.
+  - Genera `lote = uuid4()` y firma `{"lote", "ids" (los P a programar), "fecha", "encargado", "actor"}` con `django.core.signing.dumps(..., salt="entregas.programar_lote", compress=True)`, como el formulario de recetas del 03/05 firma su contexto.
+- **`services.recetas_para_despacho_lote(pacientes, fecha) -> dict[paciente_id, list[Receta]]`:** el mismo resultado que llamar `recetas_para_despacho` por paciente, con un número constante de consultas (`prefetch_related("recetas")` y las dos exclusiones con `receta_id__in` de todas). Una prueba compara ambos resultados y otra fija las consultas con `assertNumQueries`.
+- **Confirmación** `ProgramarTramoView` (`POST /entregas/programar/varios/confirmar/`, Q.F. y superusuario):
+  - Recibe el contexto firmado y `desde`/`hasta` (índices del tramo, de hasta 25).
+  - Rechaza una firma inválida, un actor distinto del firmado o un tramo fuera de rango (400 con texto).
+  - Llama a `services.programar_lote(actor, ids_del_tramo, fecha, encargado_id, lote)` y responde JSON sin RUT: por paciente, `programado` (con el id de la entrega y la cantidad de recetas) u `omitido` (con el motivo en texto).
+  - Sin JavaScript, el botón «Confirmar» envía el lote completo en una sola solicitud y dibuja el resumen (más lenta; queda como límite).
+- **`services.programar_lote(actor, paciente_ids, fecha, encargado_id, lote_id)`:**
+  - Autoriza `JEFA` una vez.
+  - Por cada paciente llama a `programar_entrega(actor, pid, fecha, encargado_id, uuid5(lote_id, str(pid)))`.
+  - **No** envuelve el ciclo en una transacción: cada paciente es su propia transacción con `_bloquear_jornada`. Así el bloqueo de la cola dura lo que dura un paciente y un fallo no revierte a los demás.
+  - Traduce los errores a resultados: `EntregaAbiertaExistente` → «Ya tiene una entrega abierta»; `ValidationError` → su mensaje; `ConflictoOperacion` agotado o `DatabaseError` → «No se pudo programar; vuelve a confirmar». Un reenvío no duplica.
+  - Una entrega previa del mismo lote vuelve como `programado`, gracias a la idempotencia de `programar_entrega`. No agrega eventos de auditoría: cada entrega ya audita `entrega.programada`.
+- **Cliente:**
+  - `programar.js` envía los tramos en orden, actualiza `<progress>` y «Programando 50 de 118» en `role="status"`, y acumula los resultados.
+  - Ante un error de red se detiene con «Se interrumpió en 50 de 118. [Reintentar]». Reintentar reenvía desde el primer tramo sin respuesta; si se reenvía algo ya hecho, es idempotente.
+  - Al terminar muestra «Se programaron X de Y», la tabla de omitidos con su motivo y el enlace a «Programación» filtrada por esa fecha y ese encargado.
+- **Wireframes:**
+
+```text
+Entregas › Programar entrega
+Buscar paciente (RUT, nombre o apellido)  [ Gonz                     ] [Buscar]
+Sector [Todos ▾]  Motivo [Todos ▾]  Domicilio [Todos ▾]  Localidad [Todas ▾]  [Quitar filtros]
+124 pacientes del reparto                         [Seleccionar los 124 filtrados]
+☐ │ Paciente                 │ Motivo     │ Sector · localidad │ Domicilio      │
+☐ │ González, Ana · RUT …    │ 80 o más   │ Verde · Dadinco    │ Verificado     │ Elegir
+– │ Gómez, Luis · RUT …      │ Postrado   │ Sin sector         │ Sin registrar  │ Ya tiene una entrega abierta
+                                                   ‹ Anterior  Página 1 de 3  Siguiente ›
+────────────────────────────────────────────────────────────────────────────────
+12 seleccionados          [Quitar selección]          [Programar seleccionados]
+```
+
+```text
+Programar 118 entregas
+Fecha [14/11/2026]  Encargado [Encargado B ▾]  [Revisar]
+Se programarán 114 pacientes con 231 recetas.
+▸ González, Ana · Verde · Dadinco · 2 recetas
+No se programarán (4): Gómez, Luis · Ya tiene una entrega abierta …
+[Confirmar y programar 114]  [Volver a la lista]
+Programando… 50 de 114  [██████░░░░]   →   Se programaron 113 de 114. No se programaron (1): …
+```
+
+### Pruebas previstas
+
+- **Elegibilidad:** límites de 79 años y 364 días, 80 recién cumplidos y 81; 29 de febrero; comparación de `condicion_elegible` con `es_elegible` en las 64 combinaciones, ahora contra `>= 80`; tótem con 79 (preferencial), 80 y 81 (bloqueo `domicilio`).
+- **Lista y filtros** (`test_programar_lista.py`):
+  - cada filtro solo y combinado, con «Sin sector» y una localidad con distinta grafía;
+  - un paciente con dos motivos aparece en ambos filtros;
+  - con entrega abierta: rotulado y sin casilla;
+  - paginación de 50 por POST;
+  - número constante de consultas por página;
+  - sin RUT en la URL ni en los enlaces del fragmento;
+  - el respaldo sin JavaScript (`accion=buscar`) da los mismos resultados que el fragmento.
+- **Lote** (`test_programar_lote.py`):
+  - `recetas_para_despacho_lote` igual al cálculo por paciente;
+  - resumen con programables y omitidos (entrega abierta, sin recetas, no elegible a la fecha);
+  - confirmación por tramos;
+  - reenvío de un tramo y del lote completo sin duplicados;
+  - firma alterada, actor distinto, tramo fuera de rango, fecha pasada y encargado inactivo;
+  - Técnico con 403;
+  - un omitido no revierte a los demás;
+  - auditoría: una `entrega.programada` por entrega y sin datos personales.
+- **Concurrencia** (se agrega a `test_concurrencia.py`, con `TransactionTestCase`, hilos y conexiones separadas):
+  7. dos lotes con pacientes en común al mismo tiempo → una sola entrega abierta por paciente; cada paciente sale `programado` en un lote y `omitido` en el otro;
+  8. el mismo tramo enviado dos veces a la vez → sin duplicados; ambas respuestas lo dan por programado;
+  9. un lote frente a la emisión del tótem de una excepción del lote → ninguna receta queda a la vez en un turno activo y en una entrega abierta;
+  10. un lote frente a la programación individual del mismo paciente → una sola entrega abierta.
+- **JavaScript** (`entregasapp/tests/programar.test.cjs`, Node con DOM simulado):
+  - espera de 300 ms y cancelación;
+  - las respuestas fuera de orden se descartan;
+  - la selección se conserva al reemplazar el fragmento;
+  - el modo `todos` se anula al cambiar un filtro;
+  - tramos en orden, detención y reintento;
+  - textos anunciados.
+- **Herramienta HTTP** (`tools/verificar_spec_08_http.py`, se amplía):
+  - p95 de la lista inicial y de 100 actualizaciones del fragmento con búsqueda y filtros;
+  - tiempo de la revisión de un lote con todos los elegibles (670);
+  - p95 de los tramos de 25 y tiempo total del lote completo;
+  - reenvío de un tramo sin duplicados;
+  - p95 del tótem mientras corre un lote.
+- **Regresión:** suite completa; solo cambian las aserciones de edad del 04 y del 08 indicadas.
+
+### Riesgos
+
+- **Cambio del contrato del 04 (tótem):** una persona de 80 años deja de recibir número presencial. Mitigación: decisión anotada en este spec, aserciones de edad actualizadas solo en el límite, nota en el `spec.md` del 04 al implementar y aviso al equipo (el 04 se trabajó en `fdaza`).
+- **Lote sin tope:** un error puede asignar cientos de visitas a un encargado. Mitigación: resumen obligatorio con las cantidades antes de confirmar y anulación individual existente. No hay deshacer en bloque: queda fuera, como la anulación masiva.
+- **Bloqueo de la cola durante un lote grande:** cada paciente toma `bloquear_cola(hoy)` por poco tiempo. Un lote de 670 serializa unos cientos de transacciones breves con el tótem y la ventanilla intercaladas. Se mide el p95 del tótem durante un lote.
+- **Revisión de un lote completo:** dibujar 670 pacientes con sus recetas pesa. Mitigación: cálculo por lotes con consultas constantes, `<details>` cerrados y medición en la herramienta. Si supera los 2 s, se informa como límite, sin prometer otro valor.
+- **Contexto firmado grande:** 670 ids comprimidos caben en un campo oculto. La firma impide alterar la lista, y el servidor igual revalida todo al programar.
+- **Búsqueda en vivo por POST:** no aprovecha la caché ni el historial del navegador. Es intencional por privacidad (RNF-01).
+
+### Documentos afectados al implementar
+
+- `specs/04-emision-de-turnos/spec.md` (nota de cambio en «Revisión y cambios» y en RF-04-02/04 con enlace aquí).
+- `CLAUDE.md` (sección del 08: `edad >= 80`, lista con filtros y programación por lote).
+- `README.md` (regla de edad).
+- `docs/estructura.md` (consultas y rutas nuevas).
+- `specs/README.md` (estado).

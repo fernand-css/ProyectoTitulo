@@ -76,6 +76,19 @@ No ejecutada. En esta sesión no se abrió un navegador: quedan pendientes la re
 
 Migración nueva: `entregasapp/0001_initial` (depende de `recetasapp/0002` y del modelo de usuario). Solo se aplicó en bases de prueba y en la SQLite temporal de la herramienta; **no se migró la base PostgreSQL del proyecto**. Para usar el módulo: `python manage.py migrate`. Antes de revertir, respaldar la base y la carpeta `ARCHIVOS_PRIVADOS_ROOT`; los descuentos ya hechos y las `EntregaReceta` creadas por despachos no se revierten.
 
+## Ampliación del 2026-11-13 (Borrador)
+
+**No ejecutada.** Las filas de arriba validan la versión del 2026-11-11. La de RF-08-01 deja de valer para la regla nueva (80 años o más) cuando se implemente la ampliación.
+
+| RF | Prueba / pasos / comando previstos | Esperado | Obtenido | Estado |
+|---|---|---|---|---|
+| RF-08-01 | `test_elegibilidad.py`; `turnosapp/tests/test_servicios.py` | 79 años y 364 días: no elegible y preferencial en el tótem; 80: elegible y bloqueo en el tótem; combinaciones con `>= 80` | — | no ejecutada |
+| RF-08-16 | `test_programar_lista.py`; `test_permisos.py`; `programar.test.cjs`; herramienta HTTP | Lista completa en páginas de 50; filtros exactos; actualización en vivo sin RUT en la URL; respaldo sin JavaScript; p95 ≤ 2 s | — | no ejecutada |
+| RF-08-17 | `test_programar_lote.py`; escenarios concurrentes 7 a 10; `programar.test.cjs`; herramienta HTTP | Resumen con programables y omitidos; programación por paciente en tramos; sin duplicados al reenviar; tramos con p95 ≤ 2 s; tiempo del lote completo informado | — | no ejecutada |
+| RF-08-15 | Regresión completa | Solo cambian las aserciones de edad del 04 y del 08 | — | no ejecutada |
+
+Revisión de navegador (búsqueda en vivo con lector de pantalla, teclado, zoom y barra de selección en celular), axe y usabilidad: pendientes.
+
 ## Aceptación funcional
 
 Pendiente.
