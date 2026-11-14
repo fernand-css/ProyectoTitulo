@@ -62,7 +62,8 @@ def _anterior(paciente, fecha, operacion):
 
 
 def clasificar_atencion(paciente, fecha):
-    # Regla compartida con el reparto a domicilio (spec 08): postrado o mayor de 80 años.
+    # Regla compartida con el reparto a domicilio (spec 08): postrado o con 80 años o más. El bloqueo va antes,
+    # así que el preferencial queda de 60 a 79 años.
     if paciente.requiere_despacho_en(fecha):
         raise ErrorEmision("domicilio", "Consulta tu despacho con el personal.")
     edad = paciente.edad_en(fecha)

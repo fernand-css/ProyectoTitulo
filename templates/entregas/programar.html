@@ -1,40 +1,47 @@
 {% extends 'entregas/base.html' %}
-{% load core_tags %}
+{% load core_tags static %}
 {% block titulo %}Programar entrega · Entregas · Farmacia{% endblock %}
 {% block migas_contenedor %}<nav class="migas" aria-label="Ruta de navegación"><ol><li><a href="{% url 'entregasapp:programacion' %}">Entregas</a></li><li><span aria-current="page">Programar entrega</span></li></ol></nav>{% endblock %}
 {% block entregas %}
 <h1>Programar entrega a domicilio</h1>
 
 {% if not paciente %}
-<p class="suave">Busca a un paciente del reparto: postrado, mayor de 80 años o con una excepción vigente.</p>
-<form class="busqueda-entregas" method="post" role="search" aria-label="Buscar paciente del reparto">
+<p class="suave">Pacientes del reparto a hoy: postrados, de 80 años o más o con una excepción vigente. Elige a uno, o marca varios para programarlos con la misma fecha y el mismo encargado.</p>
+<form class="filtros-entregas programar-lista" method="post" action="{% url 'entregasapp:programar' %}" novalidate
+      x-data="programar" data-url-lista="{% url 'entregasapp:programar_lista' %}"
+      x-on:input="cambio($event)" x-on:change="cambio($event)" x-on:click="clic($event)" x-on:submit="enviar($event)">
   {% csrf_token %}
   <input type="hidden" name="accion" value="buscar">
-  <label for="{{ busqueda.buscar.id_for_label }}">{{ busqueda.buscar.label }}</label>
-  <div class="busqueda-caja">{{ busqueda.buscar }}<button class="boton" type="submit">Buscar</button></div>
-  {% if busqueda.buscar.errors %}<div class="campo-error" role="alert">{{ busqueda.buscar.errors }}</div>{% endif %}
-</form>
-{% if buscado %}
-  {% if resultados %}
-  <div class="tabla-caja">
-    <table class="tabla tabla-apilable">
-      <caption>{{ resultados|length }} paciente{{ resultados|length|pluralize }} del reparto</caption>
-      <thead><tr><th scope="col">Paciente</th><th scope="col">Domicilio</th><th scope="col"><span class="sr-only">Acción</span></th></tr></thead>
-      <tbody>
-        {% for persona in resultados %}
-        <tr>
-          <th scope="row" data-etiqueta="Paciente"><strong>{{ persona.apellidos }}, {{ persona.nombres }}</strong><span class="dato-secundario">RUT {{ persona.rut|rut }}</span></th>
-          <td data-etiqueta="Domicilio">{% include 'entregas/_estado_domicilio.html' with estado=persona.domicilio_estado domicilio=persona.domicilio %}</td>
-          <td data-etiqueta="Acción">{% if persona.tiene_abierta %}<span class="etiqueta">Ya tiene una entrega abierta</span>{% else %}<a class="boton boton-secundario" href="{% url 'entregasapp:programar' %}?paciente={{ persona.pk }}">Elegir<span class="sr-only"> a {{ persona.apellidos }}, {{ persona.nombres }}</span></a>{% endif %}</td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
+  <div role="search" aria-label="Buscar y filtrar pacientes del reparto">
+    {% if form.non_field_errors %}<div class="message message-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+    <div class="campo">
+      <label for="{{ form.buscar.id_for_label }}">{{ form.buscar.label }}</label>
+      <p class="campo-ayuda" id="filtro_ayuda">RUT, nombre o apellido. La lista se actualiza mientras escribes o cambias un filtro.</p>
+      <div class="busqueda-caja">{{ form.buscar }}<button class="boton" type="submit">Buscar</button></div>
+      {% if form.buscar.errors %}<div class="campo-error" role="alert">{{ form.buscar.errors }}</div>{% endif %}
+    </div>
+    <div class="filtros-campos">
+      {% for campo in form %}{% if campo.name != 'buscar' and not campo.is_hidden %}
+      <div class="campo"><label for="{{ campo.id_for_label }}">{{ campo.label }}</label>{{ campo }}{% if campo.errors %}<div class="campo-error" role="alert">{{ campo.errors }}</div>{% endif %}</div>
+      {% endif %}{% endfor %}
+    </div>
+    {% if filtrado %}<p><a class="enlace-secundario" href="{% url 'entregasapp:programar' %}">Quitar la búsqueda y los filtros</a></p>{% endif %}
   </div>
-  {% else %}
-  <p role="status">No encontramos pacientes del reparto con esa búsqueda. Si no es postrado ni mayor de 80, inscríbelo antes en <a href="{% url 'entregasapp:excepciones' %}">Excepciones de reparto</a>.</p>
-  {% endif %}
-{% endif %}
+
+  <p class="programar-estado" role="status" x-ref="estado">{{ total }} paciente{{ total|pluralize }} del reparto</p>
+  <p hidden x-bind:hidden="!error"><button class="boton boton-secundario" type="button" x-on:click="reintentar()">Reintentar</button></p>
+
+  <div id="programar-lista" x-ref="lista">{% include 'entregas/_programar_lista.html' %}</div>
+
+  <div class="barra-seleccion">
+    <p class="barra-seleccion-texto" role="status" x-ref="seleccion">Marca a los pacientes que quieres programar juntos.</p>
+    <div class="acciones">
+      <button class="boton boton-secundario" type="button" hidden x-bind:hidden="false" x-on:click="quitarSeleccion()">Quitar selección</button>
+      <button class="boton" type="submit" formaction="{% url 'entregasapp:programar_varios' %}" data-accion="programar" x-ref="programar">Programar seleccionados</button>
+    </div>
+    <div x-ref="ocultos"></div>
+  </div>
+</form>
 
 {% else %}
 <section class="panel" aria-labelledby="titulo-paciente">
@@ -51,7 +58,7 @@
 </div>
 {% elif not elegible %}
 <div class="message message-warning" role="alert">
-  <div><p>El paciente no es elegible para el reparto en la fecha elegida: no es postrado, no es mayor de 80 años y no tiene una excepción vigente.</p>
+  <div><p>El paciente no es elegible para el reparto en la fecha elegida: no es postrado, no tiene 80 años o más y no tiene una excepción vigente.</p>
   <p><a href="{% url 'entregasapp:excepciones' %}?paciente={{ paciente.pk }}">Inscribir una excepción de reparto</a></p></div>
 </div>
 {% else %}
@@ -97,3 +104,4 @@
 {% endif %}
 {% endif %}
 {% endblock %}
+{% block scripts %}{% if not paciente %}<script src="{% static 'js/entregas/programar.js' %}"></script>{% endif %}{% endblock %}

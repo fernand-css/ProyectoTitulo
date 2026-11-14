@@ -478,3 +478,23 @@ Programando… 50 de 114  [██████░░░░]   →   Se programaro
 - `README.md` (regla de edad).
 - `docs/estructura.md` (consultas y rutas nuevas).
 - `specs/README.md` (estado).
+
+### Notas de implementación de la ampliación (2026-11-13)
+
+Implementada en `crojas-base` sin cambiar requisitos. Ajustes técnicos respecto del diseño de arriba:
+
+- **Paginación con `pagina`, no `page`:** `FiltroProgramarForm` hereda de `BusquedaForm`, que ya usa `pagina` (como Domicilios). Los botones «Anterior» y «Siguiente» son `<button name="pagina">` del mismo formulario.
+- **Localidad por clave normalizada:** el valor del filtro es `Lower(Trim(localidad))` calculado por la base, y la consulta compara con la misma expresión. Así la agrupación y el filtro coinciden en PostgreSQL y en SQLite, también con letras acentuadas.
+- **Anotaciones de la lista:** `elegibles` anota `abierta_id` (subconsulta de la entrega abierta, para enlazarla) además de `con_excepcion`. El número de consultas por página es constante.
+- **Códigos en los rechazos de `programar_entrega`:** los `ValidationError` de no elegible y sin recetas llevan `code="no_elegible"` y `code="sin_recetas"`, para traducirlos a los motivos cortos del lote. Los mensajes de la programación individual no cambian.
+- **`programar_lote` valida la fecha y el encargado una sola vez** antes del ciclo. Si no sirven, rechaza el tramo completo («Rechazo con motivo y sin cambios»), en vez de omitir a cada paciente con el mismo motivo.
+- **Revisión:** `ProgramarVariosForm` (fecha y encargado, con su propio `auto_id`). El orden de clasificación imita el servicio: primero elegible, luego entrega abierta y por último recetas. Con «todos», la lista se resuelve con los elegibles a hoy y los filtros; los ids del navegador se ignoran. Un filtro inválido vuelve a la lista con aviso.
+- **Contexto firmado:** además de lote, ids, fecha, encargado y actor, lleva los omitidos de la revisión con su motivo. Así el resumen final sin JavaScript informa «Se programaron X de Y» con todos los omitidos, sin guardar nada.
+- **Respuesta de los tramos:** JSON con id del paciente, estado, entrega y cantidad de recetas, o el motivo. Sin RUT ni nombres: el navegador toma el nombre de los omitidos del resumen ya dibujado.
+- **Cliente:** el formulario de la lista distingue los envíos por `submitter`:
+  - «Programar seleccionados» escribe los ids ocultos (o `todos=1`) y envía de forma normal.
+  - «Seleccionar los N filtrados», la paginación y «Buscar» se atienden sin recargar.
+
+  Si el filtro cambió antes de que venza la espera de 300 ms, «todos» se anula antes de enviar. AbortController y el temporizador viven fuera del estado reactivo de Alpine.
+- **Barra de selección:** fija al final solo en computador (`min-width: 70rem`). En celular queda al final de la lista para no tapar el dock del menú.
+- **Herramienta HTTP:** el marcador «Hoy (» de «Mis entregas» estaba desactualizado desde el spec 09 (la lista pasó a «Por visitar en orden (»). Se corrigió al ampliar la herramienta.

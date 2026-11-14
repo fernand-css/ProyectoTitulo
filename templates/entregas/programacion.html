@@ -2,7 +2,7 @@
 {% load core_tags %}
 {% block titulo %}Programación · Entregas · Farmacia{% endblock %}
 {% block entregas %}
-{% include 'entregas/_cabecera.html' with titulo='Entregas a domicilio' texto='Visitas programadas a pacientes postrados, mayores de 80 años y excepciones, con su encargado de terreno.' %}
+{% include 'entregas/_cabecera.html' with titulo='Entregas a domicilio' texto='Visitas programadas a pacientes postrados, de 80 años o más y excepciones, con su encargado de terreno.' %}
 
 {% url 'entregasapp:programacion' as limpiar %}
 {% include 'entregas/_filtros.html' with limpiar=limpiar %}

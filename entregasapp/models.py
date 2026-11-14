@@ -105,7 +105,7 @@ class FotoDomicilio(ModeloAuditado):
 
 
 class InscripcionReparto(ModeloAuditado):
-    """Excepción de la Q.F.: un paciente que no es postrado ni mayor de 80 entra al reparto."""
+    """Excepción de la Q.F.: un paciente que no es postrado ni tiene 80 años o más entra al reparto."""
 
     class Motivo(models.TextChoices):
         MOVILIDAD = "movilidad_reducida", "Movilidad reducida"

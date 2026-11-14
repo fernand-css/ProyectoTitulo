@@ -10,6 +10,7 @@ from datetime import date, datetime, time, timedelta
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db.models import Count, Exists, F, Max, OuterRef, Prefetch, Q, Subquery
+from django.db.models.functions import Lower, Trim
 from django.utils import timezone
 
 from coreapp.roles import ENCARGADO
@@ -18,12 +19,12 @@ from recetasapp.models import Paciente
 from .models import Domicilio, Entrega, InscripcionReparto, IntentoEntrega, OrdenRuta, RecetaEntrega
 from .ruta import Punto, formatear_km, insertar, longitud_m, ordenar
 
-EDAD_DESPACHO = 80  # Elegible si tiene más de 80 años cumplidos: la misma regla del tótem (04).
+EDAD_DESPACHO = 80  # Elegible con 80 años cumplidos o más: la misma regla del tótem (04). Cambio del 2026-11-13.
 
 
 def limite_nacimiento(fecha):
-    """Último día de nacimiento con el que se tienen más de 80 años (81 o más) a `fecha`."""
-    anio = fecha.year - (EDAD_DESPACHO + 1)
+    """Último día de nacimiento con el que se tienen 80 años cumplidos o más a `fecha`."""
+    anio = fecha.year - EDAD_DESPACHO
     try:
         return fecha.replace(year=anio)
     except ValueError:  # 29 de febrero en un año sin ese día
@@ -40,7 +41,7 @@ def condicion_elegible(fecha):
 
 
 def es_elegible(paciente, fecha=None):
-    """Postrado, mayor de 80 años a `fecha` o con una excepción de reparto vigente."""
+    """Postrado, con 80 años o más a `fecha` o con una excepción de reparto vigente."""
     fecha = fecha or timezone.localdate()
     if paciente.requiere_despacho_en(fecha):
         return True
@@ -99,15 +100,53 @@ def estado_domicilio(paciente, domicilio=None):
     return EstadoDomicilio(PENDIENTE, "Pendiente de verificar", cambio, paciente.direccion)
 
 
-def elegibles(fecha=None, *, buscar="", sector="", estado=""):
-    """Pacientes del reparto con su domicilio (si existe), filtrables por búsqueda, sector y estado."""
+# Filtros de «Programar entrega» (RF-08-16, ampliación del 2026-11-13).
+SIN_SECTOR = "sin"
+MOTIVO_POSTRADO = "postrado"
+MOTIVO_EDAD = "edad"
+MOTIVO_EXCEPCION = "excepcion"
+MOTIVOS_REPARTO = (
+    (MOTIVO_POSTRADO, "Postrado"),
+    (MOTIVO_EDAD, "80 años o más"),
+    (MOTIVO_EXCEPCION, "Excepción vigente"),
+)
+
+
+def _clave_localidad(campo="localidad"):
+    """Localidad sin distinguir mayúsculas ni espacios de los extremos («Dadinco» y «dadinco » son la misma)."""
+    return Lower(Trim(campo))
+
+
+def _entrega_abierta_de():
+    return Entrega.objects.filter(paciente=OuterRef("pk"), estado__in=Entrega.ABIERTAS).values("pk")[:1]
+
+
+def elegibles(fecha=None, *, buscar="", sector="", estado="", motivo="", localidad=""):
+    """Pacientes del reparto con su domicilio (si existe), filtrables por búsqueda, sector, estado, motivo y localidad.
+
+    Cada fila trae anotados `abierta_id` (su entrega abierta o None) y `con_excepcion`, para mostrar el motivo del
+    reparto y el rótulo de entrega abierta sin una consulta por fila. `sector="sin"` reúne a los que no tienen
+    domicilio o lo tienen sin sector. `localidad` es la clave normalizada que entrega `localidades_elegibles`.
+    """
     fecha = fecha or timezone.localdate()
     pacientes = Paciente.objects.filter(condicion_elegible(fecha)).select_related("domicilio__verificado_por").annotate(
         fotos_cantidad=Count("domicilio__fotos", distinct=True),
+        abierta_id=Subquery(_entrega_abierta_de()),
+        con_excepcion=Exists(_excepcion_vigente()),
     ).order_by("apellidos", "nombres", "pk")
     pacientes = filtrar_busqueda(pacientes, buscar)
-    if sector:
+    if sector == SIN_SECTOR:
+        pacientes = pacientes.filter(Q(domicilio__isnull=True) | Q(domicilio__sector=""))
+    elif sector:
         pacientes = pacientes.filter(domicilio__sector=sector)
+    if motivo == MOTIVO_POSTRADO:
+        pacientes = pacientes.filter(es_postrado=True)
+    elif motivo == MOTIVO_EDAD:
+        pacientes = pacientes.filter(fecha_nacimiento__lte=limite_nacimiento(fecha))
+    elif motivo == MOTIVO_EXCEPCION:
+        pacientes = pacientes.filter(Exists(_excepcion_vigente()))
+    if localidad:
+        pacientes = pacientes.alias(localidad_clave=_clave_localidad("domicilio__localidad")).filter(localidad_clave=localidad)
     if estado == SIN_REGISTRAR:
         pacientes = pacientes.filter(domicilio__isnull=True)
     elif estado == VERIFICADO:
@@ -117,6 +156,42 @@ def elegibles(fecha=None, *, buscar="", sector="", estado=""):
             domicilio__verificado_en__isnull=False, direccion=F("domicilio__direccion_padron"),
         )
     return pacientes
+
+
+def localidades_elegibles(fecha=None):
+    """[(clave, rótulo)] de las localidades registradas en los domicilios de los elegibles, sin vacías.
+
+    Se agrupan por la clave normalizada y se muestran con la primera grafía registrada.
+    """
+    fecha = fecha or timezone.localdate()
+    filas = (
+        Domicilio.objects.filter(paciente__in=Paciente.objects.filter(condicion_elegible(fecha)))
+        .annotate(clave=_clave_localidad()).exclude(clave="")
+        .order_by("clave", "pk").values_list("clave", "localidad")
+    )
+    opciones = {}
+    for clave, localidad in filas:
+        opciones.setdefault(clave, localidad.strip())
+    return list(opciones.items())
+
+
+def motivos_de(paciente, fecha=None):
+    """Rótulos del motivo del reparto (uno o varios). Se derivan, no se guardan.
+
+    Usa la anotación `con_excepcion` de `elegibles` si está; si no, consulta la excepción vigente.
+    """
+    fecha = fecha or timezone.localdate()
+    motivos = []
+    if paciente.es_postrado:
+        motivos.append("Postrado")
+    if paciente.edad_en(fecha) >= EDAD_DESPACHO:
+        motivos.append("80 años o más")
+    con_excepcion = getattr(paciente, "con_excepcion", None)
+    if con_excepcion is None:
+        con_excepcion = InscripcionReparto.objects.filter(paciente=paciente, retirada_en__isnull=True).exists()
+    if con_excepcion:
+        motivos.append("Excepción")
+    return motivos
 
 
 # Entregas ---------------------------------------------------------------------------------------------------

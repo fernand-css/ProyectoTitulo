@@ -1,0 +1,68 @@
+{# Resumen para revisar un lote antes de confirmar (RF-08-17). Con JavaScript, la confirmación va por tramos con avance; #}
+{# sin JavaScript, el formulario envía el lote completo y el servidor dibuja el resumen final. #}
+<section class="panel resumen-lote" aria-labelledby="titulo-resumen" x-data="programarLote"
+         data-url="{% url 'entregasapp:programar_tramo' %}" data-programables="{{ revision.programables|length }}"
+         data-total="{{ revision.total }}" data-tramo="{{ revision.tramo }}" data-omitidos="{{ revision.omitidos|length }}"
+         data-url-programacion="{{ revision.url_programacion }}">
+  <h2 id="titulo-resumen">Revisa y confirma</h2>
+  <dl class="ficha">
+    <dt>Fecha de la visita</dt><dd>{{ revision.fecha|date:"l d/m/Y" }}</dd>
+    <dt>Encargado</dt><dd>{{ revision.encargado_nombre }}</dd>
+    <dt>Pacientes seleccionados</dt><dd>{{ revision.total }}</dd>
+  </dl>
+  <p class="resumen-lote-total"><strong>Se programarán {{ revision.programables|length }} paciente{{ revision.programables|length|pluralize }} con {{ revision.recetas_total }} receta{{ revision.recetas_total|pluralize }}.</strong></p>
+
+  {% if revision.programables %}
+  <h3>Pacientes que se programarán</h3>
+  <p class="suave">Abre a un paciente para ver las recetas que llevará la entrega. Mientras la entrega esté abierta, esas recetas no se dispensan en farmacia.</p>
+  <ul class="lote-pacientes">
+    {% for persona in revision.programables %}
+    <li data-paciente="{{ persona.pk }}">
+      <details>
+        <summary><span data-nombre>{{ persona.apellidos }}, {{ persona.nombres }}</span> · {% if persona.domicilio_registrado.sector %}{{ persona.domicilio_registrado.get_sector_display }}{% else %}Sin sector{% endif %}{% if persona.domicilio_registrado.localidad %} · {{ persona.domicilio_registrado.localidad }}{% endif %} · {{ persona.recetas_lote|length }} receta{{ persona.recetas_lote|length|pluralize }}</summary>
+        <ul class="lista-recetas">{% for receta, estado in persona.recetas_lote %}<li>Receta {{ receta.codigo }} · entrega {{ estado.completadas|add:1 }} de {{ estado.maximo }}</li>{% endfor %}</ul>
+      </details>
+    </li>
+    {% endfor %}
+  </ul>
+  {% endif %}
+
+  <section class="lote-omitidos" aria-labelledby="titulo-omitidos" {% if not revision.omitidos %}hidden x-bind:hidden="!omitidosNuevos.length"{% endif %}>
+    <h3 id="titulo-omitidos">No se programarán (<span x-text="omitidosRevision + omitidosNuevos.length">{{ revision.omitidos|length }}</span>)</h3>
+    <div class="tabla-caja">
+      <table class="tabla tabla-apilable">
+        <caption class="sr-only">Pacientes que no se programarán y su motivo</caption>
+        <thead><tr><th scope="col">Paciente</th><th scope="col">Motivo</th></tr></thead>
+        <tbody>
+          {% for omitido in revision.omitidos %}
+          <tr>
+            <th scope="row" data-etiqueta="Paciente">{% if omitido.paciente %}{{ omitido.paciente.apellidos }}, {{ omitido.paciente.nombres }}{% else %}Paciente no disponible{% endif %}</th>
+            <td data-etiqueta="Motivo">{{ omitido.motivo }}{% if omitido.entrega_id %} · <a href="{% url 'entregasapp:detalle' omitido.entrega_id %}">Ver la entrega abierta</a>{% endif %}</td>
+          </tr>
+          {% endfor %}
+          <template x-for="omitido in omitidosNuevos" x-bind:key="omitido.paciente">
+            <tr><th scope="row" data-etiqueta="Paciente" x-text="omitido.nombre"></th><td data-etiqueta="Motivo" x-text="omitido.motivo"></td></tr>
+          </template>
+        </tbody>
+      </table>
+    </div>
+  </section>
+
+  {% if revision.programables %}
+  <form method="post" action="{% url 'entregasapp:programar_tramo' %}" x-on:submit.prevent="confirmar()">
+    {% csrf_token %}
+    <input type="hidden" name="contexto" value="{{ revision.contexto }}">
+    <div class="acciones">
+      <button class="boton" type="submit" x-bind:disabled="ocupado || terminado"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-calendario"/></svg>Confirmar y programar {{ revision.programables|length }}</button>
+      <a class="boton boton-secundario" href="{% url 'entregasapp:programar' %}">Volver a la lista</a>
+    </div>
+  </form>
+  <div class="lote-avance" hidden x-bind:hidden="!iniciado">
+    <label for="lote-progreso">Avance de la programación</label>
+    <progress id="lote-progreso" max="{{ revision.programables|length }}" value="0" x-bind:value="hechos">0 de {{ revision.programables|length }}</progress>
+  </div>
+  {% endif %}
+  <p class="lote-estado" role="status" x-text="estado"></p>
+  <p hidden x-bind:hidden="!interrumpido"><button class="boton boton-secundario" type="button" x-on:click="confirmar()">Reintentar</button></p>
+  <p hidden x-bind:hidden="!terminado"><a class="boton" x-bind:href="urlProgramacion" href="{{ revision.url_programacion }}">Ver en Programación</a></p>
+</section>

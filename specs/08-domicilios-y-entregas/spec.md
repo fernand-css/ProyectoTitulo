@@ -235,3 +235,5 @@ No hay bloqueos críticos para redactar. Por confirmar: los catálogos de motivo
 - **Segundo bloque:** programar los válidos e informar los omitidos; resumen para revisar y confirmar; «Seleccionar los N filtrados» sin tope; lista completa al entrar.
 
 Se modifican RF-08-01 y sus criterios, y se agregan RF-08-16 y RF-08-17 y las tareas T-08-09 a T-08-13 (propuestas). La versión aprobada del 2026-11-11 sigue vigente hasta que el usuario apruebe la ampliación. Sin código, migraciones ni cambios en otros specs.
+
+2026-11-13 (implementación de la ampliación, `crojas-base`): T-08-09 a T-08-13 ejecutadas sin cambiar requisitos. Ajustes técnicos en [plan.md](plan.md#notas-de-implementación-de-la-ampliación-2026-11-13). El cambio de edad del 04 quedó anotado en su [spec.md](../04-emision-de-turnos/spec.md). Los rótulos «Borrador» dentro de los requisitos de la ampliación conservan el texto aprobado; la cabecera manda. Estado: sigue en **Aprobado**; quedan pendientes el navegador, axe, la usabilidad y la aceptación.

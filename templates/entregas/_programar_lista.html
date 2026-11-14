@@ -1,0 +1,51 @@
+{% load core_tags %}
+{# Lista de «Programar entrega» (RF-08-16). Se dibuja dentro del formulario de búsqueda y también sola, como fragmento #}
+{# para la búsqueda en vivo. Sin JavaScript, las casillas, «Seleccionar los N filtrados» y la paginación envían el mismo #}
+{# formulario. Los enlaces solo llevan identificadores internos, nunca RUT ni nombres. #}
+<div class="programar-resultados" data-total="{{ total }}" data-pagina="{{ page_obj.number }}">
+{% if page_obj.object_list %}
+  <div class="acciones lista-acciones">
+    <button class="boton boton-secundario" type="button" data-accion="pagina" data-solo-js hidden>Seleccionar esta página</button>
+    <button class="boton boton-secundario" type="submit" name="todos" value="1" formaction="{% url 'entregasapp:programar_varios' %}" data-accion="todos">Seleccionar los {{ total }} filtrados</button>
+  </div>
+  <div class="tabla-caja">
+    <table class="tabla tabla-apilable tabla-programar">
+      <caption>Pacientes del reparto · página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</caption>
+      <thead><tr><th scope="col"><span class="sr-only">Seleccionar</span></th><th scope="col">Paciente</th><th scope="col">Motivo del reparto</th><th scope="col">Sector y localidad</th><th scope="col">Domicilio</th><th scope="col"><span class="sr-only">Acción</span></th></tr></thead>
+      <tbody>
+        {% for persona in page_obj %}
+        <tr>
+          <td data-etiqueta="Seleccionar" class="celda-casilla">
+            {% if persona.abierta_id %}
+            <input type="checkbox" id="sel-{{ persona.pk }}" disabled><label class="sr-only" for="sel-{{ persona.pk }}">No se puede seleccionar a {{ persona.apellidos }}, {{ persona.nombres }}: ya tiene una entrega abierta</label>
+            {% else %}
+            <input type="checkbox" name="ids" value="{{ persona.pk }}" id="sel-{{ persona.pk }}" data-paciente="{{ persona.pk }}"><label class="sr-only" for="sel-{{ persona.pk }}">Seleccionar a {{ persona.apellidos }}, {{ persona.nombres }}</label>
+            {% endif %}
+          </td>
+          <th scope="row" data-etiqueta="Paciente"><strong>{{ persona.apellidos }}, {{ persona.nombres }}</strong><span class="dato-secundario">RUT {{ persona.rut|rut }}</span></th>
+          <td data-etiqueta="Motivo del reparto">{{ persona.motivos|join:" · " }}</td>
+          <td data-etiqueta="Sector y localidad">{% if persona.domicilio_registrado.sector %}{{ persona.domicilio_registrado.get_sector_display }}{% else %}Sin sector{% endif %}{% if persona.domicilio_registrado.localidad %} · {{ persona.domicilio_registrado.localidad }}{% endif %}</td>
+          <td data-etiqueta="Domicilio">{% include 'entregas/_estado_domicilio.html' with estado=persona.domicilio_estado domicilio=persona.domicilio_registrado %}</td>
+          <td data-etiqueta="Acción">{% if persona.abierta_id %}<a href="{% url 'entregasapp:detalle' persona.abierta_id %}">Ya tiene una entrega abierta<span class="sr-only">: ver la de {{ persona.apellidos }}, {{ persona.nombres }}</span></a>{% else %}<a class="boton boton-secundario" href="{% url 'entregasapp:programar' %}?paciente={{ persona.pk }}">Elegir<span class="sr-only"> a {{ persona.apellidos }}, {{ persona.nombres }}</span></a>{% endif %}</td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+  </div>
+  {% if page_obj.has_other_pages %}
+  <nav class="paginacion" aria-label="Páginas de pacientes del reparto">
+    {% if page_obj.has_previous %}<button class="boton boton-secundario" type="submit" name="pagina" value="{{ page_obj.previous_page_number }}">Anterior</button>{% endif %}
+    <span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+    {% if page_obj.has_next %}<button class="boton boton-secundario" type="submit" name="pagina" value="{{ page_obj.next_page_number }}">Siguiente</button>{% endif %}
+  </nav>
+  {% endif %}
+{% else %}
+  <div class="vacio">
+    <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-casa"/></svg>
+    <div>
+      <h2>No encontramos pacientes del reparto con esa búsqueda y esos filtros</h2>
+      <p>Revisa el RUT o el apellido, o quita un filtro. Si el paciente no es postrado ni tiene 80 años o más, inscríbelo antes en <a href="{% url 'entregasapp:excepciones' %}">Excepciones de reparto</a>.</p>
+    </div>
+  </div>
+{% endif %}
+</div>

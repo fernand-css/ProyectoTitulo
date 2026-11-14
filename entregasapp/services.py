@@ -16,7 +16,7 @@ from uuid import UUID
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import PermissionDenied, ValidationError
-from django.db import IntegrityError, transaction
+from django.db import DatabaseError, IntegrityError, transaction
 from django.db.models import F
 from django.utils import timezone
 
@@ -326,7 +326,7 @@ def programar_entrega(actor, paciente_id, fecha, encargado_id, operacion_id):
     encargado = _encargado_valido(encargado_id)
     paciente = _paciente(paciente_id)
     if not consultas.es_elegible(paciente, fecha):
-        raise ValidationError("El paciente no es elegible para el reparto a domicilio en esa fecha.")
+        raise ValidationError("El paciente no es elegible para el reparto a domicilio en esa fecha.", code="no_elegible")
     abierta = consultas.entrega_abierta(paciente)
     if abierta is not None:
         raise EntregaAbiertaExistente(abierta.pk)
@@ -334,7 +334,8 @@ def programar_entrega(actor, paciente_id, fecha, encargado_id, operacion_id):
     if not recetas:
         raise ValidationError(
             "El paciente no tiene recetas disponibles para despacho en esa fecha: están vencidas, agotadas, "
-            "aún no inician, en un turno activo o esperando retiro en farmacia."
+            "aún no inician, en un turno activo o esperando retiro en farmacia.",
+            code="sin_recetas",
         )
     try:
         with transaction.atomic():
@@ -351,6 +352,104 @@ def programar_entrega(actor, paciente_id, fecha, encargado_id, operacion_id):
                                   creado_con=operacion, creado_por=actor, modificado_por=actor)
     auditar(actor, "entrega.programada", entrega)
     return entrega
+
+
+# Programación de varios pacientes (RF-08-17, ampliación del 2026-11-13) ---------------------------------------
+
+OMITIDO_ABIERTA = "Ya tiene una entrega abierta"
+OMITIDO_SIN_RECETAS = "Sin recetas disponibles en esa fecha"
+OMITIDO_NO_ELEGIBLE = "Ya no es elegible para el reparto en esa fecha"
+OMITIDO_NO_DISPONIBLE = "El paciente no está disponible"
+OMITIDO_REINTENTAR = "No se pudo programar; vuelve a confirmar"
+TRAMO_MAXIMO = 25
+
+
+def recetas_para_despacho_lote(pacientes, fecha):
+    """{paciente_id: [Receta]}: lo mismo que `recetas_para_despacho` por paciente, con consultas constantes.
+
+    `pacientes` puede ser una lista de `Paciente` o de identificadores.
+    """
+    from recetasapp.preparacion import pendientes_retiro
+    from turnosapp.models import TurnoReceta
+
+    ids = [getattr(paciente, "pk", paciente) for paciente in pacientes]
+    if not ids:
+        return {}
+    recetas = Receta.objects.filter(paciente_id__in=ids).order_by("pk")
+    por_paciente = {pid: [] for pid in ids}
+    for receta in recetas:
+        if evaluar_elegibilidad(receta, fecha)["elegible"]:
+            por_paciente[receta.paciente_id].append(receta)
+    receta_ids = [receta.pk for lista in por_paciente.values() for receta in lista]
+    if not receta_ids:
+        return por_paciente
+    en_turno = set(TurnoReceta.objects.filter(
+        receta_id__in=receta_ids, turno__estado__in=("esperando", "llamado"),
+    ).values_list("receta_id", flat=True))
+    por_retirar = set(pendientes_retiro().filter(turno_receta__receta_id__in=receta_ids)
+                      .values_list("turno_receta__receta_id", flat=True))
+    excluidas = en_turno | por_retirar
+    return {pid: [r for r in lista if r.pk not in excluidas] for pid, lista in por_paciente.items()}
+
+
+def operacion_de_lote(lote_id, paciente_id):
+    """Identificador de operación de un paciente dentro de un lote: el mismo en cada reenvío."""
+    return uuid.uuid5(_uuid(lote_id), f"paciente:{paciente_id}")
+
+
+@dataclass(frozen=True)
+class ResultadoLote:
+    paciente_id: int
+    programado: bool
+    entrega_id: int = None
+    recetas: int = 0
+    motivo: str = ""
+
+
+def _motivo_omitido(error):
+    codigo = getattr(error, "code", None)
+    if codigo == "sin_recetas":
+        return OMITIDO_SIN_RECETAS
+    if codigo == "no_elegible":
+        return OMITIDO_NO_ELEGIBLE
+    return _primer_mensaje(error)
+
+
+def _primer_mensaje(error):
+    mensajes = getattr(error, "messages", None)
+    return mensajes[0] if mensajes else OMITIDO_REINTENTAR
+
+
+def programar_lote(actor, paciente_ids, fecha, encargado_id, lote_id):
+    """Programa a cada paciente por separado, con las reglas y garantías de `programar_entrega`.
+
+    No envuelve el ciclo en una transacción: cada paciente es su propia transacción (con la cola del día tomada
+    solo mientras dura), y un fallo no revierte a los demás. La operación de cada paciente se deriva del lote, así
+    que reenviar el lote, completo o por partes, devuelve las entregas ya creadas. La fecha y el encargado se
+    validan una vez antes de empezar: si no sirven, no se programa a nadie.
+    """
+    autorizar(actor, JEFA)
+    _fecha_valida(fecha, timezone.localdate())
+    _encargado_valido(encargado_id)
+    lote = _uuid(lote_id)
+    resultados = []
+    for paciente_id in paciente_ids:
+        try:
+            entrega = programar_entrega(actor, paciente_id, fecha, encargado_id, operacion_de_lote(lote, paciente_id))
+        except EntregaAbiertaExistente:
+            resultados.append(ResultadoLote(paciente_id, False, motivo=OMITIDO_ABIERTA))
+        except PermissionDenied:
+            raise
+        except ValidationError as error:
+            if not Paciente.objects.filter(pk=paciente_id).exists():
+                resultados.append(ResultadoLote(paciente_id, False, motivo=OMITIDO_NO_DISPONIBLE))
+            else:
+                resultados.append(ResultadoLote(paciente_id, False, motivo=_motivo_omitido(error)))
+        except DatabaseError:
+            resultados.append(ResultadoLote(paciente_id, False, motivo=OMITIDO_REINTENTAR))
+        else:
+            resultados.append(ResultadoLote(paciente_id, True, entrega_id=entrega.pk, recetas=entrega.recetas.count()))
+    return resultados
 
 
 # Registro en terreno -----------------------------------------------------------------------------------------

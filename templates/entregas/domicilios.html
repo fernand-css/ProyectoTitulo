@@ -5,7 +5,7 @@
 {% if es_encargado %}
 {% include 'entregas/_cabecera.html' with titulo='Domicilios' texto='Pacientes del reparto con su domicilio. Regístralo o corrígelo y márcalo como verificado al visitarlo.' %}
 {% else %}
-{% include 'entregas/_cabecera.html' with titulo='Entregas a domicilio' texto='Domicilios de los pacientes del reparto: postrados, mayores de 80 años y excepciones.' %}
+{% include 'entregas/_cabecera.html' with titulo='Entregas a domicilio' texto='Domicilios de los pacientes del reparto: postrados, de 80 años o más y excepciones.' %}
 {% endif %}
 
 <form class="filtros-entregas" method="post" role="search" aria-label="Buscar y filtrar domicilios">
@@ -53,7 +53,7 @@
   <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-casa"/></svg>
   <div>
     <h2>No encontramos pacientes del reparto con esos filtros</h2>
-    <p>Revisa el RUT o el apellido. Solo aparecen pacientes postrados, mayores de 80 años o con una excepción vigente.</p>
+    <p>Revisa el RUT o el apellido. Solo aparecen pacientes postrados, de 80 años o más o con una excepción vigente.</p>
   </div>
 </div>
 {% endif %}

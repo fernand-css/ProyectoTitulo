@@ -14,7 +14,7 @@
 </header>
 
 {% if not elegible and not domicilio %}
-<div class="message message-warning" role="alert">El paciente no es elegible para el reparto: no es postrado, no es mayor de 80 años y no tiene una excepción vigente.</div>
+<div class="message message-warning" role="alert">El paciente no es elegible para el reparto: no es postrado, no tiene 80 años o más y no tiene una excepción vigente.</div>
 {% endif %}
 
 {% if puede_verificar %}

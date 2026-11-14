@@ -6,13 +6,15 @@ llevan `Cache-Control: no-store` y las URL solo contienen identificadores intern
 """
 
 import uuid
+from datetime import date
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
+from django.core import signing
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import DatabaseError
-from django.http import FileResponse, Http404
+from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
@@ -27,7 +29,8 @@ from recetasapp.services import evaluar_elegibilidad
 from . import consultas, fotos, mapa, services
 from .forms import (
     AnularForm, BusquedaForm, DomicilioForm, EntregadaForm, ExcepcionForm, FiltroDomiciliosForm, FiltroEntregasForm,
-    FotoForm, MoverParadaForm, NoEntregadaForm, ProgramarForm, ReasignarForm, RestablecerOrdenForm, RutaForm, VersionForm,
+    FiltroProgramarForm, FotoForm, MoverParadaForm, NoEntregadaForm, ProgramarForm, ProgramarVariosForm, ReasignarForm,
+    RestablecerOrdenForm, RutaForm, VersionForm,
 )
 from .models import Domicilio, Entrega, FotoDomicilio, InscripcionReparto, IntentoEntrega, RecetaEntrega
 
@@ -143,7 +146,7 @@ class ProgramarView(EntregasView):
     def get(self, request):
         paciente = self.paciente_preseleccionado(request.GET.get("paciente"))
         if paciente is None:
-            return self.render("programar.html", {"busqueda": BusquedaForm(), "pestanas": self.pestanas("programacion")})
+            return self.lista(FiltroProgramarForm(fecha=timezone.localdate()))
         form = ProgramarForm(initial={"fecha": timezone.localdate(), "operacion_id": uuid.uuid4()})
         return self.render("programar.html", {**self.contexto_paciente(paciente, None), "form": form,
                                               "pestanas": self.pestanas("programacion")})
@@ -182,16 +185,201 @@ class ProgramarView(EntregasView):
         return self.render("programar.html", contexto)
 
     def buscar(self, request):
-        busqueda = BusquedaForm(request.POST)
-        pacientes = []
-        if busqueda.is_valid() and busqueda.cleaned_data["buscar"]:
-            pacientes = list(consultas.elegibles(buscar=busqueda.cleaned_data["buscar"])[:20])
-            abiertas = set(Entrega.objects.filter(paciente__in=pacientes, estado__in=Entrega.ABIERTAS).values_list("paciente_id", flat=True))
-            for paciente in pacientes:
-                paciente.tiene_abierta = paciente.pk in abiertas
-                paciente.domicilio_estado = consultas.estado_domicilio(paciente, consultas.domicilio_de(paciente))
-        return self.render("programar.html", {"busqueda": busqueda, "resultados": pacientes, "buscado": True,
-                                              "pestanas": self.pestanas("programacion")})
+        """Respaldo sin JavaScript de la lista (RF-08-16): la misma búsqueda y los filtros con «Buscar»."""
+        return self.lista(FiltroProgramarForm(request.POST, fecha=timezone.localdate()))
+
+    def lista(self, form):
+        return self.render("programar.html", {**contexto_lista_programar(form), "pestanas": self.pestanas("programacion")})
+
+
+# Lista y programación de varios (RF-08-16 y RF-08-17, ampliación del 2026-11-13) ------------------------------
+
+POR_PAGINA_PROGRAMAR = 50
+SAL_LOTE = "entregas.programar_lote"
+
+
+def contexto_lista_programar(form):
+    """Elegibles a hoy con la búsqueda y los filtros del formulario, en páginas de 50, sin consultas por fila."""
+    hoy = timezone.localdate()
+    filtros = form.filtros()
+    page_obj = Paginator(consultas.elegibles(hoy, **filtros), POR_PAGINA_PROGRAMAR).get_page(form.pagina())
+    filas = list(page_obj.object_list)
+    for persona in filas:
+        persona.domicilio_registrado = consultas.domicilio_de(persona)
+        persona.domicilio_estado = consultas.estado_domicilio(persona, persona.domicilio_registrado)
+        persona.motivos = consultas.motivos_de(persona, hoy)
+    page_obj.object_list = filas
+    return {"form": form, "page_obj": page_obj, "total": page_obj.paginator.count, "filtrado": bool(filtros), "hoy": hoy}
+
+
+class ProgramarListaView(EntregasView):
+    """Fragmento de la lista para la búsqueda en vivo. Por POST: el RUT o el nombre nunca van en la URL."""
+
+    roles_permitidos = GESTION
+
+    def post(self, request):
+        form = FiltroProgramarForm(request.POST, fecha=timezone.localdate())
+        return self.render("_programar_lista.html", contexto_lista_programar(form))
+
+
+def _ids_enviados(valores):
+    """Identificadores enteros positivos, sin repetir y en el orden recibido; lo demás se descarta."""
+    vistos = {}
+    for valor in valores:
+        try:
+            identificador = int(valor)
+        except (TypeError, ValueError):
+            continue
+        if identificador > 0:
+            vistos.setdefault(identificador, None)
+    return list(vistos)
+
+
+def _nombre_paciente(paciente):
+    return f"{paciente.apellidos}, {paciente.nombres}"
+
+
+def _url_programacion(encargado_id, fecha):
+    return f"{reverse('entregasapp:programacion')}?encargado={encargado_id}&desde={fecha:%Y-%m-%d}&hasta={fecha:%Y-%m-%d}"
+
+
+class ProgramarVariosView(EntregasView):
+    """Fecha y encargado para un lote, y resumen para revisar antes de confirmar (RF-08-17).
+
+    La selección llega como `ids` (casillas) o como `todos=1` con la búsqueda y los filtros; en ese caso la lista se
+    resuelve aquí, nunca con ids del navegador. Las reglas se recalculan a la fecha elegida.
+    """
+
+    roles_permitidos = GESTION
+
+    def seleccion(self, request):
+        """(pacientes, ids sin paciente, datos ocultos para reenviar la selección). None si no hay selección válida."""
+        hoy = timezone.localdate()
+        if request.POST.get("todos") == "1":
+            filtro = FiltroProgramarForm(request.POST, fecha=hoy)
+            if not filtro.is_valid():
+                return None
+            filtros = filtro.filtros()
+            pacientes = list(consultas.elegibles(hoy, **filtros))
+            if not pacientes:
+                return None
+            return pacientes, [], [("todos", "1"), *filtros.items()]
+        ids = _ids_enviados(request.POST.getlist("ids"))
+        if not ids:
+            return None
+        pacientes = list(Paciente.objects.filter(pk__in=ids).select_related("domicilio").order_by("apellidos", "nombres", "pk"))
+        encontrados = {persona.pk for persona in pacientes}
+        return pacientes, [pid for pid in ids if pid not in encontrados], [("ids", pid) for pid in ids]
+
+    def post(self, request):
+        seleccion = self.seleccion(request)
+        if seleccion is None:
+            messages.warning(request, "Marca al menos un paciente de la lista o usa «Seleccionar los filtrados». "
+                                      "Si cambiaste la búsqueda, vuelve a seleccionar.")
+            return redirect("entregasapp:programar")
+        pacientes, faltantes, ocultos = seleccion
+        paso_revision = "fecha" in request.POST
+        form = ProgramarVariosForm(request.POST if paso_revision else None, initial={"fecha": timezone.localdate()})
+        contexto = {"form": form, "ocultos": ocultos, "cantidad": len(pacientes) + len(faltantes),
+                    "pestanas": self.pestanas("programacion")}
+        if paso_revision and form.is_valid():
+            contexto["revision"] = self.revisar(pacientes, faltantes, form.cleaned_data["fecha"], form.cleaned_data["encargado"])
+        return self.render("programar_varios.html", contexto, status=400 if paso_revision and not form.is_valid() else 200)
+
+    def revisar(self, pacientes, faltantes, fecha, encargado):
+        """Clasifica a cada paciente como el servicio: elegible a la fecha, sin entrega abierta y con recetas."""
+        ids = [persona.pk for persona in pacientes]
+        elegibles = set(Paciente.objects.filter(pk__in=ids).filter(consultas.condicion_elegible(fecha)).values_list("pk", flat=True))
+        abiertas = dict(Entrega.objects.filter(paciente_id__in=ids, estado__in=Entrega.ABIERTAS).values_list("paciente_id", "pk"))
+        recetas = services.recetas_para_despacho_lote(ids, fecha)
+        programables, omitidos = [], []
+        for persona in pacientes:
+            if persona.pk not in elegibles:
+                omitidos.append({"paciente": persona, "motivo": services.OMITIDO_NO_ELEGIBLE})
+            elif persona.pk in abiertas:
+                omitidos.append({"paciente": persona, "motivo": services.OMITIDO_ABIERTA, "entrega_id": abiertas[persona.pk]})
+            elif not recetas[persona.pk]:
+                omitidos.append({"paciente": persona, "motivo": services.OMITIDO_SIN_RECETAS})
+            else:
+                persona.domicilio_registrado = consultas.domicilio_de(persona)
+                persona.recetas_lote = [(receta, evaluar_elegibilidad(receta, fecha)) for receta in recetas[persona.pk]]
+                programables.append(persona)
+        omitidos += [{"paciente": None, "motivo": services.OMITIDO_NO_DISPONIBLE} for _ in faltantes]
+        firmado = {
+            "lote": str(uuid.uuid4()), "ids": [persona.pk for persona in programables], "fecha": fecha.isoformat(),
+            "encargado": encargado.pk, "actor": self.request.user.pk,
+            "omitidos": [[o["paciente"].pk if o["paciente"] else None, o["motivo"]] for o in omitidos],
+        }
+        return {
+            "fecha": fecha, "encargado": encargado, "encargado_nombre": _nombre(encargado),
+            "programables": programables, "omitidos": omitidos, "total": len(pacientes) + len(faltantes),
+            "recetas_total": sum(len(persona.recetas_lote) for persona in programables),
+            "contexto": signing.dumps(firmado, salt=SAL_LOTE, compress=True), "tramo": services.TRAMO_MAXIMO,
+            "url_programacion": _url_programacion(encargado.pk, fecha),
+        }
+
+
+class ProgramarTramoView(EntregasView):
+    """Confirma un lote revisado: por tramos de hasta 25 (JSON, con JavaScript) o completo (HTML, sin JavaScript).
+
+    El contexto firmado fija los pacientes, la fecha, el encargado y la cuenta que revisó; el servidor igual
+    revalida todo al programar a cada paciente. Las respuestas JSON no llevan RUT ni nombres.
+    """
+
+    roles_permitidos = GESTION
+
+    def error(self, mensaje, por_tramos):
+        if por_tramos:
+            return JsonResponse({"error": mensaje}, status=400)
+        messages.error(self.request, mensaje)
+        return redirect("entregasapp:programar")
+
+    def post(self, request):
+        por_tramos = "desde" in request.POST
+        try:
+            firmado = signing.loads(request.POST.get("contexto", ""), salt=SAL_LOTE)
+            ids = [int(pid) for pid in firmado["ids"]]
+            fecha = date.fromisoformat(firmado["fecha"])
+            encargado_id, actor_id, lote = int(firmado["encargado"]), int(firmado["actor"]), str(firmado["lote"])
+            omitidos = [(pid, str(motivo)) for pid, motivo in firmado.get("omitidos", [])]
+        except (signing.BadSignature, KeyError, TypeError, ValueError):
+            return self.error("La revisión no es válida o fue alterada. Vuelve a revisar el lote.", por_tramos)
+        if actor_id != request.user.pk:
+            return self.error("Esta revisión la hizo otra cuenta. Revisa el lote con tu propia sesión.", por_tramos)
+        desde, hasta = 0, len(ids)
+        if por_tramos:
+            try:
+                desde, hasta = int(request.POST["desde"]), int(request.POST.get("hasta", ""))
+            except (TypeError, ValueError):
+                desde = hasta = -1
+            if not (0 <= desde < hasta <= len(ids) and hasta - desde <= services.TRAMO_MAXIMO):
+                return self.error(f"El tramo no es válido: envía de a {services.TRAMO_MAXIMO} pacientes como máximo.", True)
+        try:
+            resultados = services.programar_lote(request.user, ids[desde:hasta], fecha, encargado_id, lote)
+        except ValidationError as error:
+            return self.error(_mensaje(error), por_tramos)
+        if por_tramos:
+            return JsonResponse({"desde": desde, "hasta": hasta, "resultados": [
+                {"paciente": r.paciente_id, "estado": "programado", "entrega": r.entrega_id, "recetas": r.recetas}
+                if r.programado else {"paciente": r.paciente_id, "estado": "omitido", "motivo": r.motivo}
+                for r in resultados
+            ]})
+        return self.resumen_final(resultados, omitidos, fecha, encargado_id)
+
+    def resumen_final(self, resultados, omitidos_revision, fecha, encargado_id):
+        """Resumen sin JavaScript: «Se programaron X de Y» y los omitidos de la revisión y de la confirmación."""
+        omitidos = [*omitidos_revision, *[(r.paciente_id, r.motivo) for r in resultados if not r.programado]]
+        nombres = {persona.pk: _nombre_paciente(persona)
+                   for persona in Paciente.objects.filter(pk__in=[pid for pid, _ in omitidos if pid])}
+        total = len(resultados) + len(omitidos_revision)
+        return self.render("programar_varios.html", {
+            "resultado": {
+                "programados": sum(r.programado for r in resultados), "total": total,
+                "omitidos": [{"nombre": nombres.get(pid, "Paciente no disponible"), "motivo": motivo} for pid, motivo in omitidos],
+                "url_programacion": _url_programacion(encargado_id, fecha),
+            },
+            "cantidad": total, "pestanas": self.pestanas("programacion"),
+        })
 
 
 class PendientesView(EntregasView):

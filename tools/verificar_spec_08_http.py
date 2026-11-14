@@ -1,9 +1,13 @@
 """Recorrido HTTP del reparto a domicilio (spec 08) y p95 por escenario, con datos sintéticos.
 
 Crea una SQLite temporal y una carpeta privada temporal para las fotos; no usa ni migra la base PostgreSQL del
-proyecto ni su carpeta `privado/`. Padrón sintético de 670 pacientes (600 mayores de 80 y 70 postrados) más
-10 pacientes menores con excepción de reparto para comprobar el bloqueo del tótem. Las fotos se dibujan en
-memoria con Pillow. Ejecutar con el Python del venv:
+proyecto ni su carpeta `privado/`. Padrón sintético de 670 pacientes (600 de 80 años o más y 70 postrados) más
+10 pacientes menores con excepción de reparto para comprobar el bloqueo del tótem y 40 pacientes de atención
+presencial para medir el tótem mientras corre un lote. Las fotos se dibujan en memoria con Pillow.
+
+Ampliación del 2026-11-13 (RF-08-16 y RF-08-17): lista de «Programar entrega» y su fragmento con búsqueda y
+filtros, revisión de un lote con todos los elegibles, confirmación en tramos de 25 (p95), tiempo total del lote
+completo, reenvío de un tramo sin duplicados y p95 del tótem durante el lote. Ejecutar con el Python del venv:
 
     python tools/verificar_spec_08_http.py
 """
@@ -149,7 +153,7 @@ def ejecutar(base_datos):
     call_command("migrate", verbosity=0, interactive=False)
     call_command("preparar_ventanillas", verbosity=0)
     hoy = timezone.localdate()
-    ruts = generar_ruts(680, Random(808))
+    ruts = generar_ruts(720, Random(808))
     pacientes = Paciente.objects.bulk_create([
         Paciente(
             rut=rut, nombres=MARCA, apellidos=f"Sintetico {indice:03d}",
@@ -163,12 +167,17 @@ def ejecutar(base_datos):
     excepciones = Paciente.objects.bulk_create([
         Paciente(rut=rut, nombres=MARCA, apellidos=f"Excepcion {indice:02d}", fecha_nacimiento=date(hoy.year - 62, 1, 10),
                  es_cronico=True, telefono="+56 9 0000 0000", direccion=f"Parcela sintética {indice}")
-        for indice, rut in enumerate(ruts[670:])
+        for indice, rut in enumerate(ruts[670:680])
+    ])
+    presenciales = Paciente.objects.bulk_create([
+        Paciente(rut=rut, nombres=MARCA, apellidos=f"Presencial {indice:02d}", fecha_nacimiento=date(hoy.year - 45, 5, 5),
+                 es_cronico=True, telefono="+56 9 0000 0000", direccion=f"Pasaje sintético {indice}")
+        for indice, rut in enumerate(ruts[680:720])
     ])
     Receta.objects.bulk_create([
         Receta(paciente=paciente, codigo=f"QA08-{indice:03d}", fecha_inicio=hoy - timedelta(days=30),
                fecha_fin_exclusiva=hoy + timedelta(days=150), vigencia_meses=6, max_entregas=12)
-        for indice, paciente in enumerate([*pacientes, *excepciones])
+        for indice, paciente in enumerate([*pacientes, *excepciones, *presenciales])
     ])
 
     clave = secrets.token_urlsafe(24)
@@ -213,6 +222,7 @@ def ejecutar(base_datos):
         "domicilios_lista", "domicilios_busqueda", "domicilio_guardar", "domicilio_verificar", "foto_ver",
         "programar_revisar", "programar_confirmar", "mis_entregas", "registro_entregada", "registro_no_entregada",
         "reasignar", "programacion_filtros", "pendientes_filtros", "totem_despacho_abierto",
+        "programar_lista_inicial", "programar_lista_fragmento", "programar_lote_tramo_25", "totem_durante_lote",
     )
     mediciones = {nombre: [] for nombre in escenarios}
     subida_fotos = []
@@ -300,7 +310,8 @@ def ejecutar(base_datos):
         # 5. «Mis entregas» de cada encargado.
         for indice in range(100):
             estado, html, cabeceras, duracion = terreno[indice % 4].pedir("/entregas/mis/")
-            assert estado == 200 and sin_cache(cabeceras) and "Hoy (" in html and MARCA in html
+            # Desde el spec 09 la lista es la ruta numerada («Por visitar en orden»); antes decía «Hoy (n)».
+            assert estado == 200 and sin_cache(cabeceras) and "Por visitar en orden (" in html and MARCA in html
             mediciones["mis_entregas"].append(duracion)
 
         # 6. Registro en terreno: 50 entregadas y 50 no entregadas.
@@ -358,6 +369,92 @@ def ejecutar(base_datos):
         assert Entrega.objects.filter(estado="pendiente_gestion").count() == 0
         assert IntentoEntrega.objects.filter(entrega__paciente__in=programados).count() == 150
 
+        # 9. Ampliación del 2026-11-13: lista con búsqueda y filtros (RF-08-16).
+        for indice in range(50):
+            estado, html, cabeceras, duracion = farmacia.pedir("/entregas/programar/")
+            assert estado == 200 and sin_cache(cabeceras) and "Seleccionar los 680 filtrados" in html
+            assert html.count('id="sel-') == 50  # primera página: 50 filas (las con entrega abierta, sin casilla activa)
+            mediciones["programar_lista_inicial"].append(duracion)
+        busquedas = [
+            {"buscar": "Sint"}, {"buscar": "Sintetico 01"}, {"buscar": pacientes[300].rut}, {"sector": "verde"},
+            {"sector": "sin"}, {"motivo": "postrado"}, {"motivo": "edad", "estado": "verificado"},
+            {"estado": "sin_registrar", "pagina": 3}, {"motivo": "excepcion"}, {"buscar": "Sintetico", "sector": "azul"},
+        ]
+        for indice in range(100):
+            datos = busquedas[indice % len(busquedas)]
+            estado, html, cabeceras, duracion = farmacia.pedir("/entregas/programar/lista/", datos)
+            assert estado == 200 and sin_cache(cabeceras) and 'data-total="' in html
+            mediciones["programar_lista_fragmento"].append(duracion)
+        estado, html, _, _ = farmacia.pedir("/entregas/programar/lista/", {"buscar": pacientes[300].rut})
+        assert 'data-total="1"' in html
+        estado, html, _, _ = tecnico.pedir("/entregas/programar/lista/", {"buscar": "Sint"})
+        assert estado == 403
+
+        # 10. Programar varios (RF-08-17): revisión de todos los elegibles, tramos de 25 y tótem en paralelo.
+        abiertas_antes = Entrega.objects.filter(estado__in=Entrega.ABIERTAS).count()
+        pasado_manana = (hoy + timedelta(days=2)).isoformat()
+        seleccion = {"todos": "1", "fecha": pasado_manana, "encargado": encargados[2].pk}
+        inicio = time.perf_counter()
+        estado, html, cabeceras, duracion_revision = farmacia.pedir("/entregas/programar/varios/", seleccion)
+        assert estado == 200 and sin_cache(cabeceras) and "Programar 680 entregas" in html
+        contexto = re.search(r'name="contexto" value="([^"]+)"', html).group(1)
+        programables = int(re.search(r'data-programables="(\d+)"', html).group(1))
+        assert programables == 680 - abiertas_antes, (programables, abiertas_antes)
+        assert f"Se programarán {programables} pacientes" in html
+        tamano_revision_kb = round(len(html.encode()) / 1024, 1)
+
+        presencial_hechos = []
+        detener_totem = threading.Event()
+
+        def totem_en_paralelo():
+            for paciente in presenciales:
+                if detener_totem.is_set():
+                    break
+                cliente = ClienteHTTP(base)
+                _, formulario, _, _ = cliente.pedir("/turnos/totem/")
+                operacion = re.search(r'name="operacion_id" value="([^"]+)"', formulario).group(1)
+                estado, html_totem, _, duracion = cliente.pedir("/turnos/totem/", {"rut": paciente.rut, "operacion_id": operacion})
+                presencial_hechos.append((estado, 'class="comprobante"' in html_totem, duracion))
+
+        hilo_totem = threading.Thread(target=totem_en_paralelo, daemon=True)
+        inicio_lote = time.perf_counter()
+        hilo_totem.start()
+        programados_lote = 0
+        for desde in range(0, programables, 25):
+            hasta = min(desde + 25, programables)
+            estado, cuerpo, cabeceras, duracion = farmacia.pedir("/entregas/programar/varios/confirmar/",
+                                                                 {"contexto": contexto, "desde": desde, "hasta": hasta})
+            assert estado == 200 and sin_cache(cabeceras), (estado, cuerpo)
+            cuerpo = cuerpo.decode() if isinstance(cuerpo, bytes) else cuerpo
+            datos = json.loads(cuerpo)
+            assert MARCA not in cuerpo and not any(p.rut in cuerpo for p in pacientes[desde:hasta])
+            programados_lote += sum(r["estado"] == "programado" for r in datos["resultados"])
+            mediciones["programar_lote_tramo_25"].append(duracion)
+        duracion_lote = time.perf_counter() - inicio_lote
+        detener_totem.set()
+        hilo_totem.join(timeout=60)
+        assert programados_lote == programables, (programados_lote, programables)
+        assert presencial_hechos and all(estado == 200 and comprobante for estado, comprobante, _ in presencial_hechos), presencial_hechos[:3]
+        mediciones["totem_durante_lote"] = [duracion for _, _, duracion in presencial_hechos]
+        total_abiertas = Entrega.objects.filter(estado__in=Entrega.ABIERTAS).count()
+        assert total_abiertas == abiertas_antes + programables
+        # Reenvío de un tramo ya confirmado: el mismo resultado, sin entregas nuevas.
+        estado, cuerpo, _, _ = farmacia.pedir("/entregas/programar/varios/confirmar/", {"contexto": contexto, "desde": 25, "hasta": 50})
+        assert estado == 200 and all(r["estado"] == "programado" for r in json.loads(cuerpo)["resultados"])
+        assert Entrega.objects.filter(estado__in=Entrega.ABIERTAS).count() == total_abiertas
+        # Ninguna receta queda a la vez en un turno activo y en una entrega abierta.
+        from turnosapp.models import TurnoReceta
+        activas = set(TurnoReceta.objects.filter(turno__estado__in=("esperando", "llamado")).values_list("receta_id", flat=True))
+        en_despacho = set(RecetaEntrega.objects.filter(entrega__estado__in=Entrega.ABIERTAS).values_list("receta_id", flat=True))
+        assert not activas & en_despacho
+        lote_completo = {
+            "pacientes_seleccionados": 680, "programados": programables, "omitidos_en_revision": 680 - programables,
+            "revision_ms": round(duracion_revision * 1000, 2), "revision_kb": tamano_revision_kb,
+            "tramos": len(mediciones["programar_lote_tramo_25"]), "total_s": round(duracion_lote, 2),
+            "revision_y_confirmacion_s": round(time.perf_counter() - inicio, 2),
+            "turnos_emitidos_en_paralelo": len(presencial_hechos),
+        }
+
         texto_auditoria = " ".join(RegistroAuditoria.objects.values_list("objeto_id", flat=True))
         assert MARCA not in texto_auditoria and "Dadinco" not in texto_auditoria
         informe = {
@@ -367,12 +464,15 @@ def ejecutar(base_datos):
             "encargados": 4,
             "recorrido": ("domicilios (lista, búsqueda, registro con coordenadas, verificación) -> fotos generadas -> "
                           "100 programaciones -> tótem con despacho abierto -> mis entregas -> 50 entregadas y 50 no "
-                          "entregadas -> consultas con filtros -> 50 reasignaciones"),
+                          "entregadas -> consultas con filtros -> 50 reasignaciones -> lista con búsqueda y filtros -> "
+                          "lote con todos los elegibles en tramos de 25 con el tótem en paralelo"),
             "mediciones_http": {nombre: resumen(valores) for nombre, valores in mediciones.items()},
+            "lote_completo_aparte": lote_completo,
             "subida_de_fotos_aparte": resumen(subida_fotos),
             "limites": ("Loopback HTTP con servidor WSGI en SQLite temporal. No mide redes móviles, navegador, "
-                        "ubicación real, cámara, aceptación ni usabilidad. La subida de fotos se informa sin "
-                        "compromiso de p95."),
+                        "ubicación real, cámara, aceptación ni usabilidad. La subida de fotos, la revisión del "
+                        "lote completo y su tiempo total se informan sin compromiso de p95. La búsqueda en vivo "
+                        "se mide por solicitud; no mide la espera de 300 ms ni el dibujo en el navegador."),
         }
         print(json.dumps(informe, ensure_ascii=False, indent=2), flush=True)
         assert all(valor["p95_ms"] <= 2000 for valor in informe["mediciones_http"].values())

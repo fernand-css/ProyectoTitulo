@@ -88,3 +88,26 @@ class EstructuraTests(TestCase):
         html = self.client.get(reverse("entregasapp:mis")).content.decode()
         self.assertIn('alt="Portón verde"', html)
         self.assertIn('class="visita', html)
+
+    def test_pantallas_de_programar_varios(self):
+        """Ampliación del 2026-11-13: selección, revisión del lote y resumen final sin JavaScript."""
+        self.client.force_login(self.equipo["qf"])
+        otra = paciente(edad=86)
+        receta(otra)
+        seleccion = {"ids": [self.persona.pk, otra.pk]}
+        paso1 = self.client.post(reverse("entregasapp:programar_varios"), seleccion)
+        revision = self.client.post(reverse("entregasapp:programar_varios"), {
+            **seleccion, "fecha": hoy().isoformat(), "encargado": self.equipo["encargado"].pk})
+        for nombre, respuesta in (("programar varios", paso1), ("revisión del lote", revision)):
+            with self.subTest(pagina=nombre):
+                self.assertEqual(respuesta.status_code, 200)
+                self.revisar(respuesta.content.decode(), nombre)
+        html = revision.content.decode()
+        self.assertIn('role="status"', html)
+        self.assertIn("<progress", html)
+        self.assertIn("<details>", html)
+        contexto = html.split('name="contexto" value="')[1].split('"')[0]
+        final = self.client.post(reverse("entregasapp:programar_tramo"), {"contexto": contexto})
+        self.assertEqual(final.status_code, 200)
+        self.revisar(final.content.decode(), "resumen final")
+        self.assertContains(final, "Se programaron 1 de 2")

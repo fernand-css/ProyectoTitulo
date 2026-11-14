@@ -76,18 +76,64 @@ No ejecutada. En esta sesión no se abrió un navegador: quedan pendientes la re
 
 Migración nueva: `entregasapp/0001_initial` (depende de `recetasapp/0002` y del modelo de usuario). Solo se aplicó en bases de prueba y en la SQLite temporal de la herramienta; **no se migró la base PostgreSQL del proyecto**. Para usar el módulo: `python manage.py migrate`. Antes de revertir, respaldar la base y la carpeta `ARCHIVOS_PRIVADOS_ROOT`; los descuentos ya hechos y las `EntregaReceta` creadas por despachos no se revierten.
 
-## Ampliación del 2026-11-13 (Borrador)
+## Ampliación del 2026-11-13 (implementada)
 
-**No ejecutada.** Las filas de arriba validan la versión del 2026-11-11. La de RF-08-01 deja de valer para la regla nueva (80 años o más) cuando se implemente la ampliación.
+Fecha: 2026-11-13. Rama `crojas-base`, cambios sin commit sobre `6262cfe`. El entorno es el mismo de arriba, con PostgreSQL desechable para las pruebas de Django y SQLite temporal para la herramienta. La fila de RF-08-01 de la tabla principal valida la regla anterior (`edad > 80`); la vigente es la de esta tabla.
 
-| RF | Prueba / pasos / comando previstos | Esperado | Obtenido | Estado |
+| RF | Prueba / pasos / comando | Esperado | Obtenido | Estado |
 |---|---|---|---|---|
-| RF-08-01 | `test_elegibilidad.py`; `turnosapp/tests/test_servicios.py` | 79 años y 364 días: no elegible y preferencial en el tótem; 80: elegible y bloqueo en el tótem; combinaciones con `>= 80` | — | no ejecutada |
-| RF-08-16 | `test_programar_lista.py`; `test_permisos.py`; `programar.test.cjs`; herramienta HTTP | Lista completa en páginas de 50; filtros exactos; actualización en vivo sin RUT en la URL; respaldo sin JavaScript; p95 ≤ 2 s | — | no ejecutada |
-| RF-08-17 | `test_programar_lote.py`; escenarios concurrentes 7 a 10; `programar.test.cjs`; herramienta HTTP | Resumen con programables y omitidos; programación por paciente en tramos; sin duplicados al reenviar; tramos con p95 ≤ 2 s; tiempo del lote completo informado | — | no ejecutada |
-| RF-08-15 | Regresión completa | Solo cambian las aserciones de edad del 04 y del 08 | — | no ejecutada |
+| RF-08-01 | `test_elegibilidad.py` (7 pruebas); `turnosapp/tests/test_servicios.py` (`test_limites_de_edad_cronico_y_postrado`) | 79 años y 364 días: no elegible y preferencial en el tótem. 80 recién cumplidos y 81: elegibles y bloqueados con «Consulta tu despacho con el personal». `condicion_elegible`, `es_elegible`, `requiere_despacho_en` y el tótem coinciden con `>= 80` en 112 combinaciones (incluido el 29 de febrero) | Igual. En el 04 solo cambió la tupla de 80 (preferencial → bloqueo) y se agregó 79 | aprobada |
+| RF-08-16 | `test_programar_lista.py` (15 pruebas) | Páginas de 50 con su total. Cada filtro solo y combinado («Sin sector», localidad con otra grafía, paciente con dos motivos). Búsqueda «G»…«Gonz» y por RUT. Entrega abierta rotulada, enlazada y sin casilla activa. Respaldo `accion=buscar` igual al fragmento. Consultas constantes por página. Sin RUT, nombres ni `buscar=` en las URL. Técnico y encargado 403; CSRF; `no-store` | Igual | aprobada |
+| RF-08-16 | `programar.test.cjs` (Node) | Espera de 300 ms; sin solicitud si los filtros no cambian; cancelación y descarte de respuestas fuera de orden; anuncio de la cantidad; error con «Reintentar» | Igual | aprobada |
+| RF-08-17 | `test_programar_lote.py` (16 pruebas) | `recetas_para_despacho_lote` igual al cálculo por paciente y con consultas constantes. Cada paciente por separado: omitidos con motivo y sin revertir a los demás. Reenvío completo o por partes sin duplicar. Escenario de aceptación: 120 filtrados con 4 abiertas y 2 sin recetas dan 114 en la revisión y «programado» en 114 tramos de JSON, sin RUT ni nombres. Firma alterada, otra Q.F., tramo inválido o mayor de 25 y fecha pasada firmada: 400 sin cambios. Técnico 403. Sin JavaScript: «Se programaron 2 de 3» con los omitidos. Auditoría: una `entrega.programada` por entrega, sin datos personales | Igual | aprobada |
+| RF-08-17 | `programar.test.cjs` (Node) | Selección conservada entre páginas y búsquedas; «Seleccionar los N filtrados» anulado al cambiar un filtro, con aviso; `todos=1` o ids ocultos al enviar; tramos en orden con avance; corte y reintento desde el tramo sin respuesta; rechazo del servidor con su texto; doble clic al final sin reenvío | Igual | aprobada |
+| RF-08-17 | `test_estructura.py` (`test_pantallas_de_programar_varios`) | Selección, revisión y resumen final con un `h1`, ids únicos y campos etiquetados; `role="status"`, `<progress>` y `<details>` presentes | Igual | aprobada |
+| RF-08-15 | `test_concurrencia.py`, escenarios 7 a 10 | Dos lotes con pacientes en común; el mismo tramo dos veces a la vez; un lote frente al tótem de una excepción del lote; un lote frente a la programación individual. Resultado esperado: una sola entrega abierta por paciente, programado en un lote y omitido en el otro, y ninguna receta a la vez en un turno activo y en una entrega abierta | Igual en 3 vueltas por escenario; el archivo completo (11 pruebas) pasó 3 corridas seguidas | aprobada |
 
-Revisión de navegador (búsqueda en vivo con lector de pantalla, teclado, zoom y barra de selección en celular), axe y usabilidad: pendientes.
+### Regresión de la ampliación
+
+| Comando | Resultado |
+|---|---|
+| `python manage.py test --noinput --parallel 1` antes de empezar (base `6262cfe`) | 834 pruebas: 833 aprobadas y el error previo de `test_sala_servidor` (`WinError 32`). |
+| `python manage.py test --noinput --parallel 1` al cierre | **871 pruebas aprobadas** (37 nuevas). En esta corrida, el error previo de `test_sala_servidor` no apareció. |
+| `python manage.py test entregasapp.tests.test_concurrencia` tres veces seguidas | 11 aprobadas en cada corrida. |
+| `node --test entregasapp/tests/*.test.cjs turnosapp/tests/*.test.cjs recetasapp/tests/*.test.cjs` | 101 aprobadas (11 nuevas de `programar.test.cjs`). |
+| `python manage.py check` y `python manage.py makemigrations --check --dry-run` | Sin problemas; «No changes detected» (la ampliación no trae migraciones). |
+
+Observación ajena a la ampliación: en una corrida parcial (`entregasapp coreapp`) falló una vez `test_concurrencia_ruta.test_2_tres_ediciones_desde_la_misma_version_una_gana` (spec 09, código no tocado aquí). Pasó en 3 reejecuciones seguidas y en la regresión completa. Queda como posible intermitencia del 09 para revisar.
+
+### Rendimiento HTTP de la ampliación
+
+`python tools/verificar_spec_08_http.py` (2026-11-13, salida 0, «aprobado»). Usa las mismas condiciones de arriba, más 40 pacientes presenciales sintéticos para el tótem. Antes de ampliarla, la herramienta fallaba en «Mis entregas» porque buscaba un marcador anterior al spec 09; se corrigió (ver [plan.md](plan.md#notas-de-implementación-de-la-ampliación-2026-11-13)). Los escenarios anteriores siguen bajo los 2 s (p95 máximo 110,09 ms, «Registrar entregada»).
+
+| Escenario | Muestras | p50 (ms) | p95 (ms) | Máximo (ms) |
+|---|---:|---:|---:|---:|
+| Lista inicial de «Programar entrega» (680 elegibles) | 50 | 42,89 | 61,62 | 64,86 |
+| Fragmento con búsqueda y filtros | 100 | 36,32 | 50,47 | 63,90 |
+| Tramo de 25 pacientes al confirmar | 25 | 687,42 | 845,89 | 951,71 |
+| Tótem (emisión real) mientras corre el lote | 40 | 59,93 | 260,45 | 515,83 |
+
+Medido aparte, sin compromiso de p95:
+- **Revisión del lote completo:** 680 seleccionados con «todos» (620 programables y 60 omitidos con entrega abierta), en 163,72 ms y 204,2 KB de HTML.
+- **Confirmación del lote:** 25 tramos en 17,25 s. Entre revisión y confirmación, 17,7 s.
+
+Comprobaciones de la herramienta:
+- Reenviar un tramo ya confirmado devuelve «programado» sin entregas nuevas.
+- Ninguna receta queda a la vez en un turno activo y en una entrega abierta.
+- Las 40 emisiones del tótem durante el lote dieron comprobante.
+
+Es loopback con WSGI y SQLite. No mide la espera de 300 ms ni el dibujo en el navegador.
+
+### Pendientes de la ampliación
+
+No ejecutados en esta sesión (no se abrió un navegador):
+- La búsqueda en vivo con lector de pantalla y teclado: foco que no se mueve y anuncio de la cantidad.
+- La barra de selección en celular y con zoom al 200 %.
+- La confirmación por tramos con una red real.
+- axe y la usabilidad con cinco personas.
+- La aceptación funcional.
+
+Hay que avisar al equipo del cambio del 04, que se trabajó en `fdaza`.
 
 ## Aceptación funcional
 

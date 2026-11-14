@@ -5,7 +5,9 @@ from decimal import Decimal
 from django import forms
 from django.utils import timezone
 
-from .consultas import PENDIENTE, SIN_REGISTRAR, VERIFICADO, encargados_activos
+from .consultas import (
+    MOTIVOS_REPARTO, PENDIENTE, SIN_REGISTRAR, SIN_SECTOR, VERIFICADO, encargados_activos, localidades_elegibles,
+)
 from .models import Entrega, InscripcionReparto, IntentoEntrega, Sector
 
 BUSQUEDA = {"type": "search", "autocomplete": "off", "spellcheck": "false", "enterkeyhint": "search",
@@ -25,6 +27,39 @@ class FiltroDomiciliosForm(BusquedaForm):
         ("", "Todos los estados"), (SIN_REGISTRAR, "Sin registrar"), (PENDIENTE, "Pendiente de verificar"),
         (VERIFICADO, "Verificado"),
     ])
+
+
+class FiltroProgramarForm(BusquedaForm):
+    """Lista de «Programar entrega» (RF-08-16): búsqueda y cuatro filtros combinables, siempre por POST.
+
+    Las localidades se leen de los domicilios de los elegibles; su valor es la clave normalizada.
+    """
+    CAMPOS = ("buscar", "sector", "motivo", "estado", "localidad")
+
+    sector = forms.ChoiceField(label="Sector", required=False,
+                               choices=[("", "Todos"), *Sector.choices, (SIN_SECTOR, "Sin sector")])
+    motivo = forms.ChoiceField(label="Motivo del reparto", required=False, choices=[("", "Todos"), *MOTIVOS_REPARTO])
+    estado = forms.ChoiceField(label="Estado del domicilio", required=False, choices=[
+        ("", "Todos"), (VERIFICADO, "Verificado"), (PENDIENTE, "Pendiente de verificar"), (SIN_REGISTRAR, "Sin registrar"),
+    ])
+    localidad = forms.ChoiceField(label="Localidad", required=False)
+
+    def __init__(self, *args, fecha=None, **kwargs):
+        kwargs.setdefault("auto_id", "filtro_%s")
+        super().__init__(*args, **kwargs)
+        self.fields["buscar"].widget.attrs["aria-describedby"] = "filtro_ayuda"
+        self.fields["localidad"].choices = [("", "Todas"), *localidades_elegibles(fecha)]
+
+    def filtros(self):
+        """Filtros válidos para `consultas.elegibles`; con datos inválidos, ninguno."""
+        if not self.is_bound or not self.is_valid():
+            return {}
+        return {campo: self.cleaned_data[campo] for campo in self.CAMPOS if self.cleaned_data[campo]}
+
+    def pagina(self):
+        if not self.is_bound or not self.is_valid():
+            return 1
+        return self.cleaned_data["pagina"] or 1
 
 
 class EncargadoField(forms.ModelChoiceField):
@@ -133,6 +168,24 @@ class ProgramarForm(forms.Form):
         super().__init__(*args, **kwargs)
         self.fields["encargado"] = _encargado()
         self.order_fields(["fecha", "encargado", "operacion_id"])
+
+    def clean_fecha(self):
+        fecha = self.cleaned_data["fecha"]
+        if fecha < timezone.localdate():
+            raise forms.ValidationError("La fecha debe ser hoy o posterior.")
+        return fecha
+
+
+class ProgramarVariosForm(forms.Form):
+    """Fecha y encargado de un lote (RF-08-17). Las mismas reglas que la programación individual."""
+    fecha = forms.DateField(label="Fecha de la visita", widget=forms.DateInput(attrs=FECHA, format="%Y-%m-%d"),
+                            help_text="Hoy o una fecha posterior. Es la misma para todos los pacientes del lote.")
+
+    def __init__(self, *args, **kwargs):
+        kwargs.setdefault("auto_id", "lote_%s")
+        super().__init__(*args, **kwargs)
+        self.fields["encargado"] = _encargado()
+        self.fields["fecha"].widget.attrs["min"] = timezone.localdate().isoformat()
 
     def clean_fecha(self):
         fecha = self.cleaned_data["fecha"]

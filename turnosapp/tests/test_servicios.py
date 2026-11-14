@@ -70,7 +70,8 @@ class EmisionTests(TestCase):
     def test_limites_de_edad_cronico_y_postrado(self):
         for edad, cronico, postrado, esperado in (
             (59, False, False, "general"), (59, True, False, "cronicos"),
-            (60, True, False, "preferencial"), (80, False, False, "preferencial"),
+            (60, True, False, "preferencial"), (79, False, False, "preferencial"),
+            (80, False, False, None),  # Spec 08, RF-08-01 (2026-11-13): 80 años pasa de preferencial a despacho.
             (81, False, False, None), (30, False, True, None),
         ):
             with self.subTest(edad=edad, postrado=postrado):

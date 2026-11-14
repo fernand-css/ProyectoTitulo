@@ -100,7 +100,7 @@
     {% if puede_crear and reparto.elegible and not reparto.abierta %}<a class="boton boton-secundario" href="{% url 'entregasapp:programar' %}?paciente={{ paciente.pk }}">Programar entrega</a>{% endif %}
   </div>
   {% else %}
-  <p>No es parte del reparto a domicilio: no es postrado, no es mayor de 80 años y no tiene una excepción vigente.</p>
+  <p>No es parte del reparto a domicilio: no es postrado, no tiene 80 años o más y no tiene una excepción vigente.</p>
   {% if puede_crear %}<div class="acciones"><a class="boton boton-secundario" href="{% url 'entregasapp:excepciones' %}?paciente={{ paciente.pk }}">Inscribir excepción de reparto</a></div>{% endif %}
   {% endif %}
 </section>

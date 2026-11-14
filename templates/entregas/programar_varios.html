@@ -1,0 +1,42 @@
+{% extends 'entregas/base.html' %}
+{% load static %}
+{% block titulo %}Programar varias entregas · Entregas · Farmacia{% endblock %}
+{% block migas_contenedor %}<nav class="migas" aria-label="Ruta de navegación"><ol><li><a href="{% url 'entregasapp:programacion' %}">Entregas</a></li><li><a href="{% url 'entregasapp:programar' %}">Programar entrega</a></li><li><span aria-current="page">Programar varias</span></li></ol></nav>{% endblock %}
+{% block entregas %}
+<h1>Programar {{ cantidad }} entrega{{ cantidad|pluralize }}</h1>
+
+{% if resultado %}
+{# Resumen final sin JavaScript (RF-08-17). Con JavaScript, el mismo resumen se arma en la página de revisión. #}
+<section class="panel" aria-labelledby="titulo-resultado">
+  <h2 id="titulo-resultado">Se programaron {{ resultado.programados }} de {{ resultado.total }}</h2>
+  {% if resultado.omitidos %}
+  <div class="tabla-caja">
+    <table class="tabla tabla-apilable">
+      <caption>No se programaron ({{ resultado.omitidos|length }})</caption>
+      <thead><tr><th scope="col">Paciente</th><th scope="col">Motivo</th></tr></thead>
+      <tbody>{% for omitido in resultado.omitidos %}<tr><th scope="row" data-etiqueta="Paciente">{{ omitido.nombre }}</th><td data-etiqueta="Motivo">{{ omitido.motivo }}</td></tr>{% endfor %}</tbody>
+    </table>
+  </div>
+  {% endif %}
+  <div class="acciones">
+    <a class="boton" href="{{ resultado.url_programacion }}">Ver en Programación</a>
+    <a class="boton boton-secundario" href="{% url 'entregasapp:programar' %}">Volver a la lista</a>
+  </div>
+</section>
+
+{% else %}
+<p class="suave">Elige una fecha y un encargado para todos. Antes de programar verás un resumen por paciente, con los que no se programarán y su motivo.</p>
+<form class="panel form-angosto" method="post" action="{% url 'entregasapp:programar_varios' %}" novalidate>
+  {% csrf_token %}
+  {% for nombre, valor in ocultos %}<input type="hidden" name="{{ nombre }}" value="{{ valor }}">{% endfor %}
+  {% include 'recetas/campos.html' %}
+  {% if not form.fields.encargado.queryset.exists %}<p class="message message-warning">No hay encargados de terreno con cuenta activa. Crea o habilita una cuenta en Usuarios.</p>{% endif %}
+  <div class="acciones">
+    <button class="boton" type="submit">{% if revision %}Revisar otra vez{% else %}Revisar el lote{% endif %}</button>
+    <a class="boton boton-secundario" href="{% url 'entregasapp:programar' %}">Volver a la lista</a>
+  </div>
+</form>
+{% if revision %}{% include 'entregas/_programar_resumen.html' %}{% endif %}
+{% endif %}
+{% endblock %}
+{% block scripts %}{% if revision %}<script src="{% static 'js/entregas/programar.js' %}"></script>{% endif %}{% endblock %}

@@ -56,12 +56,12 @@ class Paciente(ModeloAuditado):
         )
 
     def requiere_despacho_en(self, fecha):
-        """Postrado o mayor de 80 años cumplidos a `fecha`.
+        """Postrado o con 80 años cumplidos o más a `fecha` (spec 08, cambio del 2026-11-13).
 
         Es la única regla de edad y postración: el tótem del 04 la usa para orientar al personal y el
         reparto del 08 para decidir quién es elegible para el despacho a domicilio.
         """
-        return self.es_postrado or self.edad_en(fecha) > 80
+        return self.es_postrado or self.edad_en(fecha) >= 80
 
     def __str__(self):
         return f"Paciente {self.pk}"
