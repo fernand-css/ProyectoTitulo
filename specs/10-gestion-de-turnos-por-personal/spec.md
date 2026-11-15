@@ -6,7 +6,7 @@
 > **Objetivo:** Permitir que la Q.F. termine el turno de cualquier ventanilla sin perder al paciente llamado, y que el personal reclasifique un turno en espera o lo marque como urgencia (U), con auditoría.
 
 Módulo solicitado: `turnosapp` (extensión), con un cambio acotado en `usuariosapp` (desactivación de cuentas). Fuente: revisión de los specs 01–07 del 2026-11-14 (hallazgos A2, A3 y A4), decisiones de la usuaria del 2026-11-14 y 2026-11-15, HU-07 y HU-10 del [informe](../../docs/Informe.md).
-Implementación autorizada: NO. Revisión de la usuaria: aprobado el 2026-11-15 («pasa todo a aprobado»).
+Implementación autorizada por la usuaria el 2026-11-15 («sigamos con la siguiente spec»), en `fdaza`, sin rama nueva. Revisión de la usuaria: aprobado el 2026-11-15 («pasa todo a aprobado»).
 
 Documentos: [plan.md](plan.md), [tasks.md](tasks.md), [validation.md](validation.md), [índice](../README.md).
 
@@ -150,3 +150,11 @@ Supuesto técnico: el equipo del personal tiene un navegador que muestra PDF inc
 2026-11-15 (posterior): la usuaria eligió las propuestas recomendadas para las decisiones 1, 2, 3 y 5. En la decisión 4 eligió mostrar el mismo comprobante en PDF del tótem, a pantalla completa en el equipo del personal, en vez de imprimirlo. Se quitan los rótulos de propuesta.
 
 2026-11-15 (aprobación): la usuaria indicó «pasa todo a aprobado». El documento pasa a **Aprobado**. La aprobación es documental: la implementación requiere autorización aparte mediante `/spec-impl 10-gestion-de-turnos-por-personal`.
+
+2026-11-15 (implementación): la usuaria autorizó implementar con «sigamos con la siguiente spec». Decisiones de implementación que se apartan del plan, con su motivo:
+
+- **Cambio de fila y urgencia en el historial del turno, no en la lista del panel.** El panel se actualiza solo cada pocos segundos y reemplazaría un formulario a medio llenar. Se llega desde la lista: el número de cada turno abre su historial.
+- **Sin versión en el turno.** El UPDATE condicional usa estado «esperando», letra y número actuales, bajo la misma reserva de cola (`bloquear_cola`) que la selección; cumple RF-10-06 sin un campo nuevo.
+- **El tipo de ventanilla «urgencia»** ya lo había agregado RF-05-13 (migraciones `0008`–`0009`); este spec solo suma `letra_anterior` y `numero_anterior` al evento (migración `0013`).
+- **El Técnico que termina su propia ventanilla** también la deja deshabilitada, como dice RF-10-01; «Liberar ventanilla» del 05 sigue existiendo para dejarla libre sin deshabilitar.
+- **El comprobante del personal** se abre solo para quien hizo el cambio y durante 15 minutos; el texto para un U dice que tiene prioridad, en vez de la estimación de espera.

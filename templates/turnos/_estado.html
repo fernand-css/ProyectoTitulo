@@ -61,6 +61,7 @@
 {% if propia.activa_hoy %}<form method="post" action="{% url 'turnosapp:accion_ventanilla' pk=propia.pk accion='pausar' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ nonce_pausar }}"><button class="boton boton-secundario" type="submit">Pausar nuevos llamados</button></form>
 {% elif propia.habilitada and not propia.retirada %}<form method="post" action="{% url 'turnosapp:accion_ventanilla' pk=propia.pk accion='iniciar' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ nonce_iniciar }}"><button class="boton" type="submit">Iniciar atención automática</button></form>{% endif %}
 {% if not vigente %}<form method="post" action="{% url 'turnosapp:accion_ventanilla' pk=propia.pk accion='liberar' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ nonce_liberar }}"><button class="boton boton-secundario" type="submit">Liberar ventanilla</button></form>{% endif %}
+<a class="boton boton-secundario" href="{% url 'turnosapp:terminar_turno' pk=propia.pk %}">Término de turno</a>
 </div><p class="suave cola-ayuda">Pausa antes de abandonar el puesto. Cerrar esta pestaña no detiene los llamados automáticos.</p>
 </div>
 {% else %}<h2 id="puesto-titulo">Elige una ventanilla libre</h2><p>Ocúpala e inicia la atención automática cuando estés listo.</p>
@@ -73,7 +74,7 @@
 {% if configuracion %}<p class="cola-ciclo">Ciclo: {{ configuracion.peso_preferencial }} preferenciales, {{ configuracion.peso_cronicos }} crónicos y {{ configuracion.peso_general }} generales.</p>{% endif %}
 <ol class="cola-fila" aria-label="Turnos esperando en la jornada actual">
 {% for turno in pagina_cola %}<li class="cola-turno{% if turno.espera.prioridad %} cola-prioridad{% elif turno.espera.advertencia %} cola-aviso{% endif %}">
-<a class="cola-turno-numero" href="{% url 'turnosapp:historial' pk=turno.pk %}">{{ turno.codigo }}<span class="sr-only"> (ver historial)</span></a>
+<a class="cola-turno-numero" href="{% url 'turnosapp:historial' pk=turno.pk %}">{{ turno.codigo }}<span class="sr-only"> (ver historial, cambiar fila o marcar urgencia)</span></a>
 <span class="cola-turno-datos"><span class="cola-turno-tipo">{{ turno.get_tipo_atencion_display }}</span><span class="cola-turno-detalle">Espera {{ turno.espera.segundos|minutos }}{% if turno.cantidad_recetas %} · {{ turno.cantidad_recetas }} receta{{ turno.cantidad_recetas|pluralize }}{% endif %}</span>{% if turno.espera.prioridad %}<strong class="cola-turno-nota">Prioridad por espera</strong>{% elif turno.espera.advertencia %}<span class="cola-turno-nota">Se acerca a 15 minutos</span>{% endif %}</span>
 </li>{% empty %}<li class="cola-vacia">No hay turnos esperando en esta jornada.</li>{% endfor %}
 </ol>

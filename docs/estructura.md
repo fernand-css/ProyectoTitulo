@@ -332,3 +332,14 @@ Las fotos (`privado/`) son datos personales: nunca se versionan ni se sirven por
 | `tools/verificar_spec_09_http.py` | SQLite temporal, 670 pacientes, 660 domicilios generados y 10 sin coordenadas, cuatro encargados con 50 visitas; p50/p95/máximo por escenario y cálculo con 200 paradas. |
 
 La línea recta no sigue caminos: la lista y el mapa lo dicen siempre. El mapa base requiere conexión (sin conexión: reserva 11). La posición del encargado nunca llega al servidor. Ver `specs/09-mapa-y-orden-de-visita/validation.md` para la evidencia y los límites.
+
+## Gestión de turnos por personal (spec 10)
+
+| Archivo | Contrato |
+|---|---|
+| `turnosapp/atencion.py` | `terminar_turno_ventanilla`, `reclasificar_turno` y `marcar_urgencia` usan `_operar`: `bloquear_cola`, operación idempotente por UUID y roles por tipo (`ROLES`). El término devuelve el llamado de hoy a la fila con su `entrada_cola` o cierra el de otro día; deshabilita la ventanilla y cierra la ocupación. |
+| `turnosapp/models.py`, migración `0013` | `EventoTurno.letra_anterior` y `numero_anterior`, con restricción de coherencia. Eventos `devuelto_a_cola`, `reclasificado` y `urgencia`. |
+| `usuariosapp/services.py` | `cambiar_estado_cuenta` termina la ventanilla del Técnico que se desactiva, en la misma transacción. |
+| `turnosapp/vistas_operacion.py`, `terminar.html`, `historial.html`, `comprobante_personal.html` | Término de turno con confirmación (Q.F. desde Ventanillas, Técnico desde su panel); cambio de fila y urgencia desde el historial; comprobante PDF a pantalla completa solo para quien hizo el cambio, 15 minutos, sin impresión. |
+| `turnosapp/comprobante.py` | Campo opcional `reemplaza`: recuadro «Reemplaza a tu número anterior» con el código anterior. |
+| `tools/verificar_spec_10_http.py` | SQLite temporal, 670 pacientes, cuatro ventanillas: 30 urgencias, 30 cambios de fila, PDF y término de turno con p95. |

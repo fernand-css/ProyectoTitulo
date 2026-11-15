@@ -1,7 +1,7 @@
 # Plan técnico — 10 / Gestión de turnos por personal
 
 Spec: [spec.md](spec.md). Estado: propuesta; sin código.
-Autorización de implementación: pendiente.
+Autorización de implementación: 2026-11-15.
 
 ## Inspección de la base
 

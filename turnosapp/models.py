@@ -238,11 +238,18 @@ class EventoTurno(models.Model):
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="eventos_turno")
     ventanilla = models.ForeignKey(Ventanilla, null=True, blank=True, on_delete=models.PROTECT, related_name="eventos")
     operacion = models.ForeignKey(OperacionAtencion, null=True, blank=True, on_delete=models.PROTECT, related_name="eventos")
+    # Spec 10 (RF-10-04/05): número que tenía el turno antes de reclasificarlo o marcarlo urgente.
+    letra_anterior = models.CharField(max_length=1, choices=Letra.choices, blank=True)
+    numero_anterior = models.PositiveIntegerField(null=True, blank=True)
 
     class Meta:
         constraints = [
             models.UniqueConstraint(fields=["turno", "secuencia"], name="evento_secuencia_turno_unica"),
             models.CheckConstraint(condition=Q(secuencia__gte=1), name="evento_secuencia_positiva"),
+            models.CheckConstraint(condition=(
+                Q(letra_anterior="", numero_anterior__isnull=True)
+                | (Q(letra_anterior__in=["P", "G", "C", "U"]) & Q(numero_anterior__gte=1))
+            ), name="evento_numero_anterior_coherente"),
         ]
 
 

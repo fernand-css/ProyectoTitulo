@@ -93,7 +93,8 @@ def _parrafo(lienzo, x, y, texto, fuente, tamano, ancho, interlinea, color=TINTA
 
 
 def generar_comprobante(datos):
-    """Devuelve los bytes del PDF. `datos`: codigo, letra, fecha, hora, espera, renovacion."""
+    """Devuelve los bytes del PDF. `datos`: codigo, letra, fecha, hora, espera, renovacion y, opcional,
+    `reemplaza` (código anterior, spec 10: el personal reclasificó el turno o lo marcó urgente)."""
     color, categoria = LETRAS.get(datos["letra"], LETRAS["G"])
     salida = BytesIO()
     # Sin compresión de página: el PDF es liviano y permite comprobar su texto en las pruebas.
@@ -112,9 +113,11 @@ def generar_comprobante(datos):
     x_texto = MARGEN + 40
     alto_espera = _alto_parrafo(datos["espera"], NORMAL, 36, interior - 60, 46) + 56
     alto_aviso = 180 if datos.get("renovacion") else 0
+    alto_reemplazo = 170 if datos.get("reemplaza") else 0
     alto_pasos = sum(_alto_parrafo(paso, NORMAL, 34, interior - 90, 42) + 36 for paso in PASOS)
     superior = 420
-    alto_tarjeta = superior + 40 + 180 + alto_espera + 30 + alto_aviso + (30 if alto_aviso else 0) + 80 + alto_pasos + 90
+    alto_tarjeta = (superior + 40 + 180 + alto_espera + 30 + alto_aviso + (30 if alto_aviso else 0)
+                    + alto_reemplazo + (30 if alto_reemplazo else 0) + 80 + alto_pasos + 90)
     tope = ALTO - 250
     base = tope - alto_tarjeta
 
@@ -179,6 +182,18 @@ def generar_comprobante(datos):
                  "Te atenderemos igual en la ventanilla. Allí te dirán cómo pedir la renovación.",
                  NORMAL, 30, interior - 145, 38)
         y -= alto_aviso + 30
+
+    if alto_reemplazo:
+        # Spec 10, RF-10-05: el número nuevo reemplaza al anterior; texto, no solo color.
+        lienzo.setFillColor(CAJA_ESPERA)
+        lienzo.setStrokeColor(TINTA)
+        lienzo.setLineWidth(5)
+        lienzo.roundRect(x_texto, y - alto_reemplazo, interior, alto_reemplazo, 24, stroke=1, fill=1)
+        _texto(lienzo, x_texto + 40, y - 70, "Reemplaza a tu número anterior", NEGRITA, 44)
+        _parrafo(lienzo, x_texto + 40, y - 120,
+                 f"Tu número anterior era {datos['reemplaza']}. Espera el llamado con este número.",
+                 NORMAL, 30, interior - 80, 38)
+        y -= alto_reemplazo + 30
 
     # Qué hacer ahora.
     y -= 50

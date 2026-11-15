@@ -420,6 +420,14 @@ def cambiar_estado_cuenta(actor, pk, *, activo):
             cuenta = _objetivo_bloqueado(pk, using)
             _exigir_objetivo_operativo(gestor, cuenta)
             if cuenta.is_active != activo:
+                if not activo:
+                    # Spec 10, RF-10-02: una cuenta desactivada no deja su ventanilla bloqueada. Si el término
+                    # de turno falla, la excepción revierte también la desactivación.
+                    from turnosapp.atencion import terminar_turno_ventanilla
+                    from turnosapp.models import Ventanilla
+                    ventanilla = Ventanilla.objects.using(using).filter(operador=cuenta).first()
+                    if ventanilla is not None:
+                        terminar_turno_ventanilla(gestor, ventanilla.pk, uuid.uuid4(), confirmar=True)
                 cuenta.is_active = activo
                 cuenta.save(using=using, update_fields=["is_active"])
                 registrar_evento(gestor, "usuario.activado" if activo else "usuario.desactivado", objeto=cuenta, using=using)

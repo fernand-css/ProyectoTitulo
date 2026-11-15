@@ -1,0 +1,13 @@
+{% extends 'turnos/base_personal.html' %}
+{% block titulo %}Término de turno · Farmacia{% endblock %}
+{% block turnos %}<h1>Término de turno de la ventanilla {{ ventanilla.numero }}</h1>
+<p>Se registra la hora de término, se cierra la ocupación{% if ventanilla.operador %} de {{ ventanilla.operador.get_username }}{% endif %} y la ventanilla queda <strong>deshabilitada</strong>. Para volver a usarla, la Q.F. la habilita y un Técnico la ocupa.</p>
+{% if llamado %}<div class="message message-warning" role="note"><p><strong>Hay un paciente llamado en esta ventanilla: turno {{ llamado.codigo }}.</strong></p>
+<p>Si es de hoy, vuelve a la fila de espera con su antigüedad y otra ventanilla compatible lo llamará. Si es de un día anterior, se cierra sin atención.</p></div>
+{% else %}<p>No hay un paciente llamado en esta ventanilla.</p>{% endif %}
+<form class="panel cola-formulario" method="post">{% csrf_token %}
+{% if form.non_field_errors %}<div class="message message-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
+{{ form.operacion_id }}
+{% if llamado %}<div class="campo"><label for="{{ form.confirmar.id_for_label }}">{{ form.confirmar }} {{ form.confirmar.label }}</label></div>{% endif %}
+<button class="boton" type="submit">Confirmar término de turno</button> <a href="{{ volver_url }}">Volver sin terminar</a>
+</form>{% endblock %}

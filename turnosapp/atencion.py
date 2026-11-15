@@ -20,12 +20,19 @@ from recetasapp.services import _registrar_entrega_sin_reintento, ConflictoOpera
 from .sala import registrar_anuncio
 from .cola import bloquear_cola, cerrar_esperas_anteriores, ConflictoCola, solicitar_seleccion
 from .models import (
-    ConfiguracionCola, EventoTurno, OcupacionVentanilla, OperacionAtencion,
-    TipoAtencionVentanilla, Turno, TurnoReceta, Ventanilla, CierreAtencion, DetalleCierre,
+    LETRA_POR_TIPO, ConfiguracionCola, ContadorTurnosDiario, EventoTurno, Letra, OcupacionVentanilla,
+    OperacionAtencion, TipoAtencionVentanilla, Turno, TurnoReceta, Ventanilla, CierreAtencion, DetalleCierre,
 )
 
 
 MOTIVO_SIN_RECETAS = "Atención sin recetas del sistema"
+TIPO_POR_LETRA = {letra: tipo for tipo, letra in LETRA_POR_TIPO.items()}
+# Quién puede pedir cada operación; el resto de la autorización se revisa en su rama.
+ROLES = {
+    "configurar": (JEFA,), "crear_ventanilla": (JEFA,), "pesos": (JEFA,),
+    # Spec 10: la Q.F. termina cualquier ventanilla; el Técnico, solo la propia (se revisa en la rama).
+    "terminar_turno": (JEFA, TECNICO), "reclasificar": (JEFA, TECNICO), "urgencia": (JEFA, TECNICO),
+}
 
 
 def _obtener(modelo, pk):
@@ -42,10 +49,11 @@ def _propia(ventanilla, actor):
         raise ValidationError("La ventanilla no tiene una ocupación vigente.")
 
 
-def _evento(turno, accion, instante, actor, operacion, ventanilla=None):
+def _evento(turno, accion, instante, actor, operacion, ventanilla=None, letra_anterior="", numero_anterior=None):
     secuencia = (turno.eventos.aggregate(maximo=Max("secuencia"))["maximo"] or 0) + 1
     evento = EventoTurno.objects.create(turno=turno, accion=accion, secuencia=secuencia,
-        instante=instante, actor=actor, operacion=operacion, ventanilla=ventanilla)
+        instante=instante, actor=actor, operacion=operacion, ventanilla=ventanilla,
+        letra_anterior=letra_anterior, numero_anterior=numero_anterior)
     if accion == "rellamado":
         registrar_anuncio(evento, turno, ventanilla)
     registrar_accion(actor, "turno." + accion, evento)
@@ -53,8 +61,8 @@ def _evento(turno, accion, instante, actor, operacion, ventanilla=None):
 
 @transaction.atomic
 def _operar(actor, tipo, destino, identidad, datos, huella):
-    rol = JEFA if tipo in ("configurar", "crear_ventanilla", "pesos") else TECNICO
-    if not tiene_rol(actor, rol):
+    roles = ROLES.get(tipo, (TECNICO,))
+    if not tiene_rol(actor, *roles):
         raise PermissionDenied
     actor = get_user_model().objects.get(pk=actor.pk)
     previa = OperacionAtencion.objects.filter(pk=identidad).first()
@@ -72,9 +80,9 @@ def _operar(actor, tipo, destino, identidad, datos, huella):
         if previa.actor_id != actor.pk or previa.tipo != tipo or previa.huella != huella:
             raise ValidationError("La confirmación no corresponde a esta operación.")
         return previa.resultado
-    if not tiene_rol(actor, rol):
+    if not tiene_rol(actor, *roles):
         raise PermissionDenied
-    es_turno = tipo in ("rellamar", "ausente", "reincorporar", "finalizar")
+    es_turno = tipo in ("rellamar", "ausente", "reincorporar", "finalizar", "reclasificar", "urgencia")
     turno = _obtener(Turno, destino) if es_turno else None
     ventanilla = (turno.ventanilla if turno else _obtener(Ventanilla, destino)) if tipo not in ("pesos", "crear_ventanilla", "reincorporar") else None
     operacion = OperacionAtencion.objects.create(id=identidad, actor=actor, tipo=tipo,
@@ -204,6 +212,58 @@ def _operar(actor, tipo, destino, identidad, datos, huella):
         turno.save(update_fields=["estado", "cerrado_en", "entrada_cola", "modificado_por", "modificado_en"])
         _evento(turno, "reincorporado", ahora, actor, operacion)
         seleccionar = True
+    elif tipo == "terminar_turno":
+        # Spec 10, RF-10-01 y RF-10-03: hora de término, ventanilla deshabilitada y el llamado de vuelta a la cola.
+        if not tiene_rol(actor, JEFA) and ventanilla.operador_id != actor.pk:
+            raise PermissionDenied
+        llamado = Turno.objects.filter(ventanilla=ventanilla, estado="llamado").first()
+        if llamado and not datos["confirmar"]:
+            raise ValidationError("Confirma el término de turno: la ventanilla tiene un paciente llamado.")
+        if llamado is None and ventanilla.operador_id is None and not ventanilla.habilitada:
+            raise ValidationError("La ventanilla ya está deshabilitada y sin operador.")
+        if llamado:
+            de_otro_dia = llamado.fecha < hoy
+            cambios = {"ventanilla": None, "operador": None, "modificado_por": actor, "modificado_en": ahora}
+            if de_otro_dia:
+                cambios.update(estado="sin_atencion_cierre", cerrado_en=ahora)
+            else:
+                # Conserva entrada_cola: vuelve con su antigüedad (decisión del 2026-11-14).
+                cambios.update(estado="esperando", ultimo_llamado=None)
+            if not Turno.objects.filter(pk=llamado.pk, estado="llamado", ventanilla=ventanilla).update(**cambios):
+                raise ConflictoCola
+            llamado.refresh_from_db()
+            _evento(llamado, "sin_atencion_cierre" if de_otro_dia else "devuelto_a_cola", ahora, actor, operacion, ventanilla)
+            turno = operacion.turno = llamado
+        OcupacionVentanilla.objects.filter(ventanilla=ventanilla, cierre__isnull=True).update(cierre=ahora, motivo="termino_turno")
+        ventanilla.operador = None
+        ventanilla.automatico = False
+        ventanilla.fecha_activacion = None
+        ventanilla.habilitada = False
+        ventanilla.disponible_desde = ahora
+        seleccionar = True
+    elif tipo in ("reclasificar", "urgencia"):
+        # Spec 10, RF-10-04 a RF-10-06: número nuevo de la serie de destino, con la antigüedad intacta.
+        if turno.estado != "esperando" or turno.fecha != hoy:
+            raise ValidationError("Solo se puede cambiar un turno que sigue esperando en la jornada actual.")
+        if turno.letra == Letra.URGENCIA:
+            raise ValidationError("El turno ya es urgencia, y la urgencia no se puede quitar.")
+        nueva = Letra.URGENCIA if tipo == "urgencia" else datos["letra"]
+        if nueva == turno.letra:
+            raise ValidationError("El turno ya está en esa fila.")
+        contador, _ = ContadorTurnosDiario.objects.get_or_create(fecha=turno.fecha, letra=nueva)
+        observado = contador.ultimo_numero
+        if not ContadorTurnosDiario.objects.filter(pk=contador.pk, ultimo_numero=observado).update(
+                ultimo_numero=F("ultimo_numero") + 1):
+            raise ConflictoCola
+        letra_anterior, numero_anterior = turno.letra, turno.numero
+        if not Turno.objects.filter(pk=turno.pk, estado="esperando", letra=letra_anterior, numero=numero_anterior).update(
+                letra=nueva, numero=observado + 1, tipo_atencion=TIPO_POR_LETRA[nueva],
+                modificado_por=actor, modificado_en=ahora):
+            raise ConflictoCola
+        turno.refresh_from_db()
+        _evento(turno, "urgencia" if tipo == "urgencia" else "reclasificado", ahora, actor, operacion,
+            letra_anterior=letra_anterior, numero_anterior=numero_anterior)
+        seleccionar = True
     elif tipo == "pesos":
         config = ConfiguracionCola.objects.filter(pk=1).first()
         if config is None:
@@ -233,6 +293,8 @@ def _operar(actor, tipo, destino, identidad, datos, huella):
     resultado = {"operacion": str(identidad)}
     if turno:
         resultado.update(turno=turno.pk, estado=turno.estado)
+        if tipo in ("reclasificar", "urgencia"):
+            resultado["codigo"] = turno.codigo
     if ventanilla:
         resultado.update(ventanilla=ventanilla.pk, automatico=ventanilla.automatico)
     if seleccionar:
@@ -261,6 +323,7 @@ def _ejecutar(actor, tipo, destino, operacion_id, datos=None):
         except IntegrityError as error:
             if not any(marca in str(error).lower() for marca in (
                 "operacionatencion", "ventanilla.operador_id", "ocupacion_vigente_", "turno_activo_rut_dia_unico",
+                "contador_fecha_letra_unico", "turno_numero_letra_diario_unico",
                 "turnosapp_turno.rut", "turnosapp_estadocoladiaria.fecha", "turnosapp_estadocoladiaria_fecha_",
             )):
                 raise
@@ -330,3 +393,22 @@ def finalizar_atencion(actor, turno_id, operacion_id, *, recetas_entregadas, mot
         normalizados[str(int(pk))] = texto.strip()
     return _ejecutar(actor, "finalizar", turno_id, operacion_id, {"recetas": sorted(set(recetas_entregadas)),
         "motivo": motivo.strip(), "motivos": normalizados})
+
+
+def terminar_turno_ventanilla(actor, ventanilla_id, operacion_id, *, confirmar=False):
+    """Spec 10, RF-10-01: «Término de turno». La Q.F. sobre cualquier ventanilla; el Técnico, sobre la suya."""
+    if not isinstance(confirmar, bool):
+        raise ValidationError("Indica si confirmas el término de turno.")
+    return _ejecutar(actor, "terminar_turno", ventanilla_id, operacion_id, {"confirmar": confirmar})
+
+
+def reclasificar_turno(actor, turno_id, operacion_id, *, letra):
+    """Spec 10, RF-10-04: cambia un turno en espera entre las filas P, G y C."""
+    if letra not in (Letra.PREFERENCIAL, Letra.GENERAL, Letra.CRONICOS):
+        raise ValidationError("Elige la fila P, G o C.")
+    return _ejecutar(actor, "reclasificar", turno_id, operacion_id, {"letra": str(letra)})
+
+
+def marcar_urgencia(actor, turno_id, operacion_id):
+    """Spec 10, RF-10-05: número nuevo de la serie U; se llama antes que P, C y G (RF-05-13)."""
+    return _ejecutar(actor, "urgencia", turno_id, operacion_id)

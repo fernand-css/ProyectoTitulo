@@ -134,3 +134,15 @@ class FinalizarForm(OperacionForm):
             "motivo": self.cleaned_data["motivo"],
             "motivos": {int(nombre.removeprefix("motivo_")): valor for nombre, valor in self.cleaned_data.items()
                 if nombre.startswith("motivo_") and valor}}
+
+
+class TerminarTurnoForm(OperacionForm):
+    """Spec 10, RF-10-01: la confirmación se exige en el servicio solo si hay un paciente llamado."""
+    confirmar = forms.BooleanField(label="Confirmo el término de turno: el paciente llamado vuelve a la fila de espera",
+        required=False)
+
+
+class ReclasificarForm(OperacionForm):
+    """Spec 10, RF-10-04: entre P, G y C; la urgencia tiene su propia acción."""
+    letra = forms.ChoiceField(label="Nueva fila", choices=[
+        ("P", "P · Preferencial"), ("G", "G · General"), ("C", "C · Crónicos")])

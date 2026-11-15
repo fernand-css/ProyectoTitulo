@@ -1,21 +1,25 @@
 """Pantallas privadas; todas las mutaciones pasan por los servicios del 05."""
 import uuid
+from datetime import timedelta
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import DatabaseError
-from django.http import Http404, JsonResponse
+from django.http import Http404, HttpResponse, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
 from django.template.loader import render_to_string
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.decorators import method_decorator
 from django.views import View
 from django.views.decorators.cache import never_cache
+from django.views.decorators.clickjacking import xframe_options_sameorigin
 from django.views.decorators.debug import sensitive_post_parameters
 from coreapp.mixins import RolRequeridoMixin, tiene_rol
 from coreapp.roles import JEFA, TECNICO
 from . import atencion
 from .cola import procesar_seguro
-from .forms import OperacionForm, VentanillaForm, PesosForm, FinalizarForm
+from .comprobante import generar_comprobante
+from .forms import OperacionForm, VentanillaForm, PesosForm, FinalizarForm, ReclasificarForm, TerminarTurnoForm
 from .models import ConfiguracionCola, PendienteSeleccion, Turno, Ventanilla
 from .panel import contexto_panel
 
@@ -176,13 +180,21 @@ class HistorialView(TurnosView):
         eventos = list(turno.eventos.select_related("ventanilla", "actor").order_by("secuencia"))
         etiquetas = {"llamado": "Llamado", "rellamado": "Re-llamado", "ausente": "Ausente",
             "reincorporado": "Reincorporado a la cola", "atendido": "Atención con entregas registradas",
-            "cerrado_sin_entrega": "Cierre sin entrega", "sin_atencion_cierre": "Sin atención al cierre de jornada"}
+            "cerrado_sin_entrega": "Cierre sin entrega", "sin_atencion_cierre": "Sin atención al cierre de jornada",
+            "devuelto_a_cola": "Devuelto a la fila por término de turno", "reclasificado": "Cambio de fila",
+            "urgencia": "Marcado como urgencia"}
         for evento in eventos:
             evento.etiqueta = etiquetas.get(evento.accion, "Evento de atención")
+            if evento.numero_anterior:
+                evento.etiqueta += f" (antes {evento.letra_anterior}-{evento.numero_anterior:03d})"
+        # Spec 10: cambio de fila y urgencia, para la Q.F. y el Técnico, solo mientras espera hoy.
+        puede_cambiar = (tiene_rol(request.user, JEFA, TECNICO) and turno.estado == "esperando"
+            and turno.fecha == timezone.localdate() and turno.letra != "U")
         return self.render("historial.html", {"turno": turno,
             "eventos": eventos,
             "cierre": getattr(turno, "cierre_atencion", None), "puede_operar": tiene_rol(request.user, TECNICO),
-            "hoy": timezone.localdate(), "nonce_reincorporar": uuid.uuid4()})
+            "hoy": timezone.localdate(), "nonce_reincorporar": uuid.uuid4(),
+            "puede_cambiar": puede_cambiar, "form_reclasificar": ReclasificarForm(), "nonce_urgencia": uuid.uuid4()})
 
 
 class ReintentarView(TurnosView):
@@ -194,3 +206,122 @@ class ReintentarView(TurnosView):
         else:
             messages.success(request, "Pendiente revisado sin repetir entregas.")
         return redirect("turnosapp:panel")
+
+
+# ---- Spec 10: término de turno, cambio de fila, urgencia y comprobante del número nuevo ----
+
+VIGENCIA_COMPROBANTE = timedelta(minutes=15)
+
+
+class TerminarTurnoView(TurnosView):
+    """RF-10-01: la Q.F. sobre cualquier ventanilla; el Técnico, solo sobre la que ocupa."""
+    roles_permitidos = (JEFA, TECNICO)
+
+    def ventanilla(self, request, pk):
+        ventanilla = get_object_or_404(Ventanilla.objects.select_related("operador"), pk=pk)
+        if not tiene_rol(request.user, JEFA) and ventanilla.operador_id != request.user.pk:
+            raise PermissionDenied
+        return ventanilla
+
+    def destino(self):
+        return "turnosapp:gestion" if tiene_rol(self.request.user, JEFA) else "turnosapp:panel"
+
+    def mostrar(self, form, ventanilla, status=200):
+        llamado = Turno.objects.filter(ventanilla=ventanilla, estado="llamado").first()
+        return self.render("terminar.html", {"form": form, "ventanilla": ventanilla, "llamado": llamado,
+            "volver_url": reverse(self.destino())}, status=status)
+
+    def get(self, request, pk):
+        return self.mostrar(TerminarTurnoForm(), self.ventanilla(request, pk))
+
+    def post(self, request, pk):
+        ventanilla = self.ventanilla(request, pk)
+        form = TerminarTurnoForm(request.POST)
+        if form.is_valid():
+            try:
+                resultado = atencion.terminar_turno_ventanilla(request.user, pk, form.cleaned_data["operacion_id"],
+                    confirmar=form.cleaned_data["confirmar"])
+            except ValidationError as error:
+                form.add_error(None, error)
+            except (DatabaseError, RuntimeError):
+                form.add_error(None, "El término de turno no fue confirmado. Reintenta con este mismo formulario.")
+            else:
+                mensaje = f"Turno de la ventanilla {ventanilla.numero} terminado. La ventanilla quedó deshabilitada."
+                if resultado.get("estado") == "esperando":
+                    mensaje += " El paciente llamado volvió a la fila con su antigüedad."
+                elif resultado.get("estado") == "sin_atencion_cierre":
+                    mensaje += " El llamado de un día anterior quedó cerrado sin atención."
+                messages.success(request, mensaje)
+                return redirect(self.destino())
+        return self.mostrar(form, ventanilla, status=400)
+
+
+class CambioTurnoView(TurnosView):
+    """RF-10-04 y RF-10-05: POST desde el historial; si resulta, abre el comprobante del número nuevo."""
+    roles_permitidos = (JEFA, TECNICO)
+    urgencia = False
+
+    def post(self, request, pk):
+        get_object_or_404(Turno, pk=pk)
+        form = (OperacionForm if self.urgencia else ReclasificarForm)(request.POST)
+        if not form.is_valid():
+            messages.error(request, "Elige una fila válida e inténtalo de nuevo.")
+            return redirect("turnosapp:historial", pk=pk)
+        try:
+            if self.urgencia:
+                atencion.marcar_urgencia(request.user, pk, form.cleaned_data["operacion_id"])
+            else:
+                atencion.reclasificar_turno(request.user, pk, form.cleaned_data["operacion_id"],
+                    letra=form.cleaned_data["letra"])
+        except ValidationError as error:
+            messages.error(request, " ".join(error.messages))
+            return redirect("turnosapp:historial", pk=pk)
+        except (DatabaseError, RuntimeError):
+            messages.error(request, "El cambio no fue confirmado. Vuelve a intentarlo.")
+            return redirect("turnosapp:historial", pk=pk)
+        return redirect("turnosapp:comprobante_personal", pk=pk)
+
+
+class UrgenciaView(CambioTurnoView):
+    urgencia = True
+
+
+def _cambio_reciente(turno, usuario):
+    """El comprobante del personal se autoriza por el cambio recién registrado, no por la sesión del tótem."""
+    evento = turno.eventos.filter(accion__in=["reclasificado", "urgencia"]).order_by("-secuencia").first()
+    if evento is None or evento.actor_id != usuario.pk or evento.instante < timezone.now() - VIGENCIA_COMPROBANTE:
+        raise Http404
+    return evento
+
+
+def _datos_comprobante(turno, evento):
+    from .espera import estimar_espera
+    from .services import requiere_renovacion
+    espera = ("Tienes prioridad: te llamaremos antes que a los demás números." if turno.letra == "U"
+        else estimar_espera().frase)
+    return {"codigo": turno.codigo, "letra": turno.letra, "fecha": turno.fecha.strftime("%d/%m/%Y"),
+        "hora": timezone.localtime(turno.creado_en).strftime("%H:%M"), "espera": espera,
+        "renovacion": bool(turno.paciente and requiere_renovacion(turno.paciente, turno.fecha)),
+        "reemplaza": f"{evento.letra_anterior}-{evento.numero_anterior:03d}"}
+
+
+class ComprobantePersonalView(TurnosView):
+    """RF-10-05: el mismo comprobante del tótem, a pantalla completa en el equipo del personal."""
+
+    def get(self, request, pk):
+        turno = get_object_or_404(Turno.objects.select_related("paciente"), pk=pk)
+        evento = _cambio_reciente(turno, request.user)
+        return self.render("comprobante_personal.html", {"turno": turno, "datos": _datos_comprobante(turno, evento),
+            "pdf_url": reverse("turnosapp:comprobante_personal_pdf", kwargs={"pk": turno.pk})})
+
+
+@method_decorator(xframe_options_sameorigin, name="dispatch")
+class ComprobantePersonalPdfView(TurnosView):
+    def get(self, request, pk):
+        turno = get_object_or_404(Turno.objects.select_related("paciente"), pk=pk)
+        evento = _cambio_reciente(turno, request.user)
+        respuesta = HttpResponse(generar_comprobante(_datos_comprobante(turno, evento)), content_type="application/pdf")
+        respuesta["Content-Disposition"] = 'inline; filename="numero-de-atencion.pdf"'
+        respuesta["Cache-Control"] = "no-store, private, max-age=0"
+        respuesta["X-Content-Type-Options"] = "nosniff"
+        return respuesta
