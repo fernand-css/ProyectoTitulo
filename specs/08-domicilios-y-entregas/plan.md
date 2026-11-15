@@ -498,3 +498,66 @@ Implementada en `crojas-base` sin cambiar requisitos. Ajustes técnicos respecto
   Si el filtro cambió antes de que venza la espera de 300 ms, «todos» se anula antes de enviar. AbortController y el temporizador viven fuera del estado reactivo de Alpine.
 - **Barra de selección:** fija al final solo en computador (`min-width: 70rem`). En celular queda al final de la lista para no tapar el dock del menú.
 - **Herramienta HTTP:** el marcador «Hoy (» de «Mis entregas» estaba desactualizado desde el spec 09 (la lista pasó a «Por visitar en orden (»). Se corrigió al ampliar la herramienta.
+
+## Enmienda del 2026-11-15 — diseño propuesto
+
+Propuesta técnica para la [enmienda de spec.md](spec.md#enmienda-del-2026-11-15-borrador) (RF-08-18 a RF-08-20). El resto de la enmienda (tarjetas, arrastre, OSRM y «Usar mapa») está en el [plan del 09](../09-mapa-y-orden-de-visita/plan.md#enmienda-del-2026-11-15--diseño-propuesto). Sin código; la implementación requiere aprobación y autorización.
+
+### Inspección del código actual
+
+- `entregasapp/services.py`: `agregar_foto` procesa la imagen fuera de la transacción, escribe el archivo y llama a `_registrar_foto` (primera posición libre, `IntegrityError` → `ConflictoOperacion`, con `reintentar_conflictos`); `eliminar_foto` borra la fila, audita y elimina el archivo en `on_commit`.
+- `entregasapp/fotos.py`: `guardar_jpeg`, `borrar` y `abrir` sobre el almacenamiento privado. `coreapp/utils/custom_image.py`: `procesar_imagen`.
+- Vistas y rutas: `FotoAgregarView` (`domicilios/<pk>/fotos/`), `FotoEliminarView` (`fotos/<pk>/eliminar/`) y `FotoView` (`fotos/<pk>/`, privada y `no-store`).
+- `templates/entregas/domicilio.html`: sección «Fotos del entorno» con un formulario por foto para borrar y otro para agregar. `_tarjeta_intento.html`: miniaturas como enlaces a la imagen.
+- Textos: «Ver domicilio» en `_tarjeta_intento.html`, `ir_a.html`, `domicilios.html` y `recetas/paciente_detalle.html` (y en el resumen de los marcadores de `mapa.js`); «Localidad» en `DomicilioForm` y `FiltroProgramarForm` (`entregasapp/forms.py`) y en la ficha de `domicilio.html`.
+
+### Servicio atómico de fotos (`entregasapp/services.py`)
+
+`gestionar_fotos(actor, domicilio_id, *, mostradas, borrar, nuevas)`:
+- `mostradas`: ids de las fotos que el modal mostró; `borrar`: ids marcados; `nuevas`: lista de `(archivo, descripcion)` en el orden del modal.
+- `autorizar(actor, JEFA, ENCARGADO)`, como hoy (el superusuario pasa por su excepción general).
+- **Antes de la transacción:** valida cada descripción (1 a 120 caracteres) y procesa cada imagen con `procesar_imagen`. El primer error lanza `ValidationError` con el índice («La foto 2 no se pudo procesar: …»), sin escribir nada. Luego escribe todos los JPEG con `fotos.guardar_jpeg`.
+- **En `transaction.atomic()`:** comprueba que el conjunto actual de ids del domicilio sea igual a `mostradas` (si no, `ValidationError` con el aviso de cambio en otro dispositivo); que `borrar ⊆ mostradas`, y que `len(mostradas) − len(borrar) + len(nuevas) ≤ 3`. Borra las filas marcadas (comprobando la cantidad borrada), crea las nuevas en las posiciones libres y audita cada una (`domicilio.foto_eliminada`, `domicilio.foto_agregada`). Un `IntegrityError` en la posición única revierte todo y se informa como cambio concurrente.
+- **Archivos:** si la transacción falla, se borran los JPEG nuevos; los de las fotos borradas se eliminan con `transaction.on_commit`.
+- `agregar_foto` y `eliminar_foto` pueden quedar como envoltorios de `gestionar_fotos` o retirarse. Se decide al implementar, según las pruebas del 08 que los usan, y se anota.
+
+### Vistas, rutas y plantillas
+
+- `GET/POST /entregas/domicilios/<pk>/fotos/` (`FotosView`, reemplaza a `FotoAgregarView`): sin JavaScript, el GET muestra la página con el formulario del modal y el POST redirige a la página de origen (parámetro `volver` validado con `url_has_allowed_host_and_scheme`). Con JavaScript (`Accept: application/json`), el POST responde `{"ok": true, "fotos": [...]}` o `{"error": "texto", "foto": n}` con 400.
+- Se retira `fotos/<pk>/eliminar/` (`FotoEliminarView`).
+- `FotosForm` (nuevo, en `forms.py`): `mostradas` y `borrar` (ids), y hasta 3 pares `archivo_N`/`descripcion_N`. Cada archivo usa `accept="image/jpeg,image/png"`. «Sacar foto» es un segundo `<input type="file" capture="environment">` que llena el mismo espacio.
+- Parciales nuevos: `_fotos_boton.html` («Registrar fotos» o «Gestionar fotos» según la cantidad), `_fotos_modal.html` (`<dialog>` con el formulario, la vista previa y la región de errores con `role="alert"`) y `_visor_foto.html` (`<dialog>` con la imagen, el pie y la X).
+- `domicilio.html` usa el botón y el modal en lugar de sus formularios; las miniaturas de `domicilio.html` y `_tarjeta_intento.html` pasan a ser botones del visor, con el enlace como respaldo sin JavaScript.
+
+### JavaScript
+
+- `static/js/entregas/fotos.js` (nuevo): abre el modal con `showModal()`; marca y desmarca borrados; muestra y oculta los espacios nuevos según la cuenta; muestra la vista previa con `URL.createObjectURL` (y la libera al cerrar); envía con `fetch` y `FormData`; muestra el error junto a la foto indicada y mueve el foco a él; distingue la falta de red; al guardar, actualiza la tarjeta o recarga la página.
+- `static/js/entregas/visor.js` (nuevo): abre la imagen en el `<dialog>`; cierra con la X, con Esc (comportamiento nativo) y con un clic sobre el fondo del diálogo fuera de la imagen; devuelve el foco a la miniatura.
+- Pruebas de Node: `fotos.test.cjs` y `visor.test.cjs`.
+
+### Textos (RF-08-20)
+
+- Plantillas: `_tarjeta_intento.html`, `ir_a.html`, `domicilios.html` y `recetas/paciente_detalle.html` dicen «Detalles del domicilio»; `mapa.js` usa el mismo texto en el resumen de los marcadores.
+- `DomicilioForm.localidad.label` y `FiltroProgramarForm.localidad.label` pasan a «Nombre de la localidad», al igual que el `<dt>` de la ficha en `domicilio.html`. No se toca `Domicilio.localidad.verbose_name`, para no generar una migración.
+
+### Pruebas previstas
+
+- `test_fotos.py`: guardado con borrado y dos nuevas; falla en la foto 2 sin cambios en la base ni en los archivos; descripción vacía o larga; conjunto cambiado; más de 3; archivos de las borradas eliminados solo tras confirmar; auditoría sin datos personales.
+- `test_concurrencia.py` (escenarios nuevos con `TransactionTestCase` e hilos): dos guardados desde el mismo estado; guardado mientras otro borra; dos guardados que agregan con 2 fotos guardadas. En todos, nunca más de 3 fotos y ningún archivo huérfano.
+- `test_vistas.py` y `test_permisos.py`: botón según la cantidad, página sin JavaScript, JSON con el índice del error, Técnico 403, CSRF y `volver` externo rechazado.
+- `test_estructura.py`: diálogos con nombre accesible, botones con tipo y miniaturas con nombre.
+- Búsqueda en las plantillas: no queda «Ver domicilio»; las etiquetas dicen «Nombre de la localidad».
+
+### Riesgos
+
+- **Tamaño de la solicitud:** tres fotos de 5 MB en una solicitud con mala señal pueden tardar o cortarse. El corte no aplica nada (todo o nada) y el aviso lo dice. Se mide y se informa aparte.
+- **Archivos huérfanos:** si el proceso muere entre escribir los JPEG y la transacción, quedan archivos sin fila. Se acepta como hasta ahora y se anota en `validation.md`. Una limpieza periódica queda fuera.
+- **`capture`:** algunos navegadores de escritorio lo ignoran y abren el selector de archivos, que es el comportamiento esperado.
+
+### Pruebas del 08 que se ajustarán
+
+Se listan al implementar: las que usan `foto_agregar` y `foto_eliminar` (`test_fotos.py`, `test_vistas.py` y `test_permisos.py`) y las que buscan los textos «Ver domicilio» o «Localidad».
+
+### Documentos afectados al implementar
+
+`CLAUDE.md` (sección del 08: servicio de fotos atómico), `docs/estructura.md` (rutas de fotos), `specs/README.md` y `validation.md`.

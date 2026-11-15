@@ -135,6 +135,20 @@ No ejecutados en esta sesión (no se abrió un navegador):
 
 Hay que avisar al equipo del cambio del 04, que se trabajó en `fdaza`.
 
+## Enmienda del 2026-11-15 (no ejecutada)
+
+Estado: **no ejecutada**. La enmienda está en Borrador; no hay código ni resultados. Las filas describen la evidencia que hará falta.
+
+| RF | Prueba / pasos / comando previstos | Esperado | Obtenido | Estado |
+|---|---|---|---|---|
+| RF-08-18 | `test_fotos.py`; `test_vistas.py`; `fotos.test.cjs` | Todo o nada; «La foto 2 no se pudo procesar»; conjunto cambiado rechazado; botón según la cantidad; página sin JavaScript | — | no ejecutada |
+| RF-08-18 | `test_concurrencia.py` (tres escenarios nuevos, tres corridas) | Nunca más de 3 fotos; un ganador; ningún archivo huérfano | — | no ejecutada |
+| RF-08-18 | Celular real: «Sacar foto» con la cámara; red cortada al guardar | La foto vuelve al modal; sin red no se guarda nada y se avisa | — | no ejecutada |
+| RF-08-19 | `visor.test.cjs`; navegador con teclado y lector de pantalla | Se cierra con X, clic fuera y Esc; foco contenido y de vuelta en la miniatura | — | no ejecutada |
+| RF-08-20 | Búsqueda en plantillas y JavaScript; `makemigrations --check --dry-run` | Sin «Ver domicilio»; «Nombre de la localidad»; sin migraciones | — | no ejecutada |
+| RNF-05 | `tools/verificar_spec_08_http.py` (guardado de fotos) | p95 ≤ 2 s sin archivos grandes; tres fotos de 5 MB medidas aparte | — | no ejecutada |
+| RNF-04 | axe, teclado y usabilidad | Diálogos accesibles; errores asociados y anunciados | — | no ejecutada |
+
 ## Aceptación funcional
 
 Pendiente.

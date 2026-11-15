@@ -76,6 +76,27 @@ Lo que sí se comprobó en el HTML servido (`test_permisos_mapa.py::EstructuraMa
 
 Migración `entregasapp/0002_ordenruta`: aplicada solo en las bases de pruebas y en la SQLite temporal de la herramienta. **La base PostgreSQL del proyecto no se migró**; hay que aplicar `python manage.py migrate` en la base de demostración elegida cuando el usuario lo apruebe. Revertirla (`python manage.py migrate entregasapp 0001`) elimina solo los órdenes manuales. `generar_domicilios_demo` no se ejecutó sobre la base del proyecto.
 
+## Enmienda del 2026-11-15 (no ejecutada)
+
+Estado: **no ejecutada**. La enmienda está en Borrador; no hay código ni resultados. Las filas describen la evidencia que hará falta y no deben marcarse como aprobadas sin resultados reales.
+
+| RF | Prueba / pasos / comando previstos | Esperado | Obtenido | Estado |
+|---|---|---|---|---|
+| RF-09-16 | `test_vistas_mapa.py`; `tarjetas.test.cjs`; navegador en celular y computador | Tarjetas compactas con número y rótulos; varias expandidas; sin JavaScript, expandidas | — | no ejecutada |
+| RF-09-17 | `test_vistas_mapa.py` (flechas, JSON de `MoverParadaView`); `orden.test.cjs`; celular real | Orden guardado con flechas y arrastre; Esc cancela; choque de versión revierte con aviso; sin «Mover a la posición» | — | no ejecutada |
+| RF-09-18 | `tarjetas.test.cjs`; navegador | Mapa pequeño solo al expandir; «Domicilio sin coordenadas» | — | no ejecutada |
+| RF-09-19 | `test_osrm.py`; `test_configuracion_mapa.py`; `test_tramo.py`; `docker logs osrm` | `longitud,latitud`; errores como «no disponible»; `E004` y `E005`; la posición no queda en la base, auditoría, sesión, caché ni registros | — | no ejecutada |
+| RF-09-20 | `test_ruta.py`; `test_ruta_consultas.py` | Orden y total por camino; respaldo rotulado sin total; 2-opt asimétrico igual a la fuerza bruta | — | no ejecutada |
+| RF-09-21 | `test_tramo.py`; `tramo.test.cjs`; `mapa.test.cjs`; celular real en contexto seguro con el OSRM local | Tramo hasta la próxima o la elegida; recálculo con umbrales; sin línea del recorrido; aviso sin permiso u OSRM | — | no ejecutada |
+| RF-09-22 | `test_tramo.py`; `mapa.test.cjs` | Parada más cercana por camino; mover a la posición 1; sin sugerencia con OSRM caído | — | no ejecutada |
+| RF-09-23 | `ir_a.test.cjs`; celular real | Distancia por camino; sin rumbo ni línea recta; aviso de 100 m | — | no ejecutada |
+| RF-09-24 | `test_vistas_mapa.py`; `test_permisos_mapa.py` | Tarjetas de consulta; mapa solo con marcadores, sin posición | — | no ejecutada |
+| RF-09-25 | `usar_mapa.test.cjs`; `test_vistas_mapa.py`; navegador | Centro correcto; marcar y copiar 6 decimales; precisión vacía; foco de vuelta | — | no ejecutada |
+| RF-09-26 | Node con red simulada caída; navegador sin red | Avisos de texto; nada se guarda | — | no ejecutada |
+| RNF-05 | `tools/verificar_spec_09_http.py` (OSRM simulado y `--osrm-real`) | p95 ≤ 2 s; matriz de 52 y 202 puntos y un tramo medidos aparte | — | no ejecutada |
+| RNF-04 | axe, teclado, zoom al 200 %, 320 px, lector de pantalla; usabilidad con cinco personas | Sin errores AA; flechas como alternativa al arrastre; diálogos accesibles | — | no ejecutada |
+| Lienzo | T-09-10 (Claude Design) | Pantallas pedidas en celular y computador, con datos sintéticos | 12 pantallas publicadas en un lienzo privado; revisadas y aprobadas por el usuario el 2026-11-15 | aprobada (revisión de diseño, no de la implementación) |
+
 ## Aceptación funcional
 
 Pendiente.

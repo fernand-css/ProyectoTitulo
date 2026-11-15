@@ -385,3 +385,102 @@ Detalles que el plan no fijaba o que se resolvieron al implementar, sin cambiar 
 - `entregasapp/tests/test_vistas_encargado.py::MisEntregasVistaTests::test_hoy_atrasadas_y_proximas_con_los_datos_de_la_visita`: los títulos «Hoy (1)» y «Atrasadas (1)» se reemplazan por «Por visitar (2)», «Parada 1» y «Sin coordenadas: fuera del orden sugerido (1)», porque hoy y atrasadas forman una sola ruta numerada (RF-09-01) y la visita sin domicilio va aparte (RF-09-03). Las demás aserciones no cambian.
 
 Ninguna otra prueba del 08, y ninguna del 03 al 07, cambió. `coreapp/tests/test_navegacion.py` y `test_estaticos.py` solo suman casos.
+
+## Enmienda del 2026-11-15 — diseño propuesto
+
+Propuesta técnica para la [enmienda de spec.md](spec.md#enmienda-del-2026-11-15-borrador) (RF-09-16 a RF-09-26). La parte de fotos, visor y textos está en el [plan del 08](../08-domicilios-y-entregas/plan.md#enmienda-del-2026-11-15--diseño-propuesto). Sin código; la implementación requiere aprobación y autorización.
+
+### Inspección del código actual
+
+- `entregasapp/ruta.py` (sin Django): `distancia_m` (haversine), `_matriz(puntos)`, `_vecino_mas_cercano`, `_dos_opt` (supone distancias simétricas), `ordenar(partida, destino, paradas, limite)`, `insertar(secuencia, partida, destino, nueva)` y `formatear_km`.
+- `entregasapp/consultas.py`: `RutaDelDia` (con `total_m` en línea recta y `total_km`), `ruta_del_dia`, `partida_del_dia`, `_aplicar_orden_guardado` (usa `insertar`) y `orden_guardado`.
+- `entregasapp/mapa.py`: `datos_mapa(ruta, consulta=…)` arma los marcadores y la línea; `datos_punto(domicilio)` y `datos_ir_a(parada)`.
+- `entregasapp/views.py`: `MisEntregasView`, `MapaView`, `IrAView`, `MoverParadaView` (POST de formulario con redirección), `RestablecerOrdenView`, `RutasView` y `DomicilioView`.
+- Plantillas: `_tarjeta_intento.html` (tarjeta completa, siempre expandida), `_orden_controles.html` («Subir», «Bajar» y «Mover a la posición»), `_ruta.html`, `_ruta_rotulo.html`, `_mapa.html`, `mapa.html` (mapa y lista de paradas con «Registrar» e «Ir a esta parada»), `ir_a.html`, `rutas.html`, `domicilio.html` y `_mapa_punto.html`.
+- JavaScript: `mapa.js` (marcadores, línea punteada y aviso de teselas), `ir_a.js` (haversine, rumbo y ninguna solicitud de red) y `ubicacion.js` («Usar mi ubicación actual»), con pruebas de Node en `entregasapp/tests/*.test.cjs`.
+- `entregasapp/checks.py`: `E001` a `E003` para el origen, las teselas y el zoom. `cesfam/settings.py` no define `CACHES`, así que Django usa la caché local en memoria de cada proceso.
+
+### Diseño propuesto
+
+1. **Cliente de OSRM (`entregasapp/osrm.py`, nuevo).** Usa solo la biblioteca estándar (`urllib.request` con `ProxyHandler({})` y `json`), sin dependencias nuevas:
+   - `OsrmNoDisponible(Exception)`, con mensajes que nunca incluyen coordenadas;
+   - `activo()`: `False` si `OSRM_URL` está vacía;
+   - `tabla(puntos, *, origenes=None)`: `GET {OSRM_URL}/table/v1/driving/{lon,lat;…}?annotations=distance` (con `sources=0` para la parada más cercana); devuelve la matriz en metros. Una distancia nula (punto sin camino conocido) se trata como «no disponible»;
+   - `tramo(desde, hasta)`: `GET {OSRM_URL}/route/v1/driving/{lon,lat;lon,lat}?overview=full&geometries=geojson&steps=false&alternatives=false`; devuelve la distancia en metros y la geometría convertida a `[latitud, longitud]`;
+   - tiempo de espera `OSRM_TIEMPO_ESPERA`, lectura acotada (por ejemplo, 5 MB) y validación de la forma del JSON;
+   - caché solo para la matriz de la ruta (nunca para la que incluye la posición): `cache.get_or_set("osrm:tabla:<sha256 de las coordenadas redondeadas a 6 decimales>", …, 600)`.
+2. **Orden con distancias de camino (`ruta.py`).** `ordenar`, `insertar` y una función nueva `longitud(recorrido, distancia)` reciben un parámetro `distancia` (matriz por índice o función). Si no se entrega, usan haversine, como hoy. El 2-opt deja de suponer simetría: al invertir el tramo `i..j`, la diferencia se calcula con sumas acumuladas de ida y de vuelta del camino actual, que se recalculan tras cada mejora (O(n²) por pasada). El vecino más cercano, los extremos fijos, el límite de 200 paradas y el desempate no cambian. El módulo sigue sin importar Django.
+3. **Ruta del día (`consultas.py`).** `ruta_del_dia` arma los puntos `[partida, paradas con coordenadas…, CESFAM]` y pide `osrm.tabla`. Si funciona, `RutaDelDia.distancia = "camino"` y `total_m` es la suma por camino; si lanza `OsrmNoDisponible`, usa haversine, `distancia = "recta"` y `total_m = None`. `_aplicar_orden_guardado` inserta las «Nuevas» con la misma matriz. La cantidad de consultas a la base no cambia. Se agrega `RutaDelDia.parada_con_punto(intento_id)` para validar el destino del tramo.
+4. **Tramo y parada más cercana (vistas nuevas, solo el encargado).**
+   - `POST /entregas/mis/tramo/` (`TramoView`): cuerpo JSON `{"intento": id, "latitud": …, "longitud": …}` y cabecera `X-CSRFToken`. Valida números finitos y en rango. Toma el destino de `ruta_del_dia(hoy)`; si la visita no está en la ruta de hoy del encargado o no tiene coordenadas, responde 404 con texto. Respuesta: `{"intento", "numero", "distancia_m", "distancia_texto", "geometria"}`.
+   - `POST /entregas/mis/cercana/` (`ParadaCercanaView`): cuerpo `{"latitud", "longitud"}`. Pide `osrm.tabla([posición, paradas…], origenes=[0])`, elige la menor distancia (empate por id del intento) y responde `{"intento", "numero", "distancia_m", "distancia_texto", "es_primera"}`. El navegador pide después el tramo a la vista anterior, para que cada solicitud haga una sola consulta a OSRM.
+   - Errores en JSON `{"error": "texto"}`: 400 (datos no válidos), 403, 404, 429 (límite) y 503 (OSRM no disponible). Todas las respuestas llevan `Cache-Control: no-store`.
+   - Límite de 30 solicitudes por minuto por encargado: un contador en la caché con el id de la cuenta, nunca con la posición.
+   - Las vistas no registran el cuerpo ni lo incluyen en mensajes de error; la posición solo vive en variables locales de la solicitud.
+5. **Mover parada con JavaScript.** `MoverParadaView` acepta además un `destino` numérico, que `mover_parada` ya admite, y, si la solicitud pide JSON (`Accept: application/json`), responde `{"ok", "version", "mensaje"}` en lugar de redirigir. Sin JavaScript sigue el POST con recarga. El servicio no cambia.
+6. **Plantillas.**
+   - `_tarjeta_intento.html`: encabezado compacto (número, rótulos, nombre como `h3` y dirección), fila de acciones («Entregar», «No entregada» y «Expandir»), flechas arriba a la derecha y franja en el borde derecho (solo con `controles`), y un bloque `id="detalle-<pk>"` con los datos, las miniaturas, el botón de fotos del 08, el contenedor del mapa pequeño (`data-latitud` y `data-longitud`, o el texto «Domicilio sin coordenadas»), «Ir a esta parada» y «Detalles del domicilio». En consulta (`consulta=True`) solo quedan los datos, las miniaturas y el mapa.
+   - `_orden_controles.html`: solo las flechas; se retira «Mover a la posición».
+   - `_ruta.html` y `_ruta_rotulo.html`: rótulo y total según `ruta.distancia` («por camino», o el aviso de respaldo sin total).
+   - `_mapa.html` y `mapa.html`: sin la línea ni su leyenda; botones «Mostrar mi posición», «Sugerir parada más cercana» y «Detener»; «Trazar tramo hasta aquí» en el resumen de cada marcador y en la lista; región `aria-live`; aviso de que necesita señal. En «Rutas» (`consulta`) no aparecen esos botones.
+   - `ir_a.html`: distancia por camino, sin rumbo; textos nuevos.
+   - `rutas.html`: tarjetas compactas en consulta.
+   - `domicilio.html`: «Usar mapa» en Coordenadas y el diálogo `_dialogo_usar_mapa.html`.
+7. **JavaScript.**
+   - `tarjetas.js` (nuevo): «Expandir»/«Contraer» con `aria-expanded`; carga el mapa pequeño (Leaflet, sin arrastre ni zoom con la rueda y con botones de zoom visibles) la primera vez que se expande; recuerda en `sessionStorage` las tarjetas expandidas del día, dentro de `try/catch`.
+   - `orden.js` (nuevo, código propio): flechas por `fetch` y arrastre con Pointer Events sobre la franja. En pantallas táctiles empieza tras unos 300 ms presionando (si el dedo se mueve antes, es desplazamiento de la página); con mouse, al presionar. Muestra un hueco, desplaza la página cerca de los bordes con `requestAnimationFrame`, cancela con Esc, `pointercancel` o al soltar fuera, envía `destino=n` y revierte si falla. Anuncia el resultado en `aria-live`.
+   - `tramo.js` (nuevo, compartido por `mapa.js` e `ir_a.js`): funciones puras `debeRecalcular(anterior, actual, ahora)` (150 m y 20 s; 30 m y 10 s si el último tramo mide menos de 500 m) y `formatearDistancia`, y un cliente `pedirTramo`/`pedirCercana` con `AbortController` que descarta las respuestas fuera de orden.
+   - `mapa.js`: sin la línea; dibuja el tramo (línea continua con contraste de 3:1 o más), destaca la parada sugerida con otra forma y texto, y ofrece «Mover al siguiente lugar» (POST a `orden_mover` con `destino=1`).
+   - `ir_a.js`: deja haversine y rumbo; usa `tramo.js`; mantiene `watchPosition`, «Detener», `pagehide` y los avisos.
+   - `usar_mapa.js` (nuevo): diálogo modal (`<dialog>` con `showModal`) con Leaflet, marcador al hacer clic, mira central y «Marcar el centro del mapa», copia con 6 decimales, vacía la precisión y lanza `input`/`change` para que el formulario note el cambio.
+8. **Configuración.** En `cesfam/settings.py`: `OSRM_URL` (si la variable no existe, `http://127.0.0.1:5000`; si existe vacía, servicio desactivado) y `OSRM_TIEMPO_ESPERA` con `_numero_entorno` (1,0). `.env.example` documenta ambas y `checks.py` suma `E004` y `E005`.
+9. **Estilo.** `entregas.css`, con variables de `base.css`: tarjeta compacta, flechas, franja (unos 16 px, con un patrón de agarre visible y contraste de 3:1), cuadrícula del mapa pequeño desde 768 px, tramo, parada destacada y diálogos. La prueba de paleta sigue aplicando.
+10. **Herramienta HTTP.** `tools/verificar_spec_09_http.py` levanta un OSRM simulado con `http.server` en `127.0.0.1` (puerto libre), que responde `table` y `route` de forma determinista, y mide el p95 de «Mis entregas», «Mapa», «Rutas», el tramo y la parada más cercana. Con `--osrm-real` mide además contra el OSRM local.
+
+### OSRM sin registros de solicitudes
+
+`osrm-routed` escribe en su salida una línea por solicitud con la URL, y la URL lleva las coordenadas. Para cumplir RF-09-19 («no queda en los registros»), el contenedor se ejecuta con `--verbosity WARNING`. `README.md` lo indica, y `validation.md` debe registrar que `docker logs osrm` no muestra solicitudes después de pedir un tramo. El contenedor que se levantó el 2026-11-15 debe recrearse con esa opción y con `--max-table-size 300`.
+
+### Pruebas previstas
+
+- `test_ruta.py`: matriz asimétrica construida a mano, igual a la fuerza bruta; inserción con matriz; haversine por defecto sin cambios.
+- `test_osrm.py` (nuevo): formato `longitud,latitud`, consultas de tabla y de ruta, tiempo de espera, error 500, `NoRoute`, JSON mal formado, distancia nula, URL vacía y ausencia de proxy, con `urlopen` simulado.
+- `test_ruta_consultas.py`: orden por camino distinto del de línea recta, total por camino, respaldo rotulado sin total, inserción de «Nuevas» con la matriz, orden manual sin cambios con OSRM caído y caché de la matriz.
+- `test_configuracion_mapa.py`: `E004` y `E005`, valores por defecto y variable vacía.
+- `test_tramo.py` (nuevo): permisos (Técnico, Q.F., superusuario, otro encargado y anónimo), CSRF, destino que no está en la ruta, sin coordenadas o manipulado, límite 429, 503, `no-store`, y que la posición no queda en la base, la auditoría, la sesión, la caché ni los registros capturados con `assertLogs`/`assertNoLogs`.
+- `test_vistas_mapa.py`: tarjetas compactas, flechas sin «Mover a la posición», controles solo del encargado, JSON de `MoverParadaView`, «Rutas» sin controles ni datos de posición, mapa sin línea y «Usar mapa» en el formulario.
+- Node: `tarjetas.test.cjs`, `orden.test.cjs`, `tramo.test.cjs` y `usar_mapa.test.cjs` nuevos; `mapa.test.cjs` e `ir_a.test.cjs` ajustados (sin línea ni rumbo; ahora hay solicitudes, pero solo a la ruta de Django).
+- Las pruebas concurrentes del 09 siguen igual: el arrastre usa `mover_parada`.
+
+### Riesgos de la enmienda
+
+- **Cartografía rural incompleta:** si OpenStreetMap no tiene un camino, OSRM ajusta el punto al camino conocido más cercano y la distancia puede engañar. Se mitiga con el rótulo «aprox.», el orden manual y la comparación, en la validación, de algunos tramos conocidos. Para una implementación real, el DESAMU decide cómo mantener el mapa al día.
+- **Tamaño de la matriz:** `osrm-routed` limita la tabla a 100 puntos por defecto; sin `--max-table-size 300`, las rutas grandes caen al respaldo.
+- **Latencia:** cada carga de «Mis entregas», «Mapa» y «Rutas» puede esperar a OSRM hasta `OSRM_TIEMPO_ESPERA`. La caché de 10 minutos y el tiempo de 1 s protegen el p95 de 2 s; se mide con el OSRM simulado y con el real.
+- **Registros de OSRM:** sin `--verbosity WARNING`, quedarían posiciones y domicilios en los registros del contenedor (ver arriba).
+- **Arrastre propio:** desplazamiento, toque largo, cancelación y foco son casos de borde; se cubren con pruebas de Node y con revisión en un celular real. Las flechas siguen siendo la vía garantizada.
+- **Respuestas fuera de orden con mala señal:** `AbortController` y un número de solicitud evitan dibujar un tramo viejo sobre uno nuevo.
+- **Datos de OSRM desactualizados:** se actualizan a mano con el procedimiento de `README.md`.
+
+### Pruebas que se ajustarán
+
+Se listan al implementar: las del 09 que fijan la línea punteada, el total en línea recta, el rumbo, «Mover a la posición» y la ausencia de solicitudes de red en `ir_a.js`, y las del 08 que usan los formularios de fotos que reemplaza el modal (ver el plan del 08).
+
+### Documentos afectados al implementar
+
+- `README.md`: sección «Servidor de rutas (OSRM)», con el recorte con osmium en WSL, `osrm-extract`, `osrm-partition` y `osrm-customize`, el contenedor con sus opciones, la actualización y una consulta de prueba.
+- `docs/estructura.md`: esquema del despliegue (navegador → Django por HTTPS → OSRM por la red interna, con PostgreSQL y las teselas que pide el navegador).
+- `.env.example`, `CLAUDE.md`, `specs/README.md` y los `validation.md` del 08 y el 09.
+
+Esquema previsto para `docs/estructura.md`:
+
+```text
+Celular o computador ──HTTPS──▶ Django (Daphne/ASGI) ──red interna──▶ OSRM (osrm-routed, MLD, Ñuble)
+        │                              │
+        │                              └──────────────▶ PostgreSQL
+        └──HTTPS (teselas, sin datos de pacientes)──▶ OpenStreetMap
+```
+
+### Decisiones para implementar (enmienda)
+
+Ninguna bloqueante. Quedan por confirmar en la revisión los supuestos de la enmienda en `spec.md`: nombres de variables, umbrales, límite de solicitudes y caché.

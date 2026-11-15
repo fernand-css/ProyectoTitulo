@@ -1,6 +1,7 @@
 # SPEC 08 — Domicilios y entregas a domicilio
 
 > **Estado:** Aprobado (versión del 2026-11-11). **Ampliación del 2026-11-13 en Aprobado:** cambia RF-08-01 (80 años o más) y agrega RF-08-16 y RF-08-17 (lista con filtros y búsqueda en vivo, y programación de varios pacientes a la vez).
+> **Enmienda del 2026-11-15, Aprobada** por el usuario el mismo día, tras revisar el lienzo de diseño; implementación pendiente. El título de su sección conserva «Borrador» para no romper los enlaces; manda esta cabecera (ver [Enmienda del 2026-11-15](#enmienda-del-2026-11-15-borrador)): modal «Registrar fotos»/«Gestionar fotos» que guarda todo junto (modifica RF-08-05), visor de imagen y los textos «Detalles del domicilio» y «Nombre de la localidad» (RF-08-18 a RF-08-20). Va junto con la [enmienda del spec 09](../09-mapa-y-orden-de-visita/spec.md#enmienda-del-2026-11-15-borrador), que revierte la exclusión de elegir coordenadas en el mapa.
 > **Depende de:** [SPEC 01](../01-base-del-proyecto/spec.md), [SPEC 02](../02-autenticacion-roles-auditoria/spec.md), [SPEC 03](../03-padron-y-recetas/spec.md), [SPEC 04](../04-emision-de-turnos/spec.md), [SPEC 05](../05-cola-ponderada-y-llamado/spec.md) y [SPEC 07](../07-preparacion-y-tiempos-de-espera/spec.md)
 > **Fecha:** 2026-11-11
 > **Objetivo:** Registrar y verificar los domicilios de los pacientes del reparto, programar y asignar sus entregas a un encargado de terreno, registrar con conexión si se entregaron y reprogramar las no realizadas, conservando el historial.
@@ -58,7 +59,7 @@ Revalidar cuenta activa, perfil y rol único en el servidor, como en el 02. **Ex
 - Notificación de despacho en camino y confirmación por el paciente o cuidador (HU-19, HU-22): reserva 12. Este spec no envía mensajes ni usa el teléfono del paciente salvo para mostrarlo al encargado.
 - Panel de mermas y los indicadores IG03 e IG04 (HU-20, HU-11): spec 10. Este spec deja los datos con los que se calculan.
 - Reasignación o anulación de varias entregas a la vez en Pendientes de gestión, y repartir un mismo lote entre varios encargados (la programación de varios del RF-08-17 usa un solo encargado). Preparación o armado de la bolsa en farmacia; inventario; rutas, vehículos y geolocalización en tiempo real (fuera de alcance del informe).
-- Marcar el punto del domicilio en un mapa, con latitud y longitud que se actualizan al mover el marcador: se registrará en el spec 09, que es dueño de la cartografía y ya muestra el mapa en la ficha del domicilio (decisión del usuario, 2026-11-13).
+- Marcar el punto del domicilio en un mapa, con latitud y longitud que se actualizan al mover el marcador: se registrará en el spec 09, que es dueño de la cartografía y ya muestra el mapa en la ficha del domicilio (decisión del usuario, 2026-11-13). *(Enmienda 2026-11-15: el 09 lo agrega como «Usar mapa» en el formulario del domicilio, RF-09-25. El motivo está en su tabla de decisiones revertidas.)*
 - Escribir en `Paciente` o cambiar la importación del 03. Integración con Rayén (RNF-07).
 
 ## Historias y flujo
@@ -80,10 +81,10 @@ Revalidar cuenta activa, perfil y rol único en el servidor, como en el 02. **Ex
 - **RF-08-02 — Excepciones:** CUANDO la Q.F. inscribe a un paciente no elegible por edad ni postración, EL SISTEMA guarda el motivo del catálogo, una nota opcional, quién y cuándo. Hay como máximo una inscripción vigente por paciente; no vence sola. Retirarla conserva el registro, con quién y cuándo. SI el paciente ya es elegible por edad o postración, ENTONCES no se inscribe y se informa. Retirar una excepción no cierra la entrega abierta que tenga.
 - **RF-08-03 — Registro de domicilio:** EL SISTEMA guarda un domicilio por paciente elegible, con sector MAIS, localidad, dirección, referencias y coordenadas opcionales (latitud y longitud juntas, con precisión opcional en metros). Al crearlo se ofrece la dirección del padrón como valor inicial y se recuerda esa dirección de origen. La importación del 03 nunca modifica el domicilio. SI dos personas editan el mismo domicilio a la vez, ENTONCES la segunda recibe «El domicilio cambió; revisa los datos nuevos» y no sobrescribe la primera.
 - **RF-08-04 — Verificación:** CUANDO el encargado marca un domicilio como verificado, EL SISTEMA guarda quién y cuándo, siempre que tenga sector y dirección. CUANDO cambian el sector, la localidad, la dirección, las referencias o las coordenadas, el domicilio vuelve a «pendiente de verificar». SI la dirección actual del padrón difiere de la dirección de origen recordada, ENTONCES el domicilio se muestra como pendiente con el aviso «La dirección del padrón cambió» y la dirección nueva, hasta que alguien lo guarde de nuevo. Agregar o borrar fotos no cambia la verificación.
-- **RF-08-05 — Fotos del entorno:** EL SISTEMA admite hasta tres fotos por domicilio, en JPEG o PNG de 5 MB o menos, cada una con una descripción breve y obligatoria que sirve de texto alternativo. Las recomprime a JPEG, corrige su orientación, elimina todos sus metadatos (incluida la ubicación GPS) y limita su tamaño. Las guarda fuera de los archivos públicos y solo las entrega una vista con sesión y rol, sin caché. Rechaza archivos que no son imágenes, imágenes dañadas o demasiado grandes, y una cuarta foto. El borrado elimina el archivo y queda auditado. El formulario recuerda con texto no fotografiar personas ni patentes.
+- **RF-08-05 — Fotos del entorno:** EL SISTEMA admite hasta tres fotos por domicilio, en JPEG o PNG de 5 MB o menos, cada una con una descripción breve y obligatoria que sirve de texto alternativo. Las recomprime a JPEG, corrige su orientación, elimina todos sus metadatos (incluida la ubicación GPS) y limita su tamaño. Las guarda fuera de los archivos públicos y solo las entrega una vista con sesión y rol, sin caché. Rechaza archivos que no son imágenes, imágenes dañadas o demasiado grandes, y una cuarta foto. El borrado elimina el archivo y queda auditado. El formulario recuerda con texto no fotografiar personas ni patentes. *(Enmienda 2026-11-15: las fotos se agregan y se borran en un modal que aplica todos los cambios juntos, y se ven en un visor; ver RF-08-18 y RF-08-19. Las reglas de formato, tamaño, recompresión, privacidad y auditoría no cambian.)*
 - **RF-08-06 — Programar entrega:** CUANDO la Q.F. programa una entrega para un paciente elegible a la fecha elegida, con fecha igual o posterior a hoy y un encargado con cuenta activa, EL SISTEMA crea la entrega «programada» y su primer intento, y fija como recetas de la entrega todas las elegibles a esa fecha según el 03. Excluye las recetas con un turno activo y las que esperan retiro en el 07. SI no queda ninguna receta, ENTONCES rechaza con el motivo. SI el paciente ya tiene una entrega abierta, ENTONCES rechaza y enlaza a ella; la base lo impide aunque haya dos solicitudes simultáneas. Repetir el POST no crea otra.
 - **RF-08-07 — Bloqueo de doble vía:** MIENTRAS una entrega está abierta, sus recetas no son elegibles para el tótem del 04 ni para la confirmación de entrega del 03 y del 05. El tótem omite esas recetas; si no le queda ninguna, responde «Tienes un despacho a domicilio programado. Consulta con el personal.», sin datos del paciente ni de las recetas. La confirmación en farmacia se rechaza con «La receta tiene una entrega a domicilio abierta». Al cerrarse o anularse la entrega, las recetas vuelven a ser elegibles según sus reglas.
-- **RF-08-08 — Mis entregas:** EL SISTEMA muestra al encargado solo sus intentos sin resultado: los de hoy, los atrasados (rotulados «Atrasada desde el dd/mm») y los próximos aparte. Cada uno muestra paciente, teléfono, sector y localidad, dirección, referencias, estado de verificación, fotos, coordenadas en texto y recetas con su «entrega n de m». La lista se ordena por fecha, sector y localidad; no hay mapa ni orden de visita. Indica con texto cuando no hay entregas.
+- **RF-08-08 — Mis entregas:** EL SISTEMA muestra al encargado solo sus intentos sin resultado: los de hoy, los atrasados (rotulados «Atrasada desde el dd/mm») y los próximos aparte. Cada uno muestra paciente, teléfono, sector y localidad, dirección, referencias, estado de verificación, fotos, coordenadas en texto y recetas con su «entrega n de m». La lista se ordena por fecha, sector y localidad; no hay mapa ni orden de visita. Indica con texto cuando no hay entregas. *(El orden y la presentación los cambió el spec 09. Enmienda 2026-11-15: tarjetas compactas con «Entregar», «No entregada» y «Expandir»; ver RF-09-16.)*
 - **RF-08-09 — Registrar «entregada»:** CUANDO el encargado asignado registra «entregada» en un intento sin resultado con fecha programada igual o anterior a hoy, EL SISTEMA guarda el resultado con la fecha y hora del servidor y cierra la entrega. Por cada receta de la entrega crea la entrega de receta del 03, que avanza su contador, si sigue elegible a la fecha de la visita. Las que no lo son quedan «no descontadas» con la causa del 03. El cupo nunca se excede. Repetir la operación con el mismo identificador devuelve el resultado original sin otro descuento.
 - **RF-08-10 — Registrar «no entregada»:** CUANDO el encargado asignado registra «no entregada», EL SISTEMA exige un motivo del catálogo y acepta una nota de hasta 200 caracteres (obligatoria con el motivo «Otro»). La entrega pasa a «pendiente de gestión», no descuenta nada y conserva sus recetas bloqueadas. Es idempotente como el RF-08-09.
 - **RF-08-11 — Pendientes de gestión y reasignación:** EL SISTEMA lista a la Q.F. las entregas pendientes de gestión, con su último motivo, nota, encargado, fecha e intentos previos, y permite filtrar por motivo, sector, encargado y rango de fechas. Con «Reasignar», con fecha igual o posterior a hoy y encargado activo, crea un intento nuevo y deja la entrega «programada». Los intentos anteriores no se modifican. Reasignar un intento programado sin resultado lo cierra como «reasignado» y crea el siguiente. Con «Anular», que exige un motivo de catálogo, la entrega queda «anulada» y su intento pendiente, si existe, queda «anulado».
@@ -224,6 +225,73 @@ Supuestos de la ampliación del 2026-11-13, sujetos a revisión del borrador:
 
 No hay bloqueos críticos para redactar. Por confirmar: los catálogos de motivos.
 
+## Enmienda del 2026-11-15 (Borrador)
+
+Pedida por el usuario el 2026-11-15, junto con la [enmienda del spec 09](../09-mapa-y-orden-de-visita/spec.md#enmienda-del-2026-11-15-borrador). Allí están las tarjetas compactas, el arrastre, OSRM y «Usar mapa». Este spec recibe la parte que es suya: fotos, visor y textos. Se trabaja en `crojas-base`. La versión aprobada sigue vigente hasta que el usuario apruebe la enmienda.
+
+**Objetivo de la enmienda:** gestionar las fotos del domicilio en un modal que aplica todos los cambios juntos, verlas ampliadas en un visor y aclarar dos textos.
+
+**Motivo de la reversión anotada en este spec:** la exclusión «Marcar el punto del domicilio en un mapa» ya enviaba ese cambio al 09. El 09 lo agrega ahora como «Usar mapa» (RF-09-25), porque con direcciones rurales ambiguas permite ubicar el domicilio desde la oficina, sin estar en el lugar. Las coordenadas siguen siendo opcionales y se siguen ingresando también a mano o con la ubicación del celular.
+
+**Permisos:** no cambian. Gestionan fotos el encargado, la Q.F. y el superusuario (RF-08-05). En «Mis entregas», el botón de fotos lo ve solo el encargado; en «Rutas» no aparece; en «Detalles del domicilio», lo ven los tres. El Técnico solo ve las fotos y el visor.
+
+**Fuera de la enmienda:** guardar fotos sin conexión o en cola para enviarlas después (reserva 11), editar la descripción de una foto ya guardada, recortar o girar imágenes en el navegador, más de tres fotos y cambios en `FotoDomicilio` o en el procesamiento de imágenes. La enmienda no tiene migraciones.
+
+### Requisitos de la enmienda
+
+- **RF-08-18 — Registrar o gestionar fotos en un modal** *(modifica RF-08-05 en la forma de agregar y borrar)*: EL SISTEMA muestra el botón «Registrar fotos» si el domicilio no tiene fotos y «Gestionar fotos» si tiene de 1 a 3, en la tarjeta expandida de «Mis entregas» (RF-09-16) y en «Detalles del domicilio». El botón abre un modal con:
+  - las fotos actuales, cada una con «Borrar», que la marca para borrar y se puede deshacer;
+  - espacios para fotos nuevas hasta completar 3, contando las marcadas para borrar. Con 3 fotos y ninguna marcada, solo permite borrar;
+  - en cada espacio nuevo, «Elegir archivo» y «Sacar foto» (abre la cámara del celular con `capture="environment"`; en computador abre el selector de archivos), una vista previa y la descripción obligatoria de hasta 120 caracteres, que sirve de texto alternativo;
+  - el recordatorio de no fotografiar personas ni patentes;
+  - los botones «Guardar» y «Cancelar».
+
+  Nada cambia hasta pulsar «Guardar». Entonces EL SISTEMA valida y procesa todas las fotos nuevas con las reglas del RF-08-05 y aplica en una sola transacción los borrados y las fotos nuevas: todo o nada.
+  - SI una foto nueva falla (no es imagen, está dañada, pesa más de 5 MB o le falta la descripción), ENTONCES no se aplica ningún cambio y el aviso indica cuál, numerada en el orden del modal: «La foto 2 no se pudo procesar», con el motivo. El modal sigue abierto con lo elegido.
+  - SI las fotos del domicilio cambiaron desde que se abrió el modal (otra persona agregó o borró una), ENTONCES no se aplica nada y se avisa: «Las fotos de este domicilio cambiaron en otro dispositivo. Cierra y vuelve a abrir para ver las actuales.».
+  - SI no hay conexión, ENTONCES no se guarda nada y se dice con texto (RF-09-26).
+  - «Cancelar», Esc o la X descartan todo lo elegido. El foco queda dentro del modal mientras está abierto y vuelve al botón que lo abrió.
+  - Sin JavaScript, el botón lleva a una página con el mismo formulario y las mismas reglas.
+
+  Cada foto agregada y cada foto borrada quedan en la auditoría, dentro de la misma transacción y sin datos personales. Los archivos de las fotos borradas se eliminan solo después de confirmar la transacción, y los de las fotos nuevas se eliminan si la transacción falla. Se retiran los formularios separados «Agregar foto» y «Borrar foto». Agregar o borrar fotos no cambia la verificación (RF-08-04).
+- **RF-08-19 — Visor de imagen:** CUANDO alguien que puede ver el domicilio pulsa una miniatura (en la tarjeta de «Mis entregas», en «Rutas» o en «Detalles del domicilio»), EL SISTEMA abre un visor con la imagen ampliada, su descripción como texto alternativo y como pie, y una X en la esquina (48 px o más, con el nombre «Cerrar»). Se cierra con la X, con un clic fuera de la imagen o con Esc. Mientras está abierto, el foco queda dentro del visor; al cerrar, vuelve a la miniatura. La miniatura es un botón con nombre («Ver foto ampliada: descripción»). La imagen se sirve con la vista privada actual, sin caché. Sin JavaScript, la miniatura es un enlace a la imagen.
+- **RF-08-20 — Textos:**
+  - «Ver domicilio» pasa a «Detalles del domicilio» en todos los lugares donde aparece: tarjetas, «Ir a esta parada», resumen de los marcadores, lista de Domicilios y ficha del paciente. «Registrar domicilio» y «Ver domicilios» (la lista) no cambian.
+  - «Localidad» pasa a «Nombre de la localidad» en el formulario del domicilio, en su ficha y en el filtro de «Programar entrega».
+  - Solo cambian los textos: no cambian el modelo, la base ni los valores de los filtros.
+
+### Criterios de aceptación de la enmienda
+
+| RF | Escenario | Resultado verificable |
+|---|---|---|
+| RF-08-18 | Domicilio sin fotos; con 2; con 3 | «Registrar fotos» con 3 espacios; «Gestionar fotos» con 1 espacio; con 3, solo «Borrar», y al marcar una aparece un espacio. |
+| RF-08-18 | Borrar 1 y agregar 2 (una JPEG con GPS en EXIF y una PNG) y guardar | Quedan 3 fotos JPEG sin metadatos; la borrada desaparece junto con su archivo; 3 entradas de auditoría. |
+| RF-08-18 | Agregar 2 fotos, la segunda es un PDF renombrado .jpg, más un borrado | «La foto 2 no se pudo procesar»; ningún cambio en la base ni en los archivos; el modal sigue abierto. |
+| RF-08-18 | Foto sin descripción; descripción de 121 caracteres; «Cancelar» con cambios elegidos | Rechazo con texto y sin cambios; cancelar no cambia nada. |
+| RF-08-18 | Dos dispositivos guardan desde el mismo estado; uno guarda mientras el otro borra; dos guardan agregando fotos con 2 ya guardadas | Uno gana y el otro recibe el aviso; nunca más de 3 fotos; ningún archivo huérfano (tres escenarios con hilos). |
+| RF-08-18 | El Técnico hace el POST; POST sin CSRF; sin JavaScript | 403; rechazo; la página aparte aplica las mismas reglas. |
+| RF-08-19 | Abrir una miniatura; cerrar con la X, con clic fuera y con Esc; recorrer con Tab | Imagen ampliada con su descripción; se cierra de las tres formas; el foco no sale del visor y vuelve a la miniatura. |
+| RF-08-20 | Recorrer las pantallas del 08 y el 09 | No queda «Ver domicilio»; el formulario, la ficha y el filtro dicen «Nombre de la localidad». |
+
+### No funcionales de la enmienda
+
+- RNF-05: el guardado de fotos sin archivos grandes responde en 2 s o menos en el p95. Con tres fotos de 5 MB se mide e informa aparte, sin prometer un valor para redes móviles, como la subida actual.
+- WCAG 2.1 AA (RNF-04): diálogos con nombre, foco contenido que vuelve al control que los abrió, botones de 48 px o más y errores en texto asociados a su campo y anunciados.
+- Privacidad (RNF-01): fotos privadas, sin metadatos y nunca en `/media/`. Solo imágenes sintéticas en las pruebas y en el lienzo de diseño.
+
+### Decisiones de la enmienda
+
+- **Todo o nada al guardar** (decisión del usuario). Se descarta aplicar las fotos que sí se procesaron, porque el encargado vería un estado distinto del que eligió.
+- **Un solo modal también en «Detalles del domicilio»** (decisión del usuario, recomendada). Una sola forma de gestionar fotos; se retiran los formularios separados.
+- **Cámara del celular con `capture`** (decisión del usuario, recomendada). No pide permiso de cámara al sitio. Se descarta la vista previa en vivo con `getUserMedia`.
+
+### Supuestos de la enmienda
+
+Supuestos técnicos reversibles, sujetos a la revisión del borrador:
+- Las fotos nuevas y los borrados viajan en una sola solicitud. Para saber si las fotos cambiaron, el modal envía la lista de fotos que mostró.
+- Marcar una foto para borrar libera su espacio en el mismo guardado; la regla «con 3 solo permite borrar» se aplica mientras no haya ninguna marcada.
+- La numeración del aviso («La foto 2») cuenta solo las fotos nuevas, en el orden en que aparecen en el modal.
+
 ## Revisión y cambios
 
 2026-11-11: cuatro bloques de preguntas: alcance (ciclo completo), domicilio aparte, sector MAIS con localidad y coordenadas con fotos; elegibles con excepciones, descuento al entregar, una entrega abierta por paciente y permisos; fotos, motivos, intentos y vigencia; menú, excepciones, fecha y doble vía. Se corrige el corte de edad a «mayores de 80». Se guardan los cuatro documentos como Borrador, sin código ni migraciones.
@@ -239,3 +307,7 @@ Se modifican RF-08-01 y sus criterios, y se agregan RF-08-16 y RF-08-17 y las ta
 2026-11-13 (implementación de la ampliación, `crojas-base`): T-08-09 a T-08-13 ejecutadas sin cambiar requisitos. Ajustes técnicos en [plan.md](plan.md#notas-de-implementación-de-la-ampliación-2026-11-13). El cambio de edad del 04 quedó anotado en su [spec.md](../04-emision-de-turnos/spec.md). Los rótulos «Borrador» dentro de los requisitos de la ampliación conservan el texto aprobado; la cabecera manda. Estado: sigue en **Aprobado**; quedan pendientes el navegador, axe, la usabilidad y la aceptación.
 
 2026-11-15 (nota por la enmienda del spec 04): el tótem deja de bloquear a postrados y a personas de 80 años o más, y los rechazos usan un mensaje neutro. Los criterios de RF-08-01 (fila del tótem) y RF-08-07 sobre los mensajes del tótem quedan reemplazados por los del spec 04. El bloqueo de doble vía se conserva: una receta en una entrega abierta nunca se vincula a un turno. Sin cambios en los requisitos de reparto ni en el código del 08.
+
+2026-11-15 (enmienda, Borrador): junto con la enmienda del 09, el usuario pidió el modal de fotos con guardado todo o nada, el visor de imagen y los textos «Detalles del domicilio» y «Nombre de la localidad». Se agregan RF-08-18 a RF-08-20 y las tareas T-08-14 a T-08-16 (propuestas), sin código ni migraciones. Ver [Enmienda del 2026-11-15](#enmienda-del-2026-11-15-borrador).
+
+2026-11-15 (aprobación de la enmienda): el usuario revisó el lienzo de diseño y aprobó la enmienda («Apruebo todos los cambios»). Implementación pendiente: primero T-08-14 a T-08-16, luego T-09-11 a T-09-18 del 09.
