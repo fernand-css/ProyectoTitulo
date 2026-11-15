@@ -25,6 +25,10 @@ def _preparaciones_del_turno(turno):
     return items
 
 
+# Filas a las que el personal puede mover un turno en espera (la urgencia tiene su propia acción).
+OPCIONES_FILA = [("P", "Preferencial"), ("G", "General"), ("C", "Crónicos")]
+
+
 def contexto_panel(usuario, pagina=1):
     ahora = timezone.now()
     hoy = timezone.localdate(ahora)
@@ -48,6 +52,10 @@ def contexto_panel(usuario, pagina=1):
     pagina_cola = Paginator(espera, 30).get_page(pagina)
     for turno in pagina_cola:
         turno.espera = espera_turno(turno, ahora)
+    # Consulta propia: la de la fila cuenta recetas y repetiría turnos al agrupar.
+    conteo = dict(Turno.objects.filter(fecha=hoy, estado="esperando").values_list("letra")
+        .annotate(cantidad=Count("pk")).order_by())
+    por_letra = [{"letra": letra, "cantidad": conteo.get(letra, 0)} for letra in ("P", "G", "C", "U")]
     habilitados = {tipo.codigo for vent in ventanillas if vent.habilitada and not vent.retirada for tipo in vent.tipos.all()}
     sin_cobertura = [etiqueta for codigo, etiqueta in TIPOS_VENTANILLA if codigo not in habilitados and espera.filter(tipo_atencion=codigo).exists()]
     from .espera import estimar_espera
@@ -60,5 +68,72 @@ def contexto_panel(usuario, pagina=1):
         "estimacion_preparacion": estimacion_preparacion,
         "preparaciones_vigente": preparaciones_vigente,
         "puede_ausente": bool(vigente and ahora >= vigente.ultimo_llamado + timedelta(seconds=60)),
+        "segundos_ausente": max(0, 60 - int((ahora - vigente.ultimo_llamado).total_seconds())) if vigente else 0,
+        "por_letra": por_letra, "opciones_dialogo": OPCIONES_FILA,
         "nonce_iniciar": uuid.uuid4(), "nonce_pausar": uuid.uuid4(), "nonce_liberar": uuid.uuid4(),
         "nonce_rellamar": uuid.uuid4(), "nonce_ausente": uuid.uuid4()}
+
+
+# ---- Página «Ventanillas» de la Q.F.: tarjetas por ventanilla, resumen y orden de llamado ----
+
+LETRA_DE_TIPO = {"preferencial": "P", "general": "G", "cronicos": "C", "urgencia": "U"}
+NOMBRE_DE_LETRA = {"P": "preferencial", "G": "general", "C": "crónicos", "U": "urgencia"}
+ESTADOS_VENTANILLA = {
+    "atendiendo": "Atendiendo", "esperando": "Esperando turno", "pausa": "En pausa",
+    "libre": "Libre", "cerrada": "Cerrada",
+}
+
+
+def _enumerar(palabras):
+    return palabras[0] if len(palabras) == 1 else ", ".join(palabras[:-1]) + " y " + palabras[-1]
+
+
+def _orden_de_llamado(config):
+    """Secuencia del ciclo (P, P, C, G con pesos 2:1:1). Con muchos pasos se resume por cantidad."""
+    if config is None:
+        return None
+    pesos = [("P", config.peso_preferencial), ("C", config.peso_cronicos), ("G", config.peso_general)]
+    total = sum(peso for _, peso in pesos)
+    nombres = {"P": ("preferencial", "preferenciales"), "C": ("crónico", "crónicos"), "G": ("general", "generales")}
+    frase = _enumerar([f"{peso} {nombres[letra][peso != 1]}" for letra, peso in pesos])
+    return {"secuencia": [letra for letra, peso in pesos for _ in range(peso)] if total <= 8 else None,
+            "pesos": pesos, "frase": frase}
+
+
+def contexto_gestion(usuario):
+    datos = contexto_panel(usuario)
+    hoy = datos["hoy"]
+    from .models import OcupacionVentanilla
+    terminos = {}
+    for ocupacion in OcupacionVentanilla.objects.filter(motivo="termino_turno", cierre__isnull=False).order_by("cierre"):
+        if timezone.localdate(ocupacion.cierre) == hoy:
+            terminos[ocupacion.ventanilla_id] = ocupacion.cierre
+    activas, retiradas = [], []
+    for vent in datos["ventanillas"]:
+        if vent.retirada:
+            retiradas.append(vent)
+            continue
+        if not vent.habilitada:
+            vent.estado_clave = "cerrada"
+        elif vent.turno_actual:
+            vent.estado_clave = "atendiendo"
+        elif vent.operador_id and vent.activa_hoy:
+            vent.estado_clave = "esperando"
+        elif vent.operador_id:
+            vent.estado_clave = "pausa"
+        else:
+            vent.estado_clave = "libre"
+        vent.estado_texto = ESTADOS_VENTANILLA[vent.estado_clave]
+        admitidas = {LETRA_DE_TIPO[tipo.codigo] for tipo in vent.tipos.all()}
+        vent.letras = [letra for letra in ("P", "G", "C", "U") if letra in admitidas]
+        vent.letras_texto = ("Solo " + _enumerar([NOMBRE_DE_LETRA[l] for l in vent.letras])) if 0 < len(vent.letras) < 4 else ""
+        vent.letra_actual = vent.turno_actual[:1] if vent.turno_actual else ""
+        vent.termino = terminos.get(vent.pk) if vent.estado_clave == "cerrada" else None
+        vent.puede_terminar = bool(vent.operador_id or vent.habilitada)
+        activas.append(vent)
+    cuenta = lambda *claves: sum(v.estado_clave in claves for v in activas)
+    datos.update(ventanillas_activas=activas, ventanillas_retiradas=retiradas,
+        resumen=[("atendiendo", "Atendiendo", cuenta("atendiendo", "esperando")), ("pausa", "En pausa", cuenta("pausa")),
+                 ("libre", "Libres", cuenta("libre")), ("cerrada", "Cerradas", cuenta("cerrada"))],
+        orden=_orden_de_llamado(datos["configuracion"]))
+    return datos

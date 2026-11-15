@@ -196,7 +196,7 @@ class VistasPersonalTests(DatosPersonal, TestCase):
         respuesta = self.client.post(url, {"operacion_id": uuid.uuid4(), "confirmar": "on"}, follow=True)
         self.assertRedirects(respuesta, reverse("turnosapp:gestion"))
         self.assertContains(respuesta, "volvió a la fila")
-        self.assertContains(self.client.get(reverse("turnosapp:gestion")), "Término de turno de la ventanilla")
+        self.assertContains(self.client.get(reverse("turnosapp:gestion")), 'Terminar turno<span class="sr-only"> de la ventanilla')
 
     def test_tecnico_no_abre_termino_de_ventanilla_ajena(self):
         propia = self.activar(1, TODOS)
@@ -217,7 +217,8 @@ class VistasPersonalTests(DatosPersonal, TestCase):
         self.assertRedirects(respuesta, reverse("turnosapp:comprobante_personal", kwargs={"pk": turno.pk}))
         pagina = self.client.get(respuesta.url)
         self.assertContains(pagina, "U-001")
-        self.assertContains(pagina, "Reemplaza a su número anterior " + anterior)
+        self.assertContains(pagina, f"Reemplaza a tu número anterior, {anterior}.")
+        self.assertContains(pagina, "Muestra esta pantalla al paciente.")
         self.assertContains(pagina, "Listo, volver al panel")
         self.assertNotContains(pagina, turno.rut)
         self.assertNotIn("window.print", pagina.content.decode())
@@ -226,6 +227,10 @@ class VistasPersonalTests(DatosPersonal, TestCase):
         self.assertIn("no-store", pdf["Cache-Control"])
         self.assertIn(b"U-001", pdf.content)
         self.assertIn(b"Reemplaza a tu n", pdf.content)
+        self.assertIn(b"Tu nuevo n", pdf.content)
+        self.assertIn(b"Hora del cambio", pdf.content)
+        self.assertIn(b"antes que a los dem", pdf.content)  # pasos propios de la urgencia
+        self.assertNotIn(b"foto", pdf.content)
         self.assertNotIn(turno.rut.encode(), pdf.content)
         # Otro integrante del personal no abre el comprobante ajeno.
         self.client.force_login(self.personal["qf"])
@@ -253,3 +258,108 @@ class VistasPersonalTests(DatosPersonal, TestCase):
         self.assertEqual(cliente.get(reverse("turnosapp:urgencia", kwargs={"pk": turno.pk})).status_code, 405)
         turno.refresh_from_db()
         self.assertEqual(turno.letra, "G")
+
+
+class PanelDisenoTests(DatosPersonal, TestCase):
+    """Panel de atención según el diseño: letras, acciones por turno y término desde el panel."""
+
+    def test_fila_muestra_conteo_por_letra_y_acciones_por_turno(self):
+        for tipo in ("preferencial", "preferencial", "general", "cronicos"):
+            self.turno(tipo)
+        urgente = self.turno("general")
+        atencion.marcar_urgencia(self.personal["qf"], urgente.pk, uuid.uuid4())
+        self.client.force_login(self.personal["tecnico"])
+        html = self.client.get(reverse("turnosapp:estado")).json()["html"]
+        for letra, cantidad in (("P", 2), ("G", 1), ("C", 1), ("U", 1)):
+            self.assertIn(f'<li data-letra="{letra}"><strong>{letra}</strong> {cantidad}</li>', html)
+        normal = Turno.objects.filter(letra="P").first()
+        self.assertIn(reverse("turnosapp:historial", kwargs={"pk": normal.pk}) + "#urgencia", html)
+        self.assertIn(reverse("turnosapp:historial", kwargs={"pk": normal.pk}) + "#cambio-titulo", html)
+        # Un U ya no ofrece cambio de fila ni urgencia.
+        self.assertNotIn(reverse("turnosapp:historial", kwargs={"pk": urgente.pk}) + "#urgencia", html)
+
+    def test_cuenta_regresiva_de_no_se_presento_y_textos_del_diseno(self):
+        self.activar(1, TODOS)
+        self.turno()
+        procesar_pendiente(self.pendiente().pk)
+        Turno.objects.filter(estado="llamado").update(ultimo_llamado=self.ahora - timedelta(seconds=40))
+        self.client.force_login(self.personal["tecnico"])
+        html = self.client.get(reverse("turnosapp:estado")).json()["html"]
+        self.assertIn("No se presentó · disponible en 20 s", html)
+        for texto in ("Volver a llamar", "Finalizar y registrar entregas", "Pausar llamados", "Terminar mi turno"):
+            self.assertIn(texto, html)
+        self.assertIn("deja la ventanilla deshabilitada", html)
+
+    def test_qf_termina_o_abre_ventanillas_desde_el_panel(self):
+        ocupada = self.activar(1, TODOS)
+        cerrada = Ventanilla.objects.get(numero=4)
+        Ventanilla.objects.filter(pk=cerrada.pk).update(habilitada=False)
+        self.client.force_login(self.personal["qf"])
+        html = self.client.get(reverse("turnosapp:estado")).json()["html"]
+        self.assertIn(reverse("turnosapp:terminar_turno", kwargs={"pk": ocupada.pk}), html)
+        self.assertIn(reverse("turnosapp:ventanilla_configurar", kwargs={"pk": cerrada.pk}), html)
+        self.assertNotIn(reverse("turnosapp:terminar_turno", kwargs={"pk": cerrada.pk}), html)
+        # El Técnico no ve los botones de supervisión.
+        self.client.force_login(self.personal["tecnico"])
+        html = self.client.get(reverse("turnosapp:estado")).json()["html"]
+        self.assertNotIn(reverse("turnosapp:ventanilla_configurar", kwargs={"pk": cerrada.pk}), html)
+
+
+class ModalesCambioTests(DatosPersonal, TestCase):
+    """Cambio de fila y urgencia en modal (panel) y como tarjetas con confirmación (historial)."""
+
+    def test_panel_incluye_modales_y_disparadores_con_la_accion_del_turno(self):
+        turno = self.turno("cronicos")
+        self.client.force_login(self.personal["tecnico"])
+        panel = self.client.get(reverse("turnosapp:panel")).content.decode()
+        for identificador in ('id="dialogo-fila"', 'id="dialogo-urgencia"', "js/cambio_turno.js", "La urgencia no se puede quitar"):
+            self.assertIn(identificador, panel)
+        self.assertIn(f'data-abrir="fila" data-codigo="{turno.codigo}" data-letra="C" '
+                      f'data-accion="{reverse("turnosapp:reclasificar", kwargs={"pk": turno.pk})}"', panel)
+        self.assertIn(f'data-abrir="urgencia" data-codigo="{turno.codigo}"', panel)
+        # Los modales quedan fuera del contenido que se refresca solo.
+        estado = self.client.get(reverse("turnosapp:estado")).json()["html"]
+        self.assertNotIn('id="dialogo-fila"', estado)
+
+    def test_historial_ofrece_filas_como_tarjetas_sin_la_actual(self):
+        turno = self.turno("cronicos")
+        self.client.force_login(self.personal["qf"])
+        html = self.client.get(reverse("turnosapp:historial", kwargs={"pk": turno.pk})).content.decode()
+        bloque = html.split('id="cambio-titulo"', 1)[1].split("</section>", 1)[0]
+        self.assertIn('name="letra" value="P"', bloque)
+        self.assertIn('name="letra" value="G"', bloque)
+        self.assertNotIn('name="letra" value="C"', bloque)
+        self.assertNotIn("<select", bloque)
+        self.assertIn('data-abrir="urgencia"', html)
+
+
+class GestionDisenoTests(DatosPersonal, TestCase):
+    """Página «Ventanillas» por tarjetas: resumen, orden de llamado, estados, letras y acciones."""
+
+    def test_tarjetas_resumen_y_orden_de_llamado(self):
+        atendiendo = self.activar(1, TODOS)
+        self.turno("preferencial")
+        procesar_pendiente(self.pendiente().pk)
+        pausada = self.activar(2, ("preferencial", "urgencia"))
+        Ventanilla.objects.filter(pk=pausada.pk).update(automatico=False)
+        cerrada = self.activar(3, TODOS)  # ocupada: su término deja la hora de cierre
+        atencion.terminar_turno_ventanilla(self.personal["qf"], cerrada.pk, uuid.uuid4())
+        self.client.force_login(self.personal["qf"])
+        html = self.client.get(reverse("turnosapp:gestion")).content.decode()
+        for clave, cantidad in (("atendiendo", 1), ("pausa", 1), ("libre", 1), ("cerrada", 1)):
+            self.assertIn(f'<li data-estado="{clave}"><span class="vent-resumen-cifra">{cantidad}</span>', html)
+        self.assertIn("2 preferenciales, 1 crónico y 1 general por vuelta", html)
+        self.assertEqual(html.count('<li><span class="cola-letra" data-letra="P">P</span></li>'), 2)
+        self.assertIn("Solo preferencial y urgencia", html)
+        self.assertIn("Turno terminado a las", html)
+        self.assertIn(reverse("turnosapp:terminar_turno", kwargs={"pk": atendiendo.pk}), html)
+        self.assertNotIn(reverse("turnosapp:terminar_turno", kwargs={"pk": cerrada.pk}), html)
+        self.assertIn("Abrir ventanilla", html)
+
+    def test_pesos_grandes_se_resumen_por_cantidad(self):
+        from turnosapp.models import ConfiguracionCola
+        ConfiguracionCola.objects.update(peso_general=10)
+        self.client.force_login(self.personal["qf"])
+        html = self.client.get(reverse("turnosapp:gestion")).content.decode()
+        self.assertIn('data-letra="G">G</span> ×10', html)
+        self.assertIn("10 generales", html)

@@ -1,0 +1,1 @@
+{% for letra, nombre in opciones %}<label class="cola-opcion" data-opcion="{{ letra }}"><input type="radio" name="letra" value="{{ letra }}" required><span class="cola-letra" data-letra="{{ letra }}" aria-hidden="true">{{ letra }}</span><span class="cola-opcion-nombre">{{ nombre }}</span></label>{% empty %}<p>No hay otras filas disponibles para este turno.</p>{% endfor %}

@@ -6,17 +6,16 @@
 {% comment %}Spec 10, RF-10-05: el mismo comprobante del tótem, a pantalla completa en el equipo del personal. Sin impresión ni archivo guardado.{% endcomment %}
 <section class="totem totem-resultado">
 <h1 class="sr-only">Número nuevo de atención</h1>
-<div class="sr-only" role="status"><p>El número de atención nuevo es {{ datos.codigo }}. Reemplaza al número anterior {{ datos.reemplaza }}. {{ datos.espera }}</p></div>
+<div class="sr-only" role="status"><p>Tu nuevo número es {{ datos.codigo }}. Reemplaza a tu número anterior, {{ datos.reemplaza }}. {{ datos.espera }}</p></div>
 <object class="totem-pdf" type="application/pdf" data="{{ pdf_url }}#toolbar=0&amp;navpanes=0&amp;view=Fit&amp;zoom=page-fit" aria-label="Comprobante con el número nuevo {{ datos.codigo }}">
 <div class="totem-pdf-alternativa">
-<p>Tu número de atención</p>
+<p>Tu nuevo número</p>
 <p class="totem-numero">{{ datos.codigo }}</p>
-<p><strong>Reemplaza a tu número anterior</strong> ({{ datos.reemplaza }}).</p>
-<p>{{ datos.espera }}</p>
+<p><strong>Reemplaza a tu número anterior, {{ datos.reemplaza }}.</strong></p>
 </div>
 </object>
 <div class="totem-franja">
-<p>Muestra esta pantalla al paciente. Reemplaza a su número anterior {{ datos.reemplaza }}.</p>
+<p>Muestra esta pantalla al paciente.</p>
 <a class="boton" href="{% url 'turnosapp:panel' %}">Listo, volver al panel</a>
 </div>
 </section>

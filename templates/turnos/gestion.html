@@ -1,6 +1,39 @@
 {% extends 'turnos/base_personal.html' %}
 {% block titulo %}Ventanillas · Farmacia{% endblock %}
-{% block turnos %}<header class="cola-cabecera"><div><h1>Ventanillas</h1><p>La configuración se aplica a los próximos llamados y conserva la atención vigente.</p></div><a class="boton" href="{% url 'turnosapp:ventanilla_nueva' %}">Agregar ventanilla</a></header>
-<section class="cola-regla"><h2>Ciclo de atención</h2>{% if configuracion %}<p><strong>{{ configuracion.peso_preferencial }} preferenciales · {{ configuracion.peso_cronicos }} crónicos · {{ configuracion.peso_general }} generales</strong></p><p>Desde 15 minutos de espera tiene prioridad el turno compatible más antiguo.</p><a href="{% url 'turnosapp:pesos' %}">Cambiar pesos</a>{% else %}<p>Solicita la preparación inicial a la administración.</p>{% endif %}</section>
-<div class="cola-tabla"><table><caption>Estado de las ventanillas</caption><thead><tr><th scope="col">Ventanilla</th><th scope="col">Estado</th><th scope="col">Tipos admitidos</th><th scope="col">Operador</th><th scope="col">Configuración</th></tr></thead><tbody>{% for vent in ventanillas %}<tr><th scope="row">{{ vent.numero }}</th><td>{% if vent.retirada %}Retirada{% elif not vent.habilitada %}Deshabilitada{% elif vent.activa_hoy %}Automático activo{% elif vent.operador_id %}Ocupada, sin nuevos llamados{% else %}Libre{% endif %}</td><td>{{ vent.tipos_texto }}</td><td>{% if vent.operador %}{{ vent.operador.get_username }}{% else %}Sin operador{% endif %}</td><td><a href="{% url 'turnosapp:ventanilla_configurar' pk=vent.pk %}">Configurar ventanilla {{ vent.numero }}</a>{% if vent.operador_id or vent.habilitada %}<br><a href="{% url 'turnosapp:terminar_turno' pk=vent.pk %}">Término de turno de la ventanilla {{ vent.numero }}</a>{% endif %}</td></tr>{% empty %}<tr><td colspan="5">No hay ventanillas preparadas.</td></tr>{% endfor %}</tbody></table></div>
+{% block turnos %}<header class="cola-cabecera vent-cabecera"><div><h1>Ventanillas</h1><p>Los cambios se aplican a los próximos llamados. La atención en curso se conserva.</p></div>
+<a class="boton vent-agregar" href="{% url 'turnosapp:ventanilla_nueva' %}"><svg class="icono" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><path d="M12 5v14M5 12h14"/></svg>Agregar ventanilla</a></header>
+
+<ul class="vent-resumen" aria-label="Resumen de hoy">{% for clave, etiqueta, cantidad in resumen %}<li data-estado="{{ clave }}"><span class="vent-resumen-cifra">{{ cantidad }}</span><span>{{ etiqueta }}</span></li>{% endfor %}</ul>
+
+<section class="vent-orden" aria-labelledby="orden-titulo">
+<div class="vent-orden-cuerpo"><h2 id="orden-titulo">Orden de llamado</h2>
+{% if orden %}<div class="vent-orden-fila">
+<span class="vent-orden-urgencia"><span class="cola-letra" data-letra="U" aria-hidden="true">U</span>Urgencia siempre primero</span>
+<span class="vent-orden-luego">después, en ciclo:</span>
+{% if orden.secuencia %}<ol class="vent-orden-ciclo" aria-label="Ciclo de llamado">{% for letra in orden.secuencia %}<li><span class="cola-letra" data-letra="{{ letra }}">{{ letra }}</span></li>{% endfor %}</ol>
+{% else %}<ul class="vent-orden-ciclo" aria-label="Turnos por vuelta">{% for letra, peso in orden.pesos %}<li><span class="cola-letra" data-letra="{{ letra }}">{{ letra }}</span> ×{{ peso }}</li>{% endfor %}</ul>{% endif %}
+</div>
+<p>{{ orden.frase }} por vuelta. Desde 15 minutos de espera tiene prioridad el turno compatible más antiguo.</p>
+{% else %}<p>Solicita la preparación inicial a la administración.</p>{% endif %}</div>
+{% if orden %}<a class="boton boton-secundario" href="{% url 'turnosapp:pesos' %}">Cambiar pesos</a>{% endif %}
+</section>
+
+<section class="vent-seccion" aria-labelledby="vent-titulo"><h2 id="vent-titulo">Estado de las ventanillas</h2>
+<ul class="vent-tarjetas">{% for vent in ventanillas_activas %}<li class="vent-tarjeta" data-estado="{{ vent.estado_clave }}">
+<div class="vent-tarjeta-cab"><h3>Ventanilla {{ vent.numero }}</h3><span class="vent-estado" data-estado="{{ vent.estado_clave }}">{{ vent.estado_texto }}</span></div>
+<div class="vent-turno">{% if vent.turno_actual %}<span class="cola-letra" data-letra="{{ vent.letra_actual }}" aria-hidden="true">{{ vent.letra_actual }}</span><span><span class="vent-turno-rotulo">Turno en curso</span><strong>{{ vent.turno_actual }}</strong></span>
+{% elif vent.estado_clave == 'cerrada' %}{% if vent.termino %}Turno terminado a las {{ vent.termino|time:'H:i' }}{% else %}No recibe turnos{% endif %}
+{% elif vent.estado_clave == 'esperando' %}Llamará al siguiente turno compatible
+{% elif vent.estado_clave == 'pausa' %}Sin turno en curso · no recibe llamados
+{% else %}Libre para que un Técnico la ocupe{% endif %}</div>
+<p class="vent-operador"><svg class="icono" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>{% if vent.operador %}{{ vent.operador.get_username }}{% else %}Sin operador{% endif %}</p>
+<div class="vent-admite"><span class="vent-admite-rotulo">Admite</span>{% if vent.letras %}<span class="vent-admite-letras">{% for letra in vent.letras %}<span class="cola-letra" data-letra="{{ letra }}">{{ letra }}</span>{% endfor %}</span>{% if vent.letras_texto %}<span class="vent-admite-texto">{{ vent.letras_texto }}</span>{% endif %}{% else %}<span class="vent-admite-texto">Ningún tipo: no recibe turnos</span>{% endif %}</div>
+<div class="vent-acciones">{% if vent.estado_clave == 'cerrada' %}<a class="boton" href="{% url 'turnosapp:ventanilla_configurar' pk=vent.pk %}">Abrir ventanilla<span class="sr-only"> {{ vent.numero }}</span></a>{% endif %}
+<a class="boton boton-secundario" href="{% url 'turnosapp:ventanilla_configurar' pk=vent.pk %}">Configurar<span class="sr-only"> ventanilla {{ vent.numero }}</span></a>
+{% if vent.puede_terminar %}<a class="boton boton-secundario cola-boton-terminar" href="{% url 'turnosapp:terminar_turno' pk=vent.pk %}">Terminar turno<span class="sr-only"> de la ventanilla {{ vent.numero }}</span></a>{% endif %}</div>
+</li>{% empty %}<li class="vent-vacia">No hay ventanillas preparadas.</li>{% endfor %}</ul>
+</section>
+
+{% if ventanillas_retiradas %}<details class="vent-retiradas"><summary>Retiradas de operación ({{ ventanillas_retiradas|length }})</summary>
+<ul>{% for vent in ventanillas_retiradas %}<li>Ventanilla {{ vent.numero }} · se conserva su historial. <a href="{% url 'turnosapp:ventanilla_configurar' pk=vent.pk %}">Configurar<span class="sr-only"> ventanilla {{ vent.numero }}</span></a></li>{% endfor %}</ul></details>{% endif %}
 {% endblock %}

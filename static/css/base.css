@@ -87,6 +87,22 @@
   --neutro-2: #5f7390;
   --neutro-3: #3b4a60;
 
+  /* Letras de la fila (P, G, C, U): blanco sobre cada una supera 4,5:1. El color acompaña a la letra escrita. */
+  --letra-p: #6d28d9;
+  --letra-g: #1d4ed8;
+  --letra-c: #0f766e;
+  --letra-u: #b42318;
+  /* Pantalla de sala: fondo oscuro para una sala iluminada y una pantalla grande. */
+  --sala-texto: #ffffff;
+  --sala-suave: #cfe0f5;
+  --sala-fondo: #0f1f36;
+  --sala-tarjeta: #1b3354;
+  --sala-pie: #172c49;
+  --sala-guia: #8fa9c8;
+  /* Unidad de la sala: sala.css la recalcula en .sala para aplicar la escala del tamaño de texto. */
+  --sala-escala: 1;
+  --sala-u: max(0.625rem, min(1rem, calc(0.8333vw * var(--sala-escala)), calc(1.35vh * var(--sala-escala))));
+
   --fuente-titulo: "Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
   --fuente-texto: "Atkinson Hyperlegible Next", "Segoe UI", system-ui, -apple-system, sans-serif;
   --ancho-contenido: 72rem;

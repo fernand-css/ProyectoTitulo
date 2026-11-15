@@ -38,6 +38,13 @@ class EstaticosTests(SimpleTestCase):
         for fondo in ("panel-fondo", "suave-fondo", "trigo-fondo"):
             self.assertGreaterEqual(contraste(variables["borde"], variables[fondo]), 3)
             self.assertGreaterEqual(contraste(variables["tinta"], variables[fondo]), 3)
+        # Sala oscura y letras de la fila: texto blanco o suave con 4,5:1; la guía punteada con 3:1.
+        for texto, fondo in (("sala-texto", "sala-fondo"), ("sala-texto", "sala-tarjeta"), ("sala-texto", "sala-pie"),
+            ("sala-suave", "sala-fondo"), ("sala-suave", "sala-tarjeta"), ("sala-suave", "sala-pie"),
+            ("sala-texto", "letra-p"), ("sala-texto", "letra-g"), ("sala-texto", "letra-c"), ("sala-texto", "letra-u")):
+            with self.subTest(texto=texto, fondo=fondo):
+                self.assertGreaterEqual(contraste(variables[texto], variables[fondo]), 4.5)
+        self.assertGreaterEqual(contraste(variables["sala-guia"], variables["sala-fondo"]), 3)
         plantilla = (settings.BASE_DIR / "templates/turnos/sala.html").read_text(encoding="utf-8")
         for recurso in ("css/sala.css", "js/sala.js"):
             self.assertTrue(finders.find(recurso))

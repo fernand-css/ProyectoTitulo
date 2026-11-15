@@ -132,7 +132,9 @@ test('pinta estado inicial, conserva el historial y conecta por ws o wss al mism
     const e = entorno({https, inicial: estado({recientes: [a], ultimo_id: 1})});
     assert.equal(e.sockets[0].url, `${https ? 'wss' : 'ws'}://sala.example/ws/sala/`);
     // RF-06-13: la pantalla usa el código del comprobante; el aviso y la voz, la frase hablada.
-    assert.equal(e.elementos['sala-ultimo'].textContent, 'Número ' + codigo(a.letra, a.numero) + ', ventanilla 1');
+    assert.equal(e.elementos['sala-ultimo'].textContent, 'Número ' + codigo(a.letra, a.numero) + ',Diríjase a ventanilla 1');
+    assert.equal(e.elementos['sala-ultimo'].dataset.letra, a.letra);
+    assert.equal(e.elementos['sala-ultimo'].dataset.accion, 'llamado');
     assert.match(e.elementos['sala-espera'].textContent, /2 personas en esperaP: 1G: 1C: 0U: 0/);
     assert.match(e.elementos['sala-ventanillas'].textContent, /Disponible/);
   }
@@ -144,7 +146,7 @@ test('estado en vivo actualiza ventanillas, espera y recientes sin recargar', ()
     ventanillas: [{numero: 1, estado: 'llamado', llamado: 21, letra: 'P'}, {numero: 2, estado: 'sin_atencion', llamado: null}],
     espera: porLetra(6, 12, 4, 0)}));
   assert.match(e.elementos['sala-conexion'].textContent, /Conectada en vivo/);
-  assert.match(e.elementos['sala-ventanillas'].textContent, /Número P-021Ventanilla 2Sin atención/);
+  assert.match(e.elementos['sala-ventanillas'].textContent, /PNúmero P-021Ventanilla 2Sin atención/);
   assert.match(e.elementos['sala-espera'].textContent, /22 personas en esperaP: 6G: 12C: 4U: 0/);
   assert.equal(e.elementos['sala-espera'].children[1].children.length, 4);
   assert.deepEqual(e.elementos['sala-espera'].children[1].children.map(n => n.dataset.letra), ['P', 'G', 'C', 'U']);
@@ -159,7 +161,7 @@ test('RF-06-13: frase con letra y sin ceros, pantalla con código P-014, y letra
   const e = entorno(); const s = e.sockets[0];
   s.mensaje(estado());
   s.mensaje({tipo: 'anuncio', ...anuncio(1, {letra: 'P', numero: 14, ventanilla: 2})});
-  assert.match(e.elementos['sala-ultimo'].textContent, /^Número P-014, ventanilla 2$/);
+  assert.match(e.elementos['sala-ultimo'].textContent, /^Número P-014,Diríjase a ventanilla 2$/);
   assert.match(e.elementos['sala-recientes'].textContent, /Número P-014, ventanilla 2/);
   const antes = e.elementos['sala-ultimo'].textContent;
   s.mensaje({tipo: 'anuncio', ...anuncio(2, {letra: 'X'})});
@@ -341,7 +343,7 @@ test('llamado y rellamado dicen exactamente la frase visual dos veces con pausa 
     const inicio = e.locuciones.length;
     s.mensaje({tipo: 'anuncio', ...a});
     assert.equal(e.elementos['sala-aviso'].textContent, frase(a));
-    assert.match(e.elementos['sala-ventanillas'].textContent, /Aviso en curso/);
+    assert.match(e.elementos['sala-ventanillas'].textContent, /Llamando/);
     assert.equal(e.elementos['sala-probar-sonido'].disabled, true);
     await e.avanzar(449); assert.equal(e.locuciones.length, inicio);
     await e.avanzar(1); assert.equal(e.locuciones.at(-1).texto, frase(a));

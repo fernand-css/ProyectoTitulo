@@ -32,10 +32,10 @@
 </div>
 </div>
 <div class="cola-acciones">
-<form method="post" action="{% url 'turnosapp:accion_turno' pk=vigente.pk accion='rellamar' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ nonce_rellamar }}"><button class="boton boton-secundario" type="submit">Re-llamar</button></form>
-<form method="post" action="{% url 'turnosapp:accion_turno' pk=vigente.pk accion='ausente' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ nonce_ausente }}"><button class="boton boton-secundario" type="submit"{% if not puede_ausente %} disabled{% endif %}>Marcar ausente</button></form>
+<form method="post" action="{% url 'turnosapp:accion_turno' pk=vigente.pk accion='rellamar' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ nonce_rellamar }}"><button class="boton boton-secundario" type="submit">Volver a llamar</button></form>
+<form method="post" action="{% url 'turnosapp:accion_turno' pk=vigente.pk accion='ausente' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ nonce_ausente }}"><button class="boton boton-secundario" type="submit"{% if not puede_ausente %} disabled{% endif %}>No se presentó{% if not puede_ausente %} · disponible en {{ segundos_ausente }} s{% endif %}</button></form>
 </div>
-<p class="suave cola-ayuda">Puedes marcar ausente un minuto después del último llamado. Re-llamar reinicia ese plazo.</p>
+<p class="suave cola-ayuda">«No se presentó» se habilita un minuto después del último llamado. Volver a llamar reinicia ese plazo.</p>
 {% if preparaciones_vigente %}
 <section class="cola-recetas" aria-labelledby="recetas-titulo">
 <h3 id="recetas-titulo">Recetas del turno</h3>
@@ -52,30 +52,38 @@
 {% endif %}
 <div class="cola-cierre">
 {% if vigente.paciente_id %}<a href="{% url 'recetasapp:paciente_detalle' pk=vigente.paciente_id %}">Ver ficha del paciente</a>{% endif %}
-<a class="boton" href="{% url 'turnosapp:finalizar_atencion' pk=vigente.pk %}">Finalizar y confirmar entregas</a>
+<a class="boton" href="{% url 'turnosapp:finalizar_atencion' pk=vigente.pk %}">Finalizar y registrar entregas</a>
 </div>
 </div>
 {% else %}<p class="cola-sin-atencion">No hay una atención en curso.</p>{% if propia.activa_hoy %}<p>El próximo turno compatible se llamará automáticamente.</p>{% endif %}{% endif %}
 <div class="cola-controles">
 <div class="cola-acciones">
-{% if propia.activa_hoy %}<form method="post" action="{% url 'turnosapp:accion_ventanilla' pk=propia.pk accion='pausar' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ nonce_pausar }}"><button class="boton boton-secundario" type="submit">Pausar nuevos llamados</button></form>
-{% elif propia.habilitada and not propia.retirada %}<form method="post" action="{% url 'turnosapp:accion_ventanilla' pk=propia.pk accion='iniciar' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ nonce_iniciar }}"><button class="boton" type="submit">Iniciar atención automática</button></form>{% endif %}
-{% if not vigente %}<form method="post" action="{% url 'turnosapp:accion_ventanilla' pk=propia.pk accion='liberar' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ nonce_liberar }}"><button class="boton boton-secundario" type="submit">Liberar ventanilla</button></form>{% endif %}
-<a class="boton boton-secundario" href="{% url 'turnosapp:terminar_turno' pk=propia.pk %}">Término de turno</a>
-</div><p class="suave cola-ayuda">Pausa antes de abandonar el puesto. Cerrar esta pestaña no detiene los llamados automáticos.</p>
+{% if propia.activa_hoy %}<form method="post" action="{% url 'turnosapp:accion_ventanilla' pk=propia.pk accion='pausar' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ nonce_pausar }}"><button class="boton boton-secundario" type="submit">Pausar llamados</button></form>
+{% elif propia.habilitada and not propia.retirada %}<form method="post" action="{% url 'turnosapp:accion_ventanilla' pk=propia.pk accion='iniciar' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ nonce_iniciar }}"><button class="boton" type="submit">Empezar a atender</button></form>{% endif %}
+{% if not vigente %}<form method="post" action="{% url 'turnosapp:accion_ventanilla' pk=propia.pk accion='liberar' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ nonce_liberar }}"><button class="boton boton-secundario" type="submit">Dejar esta ventanilla</button></form>{% endif %}
+<a class="boton boton-secundario" href="{% url 'turnosapp:terminar_turno' pk=propia.pk %}">Terminar mi turno</a>
+</div><p class="suave cola-ayuda">Pausa antes de abandonar el puesto. Cerrar esta pestaña no detiene los llamados automáticos. «Terminar mi turno» registra la hora de término y deja la ventanilla deshabilitada hasta que la Q.F. la vuelva a abrir.</p>
 </div>
 {% else %}<h2 id="puesto-titulo">Elige una ventanilla libre</h2><p>Ocúpala e inicia la atención automática cuando estés listo.</p>
 {% for vent in ventanillas %}{% if vent.habilitada and not vent.retirada and not vent.operador_id %}<form class="cola-ocupar" method="post" action="{% url 'turnosapp:accion_ventanilla' pk=vent.pk accion='ocupar' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ vent.nonce_ocupar }}"><button class="boton" type="submit">Ocupar ventanilla {{ vent.numero }}</button><span>{{ vent.tipos_texto }}</span></form>{% endif %}{% empty %}<p>No hay ventanillas preparadas.</p>{% endfor %}{% endif %}
-{% else %}<h2 id="puesto-titulo">Supervisión de la atención</h2><p>Consulta la espera y configura las ventanillas disponibles.</p><a class="boton" href="{% url 'turnosapp:gestion' %}">Gestionar ventanillas y pesos</a>{% endif %}
+{% else %}<h2 id="puesto-titulo">Supervisión de la atención</h2>
+<ul class="cola-supervision" aria-label="Ventanillas">{% for vent in ventanillas %}{% if not vent.retirada %}<li class="cola-supervision-ventanilla{% if not vent.habilitada %} cola-supervision-cerrada{% endif %}">
+<h3>Ventanilla {{ vent.numero }}</h3>
+<p class="cola-supervision-estado">{% if not vent.habilitada %}Cerrada{% elif vent.turno_actual %}Atendiendo{% elif vent.operador_id %}{% if vent.activa_hoy %}Esperando turno{% else %}En pausa{% endif %}{% else %}Sin operador{% endif %}</p>
+{% if vent.turno_actual %}<p class="cola-supervision-turno"><span class="cola-letra" data-letra="{{ vent.turno_actual|slice:':1' }}" aria-hidden="true">{{ vent.turno_actual|slice:':1' }}</span>{{ vent.turno_actual }}</p>{% endif %}
+{% if vent.operador_id or vent.habilitada %}<a class="boton boton-secundario cola-boton-terminar" href="{% url 'turnosapp:terminar_turno' pk=vent.pk %}">Terminar turno<span class="sr-only"> de la ventanilla {{ vent.numero }}</span></a>{% else %}<a class="boton boton-secundario" href="{% url 'turnosapp:ventanilla_configurar' pk=vent.pk %}">Abrir ventanilla<span class="sr-only"> {{ vent.numero }}</span></a>{% endif %}
+</li>{% endif %}{% endfor %}</ul><p>Consulta la espera y configura las ventanillas disponibles.</p><a class="boton" href="{% url 'turnosapp:gestion' %}">Gestionar ventanillas y pesos</a>{% endif %}
 </section>
 
 <div class="cola-lateral">
 <section class="cola-espera" aria-labelledby="espera-titulo"><h2 id="espera-titulo">Fila de espera <span class="cola-total">{{ pagina_cola.paginator.count }} persona{{ pagina_cola.paginator.count|pluralize }}</span></h2>
+<ul class="cola-letras" aria-label="En espera por letra">{% for item in por_letra %}<li data-letra="{{ item.letra }}"><strong>{{ item.letra }}</strong> {{ item.cantidad }}</li>{% endfor %}</ul>
 {% if configuracion %}<p class="cola-ciclo">Ciclo: {{ configuracion.peso_preferencial }} preferenciales, {{ configuracion.peso_cronicos }} crónicos y {{ configuracion.peso_general }} generales.</p>{% endif %}
 <ol class="cola-fila" aria-label="Turnos esperando en la jornada actual">
 {% for turno in pagina_cola %}<li class="cola-turno{% if turno.espera.prioridad %} cola-prioridad{% elif turno.espera.advertencia %} cola-aviso{% endif %}">
-<a class="cola-turno-numero" href="{% url 'turnosapp:historial' pk=turno.pk %}">{{ turno.codigo }}<span class="sr-only"> (ver historial, cambiar fila o marcar urgencia)</span></a>
+<span class="cola-letra" data-letra="{{ turno.letra }}" aria-hidden="true">{{ turno.letra }}</span><a class="cola-turno-numero" href="{% url 'turnosapp:historial' pk=turno.pk %}">{{ turno.codigo }}<span class="sr-only"> (ver historial)</span></a>
 <span class="cola-turno-datos"><span class="cola-turno-tipo">{{ turno.get_tipo_atencion_display }}</span><span class="cola-turno-detalle">Espera {{ turno.espera.segundos|minutos }}{% if turno.cantidad_recetas %} · {{ turno.cantidad_recetas }} receta{{ turno.cantidad_recetas|pluralize }}{% endif %}</span>{% if turno.espera.prioridad %}<strong class="cola-turno-nota">Prioridad por espera</strong>{% elif turno.espera.advertencia %}<span class="cola-turno-nota">Se acerca a 15 minutos</span>{% endif %}</span>
+{% if turno.letra != 'U' %}<span class="cola-turno-acciones"><a class="boton boton-secundario" href="{% url 'turnosapp:historial' pk=turno.pk %}#cambio-titulo" data-abrir="fila" data-codigo="{{ turno.codigo }}" data-letra="{{ turno.letra }}" data-accion="{% url 'turnosapp:reclasificar' pk=turno.pk %}" aria-haspopup="dialog">Cambiar fila<span class="sr-only"> de {{ turno.codigo }}</span></a><a class="boton boton-secundario cola-boton-urgencia" href="{% url 'turnosapp:historial' pk=turno.pk %}#urgencia" data-abrir="urgencia" data-codigo="{{ turno.codigo }}" data-letra="{{ turno.letra }}" data-accion="{% url 'turnosapp:urgencia' pk=turno.pk %}" aria-haspopup="dialog">Urgencia<span class="sr-only"> para {{ turno.codigo }}</span></a></span>{% endif %}
 </li>{% empty %}<li class="cola-vacia">No hay turnos esperando en esta jornada.</li>{% endfor %}
 </ol>
 <p class="suave cola-ayuda">La asignación respeta prioridades y los tipos admitidos por cada ventanilla.</p>
@@ -83,7 +91,7 @@
 </section>
 <section class="cola-ventanillas" aria-labelledby="ventanillas-titulo"><h2 id="ventanillas-titulo">Ventanillas</h2>
 <ul>
-{% for vent in ventanillas %}<li><strong>Ventanilla {{ vent.numero }}{% if vent.es_propia %} (la tuya){% endif %}</strong><span>{% if vent.retirada %}Retirada de operación{% elif not vent.habilitada %}Deshabilitada{% elif vent.turno_actual %}Atendiendo el turno {{ vent.turno_actual }}{% elif vent.operador_id %}{% if vent.activa_hoy %}Libre, llamando{% else %}En pausa{% endif %}{% else %}Sin operador{% endif %}</span></li>{% empty %}<li>No hay ventanillas preparadas.</li>{% endfor %}
+{% for vent in ventanillas %}<li><strong>Ventanilla {{ vent.numero }}{% if vent.es_propia %} (la tuya){% endif %}</strong><span>{% if vent.retirada %}Retirada de operación{% elif not vent.habilitada %}Deshabilitada{% elif vent.turno_actual %}Atendiendo el turno {{ vent.turno_actual }}{% elif vent.operador_id %}{% if vent.activa_hoy %}Libre, llamando{% else %}En pausa{% endif %}{% else %}Sin operador{% endif %}</span>{% if puede_gestionar and puede_operar and not vent.retirada %}{% if vent.operador_id or vent.habilitada %}<a class="boton boton-secundario cola-boton-terminar" href="{% url 'turnosapp:terminar_turno' pk=vent.pk %}">Terminar turno<span class="sr-only"> de la ventanilla {{ vent.numero }}</span></a>{% else %}<a class="boton boton-secundario" href="{% url 'turnosapp:ventanilla_configurar' pk=vent.pk %}">Abrir ventanilla<span class="sr-only"> {{ vent.numero }}</span></a>{% endif %}{% endif %}</li>{% empty %}<li>No hay ventanillas preparadas.</li>{% endfor %}
 </ul>
 </section>
 </div>

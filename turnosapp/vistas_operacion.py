@@ -21,7 +21,7 @@ from .cola import procesar_seguro
 from .comprobante import generar_comprobante
 from .forms import OperacionForm, VentanillaForm, PesosForm, FinalizarForm, ReclasificarForm, TerminarTurnoForm
 from .models import ConfiguracionCola, PendienteSeleccion, Turno, Ventanilla
-from .panel import contexto_panel
+from .panel import OPCIONES_FILA, contexto_gestion, contexto_panel
 
 
 @method_decorator(never_cache, name="dispatch")
@@ -81,7 +81,7 @@ class GestionView(TurnosView):
     roles_permitidos = (JEFA,)
 
     def get(self, request):
-        return self.render("gestion.html", contexto_panel(request.user))
+        return self.render("gestion.html", contexto_gestion(request.user))
 
 
 class VentanillaView(TurnosView):
@@ -194,7 +194,8 @@ class HistorialView(TurnosView):
             "eventos": eventos,
             "cierre": getattr(turno, "cierre_atencion", None), "puede_operar": tiene_rol(request.user, TECNICO),
             "hoy": timezone.localdate(), "nonce_reincorporar": uuid.uuid4(),
-            "puede_cambiar": puede_cambiar, "form_reclasificar": ReclasificarForm(), "nonce_urgencia": uuid.uuid4()})
+            "puede_cambiar": puede_cambiar, "form_reclasificar": ReclasificarForm(), "nonce_urgencia": uuid.uuid4(),
+            "opciones_fila": [o for o in OPCIONES_FILA if o[0] != turno.letra], "opciones_dialogo": OPCIONES_FILA})
 
 
 class ReintentarView(TurnosView):
@@ -300,7 +301,8 @@ def _datos_comprobante(turno, evento):
     espera = ("Tienes prioridad: te llamaremos antes que a los demás números." if turno.letra == "U"
         else estimar_espera().frase)
     return {"codigo": turno.codigo, "letra": turno.letra, "fecha": turno.fecha.strftime("%d/%m/%Y"),
-        "hora": timezone.localtime(turno.creado_en).strftime("%H:%M"), "espera": espera,
+        # Hora del cambio: el número nuevo nace con la reclasificación o la urgencia.
+        "hora": timezone.localtime(evento.instante).strftime("%H:%M"), "espera": espera,
         "renovacion": bool(turno.paciente and requiere_renovacion(turno.paciente, turno.fecha)),
         "reemplaza": f"{evento.letra_anterior}-{evento.numero_anterior:03d}"}
 

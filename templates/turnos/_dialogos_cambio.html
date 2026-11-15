@@ -1,0 +1,19 @@
+{% comment %}Modales de cambio de fila y urgencia. Fuera del contenido que el panel refresca solo, para que
+la actualización automática no los cierre. Los abre js/cambio_turno.js; sin JavaScript se usa el historial.{% endcomment %}
+<dialog class="cola-dialogo" id="dialogo-fila" aria-labelledby="dialogo-fila-titulo">
+<form method="post">{% csrf_token %}<input type="hidden" name="operacion_id" data-operacion>
+<h2 id="dialogo-fila-titulo">Cambiar de fila el turno <span data-codigo></span></h2>
+<p>Recibe un número nuevo de la fila que elijas y conserva su antigüedad. Después se abre el comprobante para mostrárselo al paciente.</p>
+<fieldset class="cola-opciones-fila"><legend>Nueva fila</legend>
+{% include 'turnos/_opciones_fila.html' with opciones=opciones_dialogo %}
+</fieldset>
+<div class="cola-dialogo-acciones"><button class="boton" type="submit">Cambiar de fila</button><button class="boton boton-secundario" type="button" data-cerrar>Cancelar</button></div>
+</form>
+</dialog>
+<dialog class="cola-dialogo" id="dialogo-urgencia" aria-labelledby="dialogo-urgencia-titulo" aria-describedby="dialogo-urgencia-texto">
+<form method="post">{% csrf_token %}<input type="hidden" name="operacion_id" data-operacion>
+<h2 id="dialogo-urgencia-titulo">¿Marcar el turno <span data-codigo></span> como urgencia?</h2>
+<p id="dialogo-urgencia-texto">Recibirá un número U y se llamará antes que cualquier otro turno. <strong>La urgencia no se puede quitar después.</strong></p>
+<div class="cola-dialogo-acciones"><button class="boton boton-urgencia" type="submit">Sí, marcar urgencia</button><button class="boton boton-secundario" type="button" data-cerrar>Cancelar</button></div>
+</form>
+</dialog>

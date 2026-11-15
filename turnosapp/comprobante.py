@@ -38,7 +38,14 @@ PASOS = (
     "Te llamaremos por tu número, en la pantalla y por voz.",
     "Acércate a la ventanilla que indique la pantalla.",
 )
+# Número nuevo de urgencia: pasos propios, con el código que se anunciará.
+PASOS_URGENCIA = (
+    "Quédate cerca de las ventanillas.",
+    "Te llamaremos antes que a los demás números.",
+    "Escucha y mira la pantalla: dirá {codigo} y la ventanilla.",
+)
 NORMAL, NEGRITA = "Helvetica", "Helvetica-Bold"
+ACENTO = HexColor("#244bc3")
 
 
 def _texto(lienzo, x, y, texto, fuente, tamano, color=TINTA):
@@ -111,13 +118,16 @@ def generar_comprobante(datos):
 
     interior = ANCHO - 2 * MARGEN - 80  # ancho útil dentro de la tarjeta
     x_texto = MARGEN + 40
-    alto_espera = _alto_parrafo(datos["espera"], NORMAL, 36, interior - 60, 46) + 56
+    reemplaza = datos.get("reemplaza")
+    # Número nuevo: el recuadro de espera pasa a decir a qué número reemplaza.
+    texto_caja = f"Reemplaza a tu número anterior, {reemplaza}." if reemplaza else datos["espera"]
+    pasos = (tuple(paso.format(codigo=datos["codigo"]) for paso in PASOS_URGENCIA)
+             if reemplaza and datos["letra"] == "U" else PASOS)
+    alto_espera = _alto_parrafo(texto_caja, NEGRITA, 36, interior - 140, 46) + 56
     alto_aviso = 180 if datos.get("renovacion") else 0
-    alto_reemplazo = 170 if datos.get("reemplaza") else 0
-    alto_pasos = sum(_alto_parrafo(paso, NORMAL, 34, interior - 90, 42) + 36 for paso in PASOS)
+    alto_pasos = sum(_alto_parrafo(paso, NORMAL, 34, interior - 90, 42) + 36 for paso in pasos)
     superior = 420
-    alto_tarjeta = (superior + 40 + 180 + alto_espera + 30 + alto_aviso + (30 if alto_aviso else 0)
-                    + alto_reemplazo + (30 if alto_reemplazo else 0) + 80 + alto_pasos + 90)
+    alto_tarjeta = superior + 40 + 180 + alto_espera + 30 + alto_aviso + (30 if alto_aviso else 0) + 80 + alto_pasos + 90
     tope = ALTO - 250
     base = tope - alto_tarjeta
 
@@ -130,7 +140,7 @@ def generar_comprobante(datos):
     lienzo.roundRect(MARGEN, tope - superior, ANCHO - 2 * MARGEN, superior, 40, stroke=0, fill=1)
     lienzo.rect(MARGEN, tope - superior, ANCHO - 2 * MARGEN, 50, stroke=0, fill=1)
 
-    _centrado(lienzo, tope - 85, "Tu número de atención", NEGRITA, 48, white)
+    _centrado(lienzo, tope - 85, "Tu nuevo número" if reemplaza else "Tu número de atención", NEGRITA, 48, white)
     tamano = 210
     while lienzo.stringWidth(datos["codigo"], NEGRITA, tamano) > interior and tamano > 120:
         tamano -= 10
@@ -155,7 +165,7 @@ def generar_comprobante(datos):
     y -= 70
     mitad = ANCHO / 2 + 20
     _texto(lienzo, x_texto, y, "Fecha", NORMAL, 34)
-    _texto(lienzo, mitad, y, "Hora de llegada", NORMAL, 34)
+    _texto(lienzo, mitad, y, "Hora del cambio" if reemplaza else "Hora de llegada", NORMAL, 34)
     y -= 66
     _texto(lienzo, x_texto, y, datos["fecha"], NEGRITA, 56)
     _texto(lienzo, mitad, y, datos["hora"], NEGRITA, 56)
@@ -164,7 +174,10 @@ def generar_comprobante(datos):
     y -= 44
     lienzo.setFillColor(CAJA_ESPERA)
     lienzo.roundRect(x_texto, y - alto_espera, interior, alto_espera, 24, stroke=0, fill=1)
-    _parrafo(lienzo, x_texto + 30, y - 48, datos["espera"], NORMAL, 36, interior - 60, 46)
+    centro_icono = (x_texto + 58, y - alto_espera / 2)
+    (_icono_flecha if reemplaza else _icono_reloj)(lienzo, *centro_icono)
+    lineas = len(simpleSplit(texto_caja, NEGRITA, 36, interior - 140))
+    _parrafo(lienzo, x_texto + 110, y - (alto_espera - lineas * 46) / 2 - 33, texto_caja, NEGRITA, 36, interior - 140, 46)
     y -= alto_espera + 30
 
     if alto_aviso:
@@ -183,30 +196,19 @@ def generar_comprobante(datos):
                  NORMAL, 30, interior - 145, 38)
         y -= alto_aviso + 30
 
-    if alto_reemplazo:
-        # Spec 10, RF-10-05: el número nuevo reemplaza al anterior; texto, no solo color.
-        lienzo.setFillColor(CAJA_ESPERA)
-        lienzo.setStrokeColor(TINTA)
-        lienzo.setLineWidth(5)
-        lienzo.roundRect(x_texto, y - alto_reemplazo, interior, alto_reemplazo, 24, stroke=1, fill=1)
-        _texto(lienzo, x_texto + 40, y - 70, "Reemplaza a tu número anterior", NEGRITA, 44)
-        _parrafo(lienzo, x_texto + 40, y - 120,
-                 f"Tu número anterior era {datos['reemplaza']}. Espera el llamado con este número.",
-                 NORMAL, 30, interior - 80, 38)
-        y -= alto_reemplazo + 30
-
     # Qué hacer ahora.
     y -= 50
     _texto(lienzo, x_texto, y, "Qué hacer ahora", NEGRITA, 46)
     y -= 30
-    for numero, paso in enumerate(PASOS, start=1):
+    for numero, paso in enumerate(pasos, start=1):
         y -= 36 + 6
         lienzo.setFillColor(TINTA)
         lienzo.circle(x_texto + 28, y + 12, 28, stroke=0, fill=1)
         _centrado_en(lienzo, x_texto + 28, y, str(numero))
         y = _parrafo(lienzo, x_texto + 90, y, paso, NORMAL, 34, interior - 90, 42) + 6
     y -= 20
-    _texto(lienzo, x_texto, y - 20, "Si quieres recordarlo, sácale una foto a esta pantalla.", NORMAL, 32)
+    if not reemplaza:
+        _texto(lienzo, x_texto, y - 20, "Si quieres recordarlo, sácale una foto a esta pantalla.", NORMAL, 32)
 
     lienzo.showPage()
     lienzo.save()
@@ -217,3 +219,22 @@ def _centrado_en(lienzo, x, y, texto):
     lienzo.setFillColor(white)
     lienzo.setFont(NEGRITA, 34)
     lienzo.drawCentredString(x, y, texto)
+
+
+def _icono_reloj(lienzo, x, y):
+    """Reloj de trazo, decorativo: el texto del recuadro dice lo mismo."""
+    lienzo.setStrokeColor(ACENTO)
+    lienzo.setLineWidth(5)
+    lienzo.circle(x, y, 26, stroke=1, fill=0)
+    lienzo.line(x, y, x, y + 15)
+    lienzo.line(x, y, x + 11, y - 8)
+
+
+def _icono_flecha(lienzo, x, y):
+    lienzo.setStrokeColor(ACENTO)
+    lienzo.setLineWidth(6)
+    lienzo.setLineCap(1)
+    lienzo.line(x - 24, y, x + 20, y)
+    lienzo.line(x + 4, y + 16, x + 20, y)
+    lienzo.line(x + 4, y - 16, x + 20, y)
+    lienzo.setLineCap(0)

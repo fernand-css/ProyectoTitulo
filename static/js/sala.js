@@ -298,24 +298,39 @@
         numero.dataset.letra = ultimo.letra;
         const coma = nodo("span", ","); coma.className = "sr-only";
         const destino = nodo("span"); destino.className = "sala-destino";
-        destino.append(d.createTextNode(" ventanilla "), nodo("strong", String(ultimo.ventanilla)));
+        const guia = nodo("span", "Diríjase a"); guia.className = "sala-destino-guia";
+        const rotuloVentanilla = nodo("span", "ventanilla"); rotuloVentanilla.className = "sala-destino-rotulo";
+        destino.append(guia, d.createTextNode(" "), rotuloVentanilla, d.createTextNode(" "), nodo("strong", String(ultimo.ventanilla)));
         elementos.ultimo.replaceChildren(rotulo, numero, coma, destino);
       } else if (!ultimo && elementos.ultimo.textContent !== "Aún no hay llamados hoy.") {
         const vacio = nodo("p", "Aún no hay llamados hoy."); vacio.className = "sala-vacio";
         elementos.ultimo.replaceChildren(vacio);
       }
       elementos.ultimo.dataset.anuncioId = ultimo ? String(ultimo.id) : "";
+      // El color de la franja sale de la letra y el borde del re-llamado, de la acción (sala.css).
+      elementos.ultimo.dataset.letra = ultimo ? ultimo.letra : "";
+      elementos.ultimo.dataset.accion = ultimo ? ultimo.accion : "";
       const tarjetas = estado.ventanillas.map(v => {
         const tarjeta = nodo("article");
         tarjeta.className = "sala-ventanilla";
         tarjeta.dataset.ventanilla = String(v.numero);
-        const contenido = nodo("p", v.estado === "llamado" ? "Número " + codigo(v.letra, v.llamado) :
-          (v.estado === "disponible" ? "Disponible" : "Sin atención"));
-        if (v.estado === "llamado") contenido.className = "sala-turno";
+        tarjeta.dataset.estado = v.estado;
+        let contenido;
+        if (v.estado === "llamado") {
+          contenido = nodo("p");
+          contenido.className = "sala-turno";
+          const letra = nodo("span", v.letra); letra.className = "sala-letra";
+          letra.dataset.letra = v.letra; letra.setAttribute("aria-hidden", "true");
+          const lector = nodo("span", "Número "); lector.className = "sr-only";
+          contenido.append(letra, lector, d.createTextNode(codigo(v.letra, v.llamado)));
+        } else {
+          contenido = nodo("p", v.estado === "disponible" ? "Disponible" : "Sin atención");
+        }
         tarjeta.append(nodo("h3", "Ventanilla " + v.numero), contenido);
         if (sonido && sonido.actual && sonido.actual.ventanilla === v.numero) {
           tarjeta.className += " sala-ventanilla-sonando";
-          const marca = nodo("p", "Aviso en curso"); marca.className = "sala-marca-aviso";
+          const marca = nodo("p", sonido.actual.accion === "rellamado" ? "Llamando de nuevo" : "Llamando");
+          marca.className = "sala-marca-aviso";
           tarjeta.append(marca);
         }
         return tarjeta;
@@ -341,7 +356,8 @@
         lista.append(...estado.espera.por_letra.map(item => {
           const fila = nodo("li");
           fila.dataset.letra = item.letra;
-          fila.append(nodo("strong", item.letra), d.createTextNode(": " + item.cantidad));
+          const separador = nodo("span", ":"); separador.className = "sr-only";
+          fila.append(nodo("strong", item.letra), separador, d.createTextNode(" " + item.cantidad));
           return fila;
         }));
         elementos.espera.replaceChildren(cantidad, lista);

@@ -112,7 +112,7 @@ class PanelTests(DatosCierre, TestCase):
         self.assertContains(respuesta, "Gestionar ventanillas y pesos")
         self.assertContains(respuesta, "Preparación de recetas")
         self.assertContains(respuesta, "Abrir Preparación")
-        self.assertNotContains(respuesta, "Finalizar y confirmar entregas")
+        self.assertNotContains(respuesta, "Finalizar y registrar entregas")
         self.assertEqual(self.client.post(self.url("finalizar_atencion", pk=self.actual.pk), self.cierre()).status_code, 403)
         self.assertEqual(self.client.get(self.url("gestion")).status_code, 200)
 
@@ -217,7 +217,7 @@ class AtencionReorganizadaTests(DatosCierre, TestCase):
         self.assertIn("Ventanilla 1", html)
         self.assertIn("Paciente sintético Cola", html)
         self.assertIn(f'href="{reverse("recetasapp:paciente_detalle", args=[self.actual.paciente_id])}">Ver ficha del paciente</a>', html)
-        self.assertIn("Finalizar y confirmar entregas", html)
+        self.assertIn("Finalizar y registrar entregas", html)
         self.assertIn('class="cola-puesto cola-puesto-activo"', html)
 
     def test_la_fila_dice_cuantas_recetas_trae_cada_turno(self):
@@ -251,7 +251,7 @@ class AtencionReorganizadaTests(DatosCierre, TestCase):
         self.assertIn("Fila de espera", html)
         self.assertIn("Ventanillas", html)
         self.assertIn("Gestionar ventanillas y pesos", html)
-        for ausente in ("Re-llamar", "Marcar lista", "Finalizar y confirmar entregas", "Ver ficha del paciente"):
+        for ausente in ("Volver a llamar", "Marcar lista", "Finalizar y registrar entregas", "Ver ficha del paciente"):
             self.assertNotIn(ausente, html)
 
     def test_las_migas_dicen_atencion(self):

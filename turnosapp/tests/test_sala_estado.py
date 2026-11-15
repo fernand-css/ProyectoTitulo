@@ -76,7 +76,7 @@ class EstadoSalaTests(DatosCola, TestCase):
         self.assertContains(respuesta, "22 personas en espera")
         bloque = respuesta.content.decode().split('id="sala-espera"', 1)[1].split("</section>", 1)[0]
         for letra, cantidad in (("P", 6), ("G", 12), ("C", 4), ("U", 0)):
-            self.assertIn(f"<strong>{letra}</strong>: {cantidad}</li>", bloque)
+            self.assertIn(f'<strong>{letra}</strong><span class="sr-only">:</span> {cantidad}</li>', bloque)
         self.assertNotIn("Números en espera", bloque)
         self.assertNotContains(respuesta, "próximos")
         self.assertNotContains(respuesta, "estimado")
@@ -92,7 +92,7 @@ class EstadoSalaTests(DatosCola, TestCase):
         ultimo = html.split('id="sala-ultimo"', 1)[1].split("</div>", 1)[0]
         self.assertIn('data-letra="P">P-014</strong>', ultimo)
         tarjeta = html.split('data-ventanilla="1"', 1)[1].split("</article>", 1)[0]
-        self.assertIn("Número P-014", tarjeta)
+        self.assertIn('data-letra="P" aria-hidden="true">P</span><span class="sr-only">Número </span>P-014', tarjeta)
         recientes = html.split('<ol id="sala-recientes">', 1)[1].split("</ol>", 1)[0]
         self.assertIn("Número P-014, ventanilla 1", recientes)
 
