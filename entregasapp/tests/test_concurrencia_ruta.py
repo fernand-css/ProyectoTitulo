@@ -77,15 +77,18 @@ class ConcurrenciaRutaTests(TransactionTestCase):
         for vuelta in range(3):
             with self.subTest(vuelta=vuelta):
                 version = ruta_del_dia(self.encargado).version
+                # Posiciones absolutas, válidas en cualquier orden de cuatro paradas. Con «subir»/«bajar», el
+                # ganador de la vuelta anterior podía dejar una parada en un extremo: ese movimiento fallaba con
+                # «ya es la primera/última», se revertía y otro se aplicaba, y el aviso esperado no llegaba.
                 resultados = self.competir([
                     lambda: mover_parada(self.encargado, intentos[3].pk, "1", version, uuid.uuid4()),
-                    lambda: mover_parada(self.encargado, intentos[1].pk, "bajar", version, uuid.uuid4()),
-                    lambda: mover_parada(self.encargado, intentos[2].pk, "subir", version, uuid.uuid4()),
+                    lambda: mover_parada(self.encargado, intentos[1].pk, "4", version, uuid.uuid4()),
+                    lambda: mover_parada(self.encargado, intentos[2].pk, "2", version, uuid.uuid4()),
                 ])
                 self.assertEqual(len(self.aplicadas(resultados)), 1)
                 avisos = self.avisos(resultados)
                 self.assertEqual(len(avisos), 2)
-                self.assertTrue(all(r.messages == [MENSAJE_ORDEN_CAMBIO] for r in avisos))
+                self.assertTrue(all(r.messages == [MENSAJE_ORDEN_CAMBIO] for r in avisos), [r.messages for r in avisos])
                 ruta = ruta_del_dia(self.encargado)
                 self.assertEqual(ruta.version, version + 1)
                 self.assertCountEqual([p.intento.pk for p in ruta.paradas], [i.pk for i in intentos])

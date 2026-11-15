@@ -70,6 +70,8 @@ Lo que sí se comprobó en el HTML servido (`test_permisos_mapa.py::EstructuraMa
 - La herramienta HTTP mide loopback con SQLite, sin red móvil ni dibujo en el navegador. «Mis entregas» con 50 visitas es la página más pesada (un selector de 50 posiciones por tarjeta); su p95 quedó en 336,80 ms.
 - La 2-opt no garantiza el óptimo: coincide con la fuerza bruta en los casos construidos y nunca empeora al vecino más cercano.
 
+**Corrección del 2026-11-15 — prueba intermitente.** `test_concurrencia_ruta.test_2_tres_ediciones_desde_la_misma_version_una_gana` fallaba a veces en la regresión completa (1 de 3 corridas aisladas). Causa: usaba «subir» y «bajar», y según quién ganó la vuelta anterior la parada podía quedar en un extremo. Ese movimiento se rechazaba con «Esta parada ya es la primera.», su transacción se revertía y otro se aplicaba, así que un perdedor no recibía el aviso esperado. El servicio se comportaba bien; solo cambió la prueba, que ahora usa posiciones absolutas (1, 4 y 2) siempre válidas y muestra los mensajes recibidos si falla. Resultado: el archivo pasó 20 de 20 corridas y `manage.py test entregasapp` aprobó 218 pruebas en PostgreSQL.
+
 ## Aplicación y reversión
 
 Migración `entregasapp/0002_ordenruta`: aplicada solo en las bases de pruebas y en la SQLite temporal de la herramienta. **La base PostgreSQL del proyecto no se migró**; hay que aplicar `python manage.py migrate` en la base de demostración elegida cuando el usuario lo apruebe. Revertirla (`python manage.py migrate entregasapp 0001`) elimina solo los órdenes manuales. `generar_domicilios_demo` no se ejecutó sobre la base del proyecto.
