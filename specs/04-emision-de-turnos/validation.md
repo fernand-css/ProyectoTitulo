@@ -117,6 +117,21 @@ El esquema, servicios y HTTP del tótem tienen evidencia automatizada y hay medi
 
 Se creó la migración inicial y se aplicó al crear la base temporal de tests y de HTTP. Se comprobó retroceso y reaplicación sobre dominio sintético previo; no se modificó la SQLite local y no hubo despliegue, configuración de impresoras ni rama nueva. Cierre técnico mediante un único commit autorizado en `fdaza`. No se ha probado restaurar un respaldo externo. La reversión del esquema de turnos elimina su historial y requiere respaldo consistente si se debe conservar.
 
+## Enmienda del 2026-11-15
+
+Estado: **no ejecutada**. La evidencia anterior corresponde al texto previo a la enmienda; las pruebas actuales de rechazo de no registrados, bloqueo de postrados y de 80 años o más, correlativo compartido y botón «Nueva atención» quedarán obsoletas al implementarla.
+
+| RF | Prueba prevista | Esperado | Obtenido | Estado |
+|---|---|---|---|---|
+| RF-04-02 | RUT fuera del padrón; postrado; 79, 80 y 81 años; despacho abierto | G sin recetas; P; P; P; P; sin número | — | pendiente |
+| RF-04-03 | Receta elegible y otra en despacho; sin elegibles con una agotada | Solo la elegible; turno sin recetas con aviso de renovación | — | pendiente |
+| RF-04-04/05 | P, G y C el mismo día y al cambiar la fecha | Series independientes desde 1; sin repetir (fecha, letra, número) | — | pendiente |
+| RF-04-06 | Turno llamado de ayer; mismo RUT fuera del padrón en paralelo | Nuevo turno de hoy; un solo activo | — | pendiente |
+| RF-04-07 | Rechazo y pantalla del número | Sin botón; vuelve sola al inicio; «Necesito más tiempo» funciona | — | pendiente |
+| RF-04-08 | PDF del número emitido, recuperado y con renovación; acceso sin sesión o tras volver al inicio | PDF vertical sin datos personales, `no-store`; rechazo fuera de la operación | — | pendiente |
+| RF-04-11 | Comparar respuestas de todos los rechazos | Idénticas; aviso de renovación estático en el PDF | — | pendiente |
+| RF-04-12 | 11 solicitudes en un minuto, también con hilos | Pausa en la undécima; auditoría sin RUT | — | pendiente |
+
 ## Aceptación funcional
 
 Pendiente. Documento Aprobado, T-04-01 autorizada mediante «si, comienza» y T-04-02 mediante «si continua el paso 2». Las comprobaciones del esquema y servicios no certifican interfaz, impresión física, accesibilidad ni aceptación del software completo.

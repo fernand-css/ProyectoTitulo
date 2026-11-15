@@ -144,6 +144,61 @@ Medir al menos 100 solicitudes por escenario con padrón de 670 pacientes, indic
 
 En esta definición: cuatro documentos del 04 e índice. Durante la implementación: actualizar `docs/estructura.md`, `README.md` y memoria del proyecto con rutas/contratos realmente existentes; registrar evidencia en `validation.md` y avance en `tasks.md`. No modificar retrospectivamente los acuerdos ni la evidencia del 02/03.
 
+## Enmienda del 2026-11-15 — diseño propuesto
+
+Propuesta técnica para la enmienda de [spec.md](spec.md) (RF-04-02 a RF-04-07, RF-04-11 y RF-04-12). Sin código; la implementación requiere autorización.
+
+### Modelos y migración
+
+- `Turno.paciente`: pasa a `null=True, blank=True` (`PROTECT` se mantiene).
+- `Turno.rut`: nuevo `CharField` con el RUT normalizado por `coreapp.utils.rut.normalizar_rut`, obligatorio. La migración de datos lo rellena desde `paciente.rut` en los turnos existentes.
+- `Turno.letra`: nuevo campo `P`/`G`/`C`/`U`, derivado de `tipo_atencion`. Se agrega `urgencia` a `TipoAtencion` y a `turno_tipo_valido`; la letra U solo la escribe la spec 10.
+- Restricciones: `turno_numero_diario_unico` pasa a `(fecha, letra, numero)`; `turno_activo_paciente_dia_unico` pasa a `(rut, fecha)` con la misma condición de estados; `turno_llamado_paciente_unico` pasa a `rut`.
+- `ContadorTurnosDiario`: la unicidad pasa de `fecha` a `(fecha, letra)`. Los contadores existentes se conservan como serie de la letra correspondiente solo si no hay choques; si no, la migración inicia las series en el máximo número emitido de esa fecha (sin renumerar turnos históricos).
+- `IntentoTotem` (nuevo, para RF-04-12): `clave` (huella de IP o sesión, nunca el RUT), `ventana` (minuto), `cantidad`; única por `(clave, ventana)`, incremento con UPDATE condicional e `IntegrityError` reintentable. Limpieza de ventanas antiguas al escribir.
+- Una sola migración de esquema más una de datos, reversibles mientras no existan turnos sin paciente.
+
+### Servicio de emisión (`turnosapp/services.py`)
+
+- `_anterior` busca por `rut` y filtra `fecha` también para `llamado`.
+- `clasificar_atencion(paciente, fecha)` deja de lanzar `domicilio`: `None` → G; postrado o edad ≥ 60 → P; crónico → C; resto → G. `requiere_despacho_en` ya no se llama desde aquí.
+- Recetas: si hay elegibles y todas están en despacho → `ErrorEmision("rechazo", MENSAJE_NEUTRO)` sin consumir número; si no hay elegibles → turno sin `TurnoReceta`. El indicador de renovación viaja en `ResultadoEmision.renovacion` (booleano), no como rechazo.
+- Todos los `ErrorEmision` con RUT de DV válido usan el mismo código y texto. Se elimina «Inicia una nueva atención» de los mensajes.
+
+### Vistas, plantillas y JavaScript
+
+- `views.totem`: ante un rechazo o error rota la operación (`_nuevo`) en vez de exigir finalizar; el límite de intentos se evalúa antes de llamar al servicio.
+- `templates/turnos/totem.html` y `resultado.html`: se elimina el formulario «Nueva atención»; `resultado.html` muestra el comprobante en PDF descrito abajo, con la letra y, si corresponde, el aviso de renovación estático.
+- `static/js/totem.js`: el temporizador sigue limpiando a los 30 s con un POST a `finalizar` mediante un formulario oculto sin botón visible; se conserva «Necesito más tiempo».
+- **Comprobante en PDF (RF-04-08, decisión posterior del 2026-11-15):**
+  - Se reemplaza el comprobante térmico (`comprobante.html` y los estilos de impresión de 72 mm) por una vista `turnosapp:comprobante_pdf` que genera el PDF al momento con **ReportLab**. Es una dependencia nueva, de Python puro y sin bibliotecas del sistema en Windows. Se descarta WeasyPrint porque requiere GTK.
+  - La vista exige la sesión y la operación vigentes del tótem y responde con `Content-Disposition: inline` y `Cache-Control: no-store`. No guarda archivos.
+  - `resultado.html` incrusta el PDF a pantalla completa (`<object type="application/pdf">` con el número como texto alternativo) y deja una franja HTML fija al pie con la cuenta y «Necesito más tiempo». Se eliminan el botón «Imprimir número» y el control `beforeprint`/`afterprint` de `totem.js`.
+  - Página vertical de 1080×1920 puntos, con la identidad del CESFAM San Nicolás (encabezado azul tinta, tarjeta del número con el color de la letra, ondulado de colinas al pie). Las fuentes se incrustan desde `static/` con licencia libre (Figtree y Atkinson Hyperlegible Next, OFL).
+  - El aviso de renovación es estático en el PDF.
+  - El panel del personal reutiliza la misma vista para mostrar el número U o la reclasificación del spec 10.
+- **Riesgo del visor de PDF:** el visor incorporado del navegador del tótem puede mostrar barras o controles (Chrome admite `#toolbar=0&view=Fit`; el visor de Firefox no siempre lo respeta). Hay que probarlo en el equipo real y, si no se puede ocultar, mostrar el PDF convertido a imagen en la misma vista, sin guardarlo.
+- **Accesibilidad:** ReportLab no genera PDF etiquetado (PDF/UA); el texto accesible queda en el HTML que lo rodea.
+
+### Efectos en otros módulos
+
+- 05: `atencion.py` (reincorporación sin bloqueo por edad, comparación por `rut`), `cola.py` (exclusión de llamados por `rut`, fila U primera), cierre sin recetas.
+- 06: `AnuncioSala` y la frase de voz incorporan la letra.
+- 07: sin cambios de modelo; un turno sin recetas no crea `PreparacionReceta`.
+- 08: sin cambios de código; `recetas_con_despacho_abierto` se sigue usando.
+
+### Pruebas
+
+Actualizar `test_servicios.py` (rechazos y edades), `test_vistas.py` (sin botón, rotación de operación, mensaje neutro, límite), `test_concurrencia.py` y los `.cjs` de `totem.js`. Escenarios concurrentes nuevos: el mismo RUT fuera del padrón con UUID distintos; letras distintas en paralelo; despacho abierto mezclado con emisiones; límite de intentos con hilos concurrentes en la misma ventana. Regresión completa y `makemigrations --check`.
+
+### Riesgos
+
+- Cambiar restricciones únicas en una tabla con datos exige probar la migración sobre una copia con turnos sintéticos de varios días.
+- Guardar el RUT en `Turno` amplía los datos personales: revisar que Admin, auditoría y registros no lo expongan.
+- La IP de origen detrás de un proxy agrupa equipos; documentar `--proxy-headers` de Daphne.
+
 ## Decisiones para implementar
+
+Enmienda del 2026-11-15: sin autorización de implementación todavía.
 
 Diseño técnico del spec aprobado y arranque de T-04-01 confirmado. Compatibilidad física pendiente del equipo disponible. Rige el acuerdo de ejecución propio del 04: rama `fdaza`, sin cambios de rama y un commit al finalizar. Los pasos posteriores requieren las pausas de revisión acordadas.

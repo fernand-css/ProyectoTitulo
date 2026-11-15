@@ -35,7 +35,36 @@ No ejecutar tareas de código por el hecho de aparecer aquí.
   - Hecho cuando: check, migraciones, suite/regresión y HTTP real pasan en entorno sintético aislado; escenarios concurrentes, p95, escritorio/móvil/teclado y auditoría A/AA tienen resultados registrados; impresión física y prueba con cinco usuarios constan como verificadas o pendientes con su límite explícito. No declarar aceptación completa mientras falten comprobaciones requeridas.
   - Parte técnica completada: `test_integracion.py`, herramienta HTTP real, 322 pruebas Django, dos pruebas Node, check/migraciones, mediciones y documentación. Pendientes: navegador/teclado/móvil/axe y vista previa por host indisponible; impresora física y prueba con cinco usuarios. No marcar completada esta casilla ni Implementado hasta resolver las comprobaciones requeridas o redefinir expresamente su alcance.
 
+### Enmienda del 2026-11-15 (propuestas; implementación no autorizada)
+
+- [ ] **T-04-06 — Esquema: RUT en el turno, paciente opcional, letras y series por letra.**
+  - RF: RF-04-04, RF-04-05, RF-04-06.
+  - Depende de: ninguna.
+  - Archivos previstos: `turnosapp/models.py`, migraciones de esquema y de datos, `turnosapp/tests/test_modelos.py`, `test_migraciones.py`.
+  - Hecho cuando: las restricciones nuevas rechazan duplicados por (fecha, letra, número) y por (RUT, fecha) activos; la migración rellena `rut` y `letra` sin renumerar; `makemigrations --check` limpio.
+- [ ] **T-04-07 — Servicio: tótem abierto, despacho, clasificación por letra, recuperación del día y renovación.**
+  - RF: RF-04-02, RF-04-03, RF-04-04, RF-04-06, RF-04-11.
+  - Depende de: T-04-06.
+  - Archivos previstos: `turnosapp/services.py`, `turnosapp/tests/test_servicios.py`, `test_concurrencia.py`.
+  - Hecho cuando: los criterios de la enmienda pasan, incluidos los tres escenarios concurrentes con `TransactionTestCase` e hilos.
+- [ ] **T-04-08 — Límite de intentos por equipo.**
+  - RF: RF-04-12.
+  - Depende de: T-04-06.
+  - Archivos previstos: `turnosapp/models.py` (`IntentoTotem`), `turnosapp/views.py`, pruebas de vistas y concurrencia.
+  - Hecho cuando: la undécima solicitud del minuto queda en pausa con mensaje neutro y auditoría sin RUT, también con hilos concurrentes.
+- [ ] **T-04-09 — Interfaz: sin «Nueva atención», vuelta automática y comprobante en PDF a pantalla completa.**
+  - RF: RF-04-07, RF-04-08, RF-04-11.
+  - Depende de: T-04-07.
+  - Archivos previstos: `requirements.txt` (ReportLab), `turnosapp/comprobante.py` (nuevo, generación del PDF), `turnosapp/views.py`, `urls.py`, `templates/turnos/totem.html`, `resultado.html`; se retiran `comprobante.html` y los estilos de impresión; `static/js/totem.js`, `static/css/turnos.css`, fuentes en `static/`, pruebas de vistas y `.cjs`.
+  - Hecho cuando: no queda el botón; un rechazo deja lista la entrada para otro RUT; el PDF vertical solo se sirve a la sesión de la operación, con `no-store` y sin datos personales; el aviso de renovación aparece estático cuando corresponde; la franja de 30 s y «Necesito más tiempo» funciona; probado en el visor de PDF del navegador del tótem.
+- [ ] **T-04-10 — Validar la enmienda y actualizar documentación.**
+  - RF: RF-04-02 a RF-04-07, RF-04-11, RF-04-12.
+  - Depende de: T-04-06 a T-04-09 y las enmiendas de los specs 05 y 06.
+  - Hecho cuando: regresión completa, HTTP aislado y resultados reales en `validation.md`; navegador, axe y aceptación constan como verificados o pendientes.
+
 ## Autorización posterior
+
+2026-11-15: la usuaria aprobó la enmienda del documento («aplica los cambios a la spec 04», «si, continua con todos los cambios»). Esa aprobación es documental; T-04-06 a T-04-10 no están autorizadas para implementación.
 
 2026-11-02: el usuario aprobó el encabezado e invocó `spec-impl`, con instrucción de trabajar sin rama nueva y guardar por un único commit. Aplicar el [acuerdo de ejecución](spec.md#acuerdo-de-ejecución): `fdaza`, sin commits intermedios y conservando cambios ajenos. Las pausas por paso siguen vigentes según la skill; no hay autorización de despliegue ni intervención en equipos del CESFAM.
 
@@ -59,6 +88,7 @@ Confirmación posterior: «sip» autoriza T-04-05. Se ejecutan comprobaciones t�
 | 2026-11-02 | T-04-03 | Formulario, vistas, plantillas, CSS/JS y pruebas HTTP | Regresión de 317 aprobada; 41 focalizadas finales tras dos casos adicionales; sintaxis JS correcta; navegador pendiente. |
 | 2026-11-02 | T-04-04 | Comprobante, estilos de impresión, control JS y pruebas | 43 del módulo, 321 de regresión y dos JavaScript aprobadas; vista previa/papel pendientes. |
 | 2026-11-02 | T-04-05 (parte técnica) | Integración, HTTP real, mediciones y documentación | 322 Django, dos Node, check/migraciones y HTTP aprobados; navegador inaccesible; vista previa/axe/papel/usabilidad pendientes. |
+| 2026-11-15 | Enmienda documental | `spec.md`, `plan.md`, `tasks.md`, `validation.md` | Tótem abierto, letras, mensaje neutro y límite de intentos; T-04-06 a T-04-10 propuestas; sin código. |
 
 ## Reanudación
 

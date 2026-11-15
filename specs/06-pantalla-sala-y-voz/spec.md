@@ -3,6 +3,7 @@
 > **Estado:** Implementado
 > **Depende de:** [SPEC 01](../01-base-del-proyecto/spec.md), [SPEC 02](../02-autenticacion-roles-auditoria/spec.md), [SPEC 04](../04-emision-de-turnos/spec.md) y [SPEC 05](../05-cola-ponderada-y-llamado/spec.md)
 > **Fecha:** 2026-11-03
+> **Enmienda:** 2026-11-15 — la letra (P, G, C, U) forma parte del número en la pantalla, la voz y el anuncio; «En espera» pasa a contar por letra (RF-06-13 nuevo, modifica RF-06-04, 05 y 09). Aprobada por la usuaria; **pendiente de implementación**. El estado «Implementado» se refiere al texto anterior.
 > **Objetivo:** Mostrar en una pantalla pública de la sala de espera cada llamado y re-llamado del 05, con su número y ventanilla, un aviso visual y una voz que dicen lo mismo, a no más de 2 segundos de que el Técnico lo confirma.
 
 Módulo: `turnosapp` (extensión), más la configuración ASGI de `cesfam`. Fuente: respuestas del usuario del 2026-11-03 (dos bloques de preguntas), HU-04, HU-05, HU-08 y HU-09, RNF-02, RNF-04, RNF-05, NS03 y NS07 del [informe](../../docs/Informe.md) y la arquitectura de tiempo real del §7.1 (WebSocket).
@@ -81,6 +82,12 @@ Fuera de este spec:
 - **RF-06-10 — Accesibilidad de la pantalla:** LA PANTALLA cumple WCAG 2.1 AA: contraste de al menos 4,5:1 en el texto, tipografía grande y legible a distancia, aviso del llamado en una región viva, estados con texto, foco visible en los controles, sin destellos de más de tres por segundo y respeto de «reducir movimiento». El tamaño del texto puede ampliarse con el control existente del proyecto.
 - **RF-06-11 — Sincronía medida:** EL SISTEMA muestra un llamado confirmado en la pantalla en 2 segundos o menos en al menos el 95 % de los casos, medido desde que se confirma la transacción del llamado hasta que el navegador de la pantalla recibe el anuncio. La medición registra cuántos llamados, con qué carga y con qué pantallas conectadas.
 - **RF-06-12 — Acceso del personal y compatibilidad:** EL MENÚ ofrece «Pantalla de sala» a Técnico, Q.F. y superusuario, que la abre en otra pestaña. LAS rutas HTTP existentes, el tótem, el panel privado del 05 y su consulta periódica siguen funcionando igual con el servidor ahora capaz de WebSocket.
+- **RF-06-13 — Letras en la sala** *(nuevo, 2026-11-15; modifica RF-06-04, RF-06-05 y RF-06-09)*:
+  - `AnuncioSala` guarda la letra del turno junto al número. La pantalla muestra el número con su letra en el formato del comprobante (P-014).
+  - **Frase de voz y aviso escrito:** «Número P 14, ventanilla 2» y «Nuevamente, número P 14, ventanilla 2». La letra va separada y sin ceros a la izquierda para que la voz la diga con naturalidad; el aviso escrito usa exactamente la misma frase.
+  - **«En espera»:** muestra la cantidad por letra (P, G, C, U) y deja de listar los números en orden numérico, que hacían pensar que ese era el orden de llamado.
+  - **Categoría en público:** la letra revela la categoría de un número, pero no la identidad de nadie; se acepta como excepción a «no muestra categoría» de RF-06-04 y RF-06-09. Siguen prohibidos el RUT, el nombre, las recetas y la razón de la preferencia.
+  - **Color:** cada letra puede tener su color, siempre con la letra escrita al lado (nada depende solo del color) y contraste de al menos 4,5:1. El diseño visual de la pantalla se trabaja aparte de este documento.
 
 ## Datos y reglas
 
@@ -152,6 +159,9 @@ A medianoche la pantalla muestra solo la fecha nueva y no pronuncia anuncios de 
 | RF-06-09 | Se inspeccionan el canal, el HTML y los registros | Solo hay número, ventanilla, tipo, instante, identificador, cantidad y números en espera; ni RUT, nombre, categoría ni referencias internas. |
 | RF-06-10 | Auditoría automática y revisión de contraste, teclado y zoom | Sin errores de nivel AA, contraste ≥ 4,5:1, controles con foco visible y estados con texto. |
 | RF-06-11 | Se miden al menos 100 llamados con la carga descrita y dos pantallas conectadas | El p95 de confirmación → recepción es ≤ 2 s y se registran la carga y el número de muestras. |
+| RF-06-13 | *(2026-11-15)* Llamado del turno P-014 a la ventanilla 2 | Pantalla «P-014»; aviso y voz «Número P 14, ventanilla 2», idénticos letra por letra entre sí. |
+| RF-06-13 | *(2026-11-15)* Hay 6 P, 12 G, 4 C y 0 U esperando | «En espera» muestra las cuatro cantidades con su letra; no lista números. |
+| RF-06-13 | *(2026-11-15)* Se inspeccionan el canal y el HTML | Aparecen la letra y el número; nunca RUT, nombre, recetas ni motivo de preferencia. |
 | RF-06-12 | Técnico, Q.F., Encargado y anónimo miran el menú | Los tres primeros ven el enlace según la matriz; el Encargado y el anónimo no. Las rutas del 04 y del 05 responden como antes. |
 
 ## No funcionales
@@ -192,6 +202,8 @@ No quedan preguntas funcionales bloqueantes. Supuestos técnicos reversibles, a 
 - Si la franja superior del layout (aviso de demostración y control de tamaño de texto) se conserva o se oculta en la pantalla de sala. Se propone conservarla.
 
 ## Revisión y cambios
+
+2026-11-15 (enmienda): por las letras de la enmienda del spec 04 y la urgencia del spec 10, se agrega RF-06-13. Requiere una migración que agrega la letra a `AnuncioSala`, y como toca la transacción del llamado exige las pruebas concurrentes del 05 y del 06. Sin cambios de código.
 
 2026-11-03 (posterior a la implementación): por instrucción del usuario se retira `GET /turnos/sala/estado/` (vista `sala_estado`, ruta y atributo `data-estado-url`) y con él el respaldo HTTP del cliente. La pantalla depende solo del WebSocket; el estado inicial sigue incrustado en `sala.html`. Consecuencia: si un proxy bloquea WebSocket o el canal cae, la pantalla no se actualiza hasta recuperar la conexión. Se actualizan RF-06-08, RF-06-09 y los parámetros; el historial de `validation.md` no se reescribe.
 

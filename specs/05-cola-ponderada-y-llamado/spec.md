@@ -3,6 +3,7 @@
 > **Estado:** Implementado
 > **Depende de:** [SPEC 01](../01-base-del-proyecto/spec.md), [SPEC 02](../02-autenticacion-roles-auditoria/spec.md), [SPEC 03](../03-padron-y-recetas/spec.md) y [SPEC 04](../04-emision-de-turnos/spec.md)
 > **Fecha:** 2026-11-02
+> **Enmienda:** 2026-11-15 — letras P/G/C/U, fila U siempre primera, turnos sin recetas y sin paciente del padrón, reincorporación sin bloqueo por edad (RF-05-01, 02, 03, 06, 07 y 11 modificados; RF-05-13 nuevo). Deriva de la [enmienda del spec 04](../04-emision-de-turnos/spec.md) y del [spec 10](../10-gestion-de-turnos-por-personal/spec.md). Aprobada por la usuaria; **pendiente de implementación**. El estado «Implementado» se refiere al texto anterior.
 > **Objetivo:** Asignar automáticamente los turnos a ventanillas compatibles mediante una cola ponderada y permitir al Técnico confirmar entregas y cerrar la atención para continuar con el siguiente paciente sin duplicaciones.
 
 Módulo: `turnosapp`, integrado con `recetasapp`. Fuente: respuestas del usuario en esta sesión y HU-04/05/06/10/11/21, RNF-01/02/04/05 del [informe](../../docs/Informe.md).
@@ -65,11 +66,19 @@ Fuera: preparación de medicamentos y pendientes de retiro de HU-17; estimación
 - **RF-05-09 — Pausa y deshabilitación:** bloquear nuevas asignaciones desde que se confirma la solicitud, conservando la actual hasta terminar. Q.F. confirma deshabilitar si hay una atención. No trasladar automáticamente al paciente a otra ventanilla. Reanudar requiere activación explícita por el operador; retirar una ventanilla no borra historia ni abandona una atención.
 - **RF-05-10 — Jornada:** antes de nuevas asignaciones cerrar los turnos antiguos aún esperando como `sin_atencion_cierre`, sin confundirlos con ausentes ni entregados. Conservar la atención que ya estaba llamada. La activación anterior no habilita llamados de la nueva fecha; exigir inicio explícito de la nueva jornada. La fecha usa `America/Santiago` y no depende del navegador.
 - **RF-05-11 — Tótem y estados activos:** ampliar recuperación del 04 a turnos esperando o llamados, evitando nuevo número mientras exista uno activo. Cuando solo existen turnos ausentes, atendidos o cerrados, permitir nueva emisión si sigue habiendo recetas elegibles. Mantener correlativo diario único. No reactivar desde el tótem un ausente: emite nuevo cuando proceda; su retorno con el número original es una acción del Técnico y exige no tener otro activo.
+- **RF-05-13 — Enmienda del 2026-11-15** *(nuevo; modifica los RF indicados)*:
+  - **RF-05-01:** los tipos de ventanilla pasan a ser preferencial (P), crónicos (C), general (G) y urgencia (U), como pide HU-10. Las cuatro ventanillas iniciales admiten los cuatro tipos.
+  - **RF-05-02:** el ciclo ponderado sigue siendo `P, P, C, G` con pesos configurables. La fila U queda fuera del ciclo: si hay un turno U compatible, se llama antes que cualquier P, C o G, sin avanzar el cursor ponderado. Varios U se atienden por orden de entrada a la cola.
+  - **RF-05-03:** el rescate de 15 minutos sigue aplicándose a P, C y G, pero nunca adelanta a un turno U compatible en espera.
+  - **RF-05-06:** la reincorporación compara turnos activos por RUT (no por paciente) y ya no aplica el bloqueo por edad o postración del 04; conserva el rechazo cuando una receta del turno está en una entrega a domicilio abierta.
+  - **RF-05-07:** un turno sin recetas vinculadas (fuera del padrón o sin elegibles) se cierra con resultado sin entrega y el motivo fijo «Atención sin recetas del sistema», sin exigir texto al Técnico. No se registra ninguna `EntregaReceta` ni cuenta como dispensación.
+  - **RF-05-11:** se mantiene la recuperación de activos por RUT, pero la numeración es una serie diaria por letra (P, G, C, U), según RF-04-05.
+  - El panel privado muestra la letra con el número y, para un turno sin paciente del padrón, el rótulo «No registrado en el padrón» en lugar del nombre. El RUT solo se ve en el panel privado.
 - **RF-05-12 — Permisos, historial y auditoría:** aplicar matriz, CSRF y POST a cambios, revalidar actor/estado en servidor, conservar historial de ocupaciones/llamados/retornos/cierres/configuración y motivos. Sin borrado directo en Admin. Auditoría técnica sin RUT, nombres, datos clínicos ni texto libre de motivos. Si falla auditar una operación, revertir esa operación; no revertir un cierre previo por fallo al auditar el llamado siguiente.
 
 ## Datos y reglas
 
-- Categorías heredadas del 04: general, preferencial y crónicos. No inferir ni almacenar discapacidad. Esta spec no modifica la clasificación de origen.
+- Categorías heredadas del 04: general, preferencial y crónicos. No inferir ni almacenar discapacidad. Esta spec no modifica la clasificación de origen. *(Enmienda 2026-11-15: se agrega urgencia (U), que solo asigna el personal según el [spec 10](../10-gestion-de-turnos-por-personal/spec.md). Un turno puede no tener paciente del padrón; se identifica por su RUT.)*
 - Activo significa `esperando` o `llamado`. Un turno llamado ocupa su ventanilla hasta cerrar o declarar ausente; no se necesita otro clic de llamado al finalizar el anterior. El re-llamado nunca crea otra ocupación.
 - Un turno registra cierre `atendido` si hubo alguna entrega confirmada, incluso si otras quedaron sin entregar; cierre sin entregas se distingue por resultado y motivo, sin contabilizarlo como dispensación. Ningún estado sustituye los eventos `EntregaReceta`.
 - La ordenación tras retorno se basa en el nuevo ingreso a cola y su espera arranca de nuevo; preservar emisión original y todos los tramos para trazabilidad. El retorno no cambia categoría ni recetas originales.
@@ -97,6 +106,11 @@ Fuera: preparación de medicamentos y pendientes de retiro de HU-17; estimación
 | RF-05-10 | Medianoche con esperando y llamado | Esperando anterior cerrado sin entrega; llamado conservado; nueva jornada exige activación. |
 | RF-05-11 | Tótem con turno llamado, ausente y atendido | Recupera activo; sin activo emite nuevo si es elegible; no reincorpora un ausente silenciosamente. |
 | RF-05-12 | Rol no autorizado, URL/IDs manipulados, CSRF ausente o fallo de auditoría | Acceso rechazado o rollback de la operación, sin afectar un cierre previamente confirmado. |
+| RF-05-13 | *(2026-11-15)* Hay P, C, G en cola y llega un U | El próximo llamado compatible es el U; el cursor P,P,C,G no avanza. |
+| RF-05-13 | *(2026-11-15)* Un P espera 16 min y hay un U en espera | Se llama primero el U y luego el P por rescate. |
+| RF-05-13 | *(2026-11-15)* Cierre de un turno sin recetas | Resultado sin entrega con el motivo fijo; ninguna `EntregaReceta`. |
+| RF-05-13 | *(2026-11-15)* Reincorporar a una persona de 82 años ausente | Se reincorpora; solo se rechaza si una receta del turno está en un despacho abierto o si ese RUT tiene otro activo. |
+| RF-05-13 | *(2026-11-15)* Concurrencia: dos ventanillas libres y un U llega mientras se cierra otra atención | Un solo llamado del U, nunca a dos ventanillas; pruebas con `TransactionTestCase` e hilos. |
 
 ## No funcionales
 
@@ -131,6 +145,8 @@ Las dependencias existen; sus pendientes visuales/aceptación no se dan por cerr
 No quedan preguntas funcionales bloqueantes para redactar. Los nombres de modelos, rutas, algoritmo detallado y mecanismo de recuperación son propuestas técnicas de `plan.md` sujetas a revisión del borrador. El llamado del 05 no es un anuncio público hasta integrar el 06. No se declara cobertura completa de las HU de voz, sala de espera o preparados.
 
 ## Revisión y cambios
+
+2026-11-15 (enmienda): por la enmienda del spec 04 (tótem abierto y letras P/G/C) y la urgencia del spec 10, la usuaria decidió que U se llama siempre primero con un número nuevo de su serie. Se agrega RF-05-13, que modifica RF-05-01, 02, 03, 06, 07 y 11. La implementación toca la selección y el llamado, por lo que exige pruebas concurrentes (regla 4 de `CLAUDE.md`). Sin cambios de código.
 
 2026-11-02: primer bloque 1A/2A, llamado totalmente automático, 4A/5A y descuento al confirmar entrega al finalizar. Segundo bloque 1A/2A/3A/4A/5A. Último bloque 1A/2A/3C/4A. Se guardan cuatro documentos como Borrador, sin código, migraciones ni aceptación funcional.
 
