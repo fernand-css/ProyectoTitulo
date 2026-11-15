@@ -81,6 +81,15 @@ class FinalizarForm(OperacionForm):
         super().__init__(*args, **kwargs)
         self.vinculos = list(turno.recetas_vinculadas.select_related("receta", "entrega").order_by("receta_id"))
         self.previamente_entregadas = set()
+        self.sin_recetas = not self.vinculos
+        if self.sin_recetas:
+            from .atencion import MOTIVO_SIN_RECETAS
+            self.motivo_fijo = MOTIVO_SIN_RECETAS
+            # Enmienda RF-05-13: el servicio pone el motivo fijo; solo se confirma el cierre.
+            self.fields.pop("recetas_entregadas")
+            self.fields.pop("motivo")
+            self.fields["confirmar"].label = "Confirmo el cierre de esta atención sin entrega de recetas"
+            return
         bloqueadas, opciones = [], []
         for vinculo in self.vinculos:
             receta = vinculo.receta
@@ -105,6 +114,8 @@ class FinalizarForm(OperacionForm):
 
     def clean(self):
         datos = super().clean()
+        if self.sin_recetas:
+            return datos
         seleccion = {int(pk) for pk in datos.get("recetas_entregadas", [])}
         realizadas = seleccion | self.previamente_entregadas
         if not realizadas and not datos.get("motivo", "").strip():
@@ -117,6 +128,8 @@ class FinalizarForm(OperacionForm):
         return datos
 
     def argumentos(self):
+        if self.sin_recetas:
+            return {"recetas_entregadas": [], "motivo": "", "motivos": {}}
         return {"recetas_entregadas": [int(pk) for pk in self.cleaned_data["recetas_entregadas"]],
             "motivo": self.cleaned_data["motivo"],
             "motivos": {int(nombre.removeprefix("motivo_")): valor for nombre, valor in self.cleaned_data.items()

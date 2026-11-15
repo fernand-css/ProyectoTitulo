@@ -51,3 +51,51 @@ class MigracionColaTests(TransactionTestCase):
                 MigrationExecutor(connection).migrate(anteriores)
         finally:
             MigrationExecutor(connection).migrate(finales)
+
+
+class MigracionUrgenciaVentanillaTests(TransactionTestCase):
+    """Enmienda del 05 (RF-05-13): las ventanillas existentes admiten U al migrar."""
+
+    def test_agrega_urgencia_a_ventanillas_y_revierte_sin_borrar_ventanillas(self):
+        executor = MigrationExecutor(connection)
+        finales = executor.loader.graph.leaf_nodes()
+        anterior = [n for n in finales if n[0] != "turnosapp"] + [("turnosapp", "0007_intento_totem")]
+        try:
+            executor.migrate(anterior)
+            apps = executor.loader.project_state(anterior).apps
+            Tipo = apps.get_model("turnosapp", "TipoAtencionVentanilla")
+            Ventanilla = apps.get_model("turnosapp", "Ventanilla")
+            tipos = [Tipo.objects.create(codigo=codigo) for codigo in ("general", "preferencial", "cronicos")]
+            completa = Ventanilla.objects.create(numero=1)
+            completa.tipos.set(tipos)
+            solo_general = Ventanilla.objects.create(numero=2)
+            solo_general.tipos.set(tipos[:1])
+
+            actual = MigrationExecutor(connection)
+            actual.migrate(finales)
+            nuevas = actual.loader.project_state(finales).apps
+            VentanillaNueva = nuevas.get_model("turnosapp", "Ventanilla")
+            self.assertEqual(set(VentanillaNueva.objects.get(numero=1).tipos.values_list("codigo", flat=True)),
+                {"general", "preferencial", "cronicos", "urgencia"})
+            self.assertEqual(set(VentanillaNueva.objects.get(numero=2).tipos.values_list("codigo", flat=True)),
+                {"general", "urgencia"})
+
+            MigrationExecutor(connection).migrate(anterior)
+            apps = MigrationExecutor(connection).loader.project_state(anterior).apps
+            self.assertFalse(apps.get_model("turnosapp", "TipoAtencionVentanilla").objects.filter(codigo="urgencia").exists())
+            self.assertEqual(apps.get_model("turnosapp", "Ventanilla").objects.count(), 2)
+        finally:
+            MigrationExecutor(connection).migrate(finales)
+
+    def test_base_sin_ventanillas_no_crea_tipos(self):
+        executor = MigrationExecutor(connection)
+        finales = executor.loader.graph.leaf_nodes()
+        anterior = [n for n in finales if n[0] != "turnosapp"] + [("turnosapp", "0007_intento_totem")]
+        try:
+            executor.migrate(anterior)
+            actual = MigrationExecutor(connection)
+            actual.migrate(finales)
+            nuevas = actual.loader.project_state(finales).apps
+            self.assertEqual(nuevas.get_model("turnosapp", "TipoAtencionVentanilla").objects.count(), 0)
+        finally:
+            MigrationExecutor(connection).migrate(finales)

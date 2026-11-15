@@ -76,3 +76,51 @@ class SinPadronTests(DatosCola, TestCase):
             respuesta = self.client.get(reverse(f"turnosapp:{nombre}", kwargs={"pk": turno.pk}))
             self.assertContains(respuesta, turno.codigo)
             self.assertContains(respuesta, "No registrado en el padrón")
+
+
+class CierreSinRecetasTests(DatosCola, TestCase):
+    """Enmienda RF-05-13 (RF-05-07): cierre con motivo fijo, sin texto ni entregas."""
+
+    def llamado_sin_recetas(self, paciente=False, activar=True):
+        if activar:
+            self.activar(1)
+        if paciente:
+            turno = self.turno()
+        else:
+            self.numero += 1
+            turno = Turno.objects.create(paciente=None, rut=self.ruts[47], letra="G", tipo_atencion="general",
+                fecha=self.fecha, numero=self.numero, entrada_cola=self.ahora)
+        procesar_pendiente(self.pendiente().pk)
+        turno.refresh_from_db()
+        self.assertEqual(turno.estado, "llamado")
+        return turno
+
+    def test_servicio_cierra_con_motivo_fijo_sin_pedir_texto(self):
+        from recetasapp.models import EntregaReceta
+        from turnosapp.models import CierreAtencion
+        for paciente in (False, True):
+            with self.subTest(paciente=paciente):
+                turno = self.llamado_sin_recetas(paciente, activar=not paciente)
+                atencion.finalizar_atencion(self.personal["tecnico"], turno.pk, uuid.uuid4(), recetas_entregadas=[],
+                    motivo="texto que se ignora")
+                turno.refresh_from_db()
+                cierre = CierreAtencion.objects.get(turno=turno)
+                self.assertEqual(turno.estado, "cerrado_sin_entrega")
+                self.assertEqual((cierre.resultado, cierre.motivo), ("sin_entrega", atencion.MOTIVO_SIN_RECETAS))
+                self.assertFalse(cierre.detalles.exists())
+                self.assertFalse(EntregaReceta.objects.exists())
+
+    def test_formulario_solo_pide_confirmar(self):
+        turno = self.llamado_sin_recetas()
+        self.client.force_login(self.personal["tecnico"])
+        url = reverse("turnosapp:finalizar_atencion", kwargs={"pk": turno.pk})
+        respuesta = self.client.get(url)
+        self.assertContains(respuesta, atencion.MOTIVO_SIN_RECETAS)
+        self.assertNotContains(respuesta, 'name="motivo"')
+        self.assertNotContains(respuesta, 'name="recetas_entregadas"')
+        operacion = respuesta.context["form"]["operacion_id"].value()
+        self.client.post(url, {"operacion_id": operacion, "confirmar": "on"})
+        turno.refresh_from_db()
+        self.assertEqual(turno.estado, "cerrado_sin_entrega")
+        from turnosapp.models import CierreAtencion
+        self.assertEqual(CierreAtencion.objects.get(turno=turno).motivo, atencion.MOTIVO_SIN_RECETAS)

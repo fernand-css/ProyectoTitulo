@@ -144,6 +144,13 @@ Comprobar base vacía y actualización de base sintética con 03/04 y turnos de 
 5. Incorporar panel, gestión de Q.F., formularios, historial, permisos y estados de error.
 6. Validar migraciones, servicios, HTTP real, carga, navegador y accesibilidad; actualizar documentos con evidencia real y límites.
 
+Enmienda del 2026-11-15 (RF-05-13), cuatro pasos más:
+
+7. Urgencia como cuarto tipo de ventanilla: `TIPOS_VENTANILLA` incluye U, migración `0008` que crea el tipo y lo agrega a las ventanillas existentes; `preparar_ventanillas` crea las cuatro con los cuatro tipos.
+8. Selección con U primero en `cola._candidato`: U compatible antes del rescate de 15 minutos y del ciclo, por orden de entrada, sin mover el cursor; pruebas funcionales y tres escenarios concurrentes.
+9. Cierre sin recetas vinculadas: resultado sin entrega con el motivo fijo «Atención sin recetas del sistema», sin pedir texto ni registrar `EntregaReceta`.
+10. Integración: herramienta HTTP del 05, regresión completa, documentos y memoria.
+
 Primer paso ejecutable: esquema y migraciones probados en base temporal. Último: comprobación del flujo automático con varias ventanillas/tótem y registro de criterios/pendientes. Cada paso debe dejar la base ejecutable; las tareas y aprobación controlan qué se puede ejecutar.
 
 ## Plan de pruebas

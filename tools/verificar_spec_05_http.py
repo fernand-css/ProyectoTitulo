@@ -41,7 +41,8 @@ def ejecutar(base_datos, solo_procesar=False):
     from coreapp.roles import TECNICO
     from coreapp.utils.sinteticos import generar_ruts
     from recetasapp.models import Paciente, Receta, EntregaReceta
-    from turnosapp.models import Turno, PendienteSeleccion, EventoTurno, CierreAtencion
+    from turnosapp.atencion import MOTIVO_SIN_RECETAS
+    from turnosapp.models import ContadorTurnosDiario, Turno, PendienteSeleccion, EventoTurno, CierreAtencion
     from usuariosapp.models import Perfil
     if solo_procesar:
         call_command("procesar_cola", verbosity=0)
@@ -157,8 +158,55 @@ def ejecutar(base_datos, solo_procesar=False):
         assert pendiente.estado == "procesado" and nuevo.estado == "llamado"
         assert EventoTurno.objects.filter(turno=nuevo, accion="llamado").count() == 1
         assert EntregaReceta.objects.count() == 101
+        # Enmienda RF-05-13 por HTTP: vaciar la cola cerrando lo llamado (el turno 105 no tiene recetas).
+        for _ in range(30):
+            turno = Turno.objects.filter(estado="llamado").select_related("operador").first()
+            if turno is None:
+                break
+            cliente = clientes[int(turno.operador.username.rsplit("_", 1)[1])]
+            datos = {"operacion_id": str(uuid.uuid4()), "confirmar": "on",
+                "recetas_entregadas": list(turno.recetas_vinculadas.values_list("receta_id", flat=True))}
+            assert cliente.pedir(f"/turnos/{turno.pk}/finalizar/", datos)[0] == 200
+        assert not Turno.objects.filter(estado__in=["llamado", "esperando"]).exists()
+        cierre_105 = CierreAtencion.objects.get(turno=nuevo)
+        assert (cierre_105.resultado, cierre_105.motivo) == ("sin_entrega", MOTIVO_SIN_RECETAS)
+        entregas_previas = EntregaReceta.objects.count()
+        # Solo la ventanilla 1 sigue en automático para observar el orden.
+        for i in (1, 2, 3):
+            assert clientes[i].pedir(f"/turnos/ventanillas/{i+1}/pausar/", {"operacion_id": str(uuid.uuid4())})[0] == 200
+        padron = set(Paciente.objects.values_list("rut", flat=True))
+        fuera = [rut for rut in generar_ruts(20, Random(913)) if rut not in padron][:3]
+        ahora = timezone.now()
+        ContadorTurnosDiario.objects.update_or_create(fecha=hoy, letra="G", defaults={"ultimo_numero": 1000})
+        viejo = Turno.objects.create(rut=fuera[0], fecha=hoy, letra="G", numero=900, tipo_atencion="general",
+            entrada_cola=ahora - timedelta(minutes=20))
+        urgente = Turno.objects.create(rut=fuera[1], fecha=hoy, letra="U", numero=1, tipo_atencion="urgencia",
+            entrada_cola=ahora)
+        # La emisión del tótem de un RUT fuera del padrón dispara la selección automática.
+        estado, html, _ = totem.pedir("/turnos/totem/")
+        operacion = re.search(r'name="operacion_id" value="([^"]+)"', html).group(1)
+        assert totem.pedir("/turnos/totem/", {"rut": fuera[2], "operacion_id": operacion})[0] == 200
+        emitido = Turno.objects.get(rut=fuera[2], fecha=hoy)
+        assert emitido.paciente_id is None
+        orden = []
+        for _ in range(3):
+            for _ in range(100):
+                turno = Turno.objects.filter(estado="llamado").first()
+                if turno:
+                    break
+                time.sleep(.05)
+            orden.append(turno.pk)
+            assert turno.ventanilla.numero == 1
+            datos = {"operacion_id": str(uuid.uuid4()), "confirmar": "on"}
+            estado, html, _ = clientes[0].pedir(f"/turnos/{turno.pk}/finalizar/", datos)
+            assert estado == 200
+            cierre = CierreAtencion.objects.get(turno=turno)
+            assert (cierre.resultado, cierre.motivo) == ("sin_entrega", MOTIVO_SIN_RECETAS)
+        assert orden == [urgente.pk, viejo.pk, emitido.pk], orden
+        assert EntregaReceta.objects.count() == entregas_previas
         informe = {"http": "aprobado", "pacientes_sinteticos": 670, "ventanillas": 4,
             "escenarios_concurrentes": 3, "reinicio_procesador": "proceso nuevo recupera pendiente sin duplicados",
+            "enmienda_rf_05_13": "U antes que el rescate de 15 min y el ciclo; cierres sin recetas con motivo fijo y sin entregas",
             "mediciones": {k: {"muestras": len(v), "p95_ms": round(sorted(v)[math.ceil(.95 * len(v))-1]*1000, 2)} for k, v in medidas.items()},
             "limites": "WSGI loopback y carga secuencial para p95; navegador/axe/usabilidad y aceptación pendientes"}
         print(json.dumps(informe, ensure_ascii=False, indent=2))

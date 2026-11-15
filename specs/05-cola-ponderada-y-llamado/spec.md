@@ -3,7 +3,7 @@
 > **Estado:** Aprobado (cambio de la usuaria del 2026-11-15 para implementar la enmienda; antes «Implementado»)
 > **Depende de:** [SPEC 01](../01-base-del-proyecto/spec.md), [SPEC 02](../02-autenticacion-roles-auditoria/spec.md), [SPEC 03](../03-padron-y-recetas/spec.md) y [SPEC 04](../04-emision-de-turnos/spec.md)
 > **Fecha:** 2026-11-02
-> **Enmienda:** 2026-11-15 — letras P/G/C/U, fila U siempre primera, turnos sin recetas y sin paciente del padrón, reincorporación sin bloqueo por edad (RF-05-01, 02, 03, 06, 07 y 11 modificados; RF-05-13 nuevo). Deriva de la [enmienda del spec 04](../04-emision-de-turnos/spec.md) y del [spec 10](../10-gestion-de-turnos-por-personal/spec.md). Aprobada por la usuaria; **pendiente de implementación**. La versión anterior a la enmienda ya estaba implementada.
+> **Enmienda:** 2026-11-15 — letras P/G/C/U, fila U siempre primera, turnos sin recetas y sin paciente del padrón, reincorporación sin bloqueo por edad (RF-05-01, 02, 03, 06, 07 y 11 modificados; RF-05-13 nuevo). Deriva de la [enmienda del spec 04](../04-emision-de-turnos/spec.md) y del [spec 10](../10-gestion-de-turnos-por-personal/spec.md). Aprobada por la usuaria e implementada técnicamente el 2026-11-15 (T-05-07 a T-05-10; ver `validation.md`); revisión visual y aceptación pendientes.
 > **Objetivo:** Asignar automáticamente los turnos a ventanillas compatibles mediante una cola ponderada y permitir al Técnico confirmar entregas y cerrar la atención para continuar con el siguiente paciente sin duplicaciones.
 
 Módulo: `turnosapp`, integrado con `recetasapp`. Fuente: respuestas del usuario en esta sesión y HU-04/05/06/10/11/21, RNF-01/02/04/05 del [informe](../../docs/Informe.md).

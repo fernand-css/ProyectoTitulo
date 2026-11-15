@@ -74,6 +74,58 @@ class ColaTests(DatosCola, TestCase):
         self.assertEqual(Turno.objects.get(estado="llamado").pk, viejo.pk)
         self.assertEqual(EstadoColaDiaria.objects.get().cursor, 0)
 
+    # Enmienda RF-05-13: la fila U va siempre primero y fuera del ciclo ponderado.
+    def test_urgencia_antes_que_ciclo_y_sin_avanzar_cursor(self):
+        self.activar(1, ["preferencial", "cronicos", "general", "urgencia"])
+        self.turno("preferencial", espera=300)
+        urgente = self.turno("urgencia")
+        procesar_pendiente(self.pendiente().pk)
+        self.assertEqual(Turno.objects.get(estado="llamado").pk, urgente.pk)
+        self.assertEqual(EstadoColaDiaria.objects.get().cursor, 0)
+        self.cerrar_fixture()
+        procesar_pendiente(self.pendiente().pk)
+        self.assertEqual(Turno.objects.get(estado="llamado").tipo_atencion, "preferencial")
+        self.assertEqual(EstadoColaDiaria.objects.get().cursor, 1)
+
+    def test_rescate_de_15_minutos_no_adelanta_a_urgencia(self):
+        self.activar(1, ["preferencial", "cronicos", "general", "urgencia"])
+        self.turno("general", espera=2000)
+        urgente = self.turno("urgencia")
+        procesar_pendiente(self.pendiente().pk)
+        self.assertEqual(Turno.objects.get(estado="llamado").pk, urgente.pk)
+
+    def test_varias_urgencias_por_orden_de_entrada(self):
+        self.activar(1, ["preferencial", "cronicos", "general", "urgencia"])
+        segunda = self.turno("urgencia", espera=10)
+        primera = self.turno("urgencia", espera=60)
+        orden = []
+        for _ in range(2):
+            procesar_pendiente(self.pendiente().pk)
+            orden.append(Turno.objects.get(estado="llamado").pk)
+            self.cerrar_fixture()
+        self.assertEqual(orden, [primera.pk, segunda.pk])
+        self.assertEqual(EstadoColaDiaria.objects.get().cursor, 0)
+
+    def test_urgencia_solo_en_ventanilla_compatible(self):
+        sin_u = self.activar(1, ["general"])
+        con_u = self.activar(2, ["general", "urgencia"])
+        general = self.turno("general", espera=100)
+        urgente = self.turno("urgencia")
+        self.assertEqual(procesar_pendiente(self.pendiente().pk), 2)
+        general.refresh_from_db()
+        urgente.refresh_from_db()
+        self.assertEqual(urgente.ventanilla_id, con_u.pk)
+        self.assertEqual(general.ventanilla_id, sin_u.pk)
+
+    def test_urgencia_sin_ventanilla_compatible_queda_esperando(self):
+        self.activar(1, ["general"])
+        urgente = self.turno("urgencia")
+        general = self.turno("general")
+        procesar_pendiente(self.pendiente().pk)
+        urgente.refresh_from_db()
+        general.refresh_from_db()
+        self.assertEqual((urgente.estado, general.estado), ("esperando", "llamado"))
+
     def test_umbrales_y_desempate_estable(self):
         for segundos, aviso, prioridad in [(719, False, False), (720, True, False), (899, True, False), (900, True, True)]:
             turno = self.turno(espera=segundos)

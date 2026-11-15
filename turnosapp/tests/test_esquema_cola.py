@@ -51,8 +51,8 @@ class EsquemaColaTests(TestCase):
     def test_preparacion_idempotente_no_activa_no_crea_cuentas_ni_turnos(self):
         self.preparar()
         self.assertEqual(Ventanilla.objects.count(), 4)
-        self.assertEqual(TipoAtencionVentanilla.objects.count(), 3)
-        self.assertTrue(all(v.tipos.count() == 3 and not v.automatico and v.operador_id is None for v in Ventanilla.objects.all()))
+        self.assertEqual(TipoAtencionVentanilla.objects.count(), 4)
+        self.assertTrue(all(v.tipos.count() == 4 and not v.automatico and v.operador_id is None for v in Ventanilla.objects.all()))
         config = ConfiguracionCola.objects.get()
         self.assertEqual((config.peso_preferencial, config.peso_cronicos, config.peso_general), (2, 1, 1))
         eventos = RegistroAuditoria.objects.count()

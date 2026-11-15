@@ -49,3 +49,48 @@ class ConcurrenciaColaTests(DatosCola, TransactionTestCase):
         self.assertEqual(len({t.pk for t in llamados}), 3)
         self.assertEqual(sorted(t.tipo_atencion for t in llamados), ["cronicos", "preferencial", "preferencial"])
         self.assertEqual(EventoTurno.objects.count(), 3)
+
+
+TODOS = ("preferencial", "cronicos", "general", "urgencia")
+
+
+class ConcurrenciaUrgenciaTests(DatosCola, TransactionTestCase):
+    """Enmienda RF-05-13: tres escenarios de carga con la fila U primero."""
+
+    competir = ConcurrenciaColaTests.competir
+
+    def test_tres_procesadores_una_urgencia_un_solo_llamado(self):
+        self.activar(1, TODOS)
+        self.activar(2, TODOS)
+        urgente = self.turno("urgencia")
+        self.turno("preferencial", espera=2000)
+        self.assertEqual(sum(self.competir([self.pendiente().pk for _ in range(3)])), 2)
+        urgente.refresh_from_db()
+        self.assertEqual(urgente.estado, "llamado")
+        self.assertEqual(EventoTurno.objects.filter(turno=urgente).count(), 1)
+        self.assertEqual(len(set(Turno.objects.filter(estado="llamado").values_list("ventanilla_id", flat=True))), 2)
+
+    def test_tres_ventanillas_urgencias_primero_sin_duplicados(self):
+        for numero in range(1, 4):
+            self.activar(numero, TODOS)
+        for tipo in ("general", "preferencial", "cronicos", "preferencial"):
+            self.turno(tipo, espera=1000)
+        urgentes = {self.turno("urgencia").pk for _ in range(2)}
+        self.assertEqual(sum(self.competir([self.pendiente().pk for _ in range(3)])), 3)
+        llamados = list(Turno.objects.filter(estado="llamado"))
+        self.assertEqual(len({t.ventanilla_id for t in llamados}), 3)
+        self.assertTrue(urgentes <= {t.pk for t in llamados})
+        self.assertEqual(EventoTurno.objects.count(), 3)
+
+    def test_urgencia_compite_con_ventanilla_incompatible(self):
+        self.activar(1, ("general",))
+        con_u = self.activar(2, TODOS)
+        self.activar(3, ("preferencial",))
+        urgente = self.turno("urgencia")
+        self.turno("general")
+        self.turno("preferencial")
+        self.assertEqual(sum(self.competir([self.pendiente().pk for _ in range(3)])), 3)
+        urgente.refresh_from_db()
+        self.assertEqual(urgente.ventanilla_id, con_u.pk)
+        self.assertEqual(Turno.objects.filter(estado="llamado").count(), 3)
+        self.assertEqual(EventoTurno.objects.count(), 3)

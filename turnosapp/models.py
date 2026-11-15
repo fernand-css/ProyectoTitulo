@@ -117,8 +117,8 @@ class Turno(ModeloAuditado):
         return f"Turno {self.fecha} / {self.codigo}"
 
 
-# La urgencia (U) no es un tipo que una ventanilla admita o rechace: la ordena el spec 05/10.
-TIPOS_VENTANILLA = [(codigo, etiqueta) for codigo, etiqueta in Turno.TipoAtencion.choices if codigo != Turno.TipoAtencion.URGENCIA]
+# Enmienda del 05 (RF-05-13): las ventanillas admiten los cuatro tipos, urgencia incluida (HU-10).
+TIPOS_VENTANILLA = list(Turno.TipoAtencion.choices)
 
 LETRA_POR_TIPO = {
     Turno.TipoAtencion.GENERAL: Letra.GENERAL,
@@ -154,7 +154,7 @@ class TipoAtencionVentanilla(models.Model):
     codigo = models.CharField(max_length=12, primary_key=True, choices=TIPOS_VENTANILLA)
 
     class Meta:
-        constraints = [models.CheckConstraint(condition=Q(codigo__in=["general", "preferencial", "cronicos"]), name="ventanilla_tipo_valido")]
+        constraints = [models.CheckConstraint(condition=Q(codigo__in=["general", "preferencial", "cronicos", "urgencia"]), name="ventanilla_tipo_valido")]
 
     def __str__(self):
         return self.get_codigo_display()

@@ -70,6 +70,21 @@ Un intento de test recibió acceso denegado al intérprete; se reejecutó con pe
 
 Comandos previstos al implementar: `manage.py check`, `manage.py makemigrations --check --dry-run`, `manage.py test turnosapp recetasapp --noinput`, suite completa, `tools/verificar_spec_05_http.py` y `git diff --check`. Crear/migrar/preparar datos únicamente en entorno sintético aislado para la validación.
 
+### Enmienda del 2026-11-15 (RF-05-13)
+
+| Comando | Resultado |
+|---|---|
+| `manage.py makemigrations --check --dry-run` (2026-11-15, T-05-07) | Sin cambios tras crear `0008_ventanilla_urgencia` y `0009_ventanilla_urgencia_datos`. |
+| `manage.py test turnosapp.tests.test_esquema_cola turnosapp.tests.test_migracion_cola turnosapp.tests.test_atencion turnosapp.tests.test_panel turnosapp.tests.test_vistas --noinput` (2026-11-15, T-05-07, PostgreSQL) | 75 aprobadas en 30,8 s. Un primer intento con la migración de datos dentro de `0008` falló al revertir en PostgreSQL («tiene eventos de trigger pendientes»); se separó en `0009`. |
+| `manage.py test turnosapp.tests.test_cola turnosapp.tests.test_concurrencia_cola --noinput` (T-05-08, PostgreSQL) | 26 aprobadas en 7,7 s: cinco funcionales de la fila U y tres concurrentes (`TransactionTestCase` e hilos). |
+| `manage.py test turnosapp.tests.test_sin_padron turnosapp.tests.test_cierre --noinput` (T-05-09, PostgreSQL) | 24 aprobadas en 4,3 s, con dos nuevas de cierre sin recetas. |
+| `manage.py test --noinput --parallel 1` (T-05-10, PostgreSQL) | **920 aprobadas** en 410,4 s (908 previas y 12 nuevas). |
+| `node turnosapp/tests/*.test.cjs` (T-05-10) | Cinco suites aprobadas (cola, menú, preparación, sala y tótem). |
+| `manage.py check` y `makemigrations --check --dry-run` (T-05-10) | Sin problemas ni migraciones faltantes. |
+| `tools/verificar_spec_05_http.py` (T-05-10, SQLite temporal, 670 pacientes, cuatro ventanillas) | Aprobado. p95 emisión 101,59 ms, estado 65,59 ms y cierre 182,25 ms (100 muestras cada una). Escenario de la enmienda: con una ventanilla automática el orden fue U, G con 20 minutos de espera y turno del tótem fuera del padrón; los tres cierres sin recetas con «Atención sin recetas del sistema» y sin entregas nuevas. Límites: loopback WSGI; sin navegador ni voz. |
+
+La enmienda no tiene revisión visual, axe, teclado ni usabilidad: siguen pendientes, igual que la aceptación funcional. El estado del spec sigue en Aprobado.
+
 ## Regresión de la base
 
 ### Evidencia del paso 2

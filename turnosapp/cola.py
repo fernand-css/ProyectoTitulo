@@ -85,7 +85,13 @@ def _candidato(ventanilla, config, cursor, instante, fecha):
     candidatos = Turno.objects.filter(estado="esperando", fecha=fecha, tipo_atencion__in=tipos).exclude(
         rut__in=llamados,
     ).order_by("entrada_cola", "numero", "pk")
-    antiguo = candidatos.filter(entrada_cola__lte=instante - timedelta(minutes=15)).first()
+    # Enmienda RF-05-13: la urgencia queda fuera del ciclo y va antes que el rescate de 15 minutos;
+    # varias U se atienden por orden de entrada y el cursor ponderado no avanza.
+    urgente = candidatos.filter(tipo_atencion=Turno.TipoAtencion.URGENCIA).first()
+    if urgente:
+        return urgente, cursor
+    antiguo = candidatos.exclude(tipo_atencion=Turno.TipoAtencion.URGENCIA).filter(
+        entrada_cola__lte=instante - timedelta(minutes=15)).first()
     if antiguo:
         return antiguo, cursor
     # Tres intervalos, sin construir una lista proporcional al tamaño de los pesos.

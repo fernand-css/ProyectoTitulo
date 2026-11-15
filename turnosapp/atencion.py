@@ -25,6 +25,9 @@ from .models import (
 )
 
 
+MOTIVO_SIN_RECETAS = "Atención sin recetas del sistema"
+
+
 def _obtener(modelo, pk):
     objeto = modelo.objects.filter(pk=pk).first()
     if objeto is None:
@@ -126,6 +129,9 @@ def _operar(actor, tipo, destino, identidad, datos, huella):
         if turno.operador_id != actor.pk:
             raise PermissionDenied
         vinculos = list(turno.recetas_vinculadas.order_by("receta_id"))
+        if not vinculos:
+            # Enmienda RF-05-13: sin recetas del sistema el cierre lleva un motivo fijo y no pide texto.
+            datos = {**datos, "motivo": MOTIVO_SIN_RECETAS}
         ids = {v.receta_id for v in vinculos}
         seleccion = set(datos["recetas"])
         motivos = datos["motivos"]
