@@ -83,8 +83,10 @@ def semilla():
         fecha_nacimiento=date(1970, 1, 1)) for rut in generar_ruts(670, Random(606))])
     recetas = Receta.objects.bulk_create([Receta(paciente=p, codigo=f"QA06-PRIVADO-{i}", fecha_inicio=hoy,
         fecha_fin_exclusiva=hoy + timedelta(days=30), vigencia_meses=1, max_entregas=3) for i, p in enumerate(pacientes)])
-    turnos = Turno.objects.bulk_create([Turno(paciente=p, rut=p.rut, fecha=hoy, letra="G", numero=i + 1, tipo_atencion="general")
-        for i, p in enumerate(pacientes)])
+    # RF-06-13: tres series por letra (P, G, C) para que la sala anuncie letras distintas.
+    series = [("preferencial", "P"), ("general", "G"), ("cronicos", "C")]
+    turnos = Turno.objects.bulk_create([Turno(paciente=p, rut=p.rut, fecha=hoy, letra=series[i % 3][1], numero=i // 3 + 1,
+        tipo_atencion=series[i % 3][0]) for i, p in enumerate(pacientes)])
     TurnoReceta.objects.bulk_create([TurnoReceta(turno=t, receta=r) for t, r in zip(turnos, recetas)])
     clave = secrets.token_urlsafe(24)
     for numero in range(1, 5):
@@ -114,7 +116,7 @@ async def medir(base, clave):
         def __init__(self, canal):
             self.canal = canal
             self.mensajes = asyncio.Queue()
-            self.ids, self.latencias = [], {}
+            self.ids, self.latencias, self.letras = [], {}, {}
             self.tarea = asyncio.create_task(self.leer())
 
         async def leer(self):
@@ -128,7 +130,9 @@ async def medir(base, clave):
                 datos, recibido = await asyncio.wait_for(self.mensajes.get(), timeout=10)
                 sin_datos_privados(json.dumps(datos))
                 if datos["tipo"] == "anuncio":
-                    assert set(datos) == {"tipo", "id", "numero", "ventanilla", "accion", "instante"}
+                    assert set(datos) == {"tipo", "id", "letra", "numero", "ventanilla", "accion", "instante"}
+                    assert datos["letra"] in ("P", "G", "C")
+                    self.letras[datos["id"]] = (datos["letra"], datos["numero"])
                     identidad = datos["id"]
                     assert identidad in esperados and identidad not in self.latencias, "Anuncio inesperado o duplicado"
                     assert datos["accion"] == "llamado"
@@ -176,6 +180,13 @@ async def medir(base, clave):
         finally:
             connections.close_all()
 
+    def letras_confirmadas():
+        try:
+            return {a.pk: (a.evento.turno.letra, a.evento.turno.numero)
+                for a in AnuncioSala.objects.select_related("evento__turno")}
+        finally:
+            connections.close_all()
+
     try:
         # Cuatro paneles privados autenticados consultan mientras se confirman llamados.
         for numero in range(1, 5):
@@ -189,6 +200,8 @@ async def medir(base, clave):
             clientes.append((canal, pantalla))
             inicial, _ = await asyncio.wait_for(pantalla.mensajes.get(), timeout=5)
             assert inicial["tipo"] == "estado" and not inicial["recientes"]
+            assert [i["letra"] for i in inicial["espera"]["por_letra"]] == ["P", "G", "C", "U"]
+            assert inicial["espera"]["cantidad"] == 670 and "numeros" not in inicial["espera"]
             sin_datos_privados(json.dumps(inicial))
         tarea_sondeo = asyncio.create_task(sondear_panel())
         with patch("turnosapp.cola.registrar_anuncio", registrar):
@@ -212,10 +225,15 @@ async def medir(base, clave):
             assert len(p.ids) == 100 and p.ids == sorted(set(p.ids))
         cantidades = await asyncio.to_thread(cantidades_finales)
         assert cantidades == (100, 0)
+        confirmadas = await asyncio.to_thread(letras_confirmadas)
+        for _, p in clientes:
+            assert p.letras == confirmadas, "La letra anunciada no coincide con la del turno"
+        assert {letra for letra, _ in confirmadas.values()} == {"P", "G", "C"}
         por_llamado = [max(p.latencias[pk] for _, p in clientes) for pk in confirmaciones]
         informe = {
             "resultado": "aprobado", "pacientes_sinteticos": 670, "turnos_iniciales": 670,
             "ventanillas": 4, "pantallas_websocket": 2, "llamados_confirmados": 100,
+            "enmienda_rf_06_13": "cada anuncio lleva la letra de su turno (P, G y C); espera inicial por letra sin números",
             "carga": "25 lotes de 4 pacientes; 96 cierres reales del 05 con entrega y selección siguiente; cuatro paneles privados sondean durante la medición",
             "latencia_confirmacion_recepcion": resumen(por_llamado),
             "por_pantalla": [resumen(list(p.latencias.values())) for _, p in clientes],

@@ -31,6 +31,7 @@ class AnunciosSalaTests(DatosCola, TestCase):
         self.assertEqual([a.accion for a in anuncios], ["llamado", "rellamado"])
         for anuncio in anuncios:
             self.assertEqual(anuncio.numero, turno.numero)
+            self.assertEqual(anuncio.letra, turno.letra)
             self.assertEqual(anuncio.ventanilla_numero, ventanilla.numero)
             self.assertEqual(anuncio.instante, anuncio.evento.instante)
             self.assertEqual(anuncio.fecha, self.fecha)
@@ -102,12 +103,12 @@ class AnunciosSalaTests(DatosCola, TestCase):
     def test_restricciones_impiden_datos_invalidos_y_evento_duplicado(self):
         self.llamar()
         anuncio = AnuncioSala.objects.get()
-        for cambios in ({"numero": 0}, {"ventanilla_numero": 0}, {"accion": "ausente"}):
+        for cambios in ({"numero": 0}, {"ventanilla_numero": 0}, {"accion": "ausente"}, {"letra": "X"}):
             with self.assertRaises(IntegrityError), transaction.atomic():
                 AnuncioSala.objects.filter(pk=anuncio.pk).update(**cambios)
         with self.assertRaises(IntegrityError), transaction.atomic():
             AnuncioSala.objects.create(evento=anuncio.evento, fecha=anuncio.fecha,
-                numero=1, ventanilla_numero=1, accion="llamado", instante=anuncio.instante)
+                numero=1, letra="G", ventanilla_numero=1, accion="llamado", instante=anuncio.instante)
         with self.assertRaises(ProtectedError):
             anuncio.evento.delete()
 

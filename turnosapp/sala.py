@@ -3,9 +3,13 @@ from zoneinfo import ZoneInfo
 
 from django.utils import timezone
 
-from .models import AnuncioSala, Turno, Ventanilla
+from django.db.models import Count
+
+from .models import AnuncioSala, Letra, Turno, Ventanilla
 
 ZONA_SALA = ZoneInfo("America/Santiago")
+# Orden de RF-06-13 para «En espera».
+LETRAS_SALA = [Letra.PREFERENCIAL, Letra.GENERAL, Letra.CRONICOS, Letra.URGENCIA]
 
 
 def instante_publico(instante):
@@ -15,7 +19,7 @@ def instante_publico(instante):
 def anuncio_publico(anuncio):
     """Lista explícita: nunca serializar el evento ni relaciones privadas."""
     return {
-        "id": anuncio.id, "numero": anuncio.numero,
+        "id": anuncio.id, "letra": anuncio.letra, "numero": anuncio.numero,
         "ventanilla": anuncio.ventanilla_numero, "accion": anuncio.accion,
         "instante": instante_publico(anuncio.instante),
     }
@@ -27,7 +31,7 @@ def estado_sala(ahora=None):
     llamados = {
         turno["ventanilla_id"]: turno
         for turno in Turno.objects.filter(fecha=fecha, estado="llamado").values(
-            "ventanilla_id", "numero", "ultimo_llamado",
+            "ventanilla_id", "letra", "numero", "ultimo_llamado",
         )
     }
     ventanillas = []
@@ -40,17 +44,19 @@ def estado_sala(ahora=None):
             "numero": ventanilla["numero"],
             "estado": "llamado" if turno else ("disponible" if disponible else "sin_atencion"),
             "llamado": turno["numero"] if turno else None,
+            "letra": turno["letra"] if turno else None,
             "desde": instante_publico(turno["ultimo_llamado"]) if turno else None,
         })
     recientes = [anuncio_publico(a) for a in AnuncioSala.objects.filter(fecha=fecha).order_by("-id")[:20]]
-    espera = Turno.objects.filter(fecha=fecha, estado="esperando")
-    cantidad = espera.count()
-    numeros = list(espera.order_by("numero").values_list("numero", flat=True)[:40])
+    # RF-06-13: solo cantidades por letra; listar números sugería un orden de llamado que no existe.
+    conteo = dict(Turno.objects.filter(fecha=fecha, estado="esperando").values_list("letra")
+        .annotate(cantidad=Count("pk")).order_by())
+    por_letra = [{"letra": str(letra), "cantidad": conteo.get(letra, 0)} for letra in LETRAS_SALA]
     return {
         "tipo": "estado", "ahora": instante_publico(ahora), "fecha": fecha.isoformat(),
         "ultimo_id": recientes[0]["id"] if recientes else 0,
         "ventanillas": ventanillas, "recientes": recientes,
-        "espera": {"cantidad": cantidad, "numeros": numeros, "restantes": max(0, cantidad - len(numeros))},
+        "espera": {"cantidad": sum(item["cantidad"] for item in por_letra), "por_letra": por_letra},
     }
 
 
@@ -63,6 +69,7 @@ def registrar_anuncio(evento, turno, ventanilla):
         defaults={
             "fecha": timezone.localdate(evento.instante),
             "numero": turno.numero,
+            "letra": turno.letra,
             "ventanilla_numero": ventanilla.numero,
             "accion": evento.accion,
             "instante": evento.instante,

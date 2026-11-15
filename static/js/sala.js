@@ -2,9 +2,17 @@
 (function () {
   "use strict";
 
+  const LETRAS = ["P", "G", "C", "U"];
+
+  // RF-06-13: la voz y el aviso dicen la letra separada y el número sin ceros («Número P 14, ventanilla 2»).
   function frase(anuncio) {
     return (anuncio.accion === "rellamado" ? "Nuevamente, número " : "Número ") +
-      anuncio.numero + ", ventanilla " + anuncio.ventanilla;
+      anuncio.letra + " " + anuncio.numero + ", ventanilla " + anuncio.ventanilla;
+  }
+
+  // En pantalla, el formato del comprobante: P-014.
+  function codigo(letra, numero) {
+    return letra + "-" + String(numero).padStart(3, "0");
   }
 
   function crearSonido(e) {
@@ -257,17 +265,19 @@
     }
     function positivo(numero) { return Number.isSafeInteger(numero) && numero > 0; }
     function anuncioValido(a) {
-      return a && positivo(a.id) && positivo(a.numero) && positivo(a.ventanilla) &&
+      return a && positivo(a.id) && positivo(a.numero) && positivo(a.ventanilla) && LETRAS.includes(a.letra) &&
         ["llamado", "rellamado"].includes(a.accion) && Number.isFinite(Date.parse(a.instante));
     }
     function estadoValido(s) {
       return s && s.tipo === "estado" && /^\d{4}-\d{2}-\d{2}$/.test(s.fecha) &&
         Number.isFinite(Date.parse(s.ahora)) && Array.isArray(s.recientes) && s.recientes.every(anuncioValido) &&
         Array.isArray(s.ventanillas) && s.ventanillas.every(v => positivo(v.numero) &&
-          ["llamado", "disponible", "sin_atencion"].includes(v.estado) && (v.estado !== "llamado" || positivo(v.llamado))) &&
+          ["llamado", "disponible", "sin_atencion"].includes(v.estado) &&
+          (v.estado !== "llamado" || (positivo(v.llamado) && LETRAS.includes(v.letra)))) &&
         s.espera && Number.isSafeInteger(s.espera.cantidad) && s.espera.cantidad >= 0 &&
-        Number.isSafeInteger(s.espera.restantes) && s.espera.restantes >= 0 &&
-        Array.isArray(s.espera.numeros) && s.espera.numeros.every(positivo);
+        Array.isArray(s.espera.por_letra) && s.espera.por_letra.length === LETRAS.length &&
+        s.espera.por_letra.every((item, i) => item && item.letra === LETRAS[i] &&
+          Number.isSafeInteger(item.cantidad) && item.cantidad >= 0);
     }
     function sincronizar(ahora) {
       if (Number.isFinite(Date.parse(ahora))) {
@@ -281,10 +291,11 @@
     function pintar() {
       if (!estado) return;
       const ultimo = estado.recientes[0];
-      if (ultimo && elementos.ultimo.textContent !== frase(ultimo)) {
+      if (ultimo && elementos.ultimo.dataset.anuncioId !== String(ultimo.id)) {
         const rotulo = nodo("span", ultimo.accion === "rellamado" ? "Nuevamente, número " : "Número ");
         rotulo.className = "sala-rotulo";
-        const numero = nodo("strong", String(ultimo.numero)); numero.className = "sala-numero";
+        const numero = nodo("strong", codigo(ultimo.letra, ultimo.numero)); numero.className = "sala-numero";
+        numero.dataset.letra = ultimo.letra;
         const coma = nodo("span", ","); coma.className = "sr-only";
         const destino = nodo("span"); destino.className = "sala-destino";
         destino.append(d.createTextNode(" ventanilla "), nodo("strong", String(ultimo.ventanilla)));
@@ -298,7 +309,7 @@
         const tarjeta = nodo("article");
         tarjeta.className = "sala-ventanilla";
         tarjeta.dataset.ventanilla = String(v.numero);
-        const contenido = nodo("p", v.estado === "llamado" ? "Número " + v.llamado :
+        const contenido = nodo("p", v.estado === "llamado" ? "Número " + codigo(v.letra, v.llamado) :
           (v.estado === "disponible" ? "Disponible" : "Sin atención"));
         if (v.estado === "llamado") contenido.className = "sala-turno";
         tarjeta.append(nodo("h3", "Ventanilla " + v.numero), contenido);
@@ -314,7 +325,8 @@
         const item = nodo("li");
         const hora = nodo("time", formatoHora.format(new Date(a.instante)));
         hora.dateTime = a.instante;
-        item.append(d.createTextNode(frase(a) + " · "), hora);
+        item.append(d.createTextNode((a.accion === "rellamado" ? "Nuevamente, número " : "Número ") +
+          codigo(a.letra, a.numero) + ", ventanilla " + a.ventanilla + " · "), hora);
         return item;
       });
       elementos.recientes.replaceChildren(...(recientes.length ? recientes : [nodo("li", "Aún no hay llamados hoy.")]));
@@ -322,11 +334,17 @@
         elementos.espera.replaceChildren(nodo("p", "Nadie en espera."));
       } else {
         const cantidad = nodo("p", estado.espera.cantidad + (estado.espera.cantidad === 1 ? " persona en espera" : " personas en espera"));
+        // RF-06-13: cantidad por letra, sin números que sugieran un orden de llamado.
         const lista = nodo("ul");
-        lista.setAttribute("aria-label", "Números en espera");
-        lista.append(...estado.espera.numeros.slice(0, 40).map(n => nodo("li", String(n))));
+        lista.className = "sala-espera-letras";
+        lista.setAttribute("aria-label", "En espera por letra");
+        lista.append(...estado.espera.por_letra.map(item => {
+          const fila = nodo("li");
+          fila.dataset.letra = item.letra;
+          fila.append(nodo("strong", item.letra), d.createTextNode(": " + item.cantidad));
+          return fila;
+        }));
         elementos.espera.replaceChildren(cantidad, lista);
-        if (estado.espera.restantes) elementos.espera.append(nodo("p", "y " + estado.espera.restantes + " más"));
       }
     }
     function cambiarJornada(fecha) {
@@ -334,7 +352,7 @@
       vistos.clear();
       ultimosPorVentanilla.clear();
       if (sonido) sonido.limpiar();
-      estado = {...estado, fecha, recientes: [], ultimo_id: 0, espera: {cantidad: 0, numeros: [], restantes: 0},
+      estado = {...estado, fecha, recientes: [], ultimo_id: 0, espera: {cantidad: 0, por_letra: LETRAS.map(letra => ({letra, cantidad: 0}))},
         ventanillas: estado.ventanillas.map(v => ({...v, estado: "sin_atencion", llamado: null, desde: null}))};
     }
     function pintarReloj() {
@@ -378,7 +396,7 @@
       if (a.id > (ultimosPorVentanilla.get(a.ventanilla) || 0)) {
         ultimosPorVentanilla.set(a.ventanilla, a.id);
         estado.ventanillas = estado.ventanillas.map(v => v.numero === a.ventanilla ?
-          {...v, estado: "llamado", llamado: a.numero, desde: a.instante} : v);
+          {...v, estado: "llamado", llamado: a.numero, letra: a.letra, desde: a.instante} : v);
       }
       pintar();
       sonido.encolar([a]);
@@ -486,7 +504,7 @@
     return {detener};
   }
 
-  if (typeof module !== "undefined" && module.exports) module.exports = {crearSala, frase};
+  if (typeof module !== "undefined" && module.exports) module.exports = {crearSala, frase, codigo};
   if (typeof window !== "undefined" && typeof document !== "undefined") {
     crearSala({document, location: window.location, WebSocket: window.WebSocket,
       speechSynthesis: window.speechSynthesis, SpeechSynthesisUtterance: window.SpeechSynthesisUtterance,

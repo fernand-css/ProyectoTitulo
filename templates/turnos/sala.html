@@ -15,7 +15,7 @@
   <div id="sala-ultimo" role="status" aria-live="polite" aria-atomic="true">
     {% with ultimo=estado.recientes.0 %}
       {% if ultimo %}
-      <span class="sala-rotulo">{% if ultimo.accion == 'rellamado' %}Nuevamente, número{% else %}Número{% endif %} </span><strong class="sala-numero">{{ ultimo.numero }}</strong><span class="sr-only">,</span><span class="sala-destino"> ventanilla <strong>{{ ultimo.ventanilla }}</strong></span>
+      <span class="sala-rotulo">{% if ultimo.accion == 'rellamado' %}Nuevamente, número{% else %}Número{% endif %} </span><strong class="sala-numero" data-letra="{{ ultimo.letra }}">{{ ultimo.letra }}-{{ ultimo.numero|stringformat:'03d' }}</strong><span class="sr-only">,</span><span class="sala-destino"> ventanilla <strong>{{ ultimo.ventanilla }}</strong></span>
       {% else %}<p class="sala-vacio">Aún no hay llamados hoy.</p>{% endif %}
     {% endwith %}
   </div>
@@ -27,7 +27,7 @@
     {% for ventanilla in estado.ventanillas %}
     <article class="sala-ventanilla" data-ventanilla="{{ ventanilla.numero }}">
       <h3>Ventanilla {{ ventanilla.numero }}</h3>
-      <p{% if ventanilla.estado == 'llamado' %} class="sala-turno"{% endif %}>{% if ventanilla.estado == 'llamado' %}Número {{ ventanilla.llamado }}{% elif ventanilla.estado == 'disponible' %}Disponible{% else %}Sin atención{% endif %}</p>
+      <p{% if ventanilla.estado == 'llamado' %} class="sala-turno"{% endif %}>{% if ventanilla.estado == 'llamado' %}Número {{ ventanilla.letra }}-{{ ventanilla.llamado|stringformat:'03d' }}{% elif ventanilla.estado == 'disponible' %}Disponible{% else %}Sin atención{% endif %}</p>
     </article>
     {% empty %}<p>No hay ventanillas disponibles.</p>{% endfor %}
   </div>
@@ -36,7 +36,7 @@
   <h2 id="sala-recientes-titulo">Llamados recientes</h2>
   <ol id="sala-recientes">
     {% for anuncio in estado.recientes|slice:':6' %}
-    <li>{% if anuncio.accion == 'rellamado' %}Nuevamente, número{% else %}Número{% endif %} {{ anuncio.numero }}, ventanilla {{ anuncio.ventanilla }} · <time datetime="{{ anuncio.instante }}">{{ anuncio.instante|slice:'11:16' }}</time></li>
+    <li>{% if anuncio.accion == 'rellamado' %}Nuevamente, número{% else %}Número{% endif %} {{ anuncio.letra }}-{{ anuncio.numero|stringformat:'03d' }}, ventanilla {{ anuncio.ventanilla }} · <time datetime="{{ anuncio.instante }}">{{ anuncio.instante|slice:'11:16' }}</time></li>
     {% empty %}<li>Aún no hay llamados hoy.</li>{% endfor %}
   </ol>
 </section>
@@ -45,10 +45,9 @@
   <div id="sala-espera">
     {% if estado.espera.cantidad %}
     <p>{{ estado.espera.cantidad }} persona{{ estado.espera.cantidad|pluralize:'s' }} en espera</p>
-    <ul aria-label="Números en espera">
-      {% for numero in estado.espera.numeros %}<li>{{ numero }}</li>{% endfor %}
+    <ul class="sala-espera-letras" aria-label="En espera por letra">
+      {% for item in estado.espera.por_letra %}<li data-letra="{{ item.letra }}"><strong>{{ item.letra }}</strong>: {{ item.cantidad }}</li>{% endfor %}
     </ul>
-    {% if estado.espera.restantes %}<p>y {{ estado.espera.restantes }} más</p>{% endif %}
     {% else %}<p>Nadie en espera.</p>{% endif %}
   </div>
 </section>

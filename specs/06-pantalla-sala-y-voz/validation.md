@@ -100,6 +100,18 @@ Todos los p95 medidos son ≤2000 ms. Esto acredita recepción en loopback con l
 - Documentación actualizada: README (arranque ASGI, migración previa, sala/sonido y comandos), estructura, memoria, índice y los cuatro documentos del 06. El único commit técnico excluye cambios previos de recetas, menú plegable, caché de estáticos y otros archivos ajenos; los hunks del 06 en archivos compartidos se preparan separadamente.
 - Aceptación: RF-06-01/02/03/04/08/09/12 cuentan con pruebas automáticas de backend/transporte; RF-06-05/06/07 con voz simulada; RF-06-10 solo con estructura y contraste automático; RF-06-11 cumple la medición de recepción local. Navegador/axe, voz real, lectura a distancia, cinco personas y aceptación funcional **no acreditados**. No se cambia a Implementado.
 
+## Evidencia ejecutada — enmienda RF-06-13 (2026-11-15)
+
+| Comando | Resultado |
+|---|---|
+| `manage.py makemigrations --check --dry-run` y `manage.py check` | Sin cambios ni problemas tras `0010_anuncio_sala_letra`, `0011_rellenar_anuncio_letra` y `0012_anuncio_sala_letra_obligatoria`. |
+| `manage.py test turnosapp.tests.test_sala_estado turnosapp.tests.test_sala_anuncios turnosapp.tests.test_concurrencia_sala turnosapp.tests.test_sala_canal turnosapp.tests.test_sala_servidor turnosapp.tests.test_migracion_cola --noinput` (PostgreSQL) | 51 tras ajustar el contrato del canal y el número de consultas (la espera agrupada baja de cinco a cuatro). |
+| `node turnosapp/tests/*.test.cjs` | Cinco suites aprobadas; sala con 45 pruebas. |
+| `tools/verificar_spec_06_http.py` (SQLite temporal, 670 pacientes en series P/G/C, cuatro puestos, dos pantallas) | Aprobado: 100 llamados, cada anuncio con la letra de su turno; espera inicial por letra sin números. Latencia p95 503,99 ms, máximo 544,78 ms; sala HTML p95 56,43 ms; panel del 05 p95 114,86 ms; cierre y selección p95 102,02 ms. Límites: loopback, sin dibujo, navegador ni voz real. |
+| `manage.py test --noinput --parallel 1` (PostgreSQL) | 922 pruebas en 485,4 s con **1 falla ajena e intermitente**: `entregasapp.tests.test_concurrencia_ruta...test_2_tres_ediciones_desde_la_misma_version_una_gana` (spec 09, mensajes de aviso de la carrera). Repetida aislada tres veces: OK, falla, OK. No toca código de turnos ni de sala. |
+
+Navegador, axe, voz audible en el equipo real, usabilidad y aceptación de la enmienda siguen pendientes; el color por letra queda para el diseño visual.
+
 ## Matriz de comprobaciones
 
 | RF | Prueba / pasos / comando | Esperado | Obtenido | Estado |

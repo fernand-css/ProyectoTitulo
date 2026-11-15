@@ -79,7 +79,7 @@ class CanalSalaTests(DatosCola, TransactionTestCase):
             for cliente in clientes:
                 anuncios = [await self.recibir_tipo(cliente, "anuncio") for _ in range(4)]
                 self.assertEqual([a["id"] for a in anuncios], ids)
-                self.assertEqual(set(anuncios[0]), {"tipo", "id", "numero", "ventanilla", "accion", "instante"})
+                self.assertEqual(set(anuncios[0]), {"tipo", "id", "letra", "numero", "ventanilla", "accion", "instante"})
                 self.assertEqual((await self.recibir_tipo(cliente, "estado"))["ultimo_id"], ids[-1])
                 self.assertTrue(await cliente.receive_nothing(timeout=0.1))
         finally:

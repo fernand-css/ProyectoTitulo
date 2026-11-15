@@ -40,9 +40,30 @@ Autorización: invocación de `/spec-impl 06` y confirmación explícita del ini
   - Archivos previstos: `tools/verificar_spec_06_http.py`, `README.md`, `docs/estructura.md`, `CLAUDE.md`, `specs/06-pantalla-sala-y-voz/validation.md`, `specs/README.md`.
   - Hecho cuando: la herramienta mide al menos 100 llamados con proceso web aparte, cuatro ventanillas y dos pantallas, y el p95 queda registrado con sus muestras y carga; la suite completa, las pruebas de JavaScript y `makemigrations --check` pasan; `validation.md` tiene resultados reales y límites; el estado del spec no pasa a Implementado sin la revisión de navegador, la voz en el hardware real, la prueba con cinco personas y la aceptación del usuario.
 
+### Enmienda del 2026-11-15 (RF-06-13)
+
+- [x] **T-06-08 — Letra en el anuncio.**
+  - RF: RF-06-13 (RF-06-09). Archivos: `models.py`, migraciones `0010`–`0012`, `sala.py`, pruebas de anuncios, migración y concurrencia.
+  - Hecho cuando: cada anuncio guarda la letra de su turno, los anteriores se rellenan al migrar y la reversión funciona; tres escenarios concurrentes conservan un anuncio por evento con su letra.
+  - Resultado: `AnuncioSala.letra` con migraciones `0010`–`0012` (relleno desde el turno del evento en su propia transacción) y restricción `sala_letra_valida`; `registrar_anuncio` y `anuncio_publico` la incluyen. Prueba de migración con relleno P/C y reversión; pruebas de anuncios y los cuatro escenarios concurrentes del 06 comprueban la letra (uno con P, G, C y U a la vez).
+- [x] **T-06-09 — Estado público por letra.**
+  - RF: RF-06-13 (RF-06-04). Depende de: T-06-08. Archivos: `sala.py`, `sala.html`, `test_sala_estado.py`.
+  - Hecho cuando: tarjetas, último llamado y recientes muestran P-014; «En espera» da la cantidad de P, G, C y U sin números; sin RUT, nombre ni recetas.
+  - Resultado: tarjetas con `letra`, `espera` = `{cantidad, por_letra}` en orden P, G, C, U con una sola consulta agrupada (cuatro consultas en vez de cinco); `sala.html` pinta P-014 en último llamado, tarjetas y recientes, y la espera como «P: 6». Sin RUT, nombres, recetas ni nombres de categoría.
+- [x] **T-06-10 — Cliente con letra.**
+  - RF: RF-06-13 (RF-06-05). Depende de: T-06-09. Archivos: `static/js/sala.js`, `sala.test.cjs`.
+  - Hecho cuando: aviso y voz dicen la misma frase «Número P 14, ventanilla 2» (y «Nuevamente, …»); la pantalla pinta P-014 y la espera por letra; se rechazan letras inválidas.
+  - Resultado: `frase()` dice «Número P 14, ventanilla 2»; `codigo()` pinta P-014; el cliente rechaza letras inválidas o estados sin `por_letra`; la jornada nueva reinicia la espera por letra. 45 pruebas de sala (una nueva) y las cinco suites JS aprobadas.
+- [x] **T-06-11 — Integración de la enmienda.**
+  - RF: RF-06-13; RNF-02/05. Depende de: T-06-10. Archivos: `tools/verificar_spec_06_http.py`, documentos.
+  - Hecho cuando: regresión completa, JavaScript, migraciones y medición HTTP con resultados registrados; pendientes visuales explícitos.
+  - Resultado: herramienta HTTP con series P/G/C: 100 llamados a dos pantallas con la letra de cada turno, p95 503,99 ms (máximo 544,78). Regresión completa: 922 pruebas, una falla intermitente ajena (`entregasapp.tests.test_concurrencia_ruta`, spec 09; falló 1 de 3 corridas aisladas). Documentos actualizados. Navegador, voz real y aceptación pendientes.
+
 ## Autorización posterior
 
 2026-11-03: el usuario solicita «$spec-impl 06 solo crea un commit despues de terminar la implementacion», elige «2» para continuar preservando los cambios locales y confirma «si» al inicio de T-06-01. Se trabaja en `fdaza`, sin rama nueva, según el acuerdo de `CLAUDE.md`. Un único commit al terminar, excluyendo cambios ajenos. Se mantienen las pausas de revisión entre pasos; no se modifica `AutoCreateBranch`. No se autoriza migrar la base del proyecto ni se declara aceptación funcional.
+
+2026-11-15: la usuaria pidió «sigamos con los cambios de la spec 6» para implementar la enmienda RF-06-13 en `fdaza`, sin rama nueva, con un único commit al cierre si lo pide.
 
 ## Ejecución
 

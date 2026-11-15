@@ -1,6 +1,6 @@
 const {test} = require('node:test');
 const assert = require('node:assert/strict');
-const {crearSala, frase} = require('../../static/js/sala.js');
+const {crearSala, frase, codigo} = require('../../static/js/sala.js');
 
 class Nodo {
   constructor(etiqueta = '') {
@@ -15,10 +15,14 @@ class Nodo {
   addEventListener(nombre, fn) { this.eventos[nombre] = fn; }
   click() { if (!this.disabled) this.eventos.click?.(); }
 }
-const anuncio = (id = 1, extra = {}) => ({id, numero: id + 20, ventanilla: 1, accion: 'llamado', instante: '2026-11-03T12:00:00-03:00', ...extra});
+const anuncio = (id = 1, extra = {}) => ({id, letra: 'G', numero: id + 20, ventanilla: 1, accion: 'llamado', instante: '2026-11-03T12:00:00-03:00', ...extra});
 const estado = (extra = {}) => ({tipo: 'estado', ahora: '2026-11-03T12:00:00-03:00', fecha: '2026-11-03', ultimo_id: 0,
   ventanillas: [{numero: 1, estado: 'disponible', llamado: null, desde: null}], recientes: [],
-  espera: {cantidad: 2, numeros: [2, 3], restantes: 0}, ...extra});
+  espera: porLetra(1, 1, 0, 0), ...extra});
+// RF-06-13: «En espera» llega como cantidad por letra, siempre en orden P, G, C, U.
+function porLetra(p, g, c, u) {
+  return {cantidad: p + g + c + u, por_letra: [['P', p], ['G', g], ['C', c], ['U', u]].map(([letra, cantidad]) => ({letra, cantidad}))};
+}
 const vaciarPromesas = async () => { for (let i = 0; i < 8; i++) await Promise.resolve(); };
 
 function entorno(opciones = {}) {
@@ -127,8 +131,9 @@ test('pinta estado inicial, conserva el historial y conecta por ws o wss al mism
     const a = anuncio();
     const e = entorno({https, inicial: estado({recientes: [a], ultimo_id: 1})});
     assert.equal(e.sockets[0].url, `${https ? 'wss' : 'ws'}://sala.example/ws/sala/`);
-    assert.equal(e.elementos['sala-ultimo'].textContent, frase(a));
-    assert.match(e.elementos['sala-espera'].textContent, /2 personas en espera23/);
+    // RF-06-13: la pantalla usa el código del comprobante; el aviso y la voz, la frase hablada.
+    assert.equal(e.elementos['sala-ultimo'].textContent, 'Número ' + codigo(a.letra, a.numero) + ', ventanilla 1');
+    assert.match(e.elementos['sala-espera'].textContent, /2 personas en esperaP: 1G: 1C: 0U: 0/);
     assert.match(e.elementos['sala-ventanillas'].textContent, /Disponible/);
   }
 });
@@ -136,12 +141,31 @@ test('pinta estado inicial, conserva el historial y conecta por ws o wss al mism
 test('estado en vivo actualiza ventanillas, espera y recientes sin recargar', () => {
   const e = entorno();
   e.sockets[0].mensaje(estado({recientes: [anuncio()], ultimo_id: 1,
-    ventanillas: [{numero: 1, estado: 'llamado', llamado: 21}, {numero: 2, estado: 'sin_atencion', llamado: null}],
-    espera: {cantidad: 43, numeros: Array.from({length: 40}, (_, i) => i + 2), restantes: 3}}));
+    ventanillas: [{numero: 1, estado: 'llamado', llamado: 21, letra: 'P'}, {numero: 2, estado: 'sin_atencion', llamado: null}],
+    espera: porLetra(6, 12, 4, 0)}));
   assert.match(e.elementos['sala-conexion'].textContent, /Conectada en vivo/);
-  assert.match(e.elementos['sala-ventanillas'].textContent, /Número 21Ventanilla 2Sin atención/);
-  assert.match(e.elementos['sala-espera'].textContent, /y 3 más/);
-  assert.equal(e.elementos['sala-espera'].children[1].children.length, 40);
+  assert.match(e.elementos['sala-ventanillas'].textContent, /Número P-021Ventanilla 2Sin atención/);
+  assert.match(e.elementos['sala-espera'].textContent, /22 personas en esperaP: 6G: 12C: 4U: 0/);
+  assert.equal(e.elementos['sala-espera'].children[1].children.length, 4);
+  assert.deepEqual(e.elementos['sala-espera'].children[1].children.map(n => n.dataset.letra), ['P', 'G', 'C', 'U']);
+  assert.doesNotMatch(e.elementos['sala-espera'].textContent, /más/);
+});
+
+test('RF-06-13: frase con letra y sin ceros, pantalla con código P-014, y letras inválidas rechazadas', async () => {
+  assert.equal(frase({letra: 'P', numero: 14, ventanilla: 2, accion: 'llamado'}), 'Número P 14, ventanilla 2');
+  assert.equal(frase({letra: 'P', numero: 14, ventanilla: 2, accion: 'rellamado'}), 'Nuevamente, número P 14, ventanilla 2');
+  assert.equal(codigo('P', 14), 'P-014');
+  assert.equal(codigo('U', 1234), 'U-1234');
+  const e = entorno(); const s = e.sockets[0];
+  s.mensaje(estado());
+  s.mensaje({tipo: 'anuncio', ...anuncio(1, {letra: 'P', numero: 14, ventanilla: 2})});
+  assert.match(e.elementos['sala-ultimo'].textContent, /^Número P-014, ventanilla 2$/);
+  assert.match(e.elementos['sala-recientes'].textContent, /Número P-014, ventanilla 2/);
+  const antes = e.elementos['sala-ultimo'].textContent;
+  s.mensaje({tipo: 'anuncio', ...anuncio(2, {letra: 'X'})});
+  assert.equal(e.elementos['sala-ultimo'].textContent, antes);
+  s.mensaje(estado({ventanillas: [{numero: 1, estado: 'llamado', llamado: 3}]}));
+  assert.equal(e.elementos['sala-ultimo'].textContent, antes);
 });
 
 test('anuncios se incorporan una vez, incluso con id menor que el cursor', () => {
@@ -153,7 +177,7 @@ test('anuncios se incorporan una vez, incluso con id menor que el cursor', () =>
   s.mensaje({tipo: 'anuncio', ...anuncio(7)});
   assert.equal(e.elementos['sala-recientes'].children.length, 2);
   assert.equal(e.elementos['sala-ultimo'].dataset.anuncioId, '8');
-  assert.match(e.elementos['sala-ventanillas'].textContent, /Número 28/);
+  assert.match(e.elementos['sala-ventanillas'].textContent, /Número G-028/);
 });
 
 test('estado seguido de anuncio duplicado no vuelve a pintar el aviso', () => {
@@ -336,7 +360,7 @@ test('llamado y rellamado dicen exactamente la frase visual dos veces con pausa 
 test('fila no interrumpe el aviso actual, conserva cinco pendientes y descarta el más antiguo', async () => {
   const e = entorno(); const s = e.sockets[0]; s.mensaje(estado()); await e.activar();
   for (let id = 1; id <= 7; id++) s.mensaje({tipo: 'anuncio', ...anuncio(id)});
-  assert.match(e.elementos['sala-recientes'].textContent, /Número 22/);
+  assert.match(e.elementos['sala-recientes'].textContent, /Número G-022/);
   await e.avanzar(25000);
   assert.deepEqual(avisosHablados(e).map(l => l.texto), [1, 3, 4, 5, 6, 7].flatMap(id => [frase(anuncio(id)), frase(anuncio(id))]));
   assert.ok(e.locuciones.every((l, i, todas) => i === 0 || l.cuando >= todas[i - 1].fin));
@@ -358,7 +382,7 @@ test('anuncio de más de 60 s no se habla y uno exactamente de 60 s se completa'
   s.mensaje({tipo: 'anuncio', ...anuncio(2, {instante: '2026-11-03T11:59:01-03:00'})});
   await e.avanzar(4000);
   assert.deepEqual(avisosHablados(e).map(l => l.texto), [frase(anuncio(2)), frase(anuncio(2))]);
-  assert.match(e.elementos['sala-recientes'].textContent, /Número 21/);
+  assert.match(e.elementos['sala-recientes'].textContent, /Número G-021/);
 });
 
 test('pequeña diferencia con el reloj del servidor no hace perder un aviso recién confirmado', async () => {
@@ -470,7 +494,7 @@ test('aviso que caduca esperando no se pronuncia, pero permanece visible', async
   s.mensaje({tipo: 'anuncio', ...anuncio(2, {instante: '2026-11-03T11:59:02-03:00'})});
   await e.avanzar(8000);
   assert.deepEqual(avisosHablados(e).map(l => l.texto), [frase(anuncio(1)), frase(anuncio(1))]);
-  assert.match(e.elementos['sala-recientes'].textContent, /Número 22/);
+  assert.match(e.elementos['sala-recientes'].textContent, /Número G-022/);
 });
 
 test('una síntesis que no notifica fin se cancela tras 15 s y la fila sigue avanzando', async () => {

@@ -209,6 +209,13 @@ En esta fase: los cuatro documentos del 06 y el índice `specs/README.md`. En la
 6. **Presentación y accesibilidad.** Estilos, layout de sala, región viva, movimiento reducido, enlace de menú y pruebas de estructura y contraste.
 7. **Integración y medición.** Herramienta de latencia, regresión completa, documentación y validación con límites honestos. Último paso.
 
+Enmienda del 2026-11-15 (RF-06-13), cuatro pasos más:
+
+8. **Letra en el anuncio.** `AnuncioSala.letra` con migraciones `0010` (campo nulo), `0011` (relleno desde el turno del evento) y `0012` (obligatorio y restricción), separadas por la restricción de PostgreSQL con disparadores pendientes; `registrar_anuncio` y `anuncio_publico` la incluyen; pruebas concurrentes del llamado con letra.
+9. **Estado público por letra.** Tarjetas con letra, «En espera» como cantidad por letra (P, G, C, U) sin listar números; plantilla `sala.html` con el código P-014.
+10. **Cliente.** `sala.js`: frase «Número P 14, ventanilla 2», código P-014 en pantalla, validación de la letra y espera por letra; pruebas de JavaScript.
+11. **Integración.** Herramienta HTTP del 06, regresión completa y documentos. El color por letra queda para el diseño visual, aparte.
+
 ## Decisiones para implementar
 
 Ninguna es crítica para empezar. Para confirmar al revisar: los valores de los parámetros iniciales del spec; si la franja superior se conserva en la sala; y la versión exacta de `channels` y `daphne`. Aun sin dudas, esta fase termina antes del código.

@@ -99,3 +99,36 @@ class MigracionUrgenciaVentanillaTests(TransactionTestCase):
             self.assertEqual(nuevas.get_model("turnosapp", "TipoAtencionVentanilla").objects.count(), 0)
         finally:
             MigrationExecutor(connection).migrate(finales)
+
+
+class MigracionLetraAnuncioTests(TransactionTestCase):
+    """Enmienda del 06 (RF-06-13): los anuncios anteriores reciben la letra de su turno."""
+
+    def test_rellena_letra_desde_el_turno_del_evento(self):
+        executor = MigrationExecutor(connection)
+        finales = executor.loader.graph.leaf_nodes()
+        anterior = [n for n in finales if n[0] != "turnosapp"] + [("turnosapp", "0009_ventanilla_urgencia_datos")]
+        try:
+            executor.migrate(anterior)
+            apps = executor.loader.project_state(anterior).apps
+            Turno = apps.get_model("turnosapp", "Turno")
+            EventoTurno = apps.get_model("turnosapp", "EventoTurno")
+            AnuncioSala = apps.get_model("turnosapp", "AnuncioSala")
+            instante = timezone.now()
+            anuncios = []
+            for numero, (tipo, letra) in enumerate((("preferencial", "P"), ("cronicos", "C")), start=1):
+                turno = Turno.objects.create(rut=generar_ruts(2, Random(606))[numero - 1], letra=letra,
+                    fecha=date(2026, 11, 2), numero=numero, tipo_atencion=tipo, operacion_id=uuid.uuid4())
+                evento = EventoTurno.objects.create(turno=turno, secuencia=1, accion="llamado", instante=instante)
+                anuncios.append(AnuncioSala.objects.create(evento=evento, fecha=date(2026, 11, 2), numero=numero,
+                    ventanilla_numero=1, accion="llamado", instante=instante).pk)
+
+            actual = MigrationExecutor(connection)
+            actual.migrate(finales)
+            nuevas = actual.loader.project_state(finales).apps
+            letras = dict(nuevas.get_model("turnosapp", "AnuncioSala").objects.values_list("pk", "letra"))
+            self.assertEqual([letras[pk] for pk in anuncios], ["P", "C"])
+
+            MigrationExecutor(connection).migrate(anterior)
+        finally:
+            MigrationExecutor(connection).migrate(finales)

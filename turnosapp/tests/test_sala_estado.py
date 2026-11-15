@@ -14,14 +14,15 @@ from .datos_cola import DatosCola
 
 class EstadoSalaTests(DatosCola, TestCase):
     def test_estado_vacio_y_hora_del_servidor(self):
-        with self.assertNumQueries(5):
+        with self.assertNumQueries(4):  # RF-06-13: una sola consulta agrupada para la espera
             estado = estado_sala()
         self.assertEqual(estado["tipo"], "estado")
         self.assertEqual(estado["fecha"], "2026-11-02")
         self.assertEqual(estado["ahora"], "2026-11-02T12:00:00-03:00")
         self.assertEqual(estado["ultimo_id"], 0)
         self.assertEqual(estado["recientes"], [])
-        self.assertEqual(estado["espera"], {"cantidad": 0, "numeros": [], "restantes": 0})
+        self.assertEqual(estado["espera"], {"cantidad": 0, "por_letra": [
+            {"letra": letra, "cantidad": 0} for letra in ("P", "G", "C", "U")]})
         self.assertTrue(all(v["estado"] == "sin_atencion" for v in estado["ventanillas"]))
 
     def test_tarjetas_llamado_disponible_y_sin_atencion(self):
@@ -32,7 +33,7 @@ class EstadoSalaTests(DatosCola, TestCase):
         v3 = self.activar(3)
         Ventanilla.objects.filter(pk=v3.pk).update(fecha_activacion=self.fecha - timedelta(days=1))
         tarjetas = {v["numero"]: v for v in estado_sala()["ventanillas"]}
-        self.assertEqual(tarjetas[1], {"numero": 1, "estado": "llamado", "llamado": turno.numero,
+        self.assertEqual(tarjetas[1], {"numero": 1, "estado": "llamado", "llamado": turno.numero, "letra": "G",
             "desde": "2026-11-02T12:00:00-03:00"})
         self.assertEqual(tarjetas[2]["estado"], "disponible")
         self.assertEqual(tarjetas[3]["estado"], "sin_atencion")
@@ -62,16 +63,38 @@ class EstadoSalaTests(DatosCola, TestCase):
                 self.assertIsNone(publico["ventanillas"][0]["llamado"])
                 self.assertEqual(len(publico["recientes"]), 1)
 
-    def test_cuarenta_en_espera_en_orden_numerico_y_restantes(self):
-        for _ in range(43):
-            self.turno()
+    def test_espera_cuenta_por_letra_sin_listar_numeros(self):
+        # RF-06-13: 6 P, 12 G, 4 C y 0 U.
+        for tipo, cantidad in (("preferencial", 6), ("general", 12), ("cronicos", 4)):
+            for _ in range(cantidad):
+                self.turno(tipo)
         publico = estado_sala()
-        self.assertEqual(publico["espera"], {"cantidad": 43, "numeros": list(range(1, 41)), "restantes": 3})
+        self.assertEqual(publico["espera"], {"cantidad": 22, "por_letra": [
+            {"letra": "P", "cantidad": 6}, {"letra": "G", "cantidad": 12},
+            {"letra": "C", "cantidad": 4}, {"letra": "U", "cantidad": 0}]})
         respuesta = self.client.get(reverse("turnosapp:sala"))
-        self.assertContains(respuesta, "43 personas en espera")
-        self.assertContains(respuesta, "y 3 más")
+        self.assertContains(respuesta, "22 personas en espera")
+        bloque = respuesta.content.decode().split('id="sala-espera"', 1)[1].split("</section>", 1)[0]
+        for letra, cantidad in (("P", 6), ("G", 12), ("C", 4), ("U", 0)):
+            self.assertIn(f"<strong>{letra}</strong>: {cantidad}</li>", bloque)
+        self.assertNotIn("Números en espera", bloque)
         self.assertNotContains(respuesta, "próximos")
         self.assertNotContains(respuesta, "estimado")
+
+    def test_html_muestra_codigo_con_letra(self):
+        # RF-06-13: P-014 en el último llamado, la tarjeta y los recientes.
+        self.activar(1)
+        self.numero = 13
+        turno = self.turno("preferencial")
+        procesar_pendiente(self.pendiente().pk)
+        self.assertEqual(turno.numero, 14)
+        html = self.client.get(reverse("turnosapp:sala")).content.decode()
+        ultimo = html.split('id="sala-ultimo"', 1)[1].split("</div>", 1)[0]
+        self.assertIn('data-letra="P">P-014</strong>', ultimo)
+        tarjeta = html.split('data-ventanilla="1"', 1)[1].split("</article>", 1)[0]
+        self.assertIn("Número P-014", tarjeta)
+        recientes = html.split('<ol id="sala-recientes">', 1)[1].split("</ol>", 1)[0]
+        self.assertIn("Número P-014, ventanilla 1", recientes)
 
     def crear_historial(self, cantidad):
         self.activar()
@@ -82,7 +105,7 @@ class EstadoSalaTests(DatosCola, TestCase):
             instante = self.ahora + timedelta(seconds=secuencia)
             evento = EventoTurno.objects.create(turno=turno, secuencia=secuencia, accion="rellamado",
                 instante=instante, ventanilla=primero.evento.ventanilla)
-            AnuncioSala.objects.create(evento=evento, fecha=self.fecha, numero=turno.numero,
+            AnuncioSala.objects.create(evento=evento, fecha=self.fecha, numero=turno.numero, letra=turno.letra,
                 ventanilla_numero=1, accion="rellamado", instante=instante)
         return turno
 
@@ -115,11 +138,11 @@ class EstadoSalaTests(DatosCola, TestCase):
         self.turno()
         estado = estado_sala()
         self.assertEqual(set(estado), {"tipo", "ahora", "fecha", "ultimo_id", "ventanillas", "recientes", "espera"})
-        self.assertEqual(set(estado["espera"]), {"cantidad", "numeros", "restantes"})
+        self.assertEqual(set(estado["espera"]), {"cantidad", "por_letra"})
         for tarjeta in estado["ventanillas"]:
-            self.assertEqual(set(tarjeta), {"numero", "estado", "llamado", "desde"})
+            self.assertEqual(set(tarjeta), {"numero", "estado", "llamado", "letra", "desde"})
         for anuncio in estado["recientes"]:
-            self.assertEqual(set(anuncio), {"id", "numero", "ventanilla", "accion", "instante"})
+            self.assertEqual(set(anuncio), {"id", "letra", "numero", "ventanilla", "accion", "instante"})
 
     def test_html_y_json_no_filtran_identidad_categorias_ni_recetas(self):
         turno = self.crear_historial(1)
@@ -146,7 +169,7 @@ class EstadoSalaTests(DatosCola, TestCase):
     def test_publico_sin_cookies_no_store_y_sin_escrituras(self):
         for metodo in (self.client.get, self.client.head):
             with self.subTest(metodo=metodo.__name__):
-                with self.assertNumQueries(5):
+                with self.assertNumQueries(4):  # RF-06-13: una sola consulta agrupada para la espera
                     respuesta = metodo(reverse("turnosapp:sala"))
                 self.assertEqual(respuesta.status_code, 200)
                 self.assertIn("no-store", respuesta["Cache-Control"])

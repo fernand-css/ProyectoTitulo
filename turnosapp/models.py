@@ -252,6 +252,8 @@ class AnuncioSala(models.Model):
     id = models.BigAutoField(primary_key=True)
     fecha = models.DateField()
     numero = models.PositiveIntegerField()
+    # Enmienda RF-06-13: la letra revela la categoría del número, nunca la identidad.
+    letra = models.CharField(max_length=1, choices=Letra.choices)
     ventanilla_numero = models.PositiveIntegerField()
     accion = models.CharField(max_length=10, choices=[("llamado", "Llamado"), ("rellamado", "Re-llamado")])
     instante = models.DateTimeField()
@@ -262,6 +264,7 @@ class AnuncioSala(models.Model):
             models.CheckConstraint(condition=Q(numero__gte=1), name="sala_numero_positivo"),
             models.CheckConstraint(condition=Q(ventanilla_numero__gte=1), name="sala_ventanilla_positiva"),
             models.CheckConstraint(condition=Q(accion__in=["llamado", "rellamado"]), name="sala_accion_valida"),
+            models.CheckConstraint(condition=Q(letra__in=["P", "G", "C", "U"]), name="sala_letra_valida"),
         ]
         indexes = [models.Index(fields=["fecha", "id"], name="sala_fecha_id_idx")]
 

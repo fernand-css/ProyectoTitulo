@@ -39,17 +39,20 @@ class ConcurrenciaSalaTests(DatosCola, TransactionTestCase):
             set(EventoTurno.objects.filter(accion__in=["llamado", "rellamado"]).values_list("pk", flat=True)))
         for anuncio in anuncios:
             self.assertEqual(anuncio.numero, anuncio.evento.turno.numero)
+            self.assertEqual(anuncio.letra, anuncio.evento.turno.letra)  # RF-06-13
             self.assertEqual(anuncio.ventanilla_numero, anuncio.evento.ventanilla.numero)
 
     def test_cuatro_ventanillas_y_cuatro_planificadores(self):
-        for numero in range(1, 5):
-            self.activar(numero)
-            self.turno()
+        # RF-06-13: letras distintas para comprobar que cada anuncio copia la de su turno.
+        for numero, tipo in zip(range(1, 5), ("preferencial", "general", "cronicos", "urgencia")):
+            self.activar(numero, ("preferencial", "general", "cronicos", "urgencia"))
+            self.turno(tipo)
         pendientes = [self.pendiente().pk for _ in range(4)]
         resultados = self.competir([lambda pk=pk: procesar_pendiente(pk) for pk in pendientes])
         self.assertEqual(sum(resultados), 4)
         self.assertEqual(Turno.objects.filter(estado="llamado").values("ventanilla").distinct().count(), 4)
         self.comprobar_anuncios(4)
+        self.assertEqual(sorted(AnuncioSala.objects.values_list("letra", flat=True)), ["C", "G", "P", "U"])
 
     def test_tres_reenvios_simultaneos_del_mismo_rellamado(self):
         self.activar()
