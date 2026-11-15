@@ -1,9 +1,9 @@
 # SPEC 04 — Emisión de turnos
 
-> **Estado:** Implementado
+> **Estado:** Aprobado (cambio de la usuaria del 2026-11-15 para implementar la enmienda; antes «Implementado»)
 > **Depende de:** [SPEC 01 — Base del proyecto](../01-base-del-proyecto/spec.md), [SPEC 02 — Autenticación, roles y auditoría](../02-autenticacion-roles-auditoria/spec.md) y [SPEC 03 — Padrón y recetas](../03-padron-y-recetas/spec.md)
 > **Fecha:** 2026-11-02
-> **Enmienda:** 2026-11-15 — tótem abierto, letras P/G/C, mensaje neutro y límite de intentos (RF-04-02 a RF-04-08 modificados, con el comprobante en PDF a pantalla completa y sin impresión; RF-04-11 y RF-04-12 nuevos). Aprobada por la usuaria; **pendiente de implementación**. El estado «Implementado» se refiere al texto anterior a la enmienda.
+> **Enmienda:** 2026-11-15 — tótem abierto, letras P/G/C, mensaje neutro y límite de intentos (RF-04-02 a RF-04-08 modificados, con el comprobante en PDF a pantalla completa y sin impresión; RF-04-11 y RF-04-12 nuevos). Aprobada por la usuaria; **implementada el 2026-11-15** (908 pruebas OK y verificación HTTP aislada; navegador, visor de PDF real, axe, usabilidad y aceptación pendientes; ver `validation.md`). El estado «Implementado» se refiere al texto anterior a la enmienda.
 > **Objetivo:** Permitir que el paciente ingrese su RUT en el tótem y obtenga un único turno presencial diario activo para sus recetas elegibles, con número en pantalla y comprobante para impresora térmica.
 
 Módulo solicitado: `turnosapp`, reutilizando padrón y elegibilidad de `recetasapp`.

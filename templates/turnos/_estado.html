@@ -22,10 +22,12 @@
 {% if vigente %}
 <div class="cola-ahora">
 <div class="cola-ahora-cab">
-<p class="cola-numero"><span class="sr-only">Turno </span>{{ vigente.numero }}</p>
+<p class="cola-numero"><span class="sr-only">Turno </span>{{ vigente.codigo }}</p>
 <div class="cola-paciente">
-<p class="cola-paciente-nombre"><strong>{{ vigente.paciente.nombres }} {{ vigente.paciente.apellidos }}</strong></p>
-<p>{{ vigente.paciente.edad }} años · {{ vigente.get_tipo_atencion_display }} · RUT {{ vigente.paciente.rut|rut }}</p>
+{% if vigente.paciente %}<p class="cola-paciente-nombre"><strong>{{ vigente.paciente.nombres }} {{ vigente.paciente.apellidos }}</strong></p>
+<p>{{ vigente.paciente.edad }} años · {{ vigente.get_tipo_atencion_display }} · RUT {{ vigente.rut|rut }}</p>
+{% else %}<p class="cola-paciente-nombre"><strong>No registrado en el padrón</strong></p>
+<p>{{ vigente.get_tipo_atencion_display }} · RUT {{ vigente.rut|rut }}</p>{% endif %}
 <p class="suave">Turno del {{ vigente.fecha|date:'d/m/Y' }} · Último llamado: {{ vigente.ultimo_llamado|date:'H:i:s' }}</p>
 </div>
 </div>
@@ -49,7 +51,7 @@
 </section>
 {% endif %}
 <div class="cola-cierre">
-<a href="{% url 'recetasapp:paciente_detalle' pk=vigente.paciente_id %}">Ver ficha del paciente</a>
+{% if vigente.paciente_id %}<a href="{% url 'recetasapp:paciente_detalle' pk=vigente.paciente_id %}">Ver ficha del paciente</a>{% endif %}
 <a class="boton" href="{% url 'turnosapp:finalizar_atencion' pk=vigente.pk %}">Finalizar y confirmar entregas</a>
 </div>
 </div>
@@ -71,7 +73,7 @@
 {% if configuracion %}<p class="cola-ciclo">Ciclo: {{ configuracion.peso_preferencial }} preferenciales, {{ configuracion.peso_cronicos }} crónicos y {{ configuracion.peso_general }} generales.</p>{% endif %}
 <ol class="cola-fila" aria-label="Turnos esperando en la jornada actual">
 {% for turno in pagina_cola %}<li class="cola-turno{% if turno.espera.prioridad %} cola-prioridad{% elif turno.espera.advertencia %} cola-aviso{% endif %}">
-<a class="cola-turno-numero" href="{% url 'turnosapp:historial' pk=turno.pk %}">{{ turno.numero }}<span class="sr-only"> (ver historial)</span></a>
+<a class="cola-turno-numero" href="{% url 'turnosapp:historial' pk=turno.pk %}">{{ turno.codigo }}<span class="sr-only"> (ver historial)</span></a>
 <span class="cola-turno-datos"><span class="cola-turno-tipo">{{ turno.get_tipo_atencion_display }}</span><span class="cola-turno-detalle">Espera {{ turno.espera.segundos|minutos }}{% if turno.cantidad_recetas %} · {{ turno.cantidad_recetas }} receta{{ turno.cantidad_recetas|pluralize }}{% endif %}</span>{% if turno.espera.prioridad %}<strong class="cola-turno-nota">Prioridad por espera</strong>{% elif turno.espera.advertencia %}<span class="cola-turno-nota">Se acerca a 15 minutos</span>{% endif %}</span>
 </li>{% empty %}<li class="cola-vacia">No hay turnos esperando en esta jornada.</li>{% endfor %}
 </ol>
@@ -86,4 +88,4 @@
 </div>
 </div>
 {% if pendientes %}<section class="cola-pendientes"><h2>Llamados pendientes de recuperar</h2><p>Las entregas confirmadas no se volverán a descontar.</p>{% for pendiente in pendientes %}<form method="post" action="{% url 'turnosapp:reintentar' referencia=pendiente.pk %}">{% csrf_token %}<span>{{ pendiente.creado_en|date:'d/m/Y H:i' }}</span> <button class="boton boton-secundario" type="submit">Reintentar selección pendiente</button></form>{% endfor %}</section>{% endif %}
-{% if ausentes %}<section class="cola-ausentes-seccion"><h2>Ausentes de hoy</h2><p>Abre el turno para revisar su historial antes de reincorporarlo.</p><ul class="cola-ausentes">{% for turno in ausentes %}<li><a href="{% url 'turnosapp:historial' pk=turno.pk %}">Turno {{ turno.numero }}</a></li>{% endfor %}</ul></section>{% endif %}
+{% if ausentes %}<section class="cola-ausentes-seccion"><h2>Ausentes de hoy</h2><p>Abre el turno para revisar su historial antes de reincorporarlo.</p><ul class="cola-ausentes">{% for turno in ausentes %}<li><a href="{% url 'turnosapp:historial' pk=turno.pk %}">Turno {{ turno.codigo }}</a></li>{% endfor %}</ul></section>{% endif %}

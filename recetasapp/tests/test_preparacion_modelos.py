@@ -27,7 +27,7 @@ class PreparacionRecetaModelTests(TestCase):
             max_entregas=3,
         )
         self.turno = Turno.objects.create(
-            paciente=self.paciente, fecha=hoy, numero=1, tipo_atencion="general",
+            paciente=self.paciente, rut=self.paciente.rut, fecha=hoy, letra="G", numero=1, tipo_atencion="general",
         )
         self.vinculo = TurnoReceta.objects.create(turno=self.turno, receta=self.receta)
 

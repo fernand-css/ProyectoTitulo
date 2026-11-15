@@ -10,12 +10,12 @@ from recetasapp.models import EntregaReceta
 from recetasapp.services import registrar_entrega
 from turnosapp.atencion import reincorporar
 from turnosapp.models import ContadorTurnosDiario, Turno
-from turnosapp.services import ErrorEmision, emitir_turno
+from turnosapp.services import CODIGO_RECHAZO, MENSAJE_NEUTRO, ErrorEmision, emitir_turno
 from turnosapp.views import CLAVE
 from .ayudas import equipo, hoy, paciente, receta
 from .test_programacion import turno
 
-MENSAJE_TOTEM = "Tienes un despacho a domicilio programado. Consulta con el personal."
+MENSAJE_TOTEM = MENSAJE_NEUTRO  # RF-04-11 (enmienda 04 del 2026-11-15)
 
 
 class DobleViaTests(TestCase):
@@ -33,7 +33,7 @@ class DobleViaTests(TestCase):
         self.programar()
         with self.assertRaises(ErrorEmision) as error:
             emitir_turno(self.cronico.rut, uuid.uuid4())
-        self.assertEqual(error.exception.code, "despacho_abierto")
+        self.assertEqual(error.exception.code, CODIGO_RECHAZO)
         self.assertEqual(error.exception.messages, [MENSAJE_TOTEM])
         self.assertFalse(Turno.objects.exists())
         self.assertEqual(ContadorTurnosDiario.objects.filter(ultimo_numero__gt=0).count(), 0)

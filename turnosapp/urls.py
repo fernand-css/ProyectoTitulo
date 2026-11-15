@@ -21,4 +21,5 @@ urlpatterns = [
     path("totem/", views.totem, name="totem"),
     path("totem/finalizar/", views.finalizar, name="finalizar"),
     path("totem/continuar/", views.continuar, name="continuar"),
+    path("totem/comprobante/", views.comprobante_pdf, name="comprobante_pdf"),
 ]

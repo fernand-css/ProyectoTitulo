@@ -83,7 +83,7 @@ class ConcurrenciaAtencionTests(DatosCola, TransactionTestCase):
     def test_emision_y_reincorporacion_no_crean_dos_activos(self):
         turno = self.turno()
         Turno.objects.filter(pk=turno.pk).update(estado="ausente", cerrado_en=self.ahora)
-        ContadorTurnosDiario.objects.create(fecha=self.fecha, ultimo_numero=turno.numero)
+        ContadorTurnosDiario.objects.create(fecha=self.fecha, letra=turno.letra, ultimo_numero=turno.numero)
         Receta.objects.create(paciente=turno.paciente, codigo="CARRERA-RETORNO-DEMO", fecha_inicio=self.fecha,
             fecha_fin_exclusiva=self.fecha + timedelta(days=30), vigencia_meses=1, max_entregas=3)
         self.competir([

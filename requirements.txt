@@ -6,3 +6,5 @@ channels==4.3.2
 daphne==4.2.3
 # Spec 08: recompresión de fotos de domicilios sin metadatos (JPEG y PNG).
 Pillow>=12.3,<13
+# Enmienda del spec 04: comprobante del tótem en PDF vertical, generado al momento.
+reportlab>=4.2,<5

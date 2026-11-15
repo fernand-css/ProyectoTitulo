@@ -104,12 +104,30 @@ def main():
                     return re.search(r'name="operacion_id" value="([^"]+)"', html).group(1)
 
             pacientes = list(Paciente.objects.order_by("pk"))
+            # RF-04-12: diez solicitudes por minuto y equipo; la undécima recibe el mensaje neutro.
+            # Se usan RUT con DV inválido para no crear turnos; se evita cruzar el cambio de minuto.
+            from turnosapp import services as servicios_turnos
+            while time.localtime().tm_sec > 45:
+                time.sleep(1)
+            limitado = Cliente()
+            op_limite = limitado.abrir()
+            respuestas = []
+            for _ in range(11):
+                # Cada rechazo rota la operación (RF-04-07): se reenvía la nueva.
+                respuesta = limitado.pedir(datos={"rut": "11111111-2", "operacion_id": op_limite})
+                respuestas.append(respuesta)
+                op_limite = re.search(r'name="operacion_id" value="([^"]+)"', respuesta[1]).group(1)
+            assert all(r[0] == 400 and servicios_turnos.MENSAJE_NEUTRO not in r[1] for r in respuestas[:10])
+            assert respuestas[10][0] == 400 and servicios_turnos.MENSAJE_NEUTRO in respuestas[10][1]
+            assert not Turno.objects.exists()
+            # Las mediciones salen de un solo equipo (127.0.0.1): se levanta el límite solo para medir.
+            servicios_turnos.LIMITE_INTENTOS = 10 ** 6
             cliente = Cliente()
             op = cliente.abrir()
             datos = {"rut": pacientes[0].rut, "operacion_id": op}
             assert cliente.pedir(datos=datos, csrf=False)[0] == 403
             estado, html, _, _ = cliente.pedir(datos=datos)
-            assert estado == 200 and 'class="comprobante"' in html, f"Primera emisión HTTP: estado {estado}"
+            assert estado == 200 and 'data-comprobante-pdf' in html, f"Primera emisión HTTP: estado {estado}"
             assert pacientes[0].rut not in html and pacientes[0].nombres not in html
             assert cliente.pedir(datos=datos)[0] == 200 and Turno.objects.count() == 1
             ajeno = Cliente()
@@ -122,13 +140,14 @@ def main():
                 assert cliente.pedir(ruta)[0] == 200
 
             medidas = {}
-            for escenario in ("emision", "recuperacion", "rechazo_domicilio"):
+            # Enmienda 2026-11-15: el postrado ya no se rechaza; recibe P y luego se recupera su turno.
+            for escenario in ("emision", "recuperacion", "postrado"):
                 duraciones = []
                 for indice in range(100):
                     op = cliente.abrir()
                     paciente = pacientes[indice + 1] if escenario == "emision" else pacientes[0 if escenario == "recuperacion" else 620]
                     estado, html, duracion, _ = cliente.pedir(datos={"rut": paciente.rut, "operacion_id": op})
-                    assert estado == (400 if escenario == "rechazo_domicilio" else 200)
+                    assert estado == 200, f"{escenario}: estado {estado}"
                     assert paciente.rut not in html
                     duraciones.append(duracion)
                 medidas[escenario] = {"muestras": 100, "solicitudes_simultaneas": 1,
@@ -142,15 +161,17 @@ def main():
             for indices in ([110, 110, 110], [111, 112, 113]):
                 with ThreadPoolExecutor(max_workers=3) as pool:
                     assert list(pool.map(emitir_independiente, indices)) == [200] * 3
-            assert Turno.objects.count() == 105
-            assert len(set(Turno.objects.values_list("fecha", "numero"))) == 105
-            assert RegistroAuditoria.objects.filter(accion="turno.emitido").count() == 105
+            # 1 inicial + 100 emisiones + 1 postrado + 1 y 3 concurrentes.
+            assert Turno.objects.count() == 106
+            assert len(set(Turno.objects.values_list("fecha", "letra", "numero"))) == 106
+            assert Turno.objects.get(paciente=pacientes[620]).letra == "P"
+            assert RegistroAuditoria.objects.filter(accion="turno.emitido").count() == 106
             assert not EntregaReceta.objects.exists()
             assert not Receta.objects.exclude(entregas_completadas=0).exists()
             informe = {"fecha": hoy.isoformat(), "python": platform.python_version(), "django": django.get_version(),
                 "sistema": platform.platform(), "migraciones": MigrationRecorder.Migration.objects.count(),
-                "pacientes_sinteticos": 670, "turnos": 105, "http": "aprobado", "mediciones": medidas,
-                "limites": ["Equipo local, WSGI de prueba y carga secuencial; no prueba de producción", "Sin navegador ni impresora física"]}
+                "pacientes_sinteticos": 670, "turnos": 106, "http": "aprobado", "limite_intentos": "10 aceptadas, la undécima con mensaje neutro", "mediciones": medidas,
+                "limites": ["Equipo local, WSGI de prueba y carga secuencial; no prueba de producción", "Límite de intentos levantado durante las mediciones (un solo equipo local)", "Sin navegador ni visor de PDF real"]}
             print(json.dumps(informe, ensure_ascii=False, indent=2), flush=True)
             assert all(m["p95_ms"] <= 2000 for m in medidas.values()), "p95 excede RNF-05 en el entorno medido"
         finally:

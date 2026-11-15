@@ -14,7 +14,7 @@ from django.utils import timezone
 from coreapp.models import RegistroAuditoria
 from recetasapp.models import EntregaReceta
 from turnosapp.models import (
-    CierreAtencion, ConfiguracionCola, DetalleCierre, EstadoColaDiaria, EventoTurno,
+    LETRA_POR_TIPO, CierreAtencion, ConfiguracionCola, DetalleCierre, EstadoColaDiaria, EventoTurno,
     OcupacionVentanilla, OperacionAtencion, PendienteSeleccion, TipoAtencionVentanilla,
     Turno, TurnoReceta, Ventanilla,
 )
@@ -35,6 +35,8 @@ class EsquemaColaTests(TestCase):
     def turno(self, **cambios):
         datos = dict(paciente=self.paciente, fecha=self.fecha, numero=1, tipo_atencion="general")
         datos.update(cambios)
+        datos.setdefault("rut", datos["paciente"].rut)
+        datos.setdefault("letra", LETRA_POR_TIPO[datos["tipo_atencion"]])
         return Turno.objects.create(**datos)
 
     def rechazar_update(self, objeto, **cambios):

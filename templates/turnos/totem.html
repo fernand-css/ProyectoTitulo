@@ -21,7 +21,7 @@
 </form>
 <p>Si necesitas atención preferencial por otra condición, consulta con el personal.</p>
 {% include 'turnos/tiempo.html' %}
-<form method="post" action="{% url 'turnosapp:finalizar' %}" data-finalizar>{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ operacion }}"><button class="boton boton-secundario" type="submit">Nueva atención</button></form>
+<form method="post" action="{% url 'turnosapp:finalizar' %}" data-finalizar hidden>{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ operacion }}"></form>
 </section>
 {% endblock %}
 {% block scripts %}<script defer src="{% static 'js/totem.js' %}"></script>{% endblock %}

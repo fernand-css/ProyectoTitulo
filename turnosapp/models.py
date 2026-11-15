@@ -11,8 +11,20 @@ from django.utils import timezone
 from coreapp.models import ModeloAuditado
 
 
+class Letra(models.TextChoices):
+    """Serie del número visible; U solo la asigna el personal (spec 10)."""
+
+    PREFERENCIAL = "P", "P"
+    GENERAL = "G", "G"
+    CRONICOS = "C", "C"
+    URGENCIA = "U", "U"
+
+
 class ContadorTurnosDiario(models.Model):
-    fecha = models.DateField(unique=True)
+    """Una serie de números por fecha local y letra (enmienda 04 del 2026-11-15)."""
+
+    fecha = models.DateField()
+    letra = models.CharField(max_length=1, choices=Letra.choices)
     ultimo_numero = models.PositiveIntegerField(default=0)
 
     class Meta:
@@ -20,10 +32,12 @@ class ContadorTurnosDiario(models.Model):
             models.CheckConstraint(
                 condition=Q(ultimo_numero__gte=0), name="turnos_contador_no_negativo",
             ),
+            models.UniqueConstraint(fields=["fecha", "letra"], name="contador_fecha_letra_unico"),
+            models.CheckConstraint(condition=Q(letra__in=["P", "G", "C", "U"]), name="contador_letra_valida"),
         ]
 
     def __str__(self):
-        return f"Contador de turnos {self.fecha}"
+        return f"Contador de turnos {self.fecha} / {self.letra}"
 
 
 class Turno(ModeloAuditado):
@@ -31,6 +45,9 @@ class Turno(ModeloAuditado):
         GENERAL = "general", "General"
         PREFERENCIAL = "preferencial", "Preferencial"
         CRONICOS = "cronicos", "Crónicos"
+        URGENCIA = "urgencia", "Urgencia"
+
+    Letra = Letra
 
     class Estado(models.TextChoices):
         ESPERANDO = "esperando", "Esperando"
@@ -40,10 +57,13 @@ class Turno(ModeloAuditado):
         CERRADO_SIN_ENTREGA = "cerrado_sin_entrega", "Cerrado sin entrega"
         SIN_ATENCION_CIERRE = "sin_atencion_cierre", "Sin atención al cierre"
 
+    # Vacío para quien no está en el padrón. El RUT normalizado es privado: solo lo ve el personal.
     paciente = models.ForeignKey(
-        "recetasapp.Paciente", on_delete=models.PROTECT, related_name="turnos",
+        "recetasapp.Paciente", null=True, blank=True, on_delete=models.PROTECT, related_name="turnos",
     )
+    rut = models.CharField("RUT", max_length=12)
     fecha = models.DateField()
+    letra = models.CharField(max_length=1, choices=Letra.choices)
     numero = models.PositiveIntegerField()
     tipo_atencion = models.CharField(max_length=12, choices=TipoAtencion.choices)
     estado = models.CharField(max_length=24, choices=Estado.choices, default=Estado.ESPERANDO)
@@ -56,19 +76,24 @@ class Turno(ModeloAuditado):
 
     class Meta:
         constraints = [
-            models.UniqueConstraint(fields=["fecha", "numero"], name="turno_numero_diario_unico"),
+            models.UniqueConstraint(fields=["fecha", "letra", "numero"], name="turno_numero_letra_diario_unico"),
             models.UniqueConstraint(
-                fields=["paciente", "fecha"], condition=Q(estado__in=["esperando", "llamado"]),
-                name="turno_activo_paciente_dia_unico",
+                fields=["rut", "fecha"], condition=Q(estado__in=["esperando", "llamado"]),
+                name="turno_activo_rut_dia_unico",
             ),
             models.CheckConstraint(condition=Q(numero__gte=1), name="turno_numero_positivo"),
             models.CheckConstraint(
-                condition=Q(tipo_atencion__in=["general", "preferencial", "cronicos"]),
+                condition=Q(tipo_atencion__in=["general", "preferencial", "cronicos", "urgencia"]),
                 name="turno_tipo_valido",
             ),
+            models.CheckConstraint(condition=~Q(rut=""), name="turno_rut_no_vacio"),
+            models.CheckConstraint(condition=(
+                Q(tipo_atencion="general", letra="G") | Q(tipo_atencion="preferencial", letra="P")
+                | Q(tipo_atencion="cronicos", letra="C") | Q(tipo_atencion="urgencia", letra="U")
+            ), name="turno_letra_coherente"),
             models.CheckConstraint(condition=Q(estado__in=["esperando", "llamado", "atendido", "ausente", "cerrado_sin_entrega", "sin_atencion_cierre"]), name="turno_estado_valido"),
             models.UniqueConstraint(fields=["ventanilla"], condition=Q(estado="llamado"), name="turno_llamado_ventanilla_unico"),
-            models.UniqueConstraint(fields=["paciente"], condition=Q(estado="llamado"), name="turno_llamado_paciente_unico"),
+            models.UniqueConstraint(fields=["rut"], condition=Q(estado="llamado"), name="turno_llamado_rut_unico"),
             models.CheckConstraint(condition=(
                 Q(estado="llamado", ventanilla__isnull=False, operador__isnull=False, ultimo_llamado__isnull=False)
                 | (~Q(estado="llamado") & Q(ventanilla__isnull=True, operador__isnull=True))
@@ -80,10 +105,27 @@ class Turno(ModeloAuditado):
         ]
         indexes = [
             models.Index(fields=["fecha", "estado", "tipo_atencion"], name="turno_fecha_estado_tipo_idx"),
+            models.Index(fields=["rut", "fecha"], name="turno_rut_fecha_idx"),
         ]
 
+    @property
+    def codigo(self):
+        """Número visible: letra, guion y tres dígitos (P-014)."""
+        return f"{self.letra}-{self.numero:03d}"
+
     def __str__(self):
-        return f"Turno {self.fecha} / {self.numero}"
+        return f"Turno {self.fecha} / {self.codigo}"
+
+
+# La urgencia (U) no es un tipo que una ventanilla admita o rechace: la ordena el spec 05/10.
+TIPOS_VENTANILLA = [(codigo, etiqueta) for codigo, etiqueta in Turno.TipoAtencion.choices if codigo != Turno.TipoAtencion.URGENCIA]
+
+LETRA_POR_TIPO = {
+    Turno.TipoAtencion.GENERAL: Letra.GENERAL,
+    Turno.TipoAtencion.PREFERENCIAL: Letra.PREFERENCIAL,
+    Turno.TipoAtencion.CRONICOS: Letra.CRONICOS,
+    Turno.TipoAtencion.URGENCIA: Letra.URGENCIA,
+}
 
 
 class TurnoReceta(models.Model):
@@ -109,7 +151,7 @@ class TurnoReceta(models.Model):
 
 
 class TipoAtencionVentanilla(models.Model):
-    codigo = models.CharField(max_length=12, primary_key=True, choices=Turno.TipoAtencion.choices)
+    codigo = models.CharField(max_length=12, primary_key=True, choices=TIPOS_VENTANILLA)
 
     class Meta:
         constraints = [models.CheckConstraint(condition=Q(codigo__in=["general", "preferencial", "cronicos"]), name="ventanilla_tipo_valido")]
@@ -278,3 +320,26 @@ class PendienteSeleccion(models.Model):
             Q(estado="pendiente", procesado_en__isnull=True) | Q(estado="procesado", procesado_en__isnull=False)
         ), name="pendiente_estado_coherente")]
         indexes = [models.Index(fields=["estado", "fecha"], name="pendiente_estado_fecha_idx")]
+
+
+class IntentoTotem(models.Model):
+    """Solicitudes del tótem por equipo y minuto (RF-04-12).
+
+    `clave` es una huella `salted_hmac` de la IP de origen o de la clave de sesión: nunca el RUT.
+    El recuento vive en la base porque cada proceso de Daphne tendría su propia caché en memoria.
+    """
+
+    clave = models.CharField(max_length=64)
+    ventana = models.DateTimeField()
+    cantidad = models.PositiveIntegerField(default=0)
+    auditado = models.BooleanField(default=False)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["clave", "ventana"], name="intento_totem_clave_ventana_unico"),
+            models.CheckConstraint(condition=Q(cantidad__gte=0), name="intento_totem_cantidad_no_negativa"),
+        ]
+        indexes = [models.Index(fields=["ventana"], name="intento_totem_ventana_idx")]
+
+    def __str__(self):
+        return f"Intentos del tótem {self.ventana:%Y-%m-%d %H:%M}"

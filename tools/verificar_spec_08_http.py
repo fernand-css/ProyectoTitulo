@@ -151,6 +151,10 @@ def ejecutar(base_datos):
     from usuariosapp.models import Perfil
 
     call_command("migrate", verbosity=0, interactive=False)
+    # Enmienda del spec 04 (RF-04-12): el tótem acepta 10 solicitudes por minuto y equipo. Esta herramienta
+    # simula muchos pacientes desde 127.0.0.1, así que se levanta el límite solo en esta base aislada.
+    import turnosapp.services as _servicios_turnos
+    _servicios_turnos.LIMITE_INTENTOS = 10 ** 6
     call_command("preparar_ventanillas", verbosity=0)
     hoy = timezone.localdate()
     ruts = generar_ruts(720, Random(808))
@@ -301,7 +305,7 @@ def ejecutar(base_datos):
             estado, formulario, _, _ = totem.pedir("/turnos/totem/")
             operacion = re.search(r'name="operacion_id" value="([^"]+)"', formulario).group(1)
             estado, html, cabeceras, duracion = totem.pedir("/turnos/totem/", {"rut": paciente.rut, "operacion_id": operacion})
-            assert estado == 400 and "Tienes un despacho a domicilio programado." in html
+            assert estado == 400 and "Acércate a la ventanilla para continuar tu atención." in html
             assert MARCA not in html and paciente.rut not in html and sin_cache(cabeceras)
             mediciones["totem_despacho_abierto"].append(duracion)
         assert not Turno.objects.exists()
@@ -414,7 +418,7 @@ def ejecutar(base_datos):
                 _, formulario, _, _ = cliente.pedir("/turnos/totem/")
                 operacion = re.search(r'name="operacion_id" value="([^"]+)"', formulario).group(1)
                 estado, html_totem, _, duracion = cliente.pedir("/turnos/totem/", {"rut": paciente.rut, "operacion_id": operacion})
-                presencial_hechos.append((estado, 'class="comprobante"' in html_totem, duracion))
+                presencial_hechos.append((estado, 'data-comprobante-pdf' in html_totem, duracion))
 
         hilo_totem = threading.Thread(target=totem_en_paralelo, daemon=True)
         inicio_lote = time.perf_counter()

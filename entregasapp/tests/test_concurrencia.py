@@ -21,7 +21,7 @@ from entregasapp.services import (
 from recetasapp.models import EntregaReceta, Receta
 from recetasapp.services import registrar_entrega
 from turnosapp.models import Turno, TurnoReceta
-from turnosapp.services import ErrorEmision, emitir_turno
+from turnosapp.services import CODIGO_RECHAZO, ErrorEmision, emitir_turno
 from .ayudas import cuenta, equipo, hoy, paciente, receta
 
 DATOS = {"sector": "rojo", "localidad": "Dadinco", "direccion": "Camino a Dadinco km 2", "referencias": "Casa roja"}
@@ -88,7 +88,7 @@ class ConcurrenciaRepartoTests(TransactionTestCase):
                 self.assertTrue(ganadores)
                 for resultado in resultados:
                     if isinstance(resultado, ErrorEmision):
-                        self.assertEqual(resultado.code, "despacho_abierto")
+                        self.assertEqual(resultado.code, CODIGO_RECHAZO)
                 self.assertLessEqual(Turno.objects.filter(paciente=persona, estado__in=("esperando", "llamado")).count(), 1)
                 self.assertLessEqual(Entrega.objects.filter(paciente=persona, estado__in=Entrega.ABIERTAS).count(), 1)
 
@@ -251,7 +251,7 @@ class ConcurrenciaRepartoTests(TransactionTestCase):
                 self.una_abierta_por_paciente(otros)
                 resultado_excepcion = next(r for r in resultados[0] if r.paciente_id == excepcion.pk)
                 if isinstance(resultados[1], ErrorEmision):
-                    self.assertEqual(resultados[1].code, "despacho_abierto")
+                    self.assertEqual(resultados[1].code, CODIGO_RECHAZO)
                     self.assertTrue(resultado_excepcion.programado)
                 else:  # el tótem ganó: el lote la omite porque no le quedan recetas disponibles
                     self.assertFalse(resultado_excepcion.programado)

@@ -5,6 +5,7 @@ from unittest.mock import patch
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase
 from django.urls import reverse
+from django.utils import timezone
 
 from turnosapp.models import Turno
 from coreapp.models import RegistroAuditoria
@@ -134,31 +135,86 @@ class TotemVistasTests(TestCase):
         self.assertEqual(respuesta.status_code, 400)
         self.assertFalse(respuesta.json()["vigente"])
 
-    def test_comprobante_minimo_repetido_conserva_contenido_y_no_emite(self):
-        self.abrir()
+    def test_resultado_repetido_conserva_numero_e_incrusta_pdf_sin_imprimir(self):
+        op = self.abrir()
         primera = self.enviar()
         segunda = self.enviar()
-        def comprobante(respuesta):
-            return respuesta.content.decode().split('<section class="comprobante"', 1)[1].split('</section>', 1)[0]
-        papel = comprobante(primera)
-        self.assertEqual(papel, comprobante(segunda))
-        self.assertIn('class="comprobante-numero">1</p>', papel)
-        self.assertIn(primera.context["resultado"].espera, papel)
-        self.assertIn(primera.context["resultado"].espera, primera.content.decode())
-        self.assertNotIn("input", papel)
-        self.assertNotIn("csrf", papel)
-        self.assertNotIn(self.paciente.rut, papel)
-        self.assertNotIn(self.paciente.nombres, papel)
-        self.assertNotIn(self.receta.codigo, papel)
-        self.assertNotIn("general", papel)
-        self.assertContains(primera, "data-imprimir")
+        codigo = primera.context["resultado"].codigo
+        self.assertRegex(codigo, r"^[PGC]-001$")
+        self.assertEqual(codigo, segunda.context["resultado"].codigo)
+        html = primera.content.decode()
+        self.assertIn('type="application/pdf"', html)
+        self.assertIn(f'{reverse("turnosapp:comprobante_pdf")}?operacion={op}#toolbar=0&amp;navpanes=0&amp;view=Fit&amp;zoom=page-fit', html)
+        self.assertIn(primera.context["resultado"].espera, html)
+        self.assertInHTML(f'<div class="sr-only" role="status"><p>Tu número de atención es {codigo}. Tu llegada quedó registrada. {primera.context["resultado"].espera}</p></div>', html)
+        self.assertContains(primera, "Necesito más tiempo")
+        for ausente in ("data-imprimir", "Imprimir", "Nueva atención", 'class="comprobante"', self.paciente.rut, self.paciente.nombres, self.receta.codigo):
+            self.assertNotContains(primera, ausente)
         self.assertEqual(Turno.objects.count(), 1)
         self.assertEqual(RegistroAuditoria.objects.filter(accion="turno.emitido").count(), 1)
         self.assertFalse(EntregaReceta.objects.exists())
 
-    def test_entrada_y_error_no_generan_comprobante_imprimible(self):
+    def test_entrada_y_error_sin_boton_nueva_atencion_ni_comprobante(self):
         respuesta = self.client.get(reverse("turnosapp:totem"))
-        self.assertNotContains(respuesta, 'class="comprobante"')
-        self.assertNotContains(respuesta, 'data-imprimir')
+        self.assertNotContains(respuesta, "Nueva atención")
+        self.assertNotContains(respuesta, "application/pdf")
+        self.assertContains(respuesta, "data-finalizar hidden")
         respuesta = self.enviar(rut="incorrecto")
-        self.assertNotContains(respuesta, 'class="comprobante"', status_code=400)
+        self.assertNotContains(respuesta, "application/pdf", status_code=400)
+        self.assertNotContains(respuesta, "Nueva atención", status_code=400)
+
+    def test_rechazo_y_error_rotan_la_operacion_para_la_siguiente_persona(self):
+        op = self.abrir()
+        respuesta = self.enviar(rut="incorrecto")
+        nueva = self.client.session[CLAVE]["operacion"]
+        self.assertNotEqual(op, nueva)
+        self.assertContains(respuesta, f'value="{nueva}"', status_code=400)
+        self.assertEqual(self.enviar().status_code, 200)  # Sin tocar nada más, con la operación nueva.
+        self.enviar(rut=self.pacientes(1).rut)  # RUT distinto en la misma operación: rechazo y rotación.
+        tercera = self.client.session[CLAVE]["operacion"]
+        self.assertNotEqual(nueva, tercera)
+        self.assertNotIn("huella", self.client.session[CLAVE])
+        self.assertEqual(self.enviar(rut=self.pacientes(2).rut).status_code, 200)
+        self.assertEqual(Turno.objects.count(), 2)
+
+
+class TotemEnmiendaVistasTests(TestCase):
+    """Enmienda 04 del 2026-11-15: no registrado con número y mismo mensaje neutro en cada rechazo."""
+
+    setUp = preparacion.EmisionTests.setUp
+    pacientes = preparacion.EmisionTests.pacientes
+    recetas = preparacion.EmisionTests.recetas
+    abrir = TotemVistasTests.abrir
+    enviar = TotemVistasTests.enviar
+
+    def test_rut_fuera_del_padron_recibe_numero_sin_datos_personales(self):
+        rut = self.ruts[7]
+        self.abrir()
+        respuesta = self.enviar(rut=rut)
+        self.assertEqual(respuesta.status_code, 200)
+        self.assertEqual(respuesta.context["resultado"].codigo, "G-001")
+        self.assertNotContains(respuesta, rut)
+        self.assertIsNone(Turno.objects.get().paciente)
+
+    def test_rechazos_comparten_texto_codigo_y_estructura(self):
+        from turnosapp.services import MENSAJE_NEUTRO
+        respuestas = []
+        op = self.abrir()
+        otro = Client()
+        self.abrir(otro)
+        respuestas.append(self.enviar(otro, operacion_id=op))  # operación de otra sesión
+        self.enviar()
+        respuestas.append(self.enviar(rut=self.pacientes(1).rut))  # RUT distinto en la misma sesión
+        respuestas.append(self.client.post(reverse("turnosapp:totem"), {"rut": self.paciente.rut, "operacion_id": uuid.uuid4()}))
+        Turno.objects.update(estado="atendido", cerrado_en=timezone.now())
+        self.abrir()
+        sesion = self.client.session
+        sesion[CLAVE] = {**sesion[CLAVE], "operacion": str(Turno.objects.get().operacion_id)}
+        sesion.save()
+        respuestas.append(self.enviar())  # operación cerrada
+        for respuesta in respuestas:
+            self.assertEqual(respuesta.status_code, 400)
+            self.assertEqual(respuesta.templates[0].name, "turnos/totem.html")
+            self.assertEqual(respuesta.context["mensaje"], MENSAJE_NEUTRO)
+            self.assertNotContains(respuesta, "nueva atención", status_code=400)
+            self.assertNotContains(respuesta, self.paciente.rut, status_code=400)

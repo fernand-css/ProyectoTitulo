@@ -5,17 +5,22 @@
 <noscript><meta http-equiv="refresh" content="30;url={% url 'turnosapp:totem' %}"></noscript>{% endblock %}
 {% block contenido %}
 <section class="totem totem-resultado" data-totem data-resultado data-segundos="{{ segundos }}" data-inicio="{% url 'turnosapp:totem' %}" data-continuar="{% url 'turnosapp:continuar' %}">
-<h1>Tu número de atención</h1>
-<div role="status"><p class="totem-numero">{{ resultado.numero }}</p>
-<p>{% if resultado.recuperado %}Este es tu turno registrado.{% else %}Tu llegada quedó registrada.{% endif %}</p></div>
-<p>Espera el llamado de tu número.</p>
-<p class="totem-espera">{{ resultado.espera }}</p>
-<p>{{ resultado.fecha|date:'d/m/Y' }} · {{ resultado.creado_en|date:'H:i' }}</p>
-<button class="boton boton-bloque" type="button" data-imprimir hidden>Imprimir número</button>
-<p>Si el papel no sale, puedes volver a imprimir el mismo número.</p>
-<noscript><p>Para imprimir tu número, usa la opción Imprimir de tu navegador.</p></noscript>
-{% include 'turnos/tiempo.html' %}
-<form method="post" action="{% url 'turnosapp:finalizar' %}" data-finalizar>{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ operacion }}"><button class="boton boton-bloque boton-secundario" type="submit">Nueva atención</button></form>
+<h1 class="sr-only">Tu número de atención</h1>
+{% comment %}El PDF no está etiquetado: el texto accesible del número vive en esta región.{% endcomment %}
+<div class="sr-only" role="status"><p>Tu número de atención es {{ resultado.codigo }}. {% if resultado.recuperado %}Este es tu turno registrado.{% else %}Tu llegada quedó registrada.{% endif %} {{ resultado.espera }}{% if resultado.renovacion %} Necesitas renovar tu receta: te atenderemos igual en la ventanilla.{% endif %}</p></div>
+<object class="totem-pdf" type="application/pdf" data-comprobante-pdf data="{% url 'turnosapp:comprobante_pdf' %}?operacion={{ operacion }}#toolbar=0&amp;navpanes=0&amp;view=Fit&amp;zoom=page-fit" aria-label="Comprobante con tu número {{ resultado.codigo }}">
+<div class="totem-pdf-alternativa">
+<p>Tu número de atención</p>
+<p class="totem-numero">{{ resultado.codigo }}</p>
+<p>{{ resultado.espera }}</p>
+{% if resultado.renovacion %}<p class="totem-renovacion">Necesitas renovar tu receta. Te atenderemos igual en la ventanilla.</p>{% endif %}
+</div>
+</object>
+<div class="totem-franja" data-aviso>
+<p>Esta pantalla vuelve al inicio en <span data-cuenta>{{ segundos }}</span> segundos.</p>
+<button class="boton" type="button" data-ampliar>Necesito más tiempo</button>
+</div>
+<form method="post" action="{% url 'turnosapp:finalizar' %}" data-finalizar hidden>{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ operacion }}"></form>
 </section>
 {% endblock %}
-{% block scripts %}{% include 'turnos/comprobante.html' %}<script defer src="{% static 'js/totem.js' %}"></script>{% endblock %}
+{% block scripts %}<script defer src="{% static 'js/totem.js' %}"></script>{% endblock %}

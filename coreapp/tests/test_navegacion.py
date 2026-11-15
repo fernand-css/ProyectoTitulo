@@ -310,7 +310,7 @@ class InsigniasTests(TestCase):
         turnos = []
         for numero, rut in enumerate(ruts[:3], start=1):
             paciente = Paciente.objects.create(rut=rut, nombres="Paciente", apellidos="Sintético", fecha_nacimiento=date(1960, 1, 1))
-            turnos.append(Turno.objects.create(paciente=paciente, fecha=hoy, numero=numero, tipo_atencion="general"))
+            turnos.append(Turno.objects.create(paciente=paciente, rut=paciente.rut, fecha=hoy, letra="G", numero=numero, tipo_atencion="general"))
         Turno.objects.filter(pk=turnos[2].pk).update(estado="atendido", cerrado_en=timezone.now())
         for numero, turno in enumerate(turnos[:2], start=1):
             receta = Receta.objects.create(

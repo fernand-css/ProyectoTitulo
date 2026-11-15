@@ -22,7 +22,8 @@ class PromedioPreparacionTests(TestCase):
             apellidos="Demostración", fecha_nacimiento=datetime(1980, 1, 1).date(),
         )
         self.turno = Turno.objects.create(
-            paciente=self.paciente, fecha=self.ahora.date(), numero=1, tipo_atencion="general",
+            paciente=self.paciente, rut=self.paciente.rut, fecha=self.ahora.date(), letra="G", numero=1,
+            tipo_atencion="general",
         )
         self.indice = 0
 

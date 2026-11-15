@@ -1,9 +1,9 @@
 # SPEC 06 — Pantalla de sala y voz
 
-> **Estado:** Implementado
+> **Estado:** Aprobado (cambio de la usuaria del 2026-11-15 para implementar la enmienda; antes «Implementado»)
 > **Depende de:** [SPEC 01](../01-base-del-proyecto/spec.md), [SPEC 02](../02-autenticacion-roles-auditoria/spec.md), [SPEC 04](../04-emision-de-turnos/spec.md) y [SPEC 05](../05-cola-ponderada-y-llamado/spec.md)
 > **Fecha:** 2026-11-03
-> **Enmienda:** 2026-11-15 — la letra (P, G, C, U) forma parte del número en la pantalla, la voz y el anuncio; «En espera» pasa a contar por letra (RF-06-13 nuevo, modifica RF-06-04, 05 y 09). Aprobada por la usuaria; **pendiente de implementación**. El estado «Implementado» se refiere al texto anterior.
+> **Enmienda:** 2026-11-15 — la letra (P, G, C, U) forma parte del número en la pantalla, la voz y el anuncio; «En espera» pasa a contar por letra (RF-06-13 nuevo, modifica RF-06-04, 05 y 09). Aprobada por la usuaria; **pendiente de implementación**. La versión anterior a la enmienda ya estaba implementada.
 > **Objetivo:** Mostrar en una pantalla pública de la sala de espera cada llamado y re-llamado del 05, con su número y ventanilla, un aviso visual y una voz que dicen lo mismo, a no más de 2 segundos de que el Técnico lo confirma.
 
 Módulo: `turnosapp` (extensión), más la configuración ASGI de `cesfam`. Fuente: respuestas del usuario del 2026-11-03 (dos bloques de preguntas), HU-04, HU-05, HU-08 y HU-09, RNF-02, RNF-04, RNF-05, NS03 y NS07 del [informe](../../docs/Informe.md) y la arquitectura de tiempo real del §7.1 (WebSocket).

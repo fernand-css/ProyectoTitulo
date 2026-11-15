@@ -80,9 +80,10 @@ def solicitar_seleccion(motivo, operacion_id=None):
 
 def _candidato(ventanilla, config, cursor, instante, fecha):
     tipos = list(ventanilla.tipos.values_list("codigo", flat=True))
-    llamados = Turno.objects.filter(estado="llamado").values("paciente_id")
+    # Por RUT (nunca nulo), igual que turno_llamado_rut_unico: también cubre a quien no está en el padrón.
+    llamados = Turno.objects.filter(estado="llamado").values("rut")
     candidatos = Turno.objects.filter(estado="esperando", fecha=fecha, tipo_atencion__in=tipos).exclude(
-        paciente_id__in=llamados,
+        rut__in=llamados,
     ).order_by("entrada_cola", "numero", "pk")
     antiguo = candidatos.filter(entrada_cola__lte=instante - timedelta(minutes=15)).first()
     if antiguo:
@@ -177,7 +178,7 @@ def procesar_pendiente(pendiente_id):
                 raise
         except IntegrityError as error:
             if not any(marca in str(error).lower() for marca in (
-                "turno_llamado_", "turno_activo_paciente_dia_unico", "turnosapp_turno.",
+                "turno_llamado_", "turno_activo_rut_dia_unico", "turnosapp_turno.",
                 "turnosapp_estadocoladiaria.fecha", "turnosapp_estadocoladiaria_fecha_",
             )):
                 raise

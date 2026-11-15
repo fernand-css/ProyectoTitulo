@@ -7,7 +7,7 @@ from django.utils import timezone
 from coreapp.mixins import tiene_rol
 from coreapp.roles import JEFA, TECNICO
 from .cola import espera_turno
-from .models import ConfiguracionCola, PendienteSeleccion, Turno, Ventanilla
+from .models import TIPOS_VENTANILLA, ConfiguracionCola, PendienteSeleccion, Turno, Ventanilla
 
 
 def _preparaciones_del_turno(turno):
@@ -34,7 +34,9 @@ def contexto_panel(usuario, pagina=1):
     vigente = Turno.objects.select_related("paciente").filter(ventanilla=propia, estado="llamado").first() if propia else None
     preparaciones_vigente = _preparaciones_del_turno(vigente)
     # Qué turno atiende cada ventanilla, para listarlas todas con su estado.
-    llamados = dict(Turno.objects.filter(estado="llamado").values_list("ventanilla_id", "numero"))
+    # Código con letra (P-014): las series por letra repiten números el mismo día.
+    llamados = {ventanilla_id: f"{letra}-{numero:03d}" for ventanilla_id, letra, numero in
+        Turno.objects.filter(estado="llamado").values_list("ventanilla_id", "letra", "numero")}
     for vent in ventanillas:
         vent.turno_actual = llamados.get(vent.pk)
         vent.es_propia = bool(propia and vent.pk == propia.pk)
@@ -47,7 +49,7 @@ def contexto_panel(usuario, pagina=1):
     for turno in pagina_cola:
         turno.espera = espera_turno(turno, ahora)
     habilitados = {tipo.codigo for vent in ventanillas if vent.habilitada and not vent.retirada for tipo in vent.tipos.all()}
-    sin_cobertura = [etiqueta for codigo, etiqueta in Turno.TipoAtencion.choices if codigo not in habilitados and espera.filter(tipo_atencion=codigo).exists()]
+    sin_cobertura = [etiqueta for codigo, etiqueta in TIPOS_VENTANILLA if codigo not in habilitados and espera.filter(tipo_atencion=codigo).exists()]
     from .espera import estimar_espera
     estimacion_preparacion = estimar_espera(ahora)
     return {"ventanillas": ventanillas, "propia": propia, "vigente": vigente, "pagina_cola": pagina_cola,

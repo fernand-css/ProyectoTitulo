@@ -2,7 +2,7 @@
 from django.core.management.base import BaseCommand
 from django.db import DEFAULT_DB_ALIAS, connections, transaction
 from coreapp.auditoria import registrar_accion
-from turnosapp.models import TipoAtencionVentanilla, ConfiguracionCola, Turno, Ventanilla
+from turnosapp.models import TIPOS_VENTANILLA, TipoAtencionVentanilla, ConfiguracionCola, Ventanilla
 
 
 class Command(BaseCommand):
@@ -15,7 +15,7 @@ class Command(BaseCommand):
         alias = options["database"]
         with transaction.atomic(using=alias):
             tipos = []
-            for codigo, _ in Turno.TipoAtencion.choices:
+            for codigo, _ in TIPOS_VENTANILLA:
                 tipo, creado = TipoAtencionVentanilla.objects.using(alias).get_or_create(codigo=codigo)
                 tipos.append(tipo)
                 if creado:

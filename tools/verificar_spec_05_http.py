@@ -48,6 +48,10 @@ def ejecutar(base_datos, solo_procesar=False):
         connections.close_all()
         return
     call_command("migrate", verbosity=0, interactive=False)
+    # Enmienda del spec 04 (RF-04-12): el tótem acepta 10 solicitudes por minuto y equipo. Esta herramienta
+    # simula muchos pacientes desde 127.0.0.1, así que se levanta el límite solo en esta base aislada.
+    import turnosapp.services as _servicios_turnos
+    _servicios_turnos.LIMITE_INTENTOS = 10 ** 6
     call_command("preparar_ventanillas", verbosity=0)
     hoy = timezone.localdate()
     pacientes = Paciente.objects.bulk_create([Paciente(rut=rut, nombres="Paciente sintético", apellidos="QA",
@@ -144,7 +148,7 @@ def ejecutar(base_datos, solo_procesar=False):
         assert EntregaReceta.objects.count() == 101
         # Pendiente persistido sin callback, recuperado por un proceso Python nuevo.
         paciente = pacientes[105]
-        nuevo = Turno.objects.create(paciente=paciente, fecha=hoy, numero=105, tipo_atencion="general")
+        nuevo = Turno.objects.create(paciente=paciente, rut=paciente.rut, fecha=hoy, letra="G", numero=105, tipo_atencion="general")
         pendiente = PendienteSeleccion.objects.create(fecha=hoy, motivo="qa_reinicio")
         connections.close_all()
         subprocess.run([sys.executable, str(Path(__file__).resolve()), "--procesar", str(base_datos)], check=True, timeout=30)

@@ -100,6 +100,10 @@ def ejecutar(base_datos):
     from usuariosapp.models import Perfil
 
     call_command("migrate", verbosity=0, interactive=False)
+    # Enmienda del spec 04 (RF-04-12): el tótem acepta 10 solicitudes por minuto y equipo. Esta herramienta
+    # simula muchos pacientes desde 127.0.0.1, así que se levanta el límite solo en esta base aislada.
+    import turnosapp.services as _servicios_turnos
+    _servicios_turnos.LIMITE_INTENTOS = 10 ** 6
     call_command("preparar_ventanillas", verbosity=0)
     hoy = timezone.localdate()
     pacientes = Paciente.objects.bulk_create([

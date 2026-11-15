@@ -65,7 +65,7 @@ class ServidorSalaTests(SimpleTestCase):
                 "ventanilla.save()",
                 "OcupacionVentanilla.objects.create(ventanilla=ventanilla, tecnico=usuario)",
                 "paciente = Paciente.objects.create(rut=generar_ruts(1, Random(606))[0], nombres='SinteticoASGIPrivado', apellidos='Prueba', fecha_nacimiento=date(1970, 1, 1))",
-                "Turno.objects.create(paciente=paciente, fecha=timezone.localdate(), numero=1, tipo_atencion='general')",
+                "Turno.objects.create(paciente=paciente, rut=paciente.rut, fecha=timezone.localdate(), letra='G', numero=1, tipo_atencion='general')",
                 "PendienteSeleccion.objects.create(fecha=timezone.localdate(), motivo='sala_asgi_sintetica')",
             ]))
             with closing(socket.socket()) as reserva:

@@ -36,7 +36,7 @@ class ConsultasPreparacionTests(TestCase):
                 "ultimo_llamado": self.instante,
             }
         turno = Turno.objects.create(
-            paciente=paciente, fecha=self.hoy, numero=self.turno_numero,
+            paciente=paciente, rut=paciente.rut, fecha=self.hoy, letra="G", numero=self.turno_numero,
             tipo_atencion="general", estado=estado,
             cerrado_en=self.instante if estado in ("ausente", "sin_atencion_cierre", "atendido", "cerrado_sin_entrega") else None,
             entrada_cola=entrada or self.instante + timedelta(minutes=indice),

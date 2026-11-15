@@ -240,7 +240,7 @@ class AtencionReorganizadaTests(DatosCierre, TestCase):
         html = self.html()
         lista = html[html.index('id="ventanillas-titulo"'):html.index("</ul>", html.index('id="ventanillas-titulo"'))]
         self.assertIn("Ventanilla 1 (la tuya)", lista)
-        self.assertIn(f"Atendiendo el turno {self.actual.numero}", lista)
+        self.assertIn(f"Atendiendo el turno {self.actual.codigo}", lista)
         self.assertIn("Ventanilla 2", lista)
         self.assertIn("Libre, llamando", lista)
         self.assertIn("Deshabilitada", lista)

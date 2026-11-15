@@ -3,7 +3,7 @@ from django import forms
 from coreapp.utils.rut import normalizar_rut
 import uuid
 from recetasapp.services import evaluar_elegibilidad
-from .models import Turno
+from .models import TIPOS_VENTANILLA
 
 
 class EmisionTurnoForm(forms.Form):
@@ -28,7 +28,7 @@ class OperacionForm(forms.Form):
 
 class VentanillaForm(OperacionForm):
     numero = forms.IntegerField(label="Número de ventanilla", min_value=1)
-    tipos = forms.MultipleChoiceField(label="Tipos de atención admitidos", choices=Turno.TipoAtencion.choices,
+    tipos = forms.MultipleChoiceField(label="Tipos de atención admitidos", choices=TIPOS_VENTANILLA,
         required=False, widget=forms.CheckboxSelectMultiple)
     habilitada = forms.BooleanField(label="Ventanilla habilitada", required=False)
     retirada = forms.BooleanField(label="Retirar de operación conservando su historial", required=False)
@@ -45,7 +45,7 @@ class VentanillaForm(OperacionForm):
             for nombre in ("habilitada", "retirada", "confirmar"):
                 self.fields.pop(nombre)
             if not self.is_bound:
-                self.initial["tipos"] = list(Turno.TipoAtencion.values)
+                self.initial["tipos"] = [codigo for codigo, _ in TIPOS_VENTANILLA]
 
 
 class PesosForm(OperacionForm):

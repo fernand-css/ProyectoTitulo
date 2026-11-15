@@ -58,8 +58,8 @@ class Paciente(ModeloAuditado):
     def requiere_despacho_en(self, fecha):
         """Postrado o con 80 años cumplidos o más a `fecha` (spec 08, cambio del 2026-11-13).
 
-        Es la única regla de edad y postración: el tótem del 04 la usa para orientar al personal y el
-        reparto del 08 para decidir quién es elegible para el despacho a domicilio.
+        Es la única regla de edad y postración del reparto del 08 para decidir quién es elegible para el
+        despacho a domicilio. Desde la enmienda 04 del 2026-11-15 ya no bloquea la emisión en el tótem.
         """
         return self.es_postrado or self.edad_en(fecha) >= 80
 

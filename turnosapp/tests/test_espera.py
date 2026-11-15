@@ -28,7 +28,7 @@ class EstimarEsperaTests(TestCase):
             apellidos="Demostración", fecha_nacimiento=date(1980, 1, 1),
         )
         turno = Turno.objects.create(
-            paciente=paciente, fecha=self.hoy, numero=numero, tipo_atencion="general",
+            paciente=paciente, rut=paciente.rut, fecha=self.hoy, letra="G", numero=numero, tipo_atencion="general",
         )
         receta = Receta.objects.create(
             paciente=paciente, codigo=f"ESPERA-{numero}", fecha_inicio=self.hoy,

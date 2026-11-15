@@ -7,7 +7,7 @@ from django.utils import timezone
 
 from entregasapp.consultas import elegibles, es_elegible, limite_nacimiento
 from entregasapp.models import InscripcionReparto
-from turnosapp.services import ErrorEmision, clasificar_atencion
+from turnosapp.services import clasificar_atencion
 from .ayudas import cuenta, nacimiento_para, paciente
 
 
@@ -29,14 +29,14 @@ class ElegibilidadTests(TestCase):
                                      cronico.pk: False})
         self.assertCountEqual(elegibles(self.fecha).values_list("pk", flat=True), [con_80.pk, con_81.pk, postrado.pk])
 
-    def test_el_totem_bloquea_desde_los_80_y_da_preferencial_a_los_79(self):
+    def test_el_totem_ya_no_bloquea_y_da_preferencial_desde_los_60(self):
+        """Enmienda 04 del 2026-11-15: 79, 80 y 81 años y los postrados reciben turno P en el tótem."""
         casi_80 = paciente(nacimiento=nacimiento_para(80, self.fecha, dias_extra=1))
         self.assertEqual(clasificar_atencion(casi_80, self.fecha), "preferencial")
         for edad in (80, 81):
-            with self.subTest(edad=edad), self.assertRaises(ErrorEmision) as error:
-                clasificar_atencion(paciente(nacimiento=nacimiento_para(edad, self.fecha)), self.fecha)
-            self.assertEqual(error.exception.code, "domicilio")
-            self.assertEqual(error.exception.message, "Consulta tu despacho con el personal.")
+            with self.subTest(edad=edad):
+                self.assertEqual(clasificar_atencion(paciente(nacimiento=nacimiento_para(edad, self.fecha)), self.fecha), "preferencial")
+        self.assertEqual(clasificar_atencion(paciente(nacimiento=nacimiento_para(40, self.fecha), postrado=True), self.fecha), "preferencial")
 
     def test_la_excepcion_vigente_hace_elegible_y_la_retirada_ya_no(self):
         qf = cuenta("qf_elegibilidad")
@@ -68,7 +68,7 @@ class ElegibilidadTests(TestCase):
         self.assertEqual(list(elegibles(fecha).filter(pk__in=[justo.pk, tarde.pk]).values_list("pk", flat=True)), [justo.pk])
 
     def test_la_regla_compartida_coincide_con_80_o_mas(self):
-        """Una sola regla para el tótem y el reparto: postrado o `edad >= 80` (RF-08-01, 2026-11-13)."""
+        """Regla del reparto: postrado o `edad >= 80` (RF-08-01, 2026-11-13); el tótem ya no la usa para bloquear."""
         fechas = [date(2026, 11, 11), date(2028, 2, 29), date(2027, 3, 1), date(2026, 1, 1)]
         nacimientos = [date(1945, 11, 11), date(1945, 11, 12), date(1946, 2, 28), date(1944, 2, 29),
                        date(1947, 3, 1), date(1966, 11, 11), date(1966, 11, 12), date(1990, 6, 15),
@@ -86,10 +86,8 @@ class ElegibilidadTests(TestCase):
                         self.assertEqual(es_elegible(persona, fecha), esperado)
                         en_lista = elegibles(fecha).filter(pk=persona.pk).exists()
                         self.assertEqual(en_lista, esperado)  # `condicion_elegible` coincide con `es_elegible`
-                        if esperado:
-                            with self.assertRaises(ErrorEmision) as error:
-                                clasificar_atencion(persona, fecha)
-                            self.assertEqual(error.exception.code, "domicilio")
+                        if esperado:  # Enmienda 04 del 2026-11-15: el tótem da preferencial, sin bloquear.
+                            self.assertEqual(clasificar_atencion(persona, fecha), "preferencial")
                         else:
                             self.assertIn(clasificar_atencion(persona, fecha), ("preferencial", "cronicos", "general"))
 

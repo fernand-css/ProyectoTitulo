@@ -18,7 +18,7 @@ from .ayudas import cuenta, equipo, hoy, paciente, receta
 def turno(paciente_obj, recetas, estado="esperando", numero=None):
     instante = timezone.now()
     datos = {"cerrado_en": instante} if estado not in ("esperando", "llamado") else {}
-    nuevo = Turno.objects.create(paciente=paciente_obj, fecha=hoy(), numero=numero or Turno.objects.count() + 1,
+    nuevo = Turno.objects.create(paciente=paciente_obj, rut=paciente_obj.rut, letra="G", fecha=hoy(), numero=numero or Turno.objects.count() + 1,
                                  tipo_atencion="general", estado=estado, **datos)
     vinculos = [TurnoReceta.objects.create(turno=nuevo, receta=r) for r in recetas]
     return nuevo, vinculos

@@ -185,14 +185,14 @@ def _operar(actor, tipo, destino, identidad, datos, huella):
         vinculos = TurnoReceta.objects.filter(turno=turno)
         if vinculos.exists() and not vinculos.filter(entrega__isnull=True).exists():
             raise ValidationError("Todas las recetas de este turno ya se retiraron; no se puede reincorporar.")
-        if Turno.objects.filter(paciente_id=turno.paciente_id, estado__in=["esperando", "llamado"]).exclude(pk=turno.pk).exists():
+        # Por RUT (paciente_id puede ser nulo y IS NULL juntaría a todos los no registrados).
+        if Turno.objects.filter(rut=turno.rut, estado__in=["esperando", "llamado"]).exclude(pk=turno.pk).exists():
             raise ValidationError("El paciente ya tiene otro turno activo.")
         # Spec 08: una receta no puede estar a la vez en un turno activo y en una entrega a domicilio abierta.
         from entregasapp.consultas import recetas_con_despacho_abierto
         if recetas_con_despacho_abierto(vinculos.filter(entrega__isnull=True).values_list("receta_id", flat=True)):
             raise ValidationError("Una receta de este turno tiene una entrega a domicilio abierta. Anula la entrega antes de reincorporar.")
-        from .services import clasificar_atencion
-        clasificar_atencion(turno.paciente, hoy)
+        # Enmienda 04 del 2026-11-15: la edad o la postración ya no bloquean; letra y número se conservan.
         turno.estado, turno.cerrado_en, turno.entrada_cola = "esperando", None, ahora
         turno.modificado_por, turno.modificado_en = actor, ahora
         turno.save(update_fields=["estado", "cerrado_en", "entrada_cola", "modificado_por", "modificado_en"])
@@ -254,8 +254,8 @@ def _ejecutar(actor, tipo, destino, operacion_id, datos=None):
                 raise
         except IntegrityError as error:
             if not any(marca in str(error).lower() for marca in (
-                "operacionatencion", "ventanilla.operador_id", "ocupacion_vigente_", "turno_activo_paciente_dia_unico",
-                "turnosapp_turno.paciente_id", "turnosapp_estadocoladiaria.fecha", "turnosapp_estadocoladiaria_fecha_",
+                "operacionatencion", "ventanilla.operador_id", "ocupacion_vigente_", "turno_activo_rut_dia_unico",
+                "turnosapp_turno.rut", "turnosapp_estadocoladiaria.fecha", "turnosapp_estadocoladiaria_fecha_",
             )):
                 raise
         if intento < 11:

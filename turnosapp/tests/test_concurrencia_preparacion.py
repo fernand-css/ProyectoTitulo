@@ -107,7 +107,7 @@ class ConcurrenciaPreparacionTests(TransactionTestCase):
     def test_retiro_compite_con_entrega_regular_en_el_ultimo_cupo(self):
         actor, preparacion = self.preparada_ausente()
         turno_nuevo = Turno.objects.create(
-            paciente=self.paciente, fecha=self.fecha, numero=2, tipo_atencion="general",
+            paciente=self.paciente, rut=self.paciente.rut, fecha=self.fecha, letra="G", numero=2, tipo_atencion="general",
             estado="llamado", ventanilla=Ventanilla.objects.create(numero=31, operador=actor),
             operador=actor, ultimo_llamado=timezone.now(),
         )

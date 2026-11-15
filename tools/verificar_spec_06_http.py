@@ -83,7 +83,7 @@ def semilla():
         fecha_nacimiento=date(1970, 1, 1)) for rut in generar_ruts(670, Random(606))])
     recetas = Receta.objects.bulk_create([Receta(paciente=p, codigo=f"QA06-PRIVADO-{i}", fecha_inicio=hoy,
         fecha_fin_exclusiva=hoy + timedelta(days=30), vigencia_meses=1, max_entregas=3) for i, p in enumerate(pacientes)])
-    turnos = Turno.objects.bulk_create([Turno(paciente=p, fecha=hoy, numero=i + 1, tipo_atencion="general")
+    turnos = Turno.objects.bulk_create([Turno(paciente=p, rut=p.rut, fecha=hoy, letra="G", numero=i + 1, tipo_atencion="general")
         for i, p in enumerate(pacientes)])
     TurnoReceta.objects.bulk_create([TurnoReceta(turno=t, receta=r) for t, r in zip(turnos, recetas)])
     clave = secrets.token_urlsafe(24)

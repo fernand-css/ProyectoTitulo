@@ -12,7 +12,7 @@ from coreapp.roles import TECNICO
 from coreapp.utils.sinteticos import generar_ruts
 from recetasapp.models import Paciente
 from recetasapp.tests.ayudas import actores
-from turnosapp.models import OcupacionVentanilla, PendienteSeleccion, Turno, Ventanilla
+from turnosapp.models import LETRA_POR_TIPO, OcupacionVentanilla, PendienteSeleccion, Turno, Ventanilla
 from usuariosapp.models import Perfil
 
 
@@ -49,7 +49,7 @@ class DatosCola:
         self.numero += 1
         paciente = Paciente.objects.create(rut=self.ruts[self.numero], nombres="Paciente sintético",
             apellidos="Cola", fecha_nacimiento=date(1970, 1, 1))
-        return Turno.objects.create(paciente=paciente, fecha=self.fecha, numero=self.numero,
+        return Turno.objects.create(paciente=paciente, rut=paciente.rut, letra=LETRA_POR_TIPO[tipo], fecha=self.fecha, numero=self.numero,
             tipo_atencion=tipo, entrada_cola=self.ahora - timedelta(seconds=espera))
 
     def pendiente(self):

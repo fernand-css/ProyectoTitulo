@@ -39,7 +39,11 @@ class IntegracionTotemTests(TestCase):
         error = self.client.post(ruta, {"rut": "invalido", "operacion_id": op})
         self.comprobar(error)
         self.assertContains(error, 'aria-invalid="true"', status_code=400)
-        resultado = self.client.post(ruta, {"rut": self.paciente.rut, "operacion_id": op})
+        # RF-04-07 (enmienda 2026-11-15): el error rota la operación; la página trae la nueva.
+        nueva = self.client.session["turnos_totem"]["operacion"]
+        self.assertNotEqual(op, nueva)
+        self.assertContains(error, f'value="{nueva}"', status_code=400)
+        resultado = self.client.post(ruta, {"rut": self.paciente.rut, "operacion_id": nueva})
         self.comprobar(resultado)
         self.assertNotContains(resultado, self.paciente.rut)
         self.assertNotContains(resultado, self.receta.codigo)

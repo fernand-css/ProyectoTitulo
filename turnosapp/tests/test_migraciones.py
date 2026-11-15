@@ -1,7 +1,7 @@
 """Aplicación del esquema de turnos sobre una base anterior sintética."""
 
 import uuid
-from datetime import date
+from datetime import date, datetime, timezone as dt_timezone
 from random import Random
 
 from django.db import connection
@@ -64,5 +64,82 @@ class MigracionTurnosTests(TransactionTestCase):
                 self.assertEqual(nuevas.get_model("recetasapp", "EntregaReceta").objects.get(pk=entrega.pk).operacion_id, operacion)
                 self.assertTrue(nuevas.get_model("coreapp", "RegistroAuditoria").objects.filter(pk=registro.pk, usuario_id=usuario.pk).exists())
                 MigrationExecutor(connection).migrate(anteriores)
+        finally:
+            MigrationExecutor(connection).migrate(finales)
+
+
+class MigracionLetrasTests(TransactionTestCase):
+    """Enmienda 04 del 2026-11-15: rellena RUT y letra sin renumerar ni chocar series."""
+
+    def test_rellena_rut_letra_y_series_sin_renumerar_y_revierte(self):
+        executor = MigrationExecutor(connection)
+        finales = executor.loader.graph.leaf_nodes()
+        anteriores = [nodo for nodo in finales if nodo[0] != "turnosapp"] + [("turnosapp", "0003_anuncio_sala")]
+        dia, siguiente, sin_turnos = date(2026, 11, 10), date(2026, 11, 11), date(2026, 11, 12)
+        try:
+            executor.migrate(anteriores)
+            apps = executor.loader.project_state(anteriores).apps
+            Paciente = apps.get_model("recetasapp", "Paciente")
+            TurnoAnterior = apps.get_model("turnosapp", "Turno")
+            ContadorAnterior = apps.get_model("turnosapp", "ContadorTurnosDiario")
+            pacientes = [
+                Paciente.objects.create(
+                    rut=rut, nombres="Paciente sintético", apellidos=f"Letras {indice}",
+                    fecha_nacimiento=date(1970, 1, 1),
+                )
+                for indice, rut in enumerate(generar_ruts(5, Random(415)))
+            ]
+            # Correlativo compartido anterior: G-1, P-2, C-3, G-4 el mismo día; P-5 sin contador.
+            previos = [
+                (pacientes[0], dia, 1, "general"), (pacientes[1], dia, 2, "preferencial"),
+                (pacientes[2], dia, 3, "cronicos"), (pacientes[3], dia, 4, "general"),
+                (pacientes[4], siguiente, 5, "preferencial"),
+            ]
+            ids = {
+                TurnoAnterior.objects.create(
+                    paciente=paciente, fecha=fecha, numero=numero, tipo_atencion=tipo, operacion_id=uuid.uuid4(),
+                ).pk: (paciente.rut, fecha, numero, tipo)
+                for paciente, fecha, numero, tipo in previos
+            }
+            ContadorAnterior.objects.create(fecha=dia, ultimo_numero=4)
+            ContadorAnterior.objects.create(fecha=sin_turnos, ultimo_numero=7)
+            letras = {"general": "G", "preferencial": "P", "cronicos": "C"}
+            for _ in range(2):
+                actual = MigrationExecutor(connection)
+                actual.migrate(finales)
+                nuevas = actual.loader.project_state(finales).apps
+                Turno = nuevas.get_model("turnosapp", "Turno")
+                Contador = nuevas.get_model("turnosapp", "ContadorTurnosDiario")
+                for pk, (rut, fecha, numero, tipo) in ids.items():
+                    migrado = Turno.objects.get(pk=pk)
+                    self.assertEqual(
+                        (migrado.rut, migrado.fecha, migrado.numero, migrado.tipo_atencion, migrado.letra),
+                        (rut, fecha, numero, tipo, letras[tipo]),
+                    )
+                series = {(c.fecha, c.letra): c.ultimo_numero for c in Contador.objects.all()}
+                self.assertEqual(series, {
+                    (dia, "G"): 4, (dia, "P"): 2, (dia, "C"): 3, (siguiente, "P"): 5, (sin_turnos, "G"): 7,
+                })
+                # La serie continúa sin chocar con lo ya emitido en esa letra y fecha.
+                Contador.objects.filter(fecha=dia, letra="P").update(ultimo_numero=3)
+                nuevo = Turno.objects.create(
+                    paciente_id=pacientes[0].pk, rut=pacientes[0].rut, fecha=dia, numero=3,
+                    letra="P", tipo_atencion="preferencial", estado="atendido",
+                    cerrado_en=datetime(2026, 11, 10, 12, tzinfo=dt_timezone.utc),
+                )
+                Turno.objects.filter(pk=nuevo.pk).delete()
+                Contador.objects.filter(fecha=dia, letra="P").update(ultimo_numero=2)
+                regreso = MigrationExecutor(connection)
+                regreso.migrate(anteriores)
+                previas = regreso.loader.project_state(anteriores).apps
+                compartidos = {
+                    c.fecha: c.ultimo_numero
+                    for c in previas.get_model("turnosapp", "ContadorTurnosDiario").objects.all()
+                }
+                self.assertEqual(compartidos, {dia: 4, siguiente: 5, sin_turnos: 7})
+                self.assertEqual(
+                    sorted(previas.get_model("turnosapp", "Turno").objects.values_list("numero", flat=True)),
+                    [1, 2, 3, 4, 5],
+                )
         finally:
             MigrationExecutor(connection).migrate(finales)

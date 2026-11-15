@@ -164,7 +164,7 @@ class AtencionTests(DatosCola, TestCase):
         pausar_ventanilla(self.personal["tecnico"], vent.pk, uuid.uuid4())
         with patch("turnosapp.atencion.timezone.now", return_value=self.ahora + timedelta(seconds=60)):
             self.hacer(marcar_ausente, self.personal["tecnico"], turno.pk, uuid.uuid4())
-        ContadorTurnosDiario.objects.create(fecha=self.fecha, ultimo_numero=turno.numero)
+        ContadorTurnosDiario.objects.create(fecha=self.fecha, letra=turno.letra, ultimo_numero=turno.numero)
         Receta.objects.create(paciente=turno.paciente, codigo="REEMISION-AUSENTE-DEMO", fecha_inicio=self.fecha,
             fecha_fin_exclusiva=self.fecha + timedelta(days=30), vigencia_meses=1, max_entregas=3)
         nuevo = emitir_turno(turno.paciente.rut, uuid.uuid4())
@@ -227,16 +227,19 @@ class JornadaTests(DatosCola, TestCase):
         self.assertEqual(turno.eventos.count(), 1)
         self.assertFalse(EntregaReceta.objects.exists())
 
-    def test_llamado_anterior_se_conserva_y_no_emite_otro(self):
+    def test_llamado_anterior_se_conserva_y_hoy_emite_otro(self):
+        # Enmienda 04 del 2026-11-15 (hallazgo A2): la recuperación solo considera turnos de hoy.
         vent = self.activar()
         turno = self.turno()
         Turno.objects.filter(pk=turno.pk).update(fecha=self.fecha - timedelta(days=1), estado="llamado",
             ventanilla=vent, operador=vent.operador, ultimo_llamado=self.ahora - timedelta(minutes=10))
         self.assertEqual(cerrar_jornada_anterior(), 0)
         resultado = emitir_turno(turno.paciente.rut, uuid.uuid4())
-        self.assertTrue(resultado.recuperado)
-        self.assertEqual(Turno.objects.count(), 1)
-        self.assertEqual(resultado.fecha, self.fecha - timedelta(days=1))
+        self.assertFalse(resultado.recuperado)
+        self.assertEqual(resultado.fecha, self.fecha)
+        self.assertEqual(Turno.objects.count(), 2)
+        turno.refresh_from_db()
+        self.assertEqual(turno.estado, "llamado")
 
     def test_activar_nueva_jornada_es_explicito(self):
         vent = self.activar()
@@ -253,5 +256,5 @@ class JornadaTests(DatosCola, TestCase):
     def test_uuid_terminal_no_reabre_turno_ni_inventa_nueva_llegada(self):
         turno = self.turno()
         Turno.objects.filter(pk=turno.pk).update(estado="atendido", cerrado_en=self.ahora)
-        with self.assertRaisesMessage(ValidationError, "cerrada"):
+        with self.assertRaisesMessage(ValidationError, "Acércate a la ventanilla para continuar tu atención."):
             emitir_turno(turno.paciente.rut, turno.operacion_id)

@@ -119,18 +119,34 @@ Se creó la migración inicial y se aplicó al crear la base temporal de tests y
 
 ## Enmienda del 2026-11-15
 
-Estado: **no ejecutada**. La evidencia anterior corresponde al texto previo a la enmienda; las pruebas actuales de rechazo de no registrados, bloqueo de postrados y de 80 años o más, correlativo compartido y botón «Nueva atención» quedarán obsoletas al implementarla.
+Estado: **verificación técnica ejecutada el 2026-11-15** (pruebas automáticas y HTTP aislado). Navegador, visor de PDF real, axe, usabilidad y aceptación siguen pendientes. Las pruebas antiguas de rechazo de no registrados, bloqueo de postrados y de 80 años o más, correlativo compartido, botón «Nueva atención» e impresión térmica se actualizaron o retiraron.
 
-| RF | Prueba prevista | Esperado | Obtenido | Estado |
+| RF | Prueba | Esperado | Obtenido | Estado |
 |---|---|---|---|---|
-| RF-04-02 | RUT fuera del padrón; postrado; 79, 80 y 81 años; despacho abierto | G sin recetas; P; P; P; P; sin número | — | pendiente |
-| RF-04-03 | Receta elegible y otra en despacho; sin elegibles con una agotada | Solo la elegible; turno sin recetas con aviso de renovación | — | pendiente |
-| RF-04-04/05 | P, G y C el mismo día y al cambiar la fecha | Series independientes desde 1; sin repetir (fecha, letra, número) | — | pendiente |
-| RF-04-06 | Turno llamado de ayer; mismo RUT fuera del padrón en paralelo | Nuevo turno de hoy; un solo activo | — | pendiente |
-| RF-04-07 | Rechazo y pantalla del número | Sin botón; vuelve sola al inicio; «Necesito más tiempo» funciona | — | pendiente |
-| RF-04-08 | PDF del número emitido, recuperado y con renovación; acceso sin sesión o tras volver al inicio | PDF vertical sin datos personales, `no-store`; rechazo fuera de la operación | — | pendiente |
-| RF-04-11 | Comparar respuestas de todos los rechazos | Idénticas; aviso de renovación estático en el PDF | — | pendiente |
-| RF-04-12 | 11 solicitudes en un minuto, también con hilos | Pausa en la undécima; auditoría sin RUT | — | pendiente |
+| RF-04-02 | `test_servicios.test_limites_de_edad_cronico_y_postrado`, `test_vistas.test_rut_fuera_del_padron_recibe_numero_sin_datos_personales`, `test_concurrencia.test_despacho_abierto_mezclado_con_emisiones`; HTTP: 100 solicitudes de un postrado | G sin recetas; P para postrado y 60+ (incluye 79, 80 y 81); sin número si todo está en despacho | Coincide; HTTP: el postrado recibe P (200) | aprobado (automático) |
+| RF-04-03 | `test_servicios.test_renovacion_acompana_a_un_turno_con_otras_recetas_y_se_omite_si_ya_se_renovo`, `test_concurrencia.test_despacho_abierto_mezclado_con_emisiones` | Solo las elegibles fuera de despacho; turno sin recetas si no hay; aviso de renovación | Coincide; el aviso se omite si la receta ya tiene una renovación | aprobado (automático) |
+| RF-04-04/05 | `test_servicios.test_series_por_letra_independientes`, `test_nuevo_dia_reinicia_serie_sin_borrar_anterior`, `test_concurrencia.test_letras_distintas_en_paralelo_sin_choques_por_serie` | Series independientes desde 1; sin repetir (fecha, letra, número) | Coincide; HTTP: 106 turnos con 106 tríos (fecha, letra, número) distintos | aprobado (automático) |
+| RF-04-06 | `test_servicios.test_turno_llamado_de_ayer_no_se_recupera`, `test_concurrencia.test_mismo_rut_fuera_del_padron_con_uuid_distintos` | Nuevo turno de hoy; un solo activo | Coincide | aprobado (automático) |
+| RF-04-07 | `test_vistas.test_entrada_y_error_sin_boton_nueva_atencion_ni_comprobante`, `test_rechazo_y_error_rotan_la_operacion_para_la_siguiente_persona`; `totem.test.cjs` (5) | Sin botón; vuelve sola al inicio a los 30 s; «Necesito más tiempo» reinicia el plazo | Coincide en pruebas; sin revisión en navegador real | aprobado (automático); navegador pendiente |
+| RF-04-08 | `test_comprobante_pdf.py` (6) | PDF vertical sin RUT ni nombre, `inline`, `no-store`; rechazo sin sesión, en otra sesión, tras finalizar o vencer | Coincide | aprobado (automático); visor de PDF del tótem pendiente |
+| RF-04-11 | `test_vistas.test_rechazos_comparten_texto_codigo_y_estructura`, `test_servicios.test_operacion_ajena_cerrada_o_invalida_da_el_mismo_mensaje_neutro` | Mismo texto, código 400 y estructura; aviso de renovación estático | Coincide | aprobado (automático) |
+| RF-04-12 | `test_limite.py` (8, dos con `TransactionTestCase` e hilos); HTTP: 11 solicitudes desde un equipo | Pausa en la undécima; auditoría sin RUT; nunca más de 10 aceptadas en paralelo | Coincide; HTTP: 10 aceptadas y la undécima con mensaje neutro | aprobado (automático) |
+
+### Regresión y mediciones de la enmienda
+
+- `python manage.py check`: sin problemas. `makemigrations --check --dry-run`: «No changes detected». Migraciones nuevas de turnos: `0004`–`0007`. La base local de PostgreSQL **no** se migró; aplicar `migrate` queda a decisión del equipo.
+- `python manage.py test --noinput`: **908 pruebas OK** (324,6 s, base de pruebas de PostgreSQL). `test turnosapp --noinput`: 237 OK.
+- `node --test turnosapp/tests/*.test.cjs`: 66 OK; `node --test recetasapp/tests/*.test.cjs`: 7 OK.
+- `tools/verificar_spec_04_http.py`: aprobado sobre SQLite temporal con 670 pacientes sintéticos y 36 migraciones. p95 con 100 muestras secuenciales: emisión 72,08 ms, recuperación 45,99 ms, postrado 41,46 ms. El límite de intentos se levanta solo durante las mediciones, porque todas salen de un mismo equipo local. Las herramientas de los specs 05, 07 y 08 hacen lo mismo en su base aislada.
+- `tools/verificar_spec_05_http.py`: aprobado (p95 80,29 / 45,73 / 153,13 ms). `tools/verificar_spec_07_http.py`: aprobado (p95 entre 42,74 y 145,7 ms). `tools/verificar_spec_08_http.py`: **falló en la primera corrida** (`programados_lote == programables`: 619 de 620 durante el lote de 25 en paralelo con el tótem) y **aprobó en la segunda** (620 programados, 60 omitidos en la revisión). Es intermitente y queda pendiente de investigar; no se pudo determinar si existía antes de la enmienda.
+- `git diff --check`: sin errores.
+
+### Límites de la enmienda
+
+- **Navegador y visor de PDF:** el 2026-11-15 la usuaria vio en su navegador el texto alternativo en vez del PDF. Causa: el `X-Frame-Options: DENY` global de Django impide dibujar el `<object>`. Se corrigió con `@xframe_options_sameorigin` en `comprobante_pdf` (prueba en `test_comprobante_pdf`). Una captura con Firefox sin interfaz (servidor mínimo de QA en la carpeta temporal, datos sintéticos) confirmó: con `DENY` aparece el texto alternativo y con `SAMEORIGIN` el comprobante se dibuja completo. Firefox muestra igual la barra de su visor (ignora `#toolbar=0`). Falta probarlo en el equipo real del tótem. Tampoco se corrieron axe, la revisión con teclado y zoom ni la prueba con cinco usuarios.
+- **Fuente del PDF:** usa Helvetica, porque las fuentes del proyecto están en woff2 y ReportLab no las lee. El PDF no está etiquetado; el texto accesible del número queda en la región `status` del HTML.
+- **Límite transitorio hasta implementar RF-06-13:** la sala y la voz del spec 06 todavía anuncian el número sin la letra, así que P-001 y G-001 se anunciarían igual.
+- **Hasta implementar RF-05-13:** la fila U aún no se atiende primero, y el cierre de un turno sin recetas usa el flujo actual de cierre sin entrega.
 
 ## Aceptación funcional
 

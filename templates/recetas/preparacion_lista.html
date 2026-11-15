@@ -4,7 +4,7 @@
     {% for item in preparaciones %}
     <li class="preparacion-fila">
       <div class="preparacion-turno">
-        <strong>Turno {{ item.turno_receta.turno.numero }}</strong>
+        <strong>Turno {{ item.turno_receta.turno.codigo }}</strong>
         <span>{{ item.turno_receta.turno.get_tipo_atencion_display }}</span>
         <span>Espera {{ item.espera_transcurrida }}</span>
       </div>
