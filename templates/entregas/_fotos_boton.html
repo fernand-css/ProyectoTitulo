@@ -1,0 +1,14 @@
+{# RF-08-18: «Registrar fotos» o «Gestionar fotos» y su modal. Espera `f` (de `views.contexto_fotos`) y, opcional, `nombre` del paciente. Sin JavaScript, el enlace abre la página con el mismo formulario. #}
+{% if f %}
+<a class="boton boton-secundario" href="{% url 'entregasapp:fotos' f.domicilio.pk %}?volver={{ f.volver|urlencode }}" data-fotos-abrir="fotos-{{ f.prefijo }}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-camara"/></svg>{% if f.fotos %}Gestionar fotos{% else %}Registrar fotos{% endif %}{% if nombre %}<span class="sr-only"> de {{ nombre }}</span>{% endif %}</a>
+<dialog class="dialogo-fotos" id="fotos-{{ f.prefijo }}" aria-labelledby="fotos-{{ f.prefijo }}-titulo" aria-describedby="fotos-{{ f.prefijo }}-aviso" data-fotos-dialogo>
+  <div class="dialogo-fotos-cabecera">
+    <div>
+      <h2 id="fotos-{{ f.prefijo }}-titulo">{% if f.fotos %}Gestionar fotos{% else %}Registrar fotos{% endif %}</h2>
+      <p class="suave">{% if nombre %}{{ nombre }} · {% endif %}hasta {{ f.maximo_fotos }} fotos</p>
+    </div>
+    <button class="dialogo-cerrar" type="button" data-fotos-cerrar><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-cerrar"/></svg><span class="sr-only">Cerrar sin guardar</span></button>
+  </div>
+  {% include 'entregas/_fotos_formulario.html' %}
+</dialog>
+{% else %}<p class="suave">No hay datos de fotos.</p>{% endif %}

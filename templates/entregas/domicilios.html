@@ -35,7 +35,7 @@
         <td data-etiqueta="Dirección">{% if persona.domicilio_registrado %}{{ persona.domicilio_registrado.direccion }}{% else %}{{ persona.direccion|default:"Sin dirección" }} <span class="dato-secundario">(del padrón)</span>{% endif %}</td>
         <td data-etiqueta="Estado">{% include 'entregas/_estado_domicilio.html' with estado=persona.domicilio_estado domicilio=persona.domicilio_registrado %}</td>
         <td data-etiqueta="Fotos" class="num">{{ persona.fotos_cantidad }}</td>
-        <td data-etiqueta="Acción"><a href="{% url 'entregasapp:domicilio' persona.pk %}">{% if persona.domicilio_registrado %}Ver domicilio{% else %}Registrar domicilio{% endif %}<span class="sr-only"> de {{ persona.apellidos }}, {{ persona.nombres }}</span></a></td>
+        <td data-etiqueta="Acción"><a href="{% url 'entregasapp:domicilio' persona.pk %}">{% if persona.domicilio_registrado %}Detalles del domicilio{% else %}Registrar domicilio{% endif %}<span class="sr-only"> de {{ persona.apellidos }}, {{ persona.nombres }}</span></a></td>
       </tr>
       {% endfor %}
     </tbody>

@@ -96,7 +96,7 @@
     <dt>Entrega abierta</dt><dd>{% if reparto.abierta %}<a href="{% url 'entregasapp:detalle' reparto.abierta.pk %}">{{ reparto.abierta.get_estado_display }} · ver entrega</a>{% else %}No tiene{% endif %}</dd>
   </dl>
   <div class="acciones">
-    <a class="boton boton-secundario" href="{% url 'entregasapp:domicilio' paciente.pk %}">{% if reparto.domicilio %}Ver domicilio{% else %}Registrar domicilio{% endif %}</a>
+    <a class="boton boton-secundario" href="{% url 'entregasapp:domicilio' paciente.pk %}">{% if reparto.domicilio %}Detalles del domicilio{% else %}Registrar domicilio{% endif %}</a>
     {% if puede_crear and reparto.elegible and not reparto.abierta %}<a class="boton boton-secundario" href="{% url 'entregasapp:programar' %}?paciente={{ paciente.pk }}">Programar entrega</a>{% endif %}
   </div>
   {% else %}

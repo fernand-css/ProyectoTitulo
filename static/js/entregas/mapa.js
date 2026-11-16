@@ -139,7 +139,7 @@
     enlaces.className = "mapa-resumen-enlaces";
     enlace(documento, enlaces, parada.url_registrar, "Registrar");
     enlace(documento, enlaces, parada.url_ir, "Ir a esta parada");
-    enlace(documento, enlaces, parada.url_domicilio, "Ver domicilio");
+    enlace(documento, enlaces, parada.url_domicilio, "Detalles del domicilio");
     caja.appendChild(enlaces);
     return caja;
   }
@@ -154,7 +154,7 @@
     linea(documento, caja, registrada.direccion);
     var enlaces = documento.createElement("p");
     enlaces.className = "mapa-resumen-enlaces";
-    enlace(documento, enlaces, registrada.url_domicilio, "Ver domicilio");
+    enlace(documento, enlaces, registrada.url_domicilio, "Detalles del domicilio");
     caja.appendChild(enlaces);
     return caja;
   }

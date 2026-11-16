@@ -30,9 +30,8 @@ urlpatterns = [
     path("domicilios/", views.DomiciliosView.as_view(), name="domicilios"),
     path("domicilios/paciente/<int:pk>/", views.DomicilioView.as_view(), name="domicilio"),
     path("domicilios/<int:pk>/verificar/", views.VerificarView.as_view(), name="domicilio_verificar"),
-    path("domicilios/<int:pk>/fotos/", views.FotoAgregarView.as_view(), name="foto_agregar"),
+    path("domicilios/<int:pk>/fotos/", views.FotosView.as_view(), name="fotos"),
     path("fotos/<int:pk>/", views.FotoView.as_view(), name="foto"),
-    path("fotos/<int:pk>/eliminar/", views.FotoEliminarView.as_view(), name="foto_eliminar"),
     path("excepciones/", views.ExcepcionesView.as_view(), name="excepciones"),
     path("excepciones/<int:pk>/retirar/", views.ExcepcionRetirarView.as_view(), name="excepcion_retirar"),
 ]

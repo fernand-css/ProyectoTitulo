@@ -159,6 +159,46 @@ class ProgramarLoteServicioTests(TestCase):
         resultados = programar_lote(self.qf, [excepcion.pk, 999_999], hoy(), self.encargado.pk, uuid.uuid4())
         self.assertEqual([r.motivo for r in resultados], [OMITIDO_NO_ELEGIBLE, "El paciente no está disponible"])
 
+    def ocupado_para(self, persona, veces):
+        """programar_entrega que falla `veces` veces con la base ocupada para `persona`; anota cada llamada."""
+        from django.db import OperationalError
+        import entregasapp.services as servicios
+
+        real, llamadas = servicios.programar_entrega, []
+
+        def falso(actor, paciente_id, *args, **kwargs):
+            llamadas.append(paciente_id)
+            if paciente_id == persona.pk and llamadas.count(persona.pk) <= veces:
+                raise OperationalError("La operación está ocupada. Inténtalo nuevamente con la misma confirmación.")
+            return real(actor, paciente_id, *args, **kwargs)
+        return falso, llamadas
+
+    def test_un_paciente_con_la_base_ocupada_se_reintenta_al_final_del_tramo(self):
+        from unittest import mock
+
+        falso, llamadas = self.ocupado_para(self.ok[1], veces=1)
+        with mock.patch("entregasapp.services.programar_entrega", falso), \
+                mock.patch("entregasapp.services.time.sleep") as pausa:
+            resultados = programar_lote(self.qf, self.ids(), hoy(), self.encargado.pk, uuid.uuid4())
+        self.assertEqual([r.paciente_id for r in resultados], self.ids())  # el orden no cambia
+        self.assertEqual(llamadas, [*self.ids(), self.ok[1].pk])  # vuelve después de los demás
+        self.assertTrue(next(r for r in resultados if r.paciente_id == self.ok[1].pk).programado)
+        self.assertEqual(Entrega.objects.filter(paciente=self.ok[1]).count(), 1)
+        pausa.assert_called_once()
+
+    def test_si_la_base_sigue_ocupada_sale_como_reintentar_sin_detener_a_los_demas(self):
+        from unittest import mock
+        from entregasapp.services import OMITIDO_REINTENTAR, VUELTAS_OCUPADOS
+
+        falso, llamadas = self.ocupado_para(self.ok[1], veces=99)
+        with mock.patch("entregasapp.services.programar_entrega", falso), mock.patch("entregasapp.services.time.sleep"):
+            resultados = programar_lote(self.qf, self.ids(), hoy(), self.encargado.pk, uuid.uuid4())
+        self.assertEqual(llamadas.count(self.ok[1].pk), 1 + VUELTAS_OCUPADOS)
+        por_paciente = {r.paciente_id: r for r in resultados}
+        self.assertEqual(por_paciente[self.ok[1].pk].motivo, OMITIDO_REINTENTAR)
+        self.assertTrue(por_paciente[self.ok[0].pk].programado and por_paciente[self.ok[2].pk].programado)
+        self.assertFalse(Entrega.objects.filter(paciente=self.ok[1]).exists())
+
     def test_la_auditoria_tiene_una_programacion_por_entrega_sin_datos_personales(self):
         programar_lote(self.qf, self.ids(), hoy(), self.encargado.pk, uuid.uuid4())
         eventos = RegistroAuditoria.objects.filter(accion="entrega.programada")

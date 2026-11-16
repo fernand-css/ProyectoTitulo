@@ -370,6 +370,155 @@
 .entregas .boton:focus-visible, .entregas a:focus-visible, .entregas input:focus-visible,
 .entregas select:focus-visible, .entregas textarea:focus-visible, .entregas summary:focus-visible { outline: 3px solid var(--ladrillo); outline-offset: 2px; }
 
+/* Fotos: miniaturas, modal «Registrar/Gestionar fotos» y visor (enmienda del 2026-11-15, RF-08-18 y RF-08-19) */
+.foto-miniatura { display: block; border-radius: 0.6rem; }
+.foto-miniatura img { cursor: zoom-in; }
+.dialogo-fotos {
+  width: min(54rem, calc(100vw - 1rem));
+  max-height: calc(100dvh - 2rem);
+  padding: 0;
+  border: 0;
+  border-radius: var(--radio-panel);
+  color: var(--panel-texto);
+  background: var(--panel-fondo);
+  box-shadow: var(--sombra-panel);
+}
+.dialogo-fotos[open] { display: flex; flex-direction: column; overflow: hidden; }
+.dialogo-fotos::backdrop { background: var(--velo); }
+.dialogo-fotos-cabecera {
+  display: flex;
+  gap: 0.75rem;
+  align-items: flex-start;
+  justify-content: space-between;
+  padding: 1rem 1.25rem 0.75rem;
+  border-bottom: 1px solid var(--linea);
+}
+.dialogo-fotos-cabecera h2 { margin: 0; font-size: 1.4rem; }
+.dialogo-fotos-cabecera p { margin: 0.15rem 0 0; }
+.dialogo-cerrar, .visor-cerrar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  padding: 0;
+  border: 2px solid var(--borde);
+  border-radius: 0.75rem;
+  color: var(--tinta);
+  background: var(--panel-fondo);
+}
+.dialogo-cerrar .icono, .visor-cerrar .icono { width: 1.4rem; height: 1.4rem; }
+.dialogo-fotos .fotos-form { display: flex; flex: 1 1 auto; flex-direction: column; min-height: 0; }
+/* `position: relative` contiene los textos `sr-only` (absolutos) en el área que se desplaza: si no, agrandan el
+   diálogo y lo hacen desplazarse completo, con la cabecera fuera de la vista. */
+.dialogo-fotos .fotos-cuerpo { position: relative; flex: 1 1 auto; min-height: 0; overflow-y: auto; padding: 1rem 1.25rem; }
+.dialogo-fotos-cabecera, .fotos-pie, .fotos-estado { flex: none; }
+.fotos-cuerpo { display: grid; gap: 0.9rem; }
+.fotos-cuerpo > * { margin: 0; }
+.fotos-form [hidden] { display: none; }
+.fotos-cuerpo .aviso-foto { padding: 0.65rem 0.8rem; border-radius: 0.6rem; background: var(--aviso-fondo); }
+.fotos-subtitulo { margin: 0.25rem 0 0; font-size: 1.1rem; }
+.fotos-guardadas { display: grid; gap: 0.6rem; margin: 0; padding: 0; list-style: none; }
+.foto-guardada {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  align-items: center;
+  padding: 0.5rem;
+  border: 2px solid transparent;
+  border-radius: 0.75rem;
+}
+.foto-guardada img { flex: none; width: 5.5rem; height: auto; aspect-ratio: 4 / 3; object-fit: cover; border-radius: 0.5rem; }
+.foto-guardada-texto { flex: 1 1 8rem; }
+.foto-guardada-texto p { margin: 0; }
+.foto-marca { display: none; color: var(--error-texto); font-weight: 700; }
+.foto-borrar-no { display: none; }
+.foto-guardada:has(.foto-borrar-casilla:checked) { border-style: dashed; border-color: var(--error-texto); background: var(--error-fondo); }
+.foto-guardada:has(.foto-borrar-casilla:checked) img { opacity: 0.45; }
+.foto-guardada:has(.foto-borrar-casilla:checked) .foto-guardada-descripcion { text-decoration: line-through; }
+.foto-guardada:has(.foto-borrar-casilla:checked) .foto-marca { display: block; }
+.foto-borrar-casilla:checked + .foto-borrar .foto-borrar-si { display: none; }
+.foto-borrar-casilla:checked + .foto-borrar .foto-borrar-no { display: inline; }
+.foto-borrar { font-weight: 700; }
+.foto-borrar.boton { flex: none; width: auto; min-width: 7rem; min-height: 3rem; }
+.fotos-espacios { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr)); gap: 0.9rem; }
+.foto-nueva { display: grid; gap: 0.5rem; margin: 0; padding: 0.75rem; border: 1px solid var(--linea); border-radius: 0.75rem; }
+.foto-nueva[hidden] { display: none; }
+.foto-nueva legend { padding: 0 0.35rem; font-weight: 700; }
+.foto-nueva-error { border: 3px solid var(--error-texto); }
+.foto-nueva-previa { display: grid; gap: 0.35rem; }
+.foto-nueva-previa img { width: 100%; max-height: 10rem; object-fit: cover; border-radius: 0.5rem; }
+.foto-nueva-previa p { margin: 0; overflow-wrap: anywhere; }
+.foto-nueva-botones { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+.foto-nueva-opcion { display: grid; gap: 0.25rem; }
+.etiqueta-archivo { font-weight: 700; }
+.etiqueta-archivo .icono { width: 1.1em; height: 1.1em; }
+.foto-nueva-etiqueta { font-weight: 700; }
+.foto-nueva-descripcion {
+  width: 100%;
+  min-height: 3rem;
+  padding: 0.6rem 0.75rem;
+  border: 2px solid var(--borde);
+  border-radius: 0.6rem;
+  color: var(--panel-texto);
+  background: var(--panel-fondo);
+}
+.foto-nueva-descripcion[aria-invalid="true"] { border-width: 3px; border-color: var(--error-texto); }
+.foto-nueva .campo-ayuda { margin: 0; }
+.foto-error { margin: 0; color: var(--error-texto); font-weight: 700; }
+.fotos-estado { min-height: 1.5em; margin: 0; padding: 0 1.25rem; font-weight: 600; }
+.fotos-estado:empty { min-height: 0; }
+.fotos-pie { display: flex; flex-wrap: wrap; gap: 0.75rem; justify-content: flex-end; padding: 0.9rem 1.25rem 1.1rem; border-top: 1px solid var(--linea); }
+.fotos-pie .boton { flex: 0 1 10rem; min-height: 3rem; }
+/* Con JavaScript, los campos de archivo y las casillas quedan ocultos a la vista pero enfocables: sus etiquetas
+   hacen de botón y muestran el foco. Sin JavaScript se ven los controles nativos. */
+.fotos-form[data-mejorado] .foto-archivo, .fotos-form[data-mejorado] .foto-borrar-casilla {
+  position: absolute;
+  width: 1px;
+  height: 1px;
+  opacity: 0;
+  pointer-events: none;
+}
+.fotos-form[data-mejorado] .foto-nueva-opcion { position: relative; }
+.fotos-form[data-mejorado] .foto-guardada { position: relative; }
+.fotos-form[data-mejorado] .foto-archivo:focus-visible + .etiqueta-archivo,
+.fotos-form[data-mejorado] .etiqueta-archivo:has(+ .foto-archivo:focus-visible),
+.fotos-form[data-mejorado] .foto-borrar-casilla:focus-visible + .foto-borrar { outline: 3px solid var(--tinta); outline-offset: 2px; }
+.fotos-form[data-mejorado] .foto-nueva-opcion { display: block; }
+
+.visor-foto {
+  width: 100vw;
+  max-width: 100vw;
+  height: 100dvh;
+  max-height: 100dvh;
+  margin: 0;
+  padding: 0;
+  border: 0;
+  color: var(--panel-fondo);
+  /* El fondo oscuro va en el diálogo (pantalla completa) y no solo en ::backdrop: así el pie blanco siempre tiene
+     contraste, aunque el navegador no herede las variables en ::backdrop. */
+  background: color-mix(in srgb, var(--tinta) 94%, transparent);
+}
+.visor-foto::backdrop { background: var(--velo); }
+.visor-contenido {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  gap: 0.75rem;
+  align-items: center;
+  justify-content: center;
+  min-height: 100%;
+  padding: 4.5rem 1rem 1.5rem;
+  box-sizing: border-box;
+}
+.visor-cerrar { position: absolute; top: 1rem; right: 1rem; border-color: var(--panel-fondo); color: var(--panel-fondo); background: var(--tinta); }
+.visor-cerrar:focus-visible { outline: 3px solid var(--panel-fondo); outline-offset: 2px; }
+.visor-figura { display: grid; gap: 0.6rem; justify-items: center; max-width: min(64rem, 100%); margin: 0; }
+.visor-imagen { display: block; max-width: 100%; max-height: calc(100dvh - 11rem); height: auto; border-radius: 0.75rem; }
+.visor-pie { font-size: 1.1rem; font-weight: 600; text-align: center; }
+.visor-ayuda { margin: 0; text-align: center; }
+
 @media (forced-colors: active) {
   .marcador, .simbolo { forced-color-adjust: none; border-color: CanvasText; }
 }
@@ -381,6 +530,8 @@
 }
 
 @media (max-width: 40rem) {
+  .dialogo-fotos { max-height: calc(100dvh - 1rem); }
+  .fotos-pie .boton { flex: 1 1 8rem; }
   .barra-seleccion .acciones .boton { flex: 1 1 100%; }
   .visita-datos > div { grid-template-columns: minmax(0, 1fr); }
   .visita-acciones .boton { flex-basis: 100%; }

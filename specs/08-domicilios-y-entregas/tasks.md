@@ -74,21 +74,21 @@ Diseño en [plan.md](plan.md#ampliación-del-2026-11-13-borrador). El usuario ap
   - Archivos previstos: `tools/verificar_spec_08_http.py`, `specs/04-emision-de-turnos/spec.md` (nota de cambio), `CLAUDE.md`, `README.md`, `docs/estructura.md`, `specs/08-domicilios-y-entregas/validation.md`, `specs/README.md`.
   - Hecho cuando: la herramienta mide la lista, el fragmento, la revisión de 670, los tramos de 25 (p95 ≤ 2 s), el lote completo (tiempo informado) y el tótem durante un lote; la suite completa, Node, `check` y `makemigrations --check --dry-run` (sin cambios) pasan; `validation.md` tiene resultados reales; el spec 04 anota el cambio de edad; el estado no pasa a Implementado sin navegador, usabilidad y aceptación.
 
-## Enmienda del 2026-11-15 (Borrador, tareas propuestas)
+## Enmienda del 2026-11-15 (aprobada e implementada técnicamente)
 
-Diseño en [plan.md](plan.md#enmienda-del-2026-11-15--diseño-propuesto). Requisitos en [spec.md](spec.md#enmienda-del-2026-11-15-borrador). Las tareas del 09 de la misma enmienda (T-09-10 a T-09-18) están en sus [tareas](../09-mapa-y-orden-de-visita/tasks.md#enmienda-del-2026-11-15-borrador-tareas-propuestas). El lienzo de diseño (T-09-10) incluye el modal de fotos y el visor. Todas esperan la aprobación de la enmienda y la autorización de `/spec-impl`.
+Diseño en [plan.md](plan.md#enmienda-del-2026-11-15--diseño-propuesto). Requisitos en [spec.md](spec.md#enmienda-del-2026-11-15-borrador). Las tareas del 09 de la misma enmienda (T-09-10 a T-09-18) están en sus [tareas](../09-mapa-y-orden-de-visita/tasks.md#enmienda-del-2026-11-15-borrador-tareas-propuestas). El lienzo de diseño (T-09-10) incluye el modal de fotos y el visor. T-08-14 a T-08-16 se ejecutaron el 2026-11-15 (ver «Autorización posterior»); las del 09 siguen pendientes.
 
-- [ ] **T-08-14 — Servicio atómico de fotos.**
+- [x] **T-08-14 — Servicio atómico de fotos.**
   - RF: RF-08-18 (modifica RF-08-05), RF-08-14 y RF-08-15.
   - Depende de: aprobación de la enmienda y autorización de implementación.
   - Archivos previstos: `entregasapp/services.py` (`gestionar_fotos`), `entregasapp/tests/test_fotos.py`, `entregasapp/tests/test_concurrencia.py`.
   - Hecho cuando: los borrados y las fotos nuevas se aplican juntos o no se aplica nada; el error indica el número de la foto; el conjunto cambiado se rechaza; nunca hay más de 3 fotos; los archivos de las borradas se eliminan después de confirmar y los nuevos se eliminan si falla; la auditoría no tiene datos personales; los tres escenarios concurrentes pasan tres veces seguidas.
-- [ ] **T-08-15 — Modal de fotos y visor.**
+- [x] **T-08-15 — Modal de fotos y visor.**
   - RF: RF-08-18 y RF-08-19.
   - Depende de: T-08-14.
   - Archivos previstos: `entregasapp/views.py` (`FotosView`; se retiran `FotoAgregarView` y `FotoEliminarView`), `entregasapp/urls.py`, `entregasapp/forms.py` (`FotosForm`), `templates/entregas/_fotos_boton.html`, `_fotos_modal.html`, `_visor_foto.html`, `fotos.html` (página sin JavaScript), `domicilio.html`, `_tarjeta_intento.html`, `static/js/entregas/fotos.js`, `visor.js`, `static/css/entregas.css`, `fotos.test.cjs`, `visor.test.cjs`, `test_vistas.py`, `test_permisos.py`, `test_estructura.py`.
   - Hecho cuando: el botón dice «Registrar fotos» o «Gestionar fotos» según la cantidad; con 3 solo se borra hasta marcar una; «Sacar foto» usa `capture="environment"`; el error se muestra junto a la foto indicada y el modal sigue abierto; el visor se cierra con la X, con clic fuera y con Esc, y el foco vuelve a la miniatura; sin JavaScript funcionan la página aparte y el enlace a la imagen; el Técnico solo ve; la revisión visual, axe y teclado queda como hecha o pendiente de host.
-- [ ] **T-08-16 — Textos «Detalles del domicilio» y «Nombre de la localidad».**
+- [x] **T-08-16 — Textos «Detalles del domicilio» y «Nombre de la localidad».**
   - RF: RF-08-20.
   - Depende de: aprobación de la enmienda (se puede hacer junto con T-09-13).
   - Archivos previstos: `templates/entregas/_tarjeta_intento.html`, `ir_a.html`, `domicilios.html`, `domicilio.html`, `templates/recetas/paciente_detalle.html`, `static/js/entregas/mapa.js`, `entregasapp/forms.py`, pruebas que buscan esos textos.
@@ -99,6 +99,8 @@ Diseño en [plan.md](plan.md#enmienda-del-2026-11-15--diseño-propuesto). Requis
 2026-11-11: el usuario cambió el estado a Aprobado, hizo el commit de los documentos (`6032b7a`) y ejecutó `/spec-impl 08-domicilios-y-entregas` en `crojas-base`, sin rama nueva, con la instrucción «sigue con todos los pasos y coméntame si necesito intervenir». Quedan autorizadas T-08-01 a T-08-08. No autoriza migrar la base PostgreSQL del proyecto ni hacer commits.
 
 2026-11-13: el usuario aprobó la ampliación en la cabecera del spec, hizo el commit de los documentos (`6262cfe`) y volvió a ejecutar `/spec-impl 08-domicilios-y-entregas` en `crojas-base`, sin rama nueva. Eligió «todos los pasos seguidos» y revisar el diff al final. Quedan autorizadas T-08-09 a T-08-13. No autoriza commits ni migrar la base del proyecto (la ampliación no trae migraciones).
+
+2026-11-15: el usuario aprobó la enmienda («Apruebo todos los cambios»), hizo el commit de los documentos (`caf8b9f`) y ejecutó `/spec-impl 08-domicilios-y-entregas` en `crojas-base`, sin rama nueva (acuerdo vigente del 08 y el 09) y con todos los pasos seguidos. Quedan autorizadas T-08-14 a T-08-16. No autoriza commits; la enmienda no trae migraciones.
 
 ## Ejecución
 
@@ -122,10 +124,15 @@ Diseño en [plan.md](plan.md#enmienda-del-2026-11-15--diseño-propuesto). Requis
 | 2026-11-13 | T-08-12 | `ProgramarVariosView`, `ProgramarTramoView`, `programar_varios.html`, `_programar_resumen.html`, `programar.js`, `entregas.css` | `test_programar_lote` (16), `test_estructura` (3) y `programar.test.cjs` (11) aprobadas. Revisión visual, axe y teclado: **pendientes** (no se abrió un navegador). |
 | 2026-11-13 | T-08-13 | Herramienta HTTP, nota en el spec 04, CLAUDE.md, README, `docs/estructura.md`, `plan.md`, `validation.md`, índice | Herramienta aprobada (tramo de 25 con p95 de 845,89 ms; lote de 620 en 17,25 s); regresión de 871 pruebas aprobadas; Node 101; `check` y `makemigrations --check` sin cambios. |
 | 2026-11-15 | Enmienda (definición) | `spec.md`, `plan.md`, `tasks.md`, `validation.md` del 08 y el 09 e índice | Borrador de RF-08-18 a RF-08-20 con T-08-14 a T-08-16 propuestas; sin código ni migraciones. |
+| 2026-11-15 | Autorización | Enmienda aprobada, commit `caf8b9f`, `/spec-impl` en `crojas-base` | Autorizadas T-08-14 a T-08-16. |
+| 2026-11-15 | T-08-14 | `services.gestionar_fotos` (`FotoNueva`, `ErrorFoto`, `MENSAJE_FOTOS_CAMBIARON`); se retiran `agregar_foto` y `eliminar_foto` | `test_fotos.py` (15) y escenarios concurrentes 11 a 13, aprobados en 3 corridas. |
+| 2026-11-15 | T-08-15 | `FotosView`, `FotosForm`, `contexto_fotos`, ruta `fotos`, `_fotos_boton.html`, `_fotos_formulario.html`, `_miniatura_foto.html`, `_visor_foto.html`, `fotos.html`, `fotos.js`, `visor.js`, `entregas.css`, íconos `i-camara` e `i-cerrar` | `FotosModalVistaTests` (5), `test_estructura` (4), `test_permisos`, Node `fotos.test.cjs` (7) y `visor.test.cjs` (8). Revisión en el navegador del panel con datos sintéticos: corrigió cuatro defectos (ver `validation.md`). axe, lector de pantalla y cámara real: pendientes. |
+| 2026-11-15 | T-08-16 | Plantillas del 08, `paciente_detalle.html`, `mapa.js`, etiquetas de `forms.py` | Sin «Ver domicilio»; «Nombre de la localidad»; `makemigrations --check` sin cambios. |
+| 2026-11-15 | Integración | `tools/verificar_spec_08_http.py`, `plan.md`, `validation.md`, CLAUDE.md, README, `docs/estructura.md`, índice | Fotos: p95 135,63 ms (guardado) y 1328,77 ms (tres de 5 MB, aparte). La herramienta completa falló por el lote en paralelo con el tótem (intermitente, ya anotado en el 04; fuera de la enmienda). Se corrigió aparte el mismo día (`bloquear_cola` sin comparar la versión y reintento de los ocupados en `programar_lote`; ver `validation.md`). |
 
 ## Reanudación
 
-Última acción: T-08-01 a T-08-13 completas en `crojas-base` (ampliación del 2026-11-13 incluida), sin commit. Siguiente paso: revisión del diff por el usuario; aplicar `python manage.py migrate` en la base de demostración cuando el usuario lo decida; revisión de navegador (escritorio y celular, axe, teclado, zoom, ubicación y cámara reales), usabilidad con cinco personas y aceptación funcional. No pasar a Implementado sin esa evidencia.
+Última acción: T-08-14 a T-08-16 (enmienda del 2026-11-15) completas en `crojas-base`, sin commit; antes, T-08-01 a T-08-13. Siguen las T-09-11 a T-09-18 del 09 (la tarjeta compacta del RF-09-16 moverá el botón de fotos a la parte expandida). Siguiente paso: revisión del diff por el usuario; aplicar `python manage.py migrate` en la base de demostración cuando el usuario lo decida; revisión de navegador (escritorio y celular, axe, teclado, zoom, ubicación y cámara reales), usabilidad con cinco personas y aceptación funcional. No pasar a Implementado sin esa evidencia.
 
 ## Aceptación del usuario
 

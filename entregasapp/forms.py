@@ -9,6 +9,7 @@ from .consultas import (
     MOTIVOS_REPARTO, PENDIENTE, SIN_REGISTRAR, SIN_SECTOR, VERIFICADO, encargados_activos, localidades_elegibles,
 )
 from .models import Entrega, InscripcionReparto, IntentoEntrega, Sector
+from .services import MENSAJE_FOTOS_CAMBIARON, ErrorFoto, FotoNueva
 
 BUSQUEDA = {"type": "search", "autocomplete": "off", "spellcheck": "false", "enterkeyhint": "search",
             "placeholder": "RUT, nombre o apellido"}
@@ -42,7 +43,7 @@ class FiltroProgramarForm(BusquedaForm):
     estado = forms.ChoiceField(label="Estado del domicilio", required=False, choices=[
         ("", "Todos"), (VERIFICADO, "Verificado"), (PENDIENTE, "Pendiente de verificar"), (SIN_REGISTRAR, "Sin registrar"),
     ])
-    localidad = forms.ChoiceField(label="Localidad", required=False)
+    localidad = forms.ChoiceField(label="Nombre de la localidad", required=False)
 
     def __init__(self, *args, fecha=None, **kwargs):
         kwargs.setdefault("auto_id", "filtro_%s")
@@ -99,7 +100,7 @@ class FiltroEntregasForm(forms.Form):
 class DomicilioForm(forms.Form):
     sector = forms.ChoiceField(label="Sector MAIS", choices=[("", "Sin asignar"), *Sector.choices], required=False,
                                help_text="Se necesita para marcar el domicilio como verificado.")
-    localidad = forms.CharField(label="Localidad", max_length=120, required=False,
+    localidad = forms.CharField(label="Nombre de la localidad", max_length=120, required=False,
                                 widget=forms.TextInput(attrs={"autocomplete": "off"}))
     direccion = forms.CharField(label="Dirección", max_length=500,
                                 widget=forms.Textarea(attrs={"rows": 2, "autocomplete": "off"}))
@@ -139,11 +140,43 @@ class VersionForm(forms.Form):
         super().__init__(*args, **kwargs)
 
 
-class FotoForm(forms.Form):
-    foto = forms.FileField(label="Foto del entorno", help_text="JPEG o PNG de 5 MB o menos.",
-                           widget=forms.ClearableFileInput(attrs={"accept": "image/jpeg,image/png", "capture": "environment"}))
-    descripcion = forms.CharField(label="Descripción de la foto", max_length=120,
-                                  help_text="Obligatoria: es el texto que lee quien no ve la imagen. Ej.: «portón verde y buzón rojo».")
+class FotosForm(forms.Form):
+    """RF-08-18: un guardado del modal de fotos. Solo da forma a los datos; `gestionar_fotos` aplica las reglas.
+
+    Cada espacio `n` (1 a 3) trae `descripcion_n` y un archivo en `archivo_n` («Elegir archivo») o en `camara_n`
+    («Sacar foto»). Los archivos se leen tal cual para que todo error salga numerado («La foto 2 …»).
+    """
+
+    ESPACIOS = 3
+
+    mostradas = forms.CharField(required=False, widget=forms.HiddenInput)
+    volver = forms.CharField(required=False, max_length=500, widget=forms.HiddenInput)
+
+    def clean_mostradas(self):
+        try:
+            return [int(parte) for parte in self.cleaned_data["mostradas"].split(",") if parte.strip()]
+        except ValueError:
+            raise forms.ValidationError(MENSAJE_FOTOS_CAMBIARON) from None
+
+    def borrar(self):
+        return self.data.getlist("borrar") if hasattr(self.data, "getlist") else []
+
+    def descripciones(self):
+        return {n: (self.data.get(f"descripcion_{n}") or "") for n in range(1, self.ESPACIOS + 1)}
+
+    def nuevas(self):
+        """Fotos nuevas en el orden del modal; lanza `ErrorFoto` con el número del espacio que falla."""
+        resultado = []
+        for numero, descripcion in self.descripciones().items():
+            archivos = [a for a in (self.files.get(f"archivo_{numero}"), self.files.get(f"camara_{numero}")) if a]
+            if not archivos:
+                if descripcion.strip():
+                    raise ErrorFoto(numero, "falta elegir el archivo o sacar la foto.")
+                continue
+            if len(archivos) > 1:
+                raise ErrorFoto(numero, "elegiste dos archivos; deja solo uno.")
+            resultado.append(FotoNueva(numero, archivos[0], descripcion))
+        return resultado
 
 
 class ExcepcionForm(forms.Form):

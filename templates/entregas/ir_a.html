@@ -38,7 +38,7 @@
 <div class="acciones visita-acciones">
   <a class="boton" href="{% url 'entregasapp:registro' intento.pk %}?resultado=entregada#registrar-entregada"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg>Entregada<span class="sr-only">: {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></a>
   <a class="boton boton-secundario" href="{% url 'entregasapp:registro' intento.pk %}?resultado=no_entregada#registrar-no-entregada">No entregada<span class="sr-only">: {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></a>
-  <a class="enlace-secundario" href="{% url 'entregasapp:domicilio' intento.paciente.pk %}">Ver domicilio<span class="sr-only"> de {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></a>
+  <a class="enlace-secundario" href="{% url 'entregasapp:domicilio' intento.paciente.pk %}">Detalles del domicilio<span class="sr-only"> de {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></a>
 </div>
 {{ datos_ir_a|json_script:"datos-ir-a" }}
 {% else %}

@@ -27,7 +27,7 @@
   </dl>
   {% if intento.fotos %}
   <ul class="fotos-miniaturas" aria-label="Fotos del entorno">
-    {% for foto in intento.fotos %}<li><a href="{% url 'entregasapp:foto' foto.pk %}"><img src="{% url 'entregasapp:foto' foto.pk %}" alt="{{ foto.descripcion }}" width="{{ foto.ancho }}" height="{{ foto.alto }}" loading="lazy"></a></li>{% endfor %}
+    {% for foto in intento.fotos %}<li>{% include 'entregas/_miniatura_foto.html' %}</li>{% endfor %}
   </ul>
   {% endif %}
   <div class="acciones visita-acciones">
@@ -39,7 +39,8 @@
     <p class="suave">Programada para el {{ intento.fecha_programada|date:"d/m/Y" }}.{% if not consulta %} Podrás registrarla desde ese día.{% endif %}</p>
     {% endif %}
     {% if parada.punto and registrable and not sin_acciones and not consulta %}<a class="boton boton-secundario" href="{% url 'entregasapp:ir_a' intento.pk %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-brujula"/></svg>Ir a esta parada<span class="sr-only">: {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></a>{% endif %}
-    <a class="enlace-secundario" href="{% url 'entregasapp:domicilio' intento.paciente.pk %}">Ver domicilio<span class="sr-only"> de {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></a>
+    {% if intento.fotos_form and es_encargado and not consulta and not sin_acciones %}{% include 'entregas/_fotos_boton.html' with f=intento.fotos_form nombre=intento.paciente.nombres|add:" "|add:intento.paciente.apellidos %}{% endif %}
+    <a class="enlace-secundario" href="{% url 'entregasapp:domicilio' intento.paciente.pk %}">Detalles del domicilio<span class="sr-only"> de {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></a>
   </div>
   {% if controles and parada %}{% include 'entregas/_orden_controles.html' %}{% endif %}
 </article>

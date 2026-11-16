@@ -135,19 +135,81 @@ No ejecutados en esta sesión (no se abrió un navegador):
 
 Hay que avisar al equipo del cambio del 04, que se trabajó en `fdaza`.
 
-## Enmienda del 2026-11-15 (no ejecutada)
+## Enmienda del 2026-11-15 (verificación técnica)
 
-Estado: **no ejecutada**. La enmienda está en Borrador; no hay código ni resultados. Las filas describen la evidencia que hará falta.
+Estado: **verificación técnica ejecutada** el 2026-11-15 en `crojas-base`, sin commit, sobre `caf8b9f`. Base de pruebas desechable de PostgreSQL; herramienta HTTP y vista local sobre SQLite y carpeta privada temporales. Solo imágenes generadas (Pillow en el servidor y `<canvas>` en el navegador). Sin migraciones.
 
-| RF | Prueba / pasos / comando previstos | Esperado | Obtenido | Estado |
+| RF | Prueba / pasos / comando | Esperado | Obtenido | Estado |
 |---|---|---|---|---|
-| RF-08-18 | `test_fotos.py`; `test_vistas.py`; `fotos.test.cjs` | Todo o nada; «La foto 2 no se pudo procesar»; conjunto cambiado rechazado; botón según la cantidad; página sin JavaScript | — | no ejecutada |
-| RF-08-18 | `test_concurrencia.py` (tres escenarios nuevos, tres corridas) | Nunca más de 3 fotos; un ganador; ningún archivo huérfano | — | no ejecutada |
-| RF-08-18 | Celular real: «Sacar foto» con la cámara; red cortada al guardar | La foto vuelve al modal; sin red no se guarda nada y se avisa | — | no ejecutada |
-| RF-08-19 | `visor.test.cjs`; navegador con teclado y lector de pantalla | Se cierra con X, clic fuera y Esc; foco contenido y de vuelta en la miniatura | — | no ejecutada |
-| RF-08-20 | Búsqueda en plantillas y JavaScript; `makemigrations --check --dry-run` | Sin «Ver domicilio»; «Nombre de la localidad»; sin migraciones | — | no ejecutada |
-| RNF-05 | `tools/verificar_spec_08_http.py` (guardado de fotos) | p95 ≤ 2 s sin archivos grandes; tres fotos de 5 MB medidas aparte | — | no ejecutada |
-| RNF-04 | axe, teclado y usabilidad | Diálogos accesibles; errores asociados y anunciados | — | no ejecutada |
+| RF-08-18 | `test_fotos.py` (`GestionarFotosTests`, 8; `FotosServicioTests`, 7, las reglas del RF-08-05 ahora a través de `gestionar_fotos`) | Todo o nada; «La foto 2 no se pudo procesar»; conjunto cambiado rechazado; con 3 solo se agrega al marcar una; los archivos borrados se eliminan al confirmar y los nuevos si falla; auditoría sin datos personales | Igual: borrar 1 y agregar 2 (JPEG con GPS y PNG) deja 3 JPEG sin EXIF y 3 entradas de auditoría; la foto 2 inválida no cambia la base, los archivos ni la auditoría; una falla de la base borra los JPEG nuevos | aprobada |
+| RF-08-18 | `test_concurrencia.py` (`ConcurrenciaFotosTests`, escenarios 11 a 13 con hilos y conexiones de PostgreSQL), tres corridas seguidas | Uno gana y el otro recibe el aviso; nunca más de 3; ningún archivo huérfano | 3 aprobadas en cada corrida (dos desde el mismo estado; guardar frente a borrar; tres que agregan con 2 guardadas) | aprobada |
+| RF-08-18 | `test_vistas.py` (`FotosModalVistaTests`, 5), `test_permisos.py`, `test_vistas.py` (`DomicilioVistaTests`) | Botón según la cantidad; JSON con el número de la foto; página sin JavaScript; Técnico 403; CSRF; `volver` externo rechazado | Igual: 0 fotos → «Registrar fotos» con 3 espacios; 2 → «Gestionar fotos» con 1; 3 → 0 espacios y «Ya hay 3 fotos…»; el Técnico ve miniaturas y visor sin botón | aprobada |
+| RF-08-18 | Navegador del panel de la app (Chromium), vista local aislada (3 pacientes sintéticos, cuenta de terreno), escritorio y 375 × 812 | Modal como el lienzo; error junto a la foto; guardado; cerrar descarta y devuelve el foco | Marcar «Borrar» tacha la foto, cambia a «Deshacer» y abre un espacio; una PNG y un PDF renombrado .jpg dan «La foto 2 no se pudo procesar: el archivo no es una foto JPEG o PNG válida.», el foco va al aviso, el modal sigue abierto y no cambia nada; luego, borrar 1 y agregar 1 guarda y recarga con «Fotos guardadas sin metadatos ni ubicación.»; la X, «Cancelar» y Esc (tecla real) descartan lo elegido y el foco vuelve al botón; sin desplazamiento horizontal a 375 px | aprobada (revisión técnica del agente, no de usuarios) |
+| RF-08-18 | Celular real: «Sacar foto» con la cámara; red cortada al guardar | La foto vuelve al modal; sin red no se guarda nada y se avisa | El aviso sin red está probado en Node (`fotos.test.cjs`); la cámara real y el corte de red reales no se probaron | pendiente |
+| RF-08-19 | `visor.test.cjs` (8); navegador del panel | Se cierra con la X, con un clic fuera y con Esc; foco contenido y de vuelta en la miniatura | Igual en Node y en el navegador (tres ciclos seguidos sin imágenes sobrantes); la miniatura tiene `role="button"` y el nombre «Ver foto ampliada: …»; Espacio la abre | aprobada; lector de pantalla pendiente |
+| RF-08-20 | `grep` en plantillas y JavaScript; `test_estructura.py`; `mapa.test.cjs`; `makemigrations --check --dry-run` | Sin «Ver domicilio»; «Nombre de la localidad»; sin migraciones | No queda «Ver domicilio» (sí «Ver domicilios», que no cambia); el formulario, la ficha y el filtro dicen «Nombre de la localidad»; `No changes detected` | aprobada |
+| RNF-05 | `tools/verificar_spec_08_http.py` (primera corrida; ver límites) | p95 ≤ 2 s sin archivos grandes; tres fotos de 5 MB medidas aparte | Guardado del modal (borrar 1 y agregar una PNG pequeña), 20 muestras: p95 135,63 ms; subida de una foto de cámara: p95 157,54 ms; tres JPEG de 4,98 MB en una solicitud, 5 muestras: p95 1328,77 ms (loopback); ver foto: p95 21,44 ms | aprobada para las fotos |
+| RNF-04 | `test_estructura.py` (diálogos con nombre, botones con tipo, miniaturas con nombre); navegador | Diálogos accesibles; errores asociados y anunciados | Estructura aprobada; el error de la foto queda en `aria-describedby` de su descripción y recibe el foco; axe, lector de pantalla y usabilidad no se ejecutaron | pendiente (axe y usabilidad) |
+
+### Regresión de la enmienda
+
+| Comando | Resultado |
+|---|---|
+| `python manage.py test --noinput --parallel 1` (primera corrida) | 967 pruebas: 4 errores nuevos en `test_plantillas` (los parciales de fotos no se dibujaban con contexto vacío; se corrigió con guardas `{% if f %}` / `{% if foto %}`) y el error previo de `test_sala_servidor` (`WinError 32`). |
+| `python manage.py test coreapp.tests.test_plantillas coreapp.tests.test_estaticos entregasapp --noinput` tras la corrección | 279 aprobadas. |
+| `python manage.py test --noinput --parallel 1` (corrida final) | **967 pruebas: 966 aprobadas** y el mismo error previo, ajeno al 08, de `test_sala_servidor` (`WinError 32`). |
+| `node --test turnosapp/tests/*.test.cjs recetasapp/tests/*.test.cjs entregasapp/tests/*.test.cjs coreapp/tests/*.test.cjs` | 124 aprobadas (incluye `fotos.test.cjs`, 7, y `visor.test.cjs`, 8). |
+| `python manage.py check`; `makemigrations --check --dry-run` | Sin problemas; `No changes detected`. |
+
+Hallazgos corregidos durante la revisión en el navegador:
+- Con el atributo `hidden`, el aviso general vacío seguía visible porque `.message` fija `display`.
+- Los textos `sr-only` agrandaban el diálogo y la cabecera se salía de la vista.
+- El fondo del visor dejaba pasar la página detrás del pie.
+- Chrome entregó el evento `close` del `<dialog>` con retraso: lo elegido no se limpiaba y una imagen vieja podía quedar en el visor. Ahora se limpia al cerrar con la X, «Cancelar», un clic fuera o Esc (`cancel`).
+
+### Límites
+
+- **Herramienta HTTP:** la medición de fotos es de la primera corrida, que pasó todas las comprobaciones de fotos y después falló por el p95 del tramo de 25 del lote (4253,83 ms; antes 845,89 ms). La segunda y la tercera corrida fallaron antes de imprimir el informe, en `programados_lote == programables` (619 y 617 de 620), con el tótem emitiendo en paralelo. Es la misma falla intermitente que ya anotó la validación del 04 tras su enmienda. Esta enmienda no toca la programación ni el tótem, y los presenciales del tótem (45 años) no son elegibles para el lote. Queda **pendiente de investigar** fuera de esta enmienda (investigada y corregida después: ver [Falla intermitente del lote frente al tótem](#falla-intermitente-del-lote-frente-al-tótem-2026-11-15)).
+- No se probaron la cámara de un celular real, un corte de red real, un lector de pantalla, axe ni la usabilidad con cinco personas.
+- Si el proceso muere entre escribir los JPEG y la transacción, pueden quedar archivos sin fila (riesgo aceptado en el plan; sin limpieza periódica).
+- La revisión en el navegador la hizo el agente, con datos sintéticos; no reemplaza la aceptación del usuario.
+
+## Falla intermitente del lote frente al tótem (2026-11-15)
+
+Diagnóstico y corrección de la falla que anotaron los límites de arriba y la validación del 04 (`programados_lote == programables`: 619 y 617 de 620 en el paso 10 de la herramienta). Trabajo en un worktree desde `crojas-base` (`caf8b9f`) con los cambios sin commit de la enmienda de fotos, sin commit. Solo pacientes sintéticos, SQLite temporal y bases PostgreSQL desechables de nombre único (creadas y borradas en cada corrida; se comprobó que no quedó ninguna). La base PostgreSQL del proyecto no se usó ni se migró.
+
+### Causa
+
+- **SQLite (la herramienta):** los pacientes que faltaban salieron como «No se pudo programar; vuelve a confirmar». `programar_entrega` agotó los 8 intentos de `reintentar_conflictos`, **todos con `OperationalError: database is locked`**, de 3 a 45 ms cada uno. No hubo `ConflictoOperacion` ni `ConflictoCola`, ni otra regla. La SQLite temporal usa el diario `delete` y el `BEGIN` diferido de Django. `programar_entrega` empieza leyendo (`autorizar`, el usuario, el `get_or_create` de la cola) y escribe en el UPDATE de `bloquear_cola`. Si otra conexión tiene la escritura, SQLite responde ocupado **al instante**, sin la espera de 5 s, para evitar un interbloqueo. Las escrituras del tótem que empiezan escribiendo (guardar la sesión, contar el intento del RF-04-12) sí esperan su turno. Una prueba mínima con `sqlite3` lo muestra: leer y luego escribir falla en 0,4 ms; escribir primero o `BEGIN IMMEDIATE` espera unos 340 ms y sigue.
+- **PostgreSQL (la base real):** con el mismo escenario, el lote no omitió a nadie (14 rondas de 620), pero **el tótem dejó a 6 de 560 personas sin número** («El sistema está ocupado.»). `bloquear_cola` comparaba la versión leída: el tótem esperaba el bloqueo de la fila del día mientras el lote programaba y, al llegarle el turno, la versión había cambiado (`ConflictoCola`). Con las transacciones seguidas del lote, a veces perdía los 12 reintentos.
+- **Personas distintas:** en la prueba, el tótem atiende a 40 pacientes presenciales de 45 años y el lote a 620 mayores de 80. El choque viene de que la cola del día es una sola llave para toda la jornada, no de que se cruce la misma persona.
+- **No la creó la enmienda del 04:** con `ecc860f` (antes de la enmienda) la reproducción también omite (6 de 6 rondas).
+
+### Corrección aplicada
+
+1. `turnosapp.cola.bloquear_cola` toma la fila del día con `UPDATE version = version + 1`, **sin comparar la versión**, y la relee. Quien espera sigue cuando el otro confirma. Todos los llamadores (tótem, atención, preparación, retiro, entregas, gestión por personal) leen sus datos después de tomar la cola, o los releen. En SQLite la comparación nunca fallaba. Anotado en el plan del 05.
+2. `entregasapp.services.programar_lote` vuelve a intentar al final del tramo a los pacientes con la base ocupada, hasta 3 vueltas (`VUELTAS_OCUPADOS`, pausa de 50 ms que crece), con la misma operación `uuid5(lote, paciente)`.
+3. `tools/verificar_spec_08_http.py` informa los omitidos de la confirmación con su motivo (solo el id sintético) y falla si el hilo del tótem no recibe el formulario o se cae. Antes, el hilo podía morir sin que la herramienta lo notara.
+
+Descartadas tras medirlas: SQLite en modo `IMMEDIATE` en la herramienta (el lote acaparaba la escritura; el tótem emitió 31, 3 y 18 de 40, y en una corrida su hilo murió) y una pausa de 15 ms entre pacientes (PostgreSQL siguió rechazando 2 de 320 en el tótem, y el p95 del tramo pasó de 5 s).
+
+### Evidencia
+
+| Prueba | Resultado |
+|---|---|
+| Reproducción enfocada del paso 10, SQLite, código anterior | 8 de 8 rondas con omitidos (15); con `ecc860f`, 6 de 6 (11) |
+| Ídem, PostgreSQL desechable, código anterior | 0 omitidos; tótem con 6 de 560 sin número; 60 a 120 `ConflictoCola` del tótem por ronda |
+| Ídem, PostgreSQL desechable, **código corregido** | 8 rondas: 0 omitidos, tótem 320 de 320, **0 conflictos** en el lote y en el tótem. p95 del tramo 1,2 a 1,8 s en 6 rondas; 4,3 s en una ronda lenta (lote de 41 s, sin conflictos) |
+| `turnosapp.tests.test_concurrencia_cola.LlaveDelDiaTests` (nueva, hilos y PostgreSQL) | Quien espera la fila sigue y ve la versión del otro. Con el `bloquear_cola` anterior falla con `ConflictoCola` |
+| `test_programar_lote.py` (2 nuevas) | El ocupado vuelve al final del tramo y queda programado sin duplicar; si sigue ocupado, sale «vuelve a confirmar» tras 1 + 3 intentos sin detener a los demás |
+| `python manage.py test --noinput --parallel 1` (base de pruebas PostgreSQL de nombre único) | **970 pruebas: 969 aprobadas** y el error previo, ajeno, de `test_sala_servidor` (`WinError 32`) |
+| `python tools/verificar_spec_08_http.py`, 3 corridas seguidas | Las 3 con 620 de 620 y el tótem 40 de 40 (p95 432, 206 y 218 ms). p95 del tramo de 25: **1897 ms (aprobada), 2232 ms y 2044 ms (fallan por p95)** |
+| Revisión en `crojas-base` con la corrección del lote y la enmienda de fotos juntas (2026-11-15) | `python manage.py test --noinput --parallel 1`: **970 pruebas, 969 aprobadas** y el error previo de `test_sala_servidor`. Node 124 aprobadas; `check` y `makemigrations --check --dry-run` sin cambios. `tools/verificar_spec_08_http.py`, 1 corrida: **aprobada** (salida 0), lote 620 de 620, tramo de 25 p95 1010,76 ms, tótem durante el lote p95 209,99 ms, guardado de fotos p95 152,77 ms. |
+
+### Límites
+
+- **p95 del tramo de 25 en SQLite (decisión del equipo, 2026-11-15: se registra como límite de la medición).** Mientras el tótem de la herramienta emite 40 personas seguidas (unas 10 por segundo, mucho más que un tótem real), el tramo de 25 roza los 2 s: 1897, 2232 y 2044 ms en las tres corridas con la corrección. Es la espera del lote en la SQLite temporal, donde el bloqueo de escritura es de toda la base. La corrección de `bloquear_cola` no la cambia, y no es un paciente omitido ni un conflicto: en las tres corridas se programaron 620 de 620 y el tótem dio 40 de 40. Por eso la herramienta puede terminar con `AssertionError` en la comprobación final del p95 aunque el informe diga «aprobado» en todo lo demás. El escenario de la herramienta no se cambió.
+- La latencia en PostgreSQL se midió en un equipo con tiempos variables (lotes de 19 a 41 s; una ronda con el tramo en 4,3 s sin conflictos). No reemplaza una medición en el servidor del prototipo.
 
 ## Aceptación funcional
 

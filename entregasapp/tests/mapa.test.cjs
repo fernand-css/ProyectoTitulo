@@ -167,9 +167,9 @@ test("el resumen del marcador se arma con texto, sin interpretar HTML de los dat
   assert.ok(contenido.includes("<img src=x onerror=alert(1)>"));
   assert.ok(contenido.includes("Parada 3 · Atrasada desde el 10/11 · Nueva"));
   const enlaces = resumen.hijos.at(-1).hijos;
-  assert.deepEqual(enlaces.map((a) => [a.textContent, a.href]), [["Ver domicilio", "/entregas/domicilios/paciente/8/"]]);
+  assert.deepEqual(enlaces.map((a) => [a.textContent, a.href]), [["Detalles del domicilio", "/entregas/domicilios/paciente/8/"]]);
   const completo = mapa.resumenParada(documento, DATOS.paradas[0]);
-  assert.deepEqual(completo.hijos.at(-1).hijos.map((a) => a.textContent), ["Registrar", "Ir a esta parada", "Ver domicilio"]);
+  assert.deepEqual(completo.hijos.at(-1).hijos.map((a) => a.textContent), ["Registrar", "Ir a esta parada", "Detalles del domicilio"]);
   assert.ok(textos(completo).includes("Sector Verde · Localidad demo 1"));
 });
 

@@ -9,6 +9,7 @@ Reglas comunes (RNF-02 y CLAUDE.md):
 - La auditoría guarda solo el tipo y el identificador del objeto; si falla, la operación se revierte.
 """
 
+import time
 import uuid
 from dataclasses import dataclass
 from decimal import Decimal, InvalidOperation
@@ -187,59 +188,109 @@ def verificar_domicilio(actor, domicilio_id, version):
 
 # Fotos -------------------------------------------------------------------------------------------------------
 
-def agregar_foto(actor, domicilio_id, archivo, descripcion):
-    """Procesa la imagen fuera de la transacción y guarda solo el JPEG limpio; si algo falla, borra el archivo."""
+MENSAJE_FOTOS_CAMBIARON = (
+    "Las fotos de este domicilio cambiaron en otro dispositivo. Cierra y vuelve a abrir para ver las actuales."
+)
+
+
+@dataclass(frozen=True)
+class FotoNueva:
+    """Una foto elegida en el modal: `numero` es su lugar entre las fotos nuevas («Foto nueva 2»)."""
+
+    numero: int
+    archivo: object
+    descripcion: str
+
+
+class ErrorFoto(ValidationError):
+    """Falla de una foto nueva; `numero` permite mostrar el aviso junto a esa foto en el modal."""
+
+    def __init__(self, numero, motivo):
+        motivo = motivo[:1].lower() + motivo[1:] if motivo else "no es válida"
+        super().__init__(f"La foto {numero} no se pudo procesar: {motivo}", code="foto")
+        self.numero = numero
+
+
+def _ids(valores):
+    try:
+        return {int(valor) for valor in valores}
+    except (TypeError, ValueError):
+        raise ValidationError(MENSAJE_FOTOS_CAMBIARON) from None
+
+
+def gestionar_fotos(actor, domicilio_id, *, mostradas, borrar=(), nuevas=()):
+    """RF-08-18: aplica juntos los borrados y las fotos nuevas, o no aplica nada.
+
+    `mostradas` son los ids que vio quien guarda; si las fotos cambiaron desde entonces, se rechaza. Las imágenes
+    se validan y recomprimen antes de la transacción; si algo falla después, se borran los JPEG nuevos. Los
+    archivos de las fotos borradas se eliminan solo cuando la transacción se confirma.
+    """
     from coreapp.utils.custom_image import procesar_imagen
 
     autorizar(actor, JEFA, ENCARGADO)
-    descripcion = (descripcion or "").strip()
-    if not descripcion or len(descripcion) > 120:
-        raise ValidationError("Describe la foto en 120 caracteres o menos; sirve de texto alternativo.")
+    mostradas, borrar, nuevas = _ids(mostradas), _ids(borrar), list(nuevas)
+    if not borrar <= mostradas:
+        raise ValidationError(MENSAJE_FOTOS_CAMBIARON)
+    if len(mostradas) - len(borrar) + len(nuevas) > FotoDomicilio.MAXIMO:
+        raise ValidationError(
+            f"Un domicilio tiene como máximo {FotoDomicilio.MAXIMO} fotos. Quita una foto nueva o marca otra para borrar."
+        )
     if not Domicilio.objects.filter(pk=domicilio_id).exists():
         raise ValidationError("El domicilio no está disponible.")
-    contenido, ancho, alto = procesar_imagen(archivo)
-    nombre = fotos.guardar_jpeg(contenido)
+    procesadas = []
+    for nueva in nuevas:
+        descripcion = (nueva.descripcion or "").strip()
+        if not descripcion:
+            raise ErrorFoto(nueva.numero, "falta su descripción, que sirve de texto alternativo.")
+        if len(descripcion) > 120:
+            raise ErrorFoto(nueva.numero, "la descripción tiene más de 120 caracteres.")
+        try:
+            contenido, ancho, alto = procesar_imagen(nueva.archivo)
+        except ValidationError as error:
+            raise ErrorFoto(nueva.numero, error.messages[0]) from None
+        procesadas.append((descripcion, contenido, ancho, alto))
+    escritos = []
     try:
-        return _registrar_foto(actor, domicilio_id, nombre, descripcion, ancho, alto, len(contenido))
+        for descripcion, contenido, ancho, alto in procesadas:
+            escritos.append((fotos.guardar_jpeg(contenido), descripcion, ancho, alto, len(contenido)))
+        return _aplicar_fotos(actor, domicilio_id, mostradas, borrar, escritos)
     except BaseException:
-        fotos.borrar(nombre)
+        for nombre, *_ in escritos:
+            fotos.borrar(nombre)
         raise
 
 
-@reintentar_conflictos
 @transaction.atomic
-def _registrar_foto(actor, domicilio_id, nombre, descripcion, ancho, alto, tamano):
+def _aplicar_fotos(actor, domicilio_id, mostradas, borrar, escritos):
     actor = get_user_model().objects.get(pk=actor.pk)
-    ocupadas = set(FotoDomicilio.objects.filter(domicilio_id=domicilio_id).values_list("posicion", flat=True))
+    # UPDATE sin cambio de valor sobre la fila propia del domicilio: en PostgreSQL toma su bloqueo de fila y
+    # ordena los guardados simultáneos; la lectura siguiente ya ve lo que confirmó el anterior.
+    if not Domicilio.objects.filter(pk=domicilio_id).update(version=F("version")):
+        raise ValidationError("El domicilio no está disponible.")
+    actuales = {foto.pk: foto for foto in FotoDomicilio.objects.filter(domicilio_id=domicilio_id)}
+    if set(actuales) != mostradas:
+        raise ValidationError(MENSAJE_FOTOS_CAMBIARON)
+    nombres_borrados = []
+    for foto_id in sorted(borrar):
+        foto = actuales.pop(foto_id)
+        auditar(actor, "domicilio.foto_eliminada", foto)
+        nombres_borrados.append(foto.archivo.name)
+    if borrar and FotoDomicilio.objects.filter(pk__in=borrar, domicilio_id=domicilio_id).delete()[0] != len(borrar):
+        raise ValidationError(MENSAJE_FOTOS_CAMBIARON)
+    ocupadas = {foto.posicion for foto in actuales.values()}
     libres = [posicion for posicion in range(1, FotoDomicilio.MAXIMO + 1) if posicion not in ocupadas]
-    if not libres:
-        raise ValidationError(f"El domicilio ya tiene {FotoDomicilio.MAXIMO} fotos. Borra una antes de agregar otra.")
     try:
         with transaction.atomic():
-            foto = FotoDomicilio.objects.create(
-                domicilio_id=domicilio_id, posicion=libres[0], archivo=nombre, descripcion=descripcion,
-                ancho=ancho, alto=alto, bytes=tamano, creado_por=actor, modificado_por=actor,
-            )
+            for (nombre, descripcion, ancho, alto, tamano), posicion in zip(escritos, libres, strict=False):
+                foto = FotoDomicilio.objects.create(
+                    domicilio_id=domicilio_id, posicion=posicion, archivo=nombre, descripcion=descripcion,
+                    ancho=ancho, alto=alto, bytes=tamano, creado_por=actor, modificado_por=actor,
+                )
+                auditar(actor, "domicilio.foto_agregada", foto)
     except IntegrityError:
-        raise ConflictoOperacion("Otra foto ocupó esa posición.") from None
-    auditar(actor, "domicilio.foto_agregada", foto)
-    return foto
-
-
-@transaction.atomic
-def eliminar_foto(actor, foto_id):
-    """Borra la fila y, después de confirmar la transacción, el archivo."""
-    autorizar(actor, JEFA, ENCARGADO)
-    actor = get_user_model().objects.get(pk=actor.pk)
-    foto = FotoDomicilio.objects.filter(pk=foto_id).first()
-    if foto is None:
-        return None
-    auditar(actor, "domicilio.foto_eliminada", foto)
-    nombre = foto.archivo.name
-    if not FotoDomicilio.objects.filter(pk=foto.pk).delete()[0]:
-        raise ValidationError("La foto ya no está disponible.")
-    transaction.on_commit(lambda: fotos.borrar(nombre))
-    return foto.domicilio_id
+        raise ValidationError(MENSAJE_FOTOS_CAMBIARON) from None
+    transaction.on_commit(lambda: [fotos.borrar(nombre) for nombre in nombres_borrados])
+    return list(FotoDomicilio.objects.filter(domicilio_id=domicilio_id))
 
 
 # Excepciones de reparto --------------------------------------------------------------------------------------
@@ -362,6 +413,8 @@ OMITIDO_NO_ELEGIBLE = "Ya no es elegible para el reparto en esa fecha"
 OMITIDO_NO_DISPONIBLE = "El paciente no está disponible"
 OMITIDO_REINTENTAR = "No se pudo programar; vuelve a confirmar"
 TRAMO_MAXIMO = 25
+VUELTAS_OCUPADOS = 3  # vueltas extra, al final del tramo, para los pacientes que la base dejó ocupados
+PAUSA_OCUPADOS = 0.05  # segundos antes de la primera vuelta extra; crece con cada vuelta
 
 
 def recetas_para_despacho_lote(pacientes, fecha):
@@ -420,6 +473,23 @@ def _primer_mensaje(error):
     return mensajes[0] if mensajes else OMITIDO_REINTENTAR
 
 
+def _programar_del_lote(actor, paciente_id, fecha, encargado_id, lote):
+    """ResultadoLote del paciente, o None si la base siguió ocupada tras los reintentos de `programar_entrega`."""
+    try:
+        entrega = programar_entrega(actor, paciente_id, fecha, encargado_id, operacion_de_lote(lote, paciente_id))
+    except EntregaAbiertaExistente:
+        return ResultadoLote(paciente_id, False, motivo=OMITIDO_ABIERTA)
+    except PermissionDenied:
+        raise
+    except ValidationError as error:
+        if not Paciente.objects.filter(pk=paciente_id).exists():
+            return ResultadoLote(paciente_id, False, motivo=OMITIDO_NO_DISPONIBLE)
+        return ResultadoLote(paciente_id, False, motivo=_motivo_omitido(error))
+    except DatabaseError:
+        return None
+    return ResultadoLote(paciente_id, True, entrega_id=entrega.pk, recetas=entrega.recetas.count())
+
+
 def programar_lote(actor, paciente_ids, fecha, encargado_id, lote_id):
     """Programa a cada paciente por separado, con las reglas y garantías de `programar_entrega`.
 
@@ -427,28 +497,32 @@ def programar_lote(actor, paciente_ids, fecha, encargado_id, lote_id):
     solo mientras dura), y un fallo no revierte a los demás. La operación de cada paciente se deriva del lote, así
     que reenviar el lote, completo o por partes, devuelve las entregas ya creadas. La fecha y el encargado se
     validan una vez antes de empezar: si no sirven, no se programa a nadie.
+
+    Un paciente que quedó con la base ocupada (agotó los reintentos de `programar_entrega`, por ejemplo con el
+    tótem emitiendo en paralelo) se vuelve a intentar al final del tramo, hasta VUELTAS_OCUPADOS veces, con la
+    misma operación; solo entonces sale como «No se pudo programar; vuelve a confirmar».
     """
     autorizar(actor, JEFA)
     _fecha_valida(fecha, timezone.localdate())
     _encargado_valido(encargado_id)
     lote = _uuid(lote_id)
-    resultados = []
-    for paciente_id in paciente_ids:
-        try:
-            entrega = programar_entrega(actor, paciente_id, fecha, encargado_id, operacion_de_lote(lote, paciente_id))
-        except EntregaAbiertaExistente:
-            resultados.append(ResultadoLote(paciente_id, False, motivo=OMITIDO_ABIERTA))
-        except PermissionDenied:
-            raise
-        except ValidationError as error:
-            if not Paciente.objects.filter(pk=paciente_id).exists():
-                resultados.append(ResultadoLote(paciente_id, False, motivo=OMITIDO_NO_DISPONIBLE))
+    resultados = [None] * len(paciente_ids)
+    pendientes = list(range(len(paciente_ids)))
+    for vuelta in range(1 + VUELTAS_OCUPADOS):
+        if vuelta:
+            time.sleep(PAUSA_OCUPADOS * vuelta)
+        ocupados = []
+        for indice in pendientes:
+            resultado = _programar_del_lote(actor, paciente_ids[indice], fecha, encargado_id, lote)
+            if resultado is None:
+                ocupados.append(indice)
             else:
-                resultados.append(ResultadoLote(paciente_id, False, motivo=_motivo_omitido(error)))
-        except DatabaseError:
-            resultados.append(ResultadoLote(paciente_id, False, motivo=OMITIDO_REINTENTAR))
-        else:
-            resultados.append(ResultadoLote(paciente_id, True, entrega_id=entrega.pk, recetas=entrega.recetas.count()))
+                resultados[indice] = resultado
+        pendientes = ocupados
+        if not pendientes:
+            break
+    for indice in pendientes:
+        resultados[indice] = ResultadoLote(paciente_ids[indice], False, motivo=OMITIDO_REINTENTAR)
     return resultados
 
 

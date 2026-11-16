@@ -1,0 +1,51 @@
+{# RF-08-18: formulario del modal y de la página sin JavaScript. Nada cambia hasta «Guardar»; el servidor aplica todo o nada. Espera `f` (de `views.contexto_fotos`) y, en la página aparte, `pagina`. #}
+{% if f %}
+{% with p=f.prefijo %}
+<form class="fotos-form" method="post" action="{% url 'entregasapp:fotos' f.domicilio.pk %}" enctype="multipart/form-data" novalidate data-fotos-form data-maximo="{{ f.maximo_fotos }}" data-guardadas="{{ f.fotos|length }}">
+  {% csrf_token %}
+  <input type="hidden" name="mostradas" value="{{ f.mostradas }}">
+  <input type="hidden" name="volver" value="{{ f.volver }}">
+  <div class="fotos-cuerpo">
+    <div class="message message-error" role="alert" data-fotos-error{% if not f.error_general %} hidden{% endif %}>{{ f.error_general }}</div>
+    <p class="aviso-foto" id="fotos-{{ p }}-aviso"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-alerta"/></svg>Fotografía solo el entorno (portón, fachada, camino). No fotografíes personas ni patentes. Nada cambia hasta que pulses «Guardar»; las fotos se guardan sin ubicación ni metadatos.</p>
+    {% if f.fotos %}
+    <h3 class="fotos-subtitulo">Fotos guardadas ({{ f.fotos|length }})</h3>
+    <ul class="fotos-guardadas">
+      {% for foto in f.fotos %}
+      <li class="foto-guardada">
+        <img src="{% url 'entregasapp:foto' foto.pk %}" alt="{{ foto.descripcion }}" width="{{ foto.ancho }}" height="{{ foto.alto }}" loading="lazy">
+        <div class="foto-guardada-texto"><p class="foto-guardada-descripcion">{{ foto.descripcion }}</p><p class="foto-marca">Se borrará al guardar</p></div>
+        <input class="foto-borrar-casilla" type="checkbox" id="{{ p }}-borrar-{{ foto.pk }}" name="borrar" value="{{ foto.pk }}" data-borrar{% if foto.pk|stringformat:"s" in f.marcadas %} checked{% endif %}>
+        <label class="foto-borrar" for="{{ p }}-borrar-{{ foto.pk }}"><span class="foto-borrar-si">Borrar</span><span class="foto-borrar-no">Deshacer</span><span class="sr-only">: {{ foto.descripcion }}</span></label>
+      </li>
+      {% endfor %}
+    </ul>
+    {% endif %}
+    <h3 class="fotos-subtitulo">Fotos nuevas</h3>
+    <p class="suave" data-fotos-cuenta>{% if f.espacios.0.visible %}Puedes agregar fotos hasta completar {{ f.maximo_fotos }}.{% else %}Ya hay {{ f.maximo_fotos }} fotos. Marca una para borrar si quieres agregar otra{% if pagina %}; guarda y vuelve a abrir esta página para agregarla{% endif %}.{% endif %}</p>
+    <div class="fotos-espacios">
+      {% for espacio in f.espacios %}{% with n=espacio.numero %}
+      <fieldset class="foto-nueva{% if espacio.error %} foto-nueva-error{% endif %}" data-espacio="{{ n }}"{% if not espacio.visible %} hidden{% endif %}>
+        <legend>Foto nueva {{ n }}</legend>
+        <div class="foto-nueva-previa" data-previa hidden></div>
+        <div class="foto-nueva-botones">
+          <span class="foto-nueva-opcion"><label class="etiqueta-archivo" for="{{ p }}-archivo-{{ n }}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-subir"/></svg>Elegir archivo<span class="sr-only"> para la foto nueva {{ n }}</span></label><input class="foto-archivo" type="file" id="{{ p }}-archivo-{{ n }}" name="archivo_{{ n }}" accept="image/jpeg,image/png" data-archivo></span>
+          <span class="foto-nueva-opcion"><label class="etiqueta-archivo" for="{{ p }}-camara-{{ n }}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-camara"/></svg>Sacar foto<span class="sr-only"> para la foto nueva {{ n }}</span></label><input class="foto-archivo" type="file" id="{{ p }}-camara-{{ n }}" name="camara_{{ n }}" accept="image/jpeg,image/png" capture="environment" data-archivo></span>
+          <button class="boton boton-secundario" type="button" data-quitar hidden>Quitar<span class="sr-only"> la foto nueva {{ n }}</span></button>
+        </div>
+        <label class="foto-nueva-etiqueta" for="{{ p }}-descripcion-{{ n }}">Descripción (obligatoria)</label>
+        <input class="foto-nueva-descripcion" type="text" id="{{ p }}-descripcion-{{ n }}" name="descripcion_{{ n }}" maxlength="120" value="{{ espacio.descripcion }}" autocomplete="off" aria-describedby="{{ p }}-ayuda-{{ n }} {{ p }}-error-{{ n }}"{% if espacio.error %} aria-invalid="true"{% endif %}>
+        <p class="campo-ayuda" id="{{ p }}-ayuda-{{ n }}">Hasta 120 caracteres. Es el texto que lee quien no ve la imagen. Ej.: «portón verde y buzón rojo».</p>
+        <p class="foto-error" id="{{ p }}-error-{{ n }}" data-error-espacio{% if not espacio.error %} hidden{% endif %}>{{ espacio.error }}</p>
+      </fieldset>
+      {% endwith %}{% endfor %}
+    </div>
+  </div>
+  <p class="fotos-estado" role="status" aria-live="polite" data-fotos-estado></p>
+  <div class="fotos-pie">
+    {% if pagina %}<a class="boton boton-secundario" href="{{ f.volver }}">Cancelar</a>{% else %}<button class="boton boton-secundario" type="button" data-fotos-cerrar>Cancelar</button>{% endif %}
+    <button class="boton" type="submit" data-fotos-guardar>Guardar</button>
+  </div>
+</form>
+{% endwith %}
+{% else %}<p class="suave">No hay datos de fotos.</p>{% endif %}

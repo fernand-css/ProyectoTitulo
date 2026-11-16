@@ -19,6 +19,7 @@ from django.shortcuts import get_object_or_404, redirect, render
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.decorators import method_decorator
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.decorators.cache import never_cache
 
@@ -29,7 +30,7 @@ from recetasapp.services import evaluar_elegibilidad
 from . import consultas, fotos, mapa, services
 from .forms import (
     AnularForm, BusquedaForm, DomicilioForm, EntregadaForm, ExcepcionForm, FiltroDomiciliosForm, FiltroEntregasForm,
-    FiltroProgramarForm, FotoForm, MoverParadaForm, NoEntregadaForm, ProgramarForm, ProgramarVariosForm, ReasignarForm,
+    FiltroProgramarForm, FotosForm, MoverParadaForm, NoEntregadaForm, ProgramarForm, ProgramarVariosForm, ReasignarForm,
     RestablecerOrdenForm, RutaForm, VersionForm,
 )
 from .models import Domicilio, Entrega, FotoDomicilio, InscripcionReparto, IntentoEntrega, RecetaEntrega
@@ -530,6 +531,11 @@ class MisEntregasView(SoloEncargadoView):
     def get(self, request):
         hoy = timezone.localdate()
         ruta = _preparar_ruta(consultas.ruta_del_dia(request.user, hoy=hoy, incluir_proximas=True), hoy, controles=True)
+        for intento in [parada.intento for parada in ruta.paradas] + list(ruta.proximas):
+            if intento.domicilio is not None:  # RF-08-18: el botón de fotos de la tarjeta, solo para el encargado
+                intento.fotos_form = contexto_fotos(
+                    intento.domicilio, intento.fotos, prefijo=f"i{intento.pk}",
+                    volver=reverse("entregasapp:mis") + f"#parada-{intento.pk}")
         return self.render("mis_entregas.html", {
             **_contexto_ruta(ruta), "hoy": hoy, "pestanas": self.pestanas("mis"), "controles": True,
             "restablecer": RestablecerOrdenForm(initial={"version": ruta.version, "operacion_id": uuid.uuid4()}),
@@ -720,7 +726,7 @@ class DomicilioView(EntregasView):
     def paciente(self, pk):
         return get_object_or_404(Paciente, pk=pk)
 
-    def contexto(self, paciente, form=None, foto_form=None):
+    def contexto(self, paciente, form=None):
         domicilio = consultas.domicilio_de(paciente)
         puede_editar = tiene_rol(self.request.user, JEFA, ENCARGADO)
         elegible = consultas.es_elegible(paciente)
@@ -734,8 +740,9 @@ class DomicilioView(EntregasView):
         }
         if contexto["puede_editar"]:
             contexto["form"] = form or DomicilioForm.desde_domicilio(domicilio, paciente)
-            if domicilio is not None:
-                contexto["foto_form"] = foto_form or FotoForm()
+        if domicilio is not None and puede_editar:  # RF-08-18: gestionan fotos el encargado, la Q.F. y el superusuario
+            volver = reverse("entregasapp:domicilio", args=[paciente.pk]) + "#fotos"
+            contexto["fotos_form"] = contexto_fotos(domicilio, contexto["fotos"], prefijo="domicilio", volver=volver)
         if domicilio is not None:
             contexto["verificar_form"] = VersionForm(initial={"version": domicilio.version})
             if domicilio.latitud is not None:  # spec 09 (RF-09-11): mapa pequeño de solo lectura
@@ -782,26 +789,6 @@ class VerificarView(SoloEncargadoView):
         return redirect("entregasapp:domicilio", pk=domicilio.paciente_id)
 
 
-class FotoAgregarView(EntregasView):
-    roles_permitidos = (JEFA, ENCARGADO)
-
-    def post(self, request, pk):
-        domicilio = get_object_or_404(Domicilio, pk=pk)
-        form = FotoForm(request.POST, request.FILES)
-        if form.is_valid():
-            try:
-                services.agregar_foto(request.user, domicilio.pk, form.cleaned_data["foto"], form.cleaned_data["descripcion"])
-            except ValidationError as error:
-                form.add_error("foto", _mensaje(error))
-            except DatabaseError:
-                form.add_error(None, "No pudimos guardar la foto. Inténtalo nuevamente.")
-            else:
-                messages.success(request, "Foto agregada sin metadatos ni ubicación.")
-                return redirect(reverse("entregasapp:domicilio", args=[domicilio.paciente_id]) + "#fotos")
-        paciente = Paciente.objects.get(pk=domicilio.paciente_id)
-        return self.render("domicilio.html", DomicilioView(request=request).contexto(paciente, foto_form=form), status=400)
-
-
 class FotoView(EntregasView):
     def get(self, request, pk):
         foto = get_object_or_404(FotoDomicilio, pk=pk)
@@ -816,21 +803,79 @@ class FotoView(EntregasView):
         return respuesta
 
 
-class FotoEliminarView(EntregasView):
+def contexto_fotos(domicilio, fotos_actuales, *, prefijo, volver, form=None, error=None, error_foto=None):
+    """Datos del formulario de fotos (modal o página aparte), con lo que se eligió si hubo un error."""
+    descripciones = form.descripciones() if form is not None else {}
+    marcadas = {str(valor) for valor in form.borrar()} if form is not None else set()
+    libres = FotoDomicilio.MAXIMO - len(fotos_actuales) + len([f for f in fotos_actuales if str(f.pk) in marcadas])
+    return {
+        "domicilio": domicilio, "fotos": fotos_actuales, "prefijo": prefijo, "volver": volver,
+        "mostradas": ",".join(str(foto.pk) for foto in fotos_actuales), "marcadas": marcadas,
+        "espacios": [{"numero": n, "descripcion": descripciones.get(n, ""), "visible": n <= libres,
+                      "error": error if error_foto == n else ""} for n in range(1, FotosForm.ESPACIOS + 1)],
+        "error_general": error if error and not error_foto else "", "error_foto": error_foto,
+        "maximo_fotos": FotoDomicilio.MAXIMO,
+    }
+
+
+class FotosView(EntregasView):
+    """RF-08-18: registrar o gestionar las fotos de un domicilio en un solo guardado, todo o nada.
+
+    Con JavaScript, el modal envía el POST con `Accept: application/json` y recibe el resultado en JSON. Sin
+    JavaScript, el botón abre esta página con el mismo formulario y el POST redirige a la página de origen.
+    """
+
     roles_permitidos = (JEFA, ENCARGADO)
 
+    def domicilio(self, pk):
+        return get_object_or_404(Domicilio.objects.select_related("paciente"), pk=pk)
+
+    def destino(self, domicilio, valor):
+        if valor and valor.startswith("/") and url_has_allowed_host_and_scheme(
+                valor, allowed_hosts={self.request.get_host()}, require_https=self.request.is_secure()):
+            return valor
+        return reverse("entregasapp:domicilio", args=[domicilio.paciente_id]) + "#fotos"
+
+    def pagina(self, domicilio, volver, *, status=200, **opciones):
+        datos = contexto_fotos(domicilio, list(domicilio.fotos.all()), prefijo="pagina", volver=volver, **opciones)
+        return self.render("fotos.html", {
+            "fotos_contexto": datos, "fotos": datos["fotos"], "domicilio": domicilio, "paciente": domicilio.paciente,
+            "maximo_fotos": FotoDomicilio.MAXIMO, "pestanas": self.pestanas("domicilios"),
+        }, status=status)
+
+    def get(self, request, pk):
+        domicilio = self.domicilio(pk)
+        return self.pagina(domicilio, self.destino(domicilio, request.GET.get("volver")))
+
     def post(self, request, pk):
-        foto = get_object_or_404(FotoDomicilio.objects.select_related("domicilio"), pk=pk)
-        paciente_id = foto.domicilio.paciente_id
+        domicilio = self.domicilio(pk)
+        quiere_json = "application/json" in request.headers.get("Accept", "")
+        form = FotosForm(request.POST, request.FILES)
+        volver = self.destino(domicilio, request.POST.get("volver"))
+        error_foto = None
         try:
-            services.eliminar_foto(request.user, foto.pk)
-        except ValidationError as error:
-            messages.error(request, _mensaje(error))
+            if not form.is_valid():
+                raise ValidationError(services.MENSAJE_FOTOS_CAMBIARON)
+            services.gestionar_fotos(request.user, domicilio.pk, mostradas=form.cleaned_data["mostradas"],
+                                     borrar=form.borrar(), nuevas=form.nuevas())
+        except services.ErrorFoto as falla:
+            error, error_foto = _mensaje(falla), falla.numero
+        except ValidationError as falla:
+            error = _mensaje(falla)
         except DatabaseError:
-            messages.error(request, "No pudimos borrar la foto. Inténtalo nuevamente.")
+            error = "No pudimos guardar las fotos y no se aplicó ningún cambio. Inténtalo nuevamente."
         else:
-            messages.success(request, "Foto borrada.")
-        return redirect(reverse("entregasapp:domicilio", args=[paciente_id]) + "#fotos")
+            messages.success(request, "Fotos guardadas sin metadatos ni ubicación.")
+            if quiere_json:
+                return JsonResponse({"ok": True, "volver": volver})
+            return redirect(volver)
+        if quiere_json:
+            return JsonResponse({"ok": False, "error": error, "foto": error_foto}, status=400)
+        if not error_foto:
+            form = None  # el conjunto cambió: se muestra el estado actual, sin lo elegido
+        elif form.files:
+            error += " Vuelve a elegir los archivos: el navegador no los conserva al recargar la página."
+        return self.pagina(domicilio, volver, status=400, form=form, error=error, error_foto=error_foto)
 
 
 # Excepciones de reparto -------------------------------------------------------------------------------------

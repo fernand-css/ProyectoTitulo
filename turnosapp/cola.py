@@ -32,10 +32,16 @@ class ColaNoPreparada(Exception):
 
 
 def bloquear_cola(fecha):
-    """Se llama dentro de atomic; comparte el orden de escritura con las acciones."""
+    """Se llama dentro de atomic; comparte el orden de escritura con las acciones.
+
+    Toma la fila del día y espera su turno: el UPDATE no compara la versión leída. En PostgreSQL, quien espera el
+    bloqueo de la fila sigue cuando el otro confirma, y la relectura posterior ve su estado. Comparar la versión
+    hacía fallar justo a quien había esperado (`ConflictoCola`), y con transacciones seguidas (un lote de entregas)
+    el tótem agotaba sus reintentos (diagnóstico del 2026-11-15, specs/08-domicilios-y-entregas/validation.md).
+    En SQLite el bloqueo de escritura es de toda la base, así que la comparación tampoco agregaba nada.
+    """
     estado, _ = EstadoColaDiaria.objects.get_or_create(fecha=fecha)
-    if not EstadoColaDiaria.objects.filter(pk=estado.pk, version=estado.version).update(version=F("version") + 1):
-        raise ConflictoCola
+    EstadoColaDiaria.objects.filter(pk=estado.pk).update(version=F("version") + 1)
     estado.refresh_from_db()
     return estado
 

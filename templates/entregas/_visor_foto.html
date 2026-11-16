@@ -1,0 +1,8 @@
+{# RF-08-19: visor de imagen, uno por página. Lo abre js/entregas/visor.js con la miniatura pulsada; se cierra con la X, con un clic fuera de la imagen o con Esc, y el foco vuelve a la miniatura. #}
+<dialog class="visor-foto" id="visor-foto" aria-label="Foto ampliada" data-visor>
+  <div class="visor-contenido">
+    <button class="visor-cerrar" type="button" data-visor-cerrar><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-cerrar"/></svg><span class="sr-only">Cerrar</span></button>
+    <figure class="visor-figura"><figcaption class="visor-pie" data-visor-pie></figcaption></figure>
+    <p class="visor-ayuda">Toca fuera de la imagen, pulsa la X o la tecla Esc para cerrar.</p>
+  </div>
+</dialog>

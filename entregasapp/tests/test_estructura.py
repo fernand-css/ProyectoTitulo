@@ -14,7 +14,7 @@ from django.test import TestCase, override_settings
 from django.urls import reverse
 
 from coreapp.tests.test_plantillas import DocumentoHTML
-from entregasapp.services import agregar_foto, guardar_domicilio, programar_entrega, registrar_no_entregada
+from entregasapp.services import FotoNueva, gestionar_fotos, guardar_domicilio, programar_entrega, registrar_no_entregada
 from .ayudas import archivo, equipo, hoy, imagen, paciente, receta
 
 
@@ -30,7 +30,8 @@ class EstructuraTests(TestCase):
         receta(self.persona)
         domicilio = guardar_domicilio(self.equipo["encargado"], self.persona.pk, {
             "sector": "rojo", "localidad": "Dadinco", "direccion": "Camino a Dadinco km 2", "referencias": "Casa roja"})
-        agregar_foto(self.equipo["encargado"], domicilio.pk, archivo(imagen()), "Portón verde")
+        gestionar_fotos(self.equipo["encargado"], domicilio.pk, mostradas=[],
+                        nuevas=[FotoNueva(1, archivo(imagen()), "Portón verde")])
         self.entrega = programar_entrega(self.equipo["qf"], self.persona.pk, hoy(), self.equipo["encargado"].pk, uuid.uuid4())
         otra = paciente(edad=91)
         receta(otra)
@@ -111,3 +112,26 @@ class EstructuraTests(TestCase):
         self.assertEqual(final.status_code, 200)
         self.revisar(final.content.decode(), "resumen final")
         self.assertContains(final, "Se programaron 1 de 2")
+
+    def test_dialogos_de_fotos_y_visor_tienen_nombre_y_botones_con_tipo(self):
+        """Enmienda del 2026-11-15 (RF-08-18 y RF-08-19)."""
+        self.client.force_login(self.equipo["encargado"])
+        paginas = {
+            "mis entregas": reverse("entregasapp:mis"),
+            "domicilio": reverse("entregasapp:domicilio", args=[self.persona.pk]),
+        }
+        for nombre, url in paginas.items():
+            with self.subTest(pagina=nombre):
+                html = self.client.get(url).content.decode()
+                documento = DocumentoHTML(html)
+                dialogos = [a for etiqueta, a in documento.elementos if etiqueta == "dialog"]
+                self.assertGreaterEqual(len(dialogos), 2)  # el modal de fotos y el visor
+                for atributos in dialogos:
+                    self.assertTrue(atributos.get("aria-labelledby") or atributos.get("aria-label"))
+                for etiqueta, atributos in documento.elementos:
+                    if etiqueta == "button":
+                        self.assertIn(atributos.get("type"), ("button", "submit"))
+                self.assertIn('<span class="sr-only">Ver foto ampliada: </span><img', html)
+                self.assertIn('<span class="sr-only">Cerrar</span>', html)
+                self.assertIn('<span class="sr-only">Cerrar sin guardar</span>', html)
+                self.assertNotIn("Ver domicilio<", html)

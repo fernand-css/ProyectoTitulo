@@ -40,6 +40,7 @@ class PermisosTests(TestCase):
             "domicilios": reverse("entregasapp:domicilios"),
             "domicilio": reverse("entregasapp:domicilio", args=[self.persona.pk]),
             "excepciones": reverse("entregasapp:excepciones"),
+            "fotos": reverse("entregasapp:fotos", args=[self.domicilio.pk]),
         }
 
     def rutas_post(self):
@@ -51,8 +52,7 @@ class PermisosTests(TestCase):
             "intento_no_entregada": reverse("entregasapp:intento_no_entregada", args=[self.intento.pk]),
             "domicilio": reverse("entregasapp:domicilio", args=[self.persona.pk]),
             "domicilio_verificar": reverse("entregasapp:domicilio_verificar", args=[self.domicilio.pk]),
-            "foto_agregar": reverse("entregasapp:foto_agregar", args=[self.domicilio.pk]),
-            "foto_eliminar": reverse("entregasapp:foto_eliminar", args=[self.foto.pk]),
+            "fotos": reverse("entregasapp:fotos", args=[self.domicilio.pk]),
             "excepciones": reverse("entregasapp:excepciones"),
             "excepcion_retirar": reverse("entregasapp:excepcion_retirar", args=[self.inscripcion.pk]),
         }
@@ -93,7 +93,7 @@ class PermisosTests(TestCase):
                 respuesta = self.client.get(self.rutas_get()[nombre])
                 self.assertEqual(respuesta.status_code, 200)
                 self.assertIn("no-store", respuesta["Cache-Control"])
-        for nombre in ("programar", "mis", "registro", "excepciones"):
+        for nombre in ("programar", "mis", "registro", "excepciones", "fotos"):
             with self.subTest(prohibida=nombre):
                 self.assertEqual(self.client.get(self.rutas_get()[nombre]).status_code, 403)
         antes = self.estado()

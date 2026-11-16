@@ -78,6 +78,31 @@ def jpeg_sintetico(semilla):
     return salida.getvalue()
 
 
+def png_pequeno(semilla):
+    """PNG generado de pocos KB para medir el guardado sin archivos grandes."""
+    from PIL import Image
+
+    salida = io.BytesIO()
+    Image.new("RGB", (320, 240), (semilla * 9 % 256, 120, 200)).save(salida, format="PNG")
+    return salida.getvalue()
+
+
+def jpeg_grande(semilla, limite=5 * 1024 * 1024):
+    """JPEG de ruido generado, de 4,5 MB a 5 MB (el máximo admitido), sin contenido real."""
+    from PIL import Image
+
+    azar = Random(semilla)
+    lado = 1500
+    while True:
+        datos = azar.randbytes(lado * lado * 3)
+        salida = io.BytesIO()
+        Image.frombytes("RGB", (lado, lado), datos).save(salida, format="JPEG", quality=92)
+        tamano = len(salida.getvalue())
+        if 4.5 * 1024 * 1024 <= tamano <= limite:
+            return salida.getvalue()
+        lado = int(lado * (4.75 * 1024 * 1024 / tamano) ** 0.5)
+
+
 class ClienteHTTP:
     def __init__(self, base):
         self.base = base
@@ -223,7 +248,7 @@ def ejecutar(base_datos):
     totem = ClienteHTTP(base)
 
     escenarios = (
-        "domicilios_lista", "domicilios_busqueda", "domicilio_guardar", "domicilio_verificar", "foto_ver",
+        "domicilios_lista", "domicilios_busqueda", "domicilio_guardar", "domicilio_verificar", "foto_ver", "fotos_guardar",
         "programar_revisar", "programar_confirmar", "mis_entregas", "registro_entregada", "registro_no_entregada",
         "reasignar", "programacion_filtros", "pendientes_filtros", "totem_despacho_abierto",
         "programar_lista_inicial", "programar_lista_fragmento", "programar_lote_tramo_25", "totem_durante_lote",
@@ -254,20 +279,41 @@ def ejecutar(base_datos):
             mediciones["domicilio_verificar"].append(duracion)
         assert Domicilio.objects.filter(verificado_en__isnull=False).count() == 100
 
-        # 2. Fotos: subida medida aparte (sin compromiso de p95 para redes móviles) y vista privada.
+        # 2. Fotos (RF-08-18): un solo guardado por modal. La subida de una foto de cámara se mide aparte (sin
+        #    compromiso de p95 para redes móviles); el guardado sin archivos grandes (borrar una y agregar una foto
+        #    pequeña) sí tiene p95 <= 2 s; tres fotos de casi 5 MB se miden aparte.
         for indice in range(20):
             domicilio = Domicilio.objects.order_by("pk")[indice]
             estado, html, _, duracion = terreno[0].pedir(
-                f"/entregas/domicilios/{domicilio.pk}/fotos/", {"descripcion": f"Portón y fachada {indice}"},
-                archivos={"foto": (f"entorno-{indice}.jpg", jpeg_sintetico(indice), "image/jpeg")})
-            assert estado == 200 and "Foto agregada" in html
+                f"/entregas/domicilios/{domicilio.pk}/fotos/", {"mostradas": "", "descripcion_1": f"Portón y fachada {indice}"},
+                archivos={"archivo_1": (f"entorno-{indice}.jpg", jpeg_sintetico(indice), "image/jpeg")})
+            assert estado == 200 and "Fotos guardadas" in html, estado
             subida_fotos.append(duracion)
+            anterior = FotoDomicilio.objects.get(domicilio=domicilio)
+            estado, html, _, duracion = terreno[0].pedir(
+                f"/entregas/domicilios/{domicilio.pk}/fotos/",
+                {"mostradas": str(anterior.pk), "borrar": str(anterior.pk), "descripcion_1": f"Buzón {indice}"},
+                archivos={"camara_1": (f"buzon-{indice}.png", png_pequeno(indice), "image/png")})
+            assert estado == 200 and "Fotos guardadas" in html, estado
+            mediciones["fotos_guardar"].append(duracion)
             foto = FotoDomicilio.objects.get(domicilio=domicilio)
+            assert foto.pk != anterior.pk and not (Path(settings.ARCHIVOS_PRIVADOS_ROOT) / anterior.archivo.name).exists()
             estado, contenido, cabeceras, duracion = terreno[1].pedir(f"/entregas/fotos/{foto.pk}/")
             assert estado == 200 and sin_cache(cabeceras) and cabeceras["Content-Type"] == "image/jpeg"
             with Image.open(io.BytesIO(contenido)) as imagen:
                 assert len(imagen.getexif()) == 0 and max(imagen.size) <= 1600
             mediciones["foto_ver"].append(duracion)
+        grandes = [jpeg_grande(semilla) for semilla in range(3)]
+        tres_de_5mb = []
+        for indice in range(20, 25):
+            domicilio = Domicilio.objects.order_by("pk")[indice]
+            estado, html, _, duracion = terreno[2].pedir(
+                f"/entregas/domicilios/{domicilio.pk}/fotos/",
+                {"mostradas": "", **{f"descripcion_{n}": f"Vista {n}" for n in (1, 2, 3)}},
+                archivos={f"archivo_{n}": (f"grande-{n}.jpg", grandes[n - 1], "image/jpeg") for n in (1, 2, 3)})
+            assert estado == 200 and "Fotos guardadas" in html, estado
+            assert FotoDomicilio.objects.filter(domicilio=domicilio).count() == 3
+            tres_de_5mb.append(duracion)
         foto = FotoDomicilio.objects.first()
         anonimo = ClienteHTTP(base)
         estado, html, _, _ = anonimo.pedir(f"/entregas/fotos/{foto.pk}/")
@@ -408,22 +454,31 @@ def ejecutar(base_datos):
         tamano_revision_kb = round(len(html.encode()) / 1024, 1)
 
         presencial_hechos = []
+        fallas_totem = []  # un formulario que no llega o un error del hilo no deben pasar en silencio
         detener_totem = threading.Event()
 
         def totem_en_paralelo():
-            for paciente in presenciales:
-                if detener_totem.is_set():
-                    break
-                cliente = ClienteHTTP(base)
-                _, formulario, _, _ = cliente.pedir("/turnos/totem/")
-                operacion = re.search(r'name="operacion_id" value="([^"]+)"', formulario).group(1)
-                estado, html_totem, _, duracion = cliente.pedir("/turnos/totem/", {"rut": paciente.rut, "operacion_id": operacion})
-                presencial_hechos.append((estado, 'data-comprobante-pdf' in html_totem, duracion))
+            try:
+                for paciente in presenciales:
+                    if detener_totem.is_set():
+                        break
+                    cliente = ClienteHTTP(base)
+                    estado_formulario, formulario, _, _ = cliente.pedir("/turnos/totem/")
+                    operacion = re.search(r'name="operacion_id" value="([^"]+)"', formulario)
+                    if estado_formulario != 200 or operacion is None:
+                        fallas_totem.append(("formulario", estado_formulario))
+                        continue
+                    estado, html_totem, _, duracion = cliente.pedir(
+                        "/turnos/totem/", {"rut": paciente.rut, "operacion_id": operacion.group(1)})
+                    presencial_hechos.append((estado, 'data-comprobante-pdf' in html_totem, duracion))
+            except Exception as error:
+                fallas_totem.append(("excepcion", repr(error)))
 
         hilo_totem = threading.Thread(target=totem_en_paralelo, daemon=True)
         inicio_lote = time.perf_counter()
         hilo_totem.start()
         programados_lote = 0
+        omitidos_lote = []  # (id del paciente sintético, motivo): nunca RUT ni nombre
         for desde in range(0, programables, 25):
             hasta = min(desde + 25, programables)
             estado, cuerpo, cabeceras, duracion = farmacia.pedir("/entregas/programar/varios/confirmar/",
@@ -433,11 +488,14 @@ def ejecutar(base_datos):
             datos = json.loads(cuerpo)
             assert MARCA not in cuerpo and not any(p.rut in cuerpo for p in pacientes[desde:hasta])
             programados_lote += sum(r["estado"] == "programado" for r in datos["resultados"])
+            omitidos_lote += [(r["paciente"], r["motivo"]) for r in datos["resultados"] if r["estado"] != "programado"]
             mediciones["programar_lote_tramo_25"].append(duracion)
         duracion_lote = time.perf_counter() - inicio_lote
         detener_totem.set()
         hilo_totem.join(timeout=60)
-        assert programados_lote == programables, (programados_lote, programables)
+        assert programados_lote == programables, {"programados": programados_lote, "programables": programables,
+                                                  "omitidos_en_confirmacion": omitidos_lote}
+        assert not fallas_totem, fallas_totem
         assert presencial_hechos and all(estado == 200 and comprobante for estado, comprobante, _ in presencial_hechos), presencial_hechos[:3]
         mediciones["totem_durante_lote"] = [duracion for _, _, duracion in presencial_hechos]
         total_abiertas = Entrega.objects.filter(estado__in=Entrega.ABIERTAS).count()
@@ -473,6 +531,7 @@ def ejecutar(base_datos):
             "mediciones_http": {nombre: resumen(valores) for nombre, valores in mediciones.items()},
             "lote_completo_aparte": lote_completo,
             "subida_de_fotos_aparte": resumen(subida_fotos),
+            "tres_fotos_de_5_mb_aparte": {**resumen(tres_de_5mb), "bytes_por_foto": [len(g) for g in grandes]},
             "limites": ("Loopback HTTP con servidor WSGI en SQLite temporal. No mide redes móviles, navegador, "
                         "ubicación real, cámara, aceptación ni usabilidad. La subida de fotos, la revisión del "
                         "lote completo y su tiempo total se informan sin compromiso de p95. La búsqueda en vivo "

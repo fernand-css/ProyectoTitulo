@@ -1,0 +1,4 @@
+{# RF-08-19: miniatura que abre el visor. Sin JavaScript es un enlace a la imagen privada (sin caché). #}
+{% if foto %}
+<a class="foto-miniatura" href="{% url 'entregasapp:foto' foto.pk %}" data-visor-abrir data-descripcion="{{ foto.descripcion }}"><span class="sr-only">Ver foto ampliada: </span><img src="{% url 'entregasapp:foto' foto.pk %}" alt="{{ foto.descripcion }}" width="{{ foto.ancho }}" height="{{ foto.alto }}" loading="lazy"></a>
+{% else %}<span class="suave">Foto no disponible.</span>{% endif %}

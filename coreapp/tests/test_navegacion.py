@@ -214,7 +214,7 @@ class MenuRenderizadoTests(TestCase):
 
     def test_el_encargado_marca_mis_entregas_o_domicilios_segun_la_pagina(self):
         for nombre, clave in (("mis", "mis_entregas"), ("registro", "mis_entregas"), ("domicilios", "domicilios"),
-                              ("domicilio", "domicilios"), ("foto_agregar", "domicilios"),
+                              ("domicilio", "domicilios"), ("fotos", "domicilios"),
                               # Spec 09: el mapa, la guía y el orden de visita no suman entradas al menú.
                               ("mapa", "mis_entregas"), ("ir_a", "mis_entregas"), ("orden_mover", "mis_entregas"),
                               ("orden_sugerido", "mis_entregas")):

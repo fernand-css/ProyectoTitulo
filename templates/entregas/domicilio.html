@@ -69,7 +69,7 @@
   <h2 id="titulo-datos">Datos del domicilio</h2>
   <dl class="ficha">
     <dt>Sector</dt><dd>{{ domicilio.get_sector_display|default:"Sin sector" }}</dd>
-    <dt>Localidad</dt><dd>{{ domicilio.localidad|default:"No registrada" }}</dd>
+    <dt>Nombre de la localidad</dt><dd>{{ domicilio.localidad|default:"No registrada" }}</dd>
     <dt>Dirección</dt><dd>{{ domicilio.direccion }}</dd>
     <dt>Referencias</dt><dd>{{ domicilio.referencias|default:"Sin referencias" }}</dd>
     <dt>Coordenadas</dt><dd>{% if domicilio.latitud is not None %}{{ domicilio.latitud|unlocalize }}, {{ domicilio.longitud|unlocalize }}{% if domicilio.precision_metros is not None %} (±{{ domicilio.precision_metros }} m){% endif %}{% else %}Sin coordenadas{% endif %}</dd>
@@ -87,31 +87,16 @@
     {% for foto in fotos %}
     <li>
       <figure>
-        <a href="{% url 'entregasapp:foto' foto.pk %}"><img src="{% url 'entregasapp:foto' foto.pk %}" alt="{{ foto.descripcion }}" width="{{ foto.ancho }}" height="{{ foto.alto }}" loading="lazy"></a>
+        {% include 'entregas/_miniatura_foto.html' %}
         <figcaption>{{ foto.descripcion }}</figcaption>
       </figure>
-      {% if form %}
-      <form method="post" action="{% url 'entregasapp:foto_eliminar' foto.pk %}">
-        {% csrf_token %}
-        <button class="boton boton-peligro" type="submit">Borrar foto<span class="sr-only">: {{ foto.descripcion }}</span></button>
-      </form>
-      {% endif %}
     </li>
     {% endfor %}
   </ul>
   {% else %}
   <p>Este domicilio aún no tiene fotos.</p>
   {% endif %}
-  {% if foto_form and fotos|length < maximo_fotos %}
-  <form class="form-angosto" method="post" action="{% url 'entregasapp:foto_agregar' domicilio.pk %}" enctype="multipart/form-data" novalidate>
-    {% csrf_token %}
-    <p class="aviso-foto"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-alerta"/></svg>Fotografía solo el entorno (portón, fachada, camino). No fotografíes personas ni patentes. La foto se guarda sin ubicación ni metadatos.</p>
-    {% include 'recetas/campos.html' with form=foto_form %}
-    <button class="boton" type="submit">Agregar foto</button>
-  </form>
-  {% elif foto_form %}
-  <p class="suave">Ya hay {{ maximo_fotos }} fotos. Borra una para agregar otra.</p>
-  {% endif %}
+  {% if fotos_form %}<div class="acciones">{% include 'entregas/_fotos_boton.html' with f=fotos_form nombre="" %}</div>{% endif %}
 </section>
 {% endif %}
 {% endblock %}

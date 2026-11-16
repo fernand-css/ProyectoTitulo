@@ -1,17 +1,19 @@
 """Pantallas de la farmacia y del domicilio por HTTP (RF-08-03 a RF-08-07, RF-08-11 a RF-08-13)."""
 
+import re
 import uuid
 from datetime import timedelta
 
-from django.test import TestCase
+from django.test import Client, TestCase
 from django.urls import reverse
 
 from entregasapp.models import Domicilio, Entrega, FotoDomicilio, InscripcionReparto
+from entregasapp import services
 from entregasapp.services import (
     guardar_domicilio, inscribir_excepcion, programar_entrega, registrar_entregada, registrar_no_entregada,
 )
 from recetasapp.models import Receta
-from .ayudas import archivo, equipo, hoy, imagen, paciente, receta
+from .ayudas import archivo, equipo, hoy, imagen, paciente, receta, visita
 from .test_fotos import CarpetaPrivadaMixin
 
 DOMICILIO = {"sector": "verde", "localidad": "Dadinco", "direccion": "Camino a Dadinco km 2", "referencias": "Casa roja",
@@ -163,14 +165,15 @@ class DomicilioVistaTests(CarpetaPrivadaMixin, TestCase):
         pagina = self.client.get(url)
         self.assertContains(pagina, "Camino a Dadinco km 2")
         self.assertNotContains(pagina, "Guardar domicilio")
-        self.assertNotContains(pagina, "Agregar foto")
+        self.assertNotContains(pagina, "Registrar fotos")
+        self.assertNotContains(pagina, "data-fotos-dialogo")
         self.assertEqual(self.client.post(url, DOMICILIO).status_code, 403)
 
     def test_fotos_privadas_por_http(self):
         domicilio = guardar_domicilio(self.equipo["encargado"], self.persona.pk, DOMICILIO)
         self.client.force_login(self.equipo["encargado"])
-        subida = self.client.post(reverse("entregasapp:foto_agregar", args=[domicilio.pk]),
-                                  {"foto": archivo(imagen(exif_gps=True)), "descripcion": "Portón verde"})
+        subida = self.client.post(reverse("entregasapp:fotos", args=[domicilio.pk]), {
+            "mostradas": "", "archivo_1": archivo(imagen(exif_gps=True)), "descripcion_1": "Portón verde"})
         self.assertEqual(subida.status_code, 302)
         foto = FotoDomicilio.objects.get()
         pagina = self.client.get(reverse("entregasapp:domicilio", args=[self.persona.pk]))
@@ -188,15 +191,17 @@ class DomicilioVistaTests(CarpetaPrivadaMixin, TestCase):
         anonimo = self.client.get(reverse("entregasapp:foto", args=[foto.pk]))
         self.assertEqual(anonimo.status_code, 302)
         self.assertIn(reverse("usuariosapp:login"), anonimo["Location"])
-        invalida = self.client.post(reverse("entregasapp:foto_agregar", args=[domicilio.pk]))
+        invalida = self.client.post(reverse("entregasapp:fotos", args=[domicilio.pk]))
         self.assertEqual(invalida.status_code, 302)  # sin sesión: a iniciar sesión
 
     def test_foto_invalida_muestra_el_error(self):
         domicilio = guardar_domicilio(self.equipo["encargado"], self.persona.pk, DOMICILIO)
         self.client.force_login(self.equipo["encargado"])
-        respuesta = self.client.post(reverse("entregasapp:foto_agregar", args=[domicilio.pk]),
-                                     {"foto": archivo(b"%PDF-1.4", "plano.jpg"), "descripcion": "Plano"})
-        self.assertContains(respuesta, "no es una foto JPEG o PNG válida", status_code=400)
+        respuesta = self.client.post(reverse("entregasapp:fotos", args=[domicilio.pk]), {
+            "mostradas": "", "archivo_1": archivo(b"%PDF-1.4", "plano.jpg"), "descripcion_1": "Plano"})
+        self.assertContains(respuesta, "La foto 1 no se pudo procesar: el archivo no es una foto JPEG o PNG válida.",
+                            status_code=400)
+        self.assertContains(respuesta, 'value="Plano"', status_code=400)
         self.assertFalse(FotoDomicilio.objects.exists())
 
     def test_lista_de_domicilios_por_estado_y_sector(self):
@@ -287,3 +292,113 @@ class ExcepcionesVistaTests(TestCase):
             self.client.force_login(self.equipo[actor])
             with self.subTest(actor=actor):
                 self.assertEqual(self.client.get(reverse("entregasapp:excepciones")).status_code, 403)
+
+
+class FotosModalVistaTests(CarpetaPrivadaMixin, TestCase):
+    """RF-08-18 y RF-08-19 por HTTP: botón según la cantidad, JSON del modal, página sin JavaScript y permisos."""
+
+    def setUp(self):
+        super().setUp()
+        self.equipo = equipo()
+        self.persona = paciente(edad=86)
+        self.domicilio = guardar_domicilio(self.equipo["encargado"], self.persona.pk, DOMICILIO)
+        self.url = reverse("entregasapp:fotos", args=[self.domicilio.pk])
+        self.ficha = reverse("entregasapp:domicilio", args=[self.persona.pk])
+
+    def agregar(self, cantidad):
+        for numero in range(cantidad):
+            with self.captureOnCommitCallbacks(execute=True):
+                services.gestionar_fotos(self.equipo["encargado"], self.domicilio.pk, mostradas=self.ids(),
+                                         nuevas=[services.FotoNueva(1, archivo(imagen()), f"Vista {numero + 1}")])
+
+    def ids(self):
+        return list(FotoDomicilio.objects.values_list("pk", flat=True))
+
+    def espacios_visibles(self, html):
+        return len([e for e in re.findall(r'<fieldset[^>]*data-espacio="\d"[^>]*>', html) if " hidden" not in e])
+
+    def test_boton_y_espacios_segun_la_cantidad_de_fotos(self):
+        self.client.force_login(self.equipo["encargado"])
+        for agregar, boton, visibles in ((0, "Registrar fotos", 3), (2, "Gestionar fotos", 1), (1, "Gestionar fotos", 0)):
+            with self.subTest(fotos=FotoDomicilio.objects.count() + agregar):
+                self.agregar(agregar)
+                html = self.client.get(self.ficha).content.decode()
+                self.assertIn(boton, html)
+                self.assertIn("data-fotos-dialogo", html)
+                self.assertIn('capture="environment"', html)
+                self.assertEqual(self.espacios_visibles(html), visibles)
+        self.assertIn("Ya hay 3 fotos. Marca una para borrar si quieres agregar otra.", html)
+        self.assertEqual(html.count('name="borrar"'), 3)
+
+    def test_json_del_modal_exito_error_numerado_y_conjunto_cambiado(self):
+        self.agregar(1)
+        self.client.force_login(self.equipo["encargado"])
+        json = {"HTTP_ACCEPT": "application/json"}
+        error = self.client.post(self.url, {"mostradas": str(self.ids()[0]), "borrar": self.ids(),
+                                            "archivo_1": archivo(imagen()), "descripcion_1": "Casa roja",
+                                            "camara_2": archivo(b"%PDF-1.4", "documento.jpg"), "descripcion_2": "Letrero"}, **json)
+        self.assertEqual(error.status_code, 400)
+        self.assertEqual(error.json()["foto"], 2)
+        self.assertTrue(error.json()["error"].startswith("La foto 2 no se pudo procesar"))
+        self.assertEqual(len(self.ids()), 1)
+        self.assertEqual(len(list(self.carpeta.rglob("*.jpg"))), 1)
+        cambiado = self.client.post(self.url, {"mostradas": "", "archivo_1": archivo(imagen()), "descripcion_1": "Otra"}, **json)
+        self.assertEqual(cambiado.status_code, 400)
+        self.assertEqual(cambiado.json(), {"ok": False, "error": services.MENSAJE_FOTOS_CAMBIARON, "foto": None})
+        sin_archivo = self.client.post(self.url, {"mostradas": str(self.ids()[0]), "descripcion_3": "Sin archivo"}, **json)
+        self.assertEqual(sin_archivo.json()["foto"], 3)
+        volver = reverse("entregasapp:mis") + "#parada-4"
+        with self.captureOnCommitCallbacks(execute=True):
+            exito = self.client.post(self.url, {"mostradas": str(self.ids()[0]), "borrar": self.ids(),
+                                                "camara_1": archivo(imagen()), "descripcion_1": "Fachada blanca",
+                                                "volver": volver}, **json)
+        self.assertEqual(exito.status_code, 200)
+        self.assertEqual(exito.json(), {"ok": True, "volver": volver})
+        self.assertIn("no-store", exito["Cache-Control"])
+        self.assertEqual(list(FotoDomicilio.objects.values_list("descripcion", flat=True)), ["Fachada blanca"])
+        self.assertEqual(len(list(self.carpeta.rglob("*.jpg"))), 1)
+
+    def test_pagina_sin_javascript_y_volver_seguro(self):
+        self.client.force_login(self.equipo["qf"])
+        pagina = self.client.get(self.url, {"volver": "https://ejemplo.invalid/robo"})
+        self.assertContains(pagina, "<h1>Registrar fotos</h1>")
+        self.assertContains(pagina, f'href="{self.ficha}#fotos"')  # «Cancelar» vuelve a la ficha, no al sitio externo
+        respuesta = self.client.post(self.url, {"mostradas": "", "archivo_1": archivo(imagen()), "descripcion_1": "Portón",
+                                                "volver": "//ejemplo.invalid/robo"})
+        self.assertRedirects(respuesta, self.ficha + "#fotos", fetch_redirect_response=False)
+        self.assertEqual(FotoDomicilio.objects.count(), 1)
+        error = self.client.post(self.url, {"mostradas": str(self.ids()[0]), "archivo_1": archivo(imagen()),
+                                            "descripcion_1": "x" * 121})
+        self.assertContains(error, "La foto 1 no se pudo procesar", status_code=400)
+        self.assertContains(error, "Vuelve a elegir los archivos", status_code=400)
+        self.assertEqual(FotoDomicilio.objects.count(), 1)
+
+    def test_el_tecnico_solo_ve_y_csrf_obligatorio(self):
+        self.agregar(1)
+        self.client.force_login(self.equipo["tecnico"])
+        ficha = self.client.get(self.ficha)
+        self.assertContains(ficha, "data-visor-abrir")
+        self.assertContains(ficha, "Ver foto ampliada: ")
+        self.assertContains(ficha, 'id="visor-foto"')
+        self.assertNotContains(ficha, "Gestionar fotos")
+        self.assertEqual(self.client.get(self.url).status_code, 403)
+        self.assertEqual(self.client.post(self.url, {"mostradas": str(self.ids()[0]), "borrar": self.ids()}).status_code, 403)
+        cliente = Client(enforce_csrf_checks=True)
+        cliente.force_login(self.equipo["encargado"])
+        self.assertEqual(cliente.post(self.url, {"mostradas": str(self.ids()[0]), "borrar": self.ids()}).status_code, 403)
+        self.assertEqual(FotoDomicilio.objects.count(), 1)
+
+    def test_boton_en_mis_entregas_solo_para_el_encargado_y_no_en_rutas(self):
+        intento = visita(self.equipo, (0, 1))
+        self.client.force_login(self.equipo["encargado"])
+        mis = self.client.get(reverse("entregasapp:mis")).content.decode()
+        self.assertIn(f'data-fotos-abrir="fotos-i{intento.pk}"', mis)
+        self.assertIn("Registrar fotos", mis)
+        self.assertIn("Detalles del domicilio", mis)
+        self.assertIn("volver=/entregas/mis/%23parada-", mis)
+        self.client.force_login(self.equipo["qf"])
+        rutas = self.client.get(reverse("entregasapp:rutas"), {"encargado": self.equipo["encargado"].pk,
+                                                               "fecha": hoy().isoformat()}).content.decode()
+        self.assertIn("Detalles del domicilio", rutas)
+        self.assertNotIn("data-fotos-abrir", rutas)
+        self.assertNotIn("Ver domicilio<", rutas)

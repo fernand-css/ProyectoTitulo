@@ -1,0 +1,16 @@
+{% extends 'entregas/base.html' %}
+{# RF-08-18 sin JavaScript: el mismo formulario del modal, con las mismas reglas. #}
+{% block titulo %}{% if fotos %}Gestionar fotos{% else %}Registrar fotos{% endif %} · Entregas · Farmacia{% endblock %}
+{% block migas_contenedor %}<nav class="migas" aria-label="Ruta de navegación"><ol><li><a href="{% url 'entregasapp:domicilios' %}">Domicilios</a></li>{% if paciente %}<li><a href="{% url 'entregasapp:domicilio' paciente.pk %}">{{ paciente.apellidos }}, {{ paciente.nombres }}</a></li>{% endif %}<li><span aria-current="page">Fotos</span></li></ol></nav>{% endblock %}
+{% block entregas %}
+<header class="encabezado">
+  <div>
+    <h1>{% if fotos %}Gestionar fotos{% else %}Registrar fotos{% endif %}</h1>
+    <p class="suave">{{ paciente.nombres }} {{ paciente.apellidos }} · {{ domicilio.direccion }} · hasta {{ maximo_fotos }} fotos</p>
+  </div>
+</header>
+<section class="panel" aria-labelledby="fotos-pagina-titulo">
+  <h2 class="sr-only" id="fotos-pagina-titulo">Fotos del entorno</h2>
+  {% include 'entregas/_fotos_formulario.html' with f=fotos_contexto pagina=True %}
+</section>
+{% endblock %}

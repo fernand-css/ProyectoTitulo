@@ -391,7 +391,7 @@ Cambia RF-08-01 y agrega RF-08-16 y RF-08-17. Sin modelos ni migraciones nuevos.
   - Autoriza `JEFA` una vez.
   - Por cada paciente llama a `programar_entrega(actor, pid, fecha, encargado_id, uuid5(lote_id, str(pid)))`.
   - **No** envuelve el ciclo en una transacción: cada paciente es su propia transacción con `_bloquear_jornada`. Así el bloqueo de la cola dura lo que dura un paciente y un fallo no revierte a los demás.
-  - Traduce los errores a resultados: `EntregaAbiertaExistente` → «Ya tiene una entrega abierta»; `ValidationError` → su mensaje; `ConflictoOperacion` agotado o `DatabaseError` → «No se pudo programar; vuelve a confirmar». Un reenvío no duplica.
+  - Traduce los errores a resultados: `EntregaAbiertaExistente` → «Ya tiene una entrega abierta»; `ValidationError` → su mensaje; `ConflictoOperacion` agotado o `DatabaseError` → «No se pudo programar; vuelve a confirmar». Un reenvío no duplica. *Ajustado el 2026-11-15:* antes de informar «vuelve a confirmar», el paciente que quedó con la base ocupada se vuelve a intentar al final del tramo, hasta 3 vueltas (ver notas de abajo).
   - Una entrega previa del mismo lote vuelve como `programado`, gracias a la idempotencia de `programar_entrega`. No agrega eventos de auditoría: cada entrega ya audita `entrega.programada`.
 - **Cliente:**
   - `programar.js` envía los tramos en orden, actualiza `<progress>` y «Programando 50 de 118» en `role="status"`, y acumula los resultados.
@@ -561,3 +561,25 @@ Se listan al implementar: las que usan `foto_agregar` y `foto_eliminar` (`test_f
 ### Documentos afectados al implementar
 
 `CLAUDE.md` (sección del 08: servicio de fotos atómico), `docs/estructura.md` (rutas de fotos), `specs/README.md` y `validation.md`.
+
+### Notas de implementación de la enmienda (2026-11-15)
+
+Ejecutadas T-08-14 a T-08-16 en `crojas-base`, sin cambiar requisitos ni migraciones. Ajustes técnicos:
+
+- **Servicio:** se retiraron `agregar_foto`, `_registrar_foto` y `eliminar_foto`. Sus pruebas del RF-08-05 pasaron a `gestionar_fotos` con las mismas reglas. Las fotos nuevas viajan como `FotoNueva(numero, archivo, descripcion)`, y los errores de una foto, como `ErrorFoto` con `numero`.
+- **Orden de los guardados simultáneos:** comparar el conjunto de ids no bastaba. Dos guardados desde el mismo estado, uno que borra la foto de la posición 2 y otro que agrega en la 3, no chocan en la restricción única y se aceptaban los dos. Por eso `_aplicar_fotos` primero hace un UPDATE sin cambio de valor sobre la fila del propio domicilio (`version=F("version")`), que en PostgreSQL toma su bloqueo de fila. La lectura que sigue ya ve lo que confirmó el otro guardado. No cambia la versión ni la verificación, y no filtra relaciones.
+- **Formulario:** cada espacio tiene `archivo_n` («Elegir archivo») y `camara_n` («Sacar foto», `capture="environment"`). Si llegan los dos, o una descripción sin archivo, el error sale numerado. «Guardar» sin cambios no escribe nada.
+- **Respuesta:** con `Accept: application/json` devuelve `{"ok": true, "volver": …}` o `{"ok": false, "error": …, "foto": n}` con 400. Al guardar, el modal recarga la página, que muestra el mensaje «Fotos guardadas sin metadatos ni ubicación.». `volver` solo admite rutas del mismo sitio (`url_has_allowed_host_and_scheme` y que empiecen con `/`).
+- **Sin JavaScript:** la página `fotos.html` usa el mismo parcial. Tras un error, conserva las descripciones y las marcas de borrado, pero el navegador no conserva los archivos y el aviso lo dice. Con 3 fotos solo se puede borrar; el espacio aparece al volver a abrir la página.
+- **`<dialog>`:** Chrome puede entregar el evento `close` con retraso (en el panel del navegador llegó recién al cerrar la vez siguiente). El modal y el visor limpian y devuelven el foco al cerrar con la X, «Cancelar», un clic fuera o Esc (`cancel`), y `close` queda solo como respaldo e ignora un cierre si el diálogo ya se volvió a abrir.
+- **Ubicación del botón:** hasta que el 09 implemente las tarjetas compactas (RF-09-16), el botón de fotos va en la fila de acciones de la tarjeta de «Mis entregas», solo para el encargado. En «Rutas» y en el registro no aparece. El visor (`_visor_foto.html`) se incluye una vez en `entregas/base.html`.
+- **Estilos:** `entregas.css` suma el modal, el visor y los íconos `i-camara` e `i-cerrar` en `iconos.html`. El fondo del visor va en el propio diálogo, a pantalla completa, para asegurar el contraste del pie. El cuerpo del modal lleva `position: relative`: si no, los textos `sr-only` (absolutos) agrandaban el diálogo y la cabecera se salía de la vista.
+
+### Notas de la corrección del lote frente al tótem (2026-11-15)
+
+Diagnóstico de la falla intermitente de la herramienta HTTP (paso 10), sin cambiar requisitos ni migraciones. Evidencia en [validation.md](validation.md#falla-intermitente-del-lote-frente-al-tótem-2026-11-15).
+
+- **`turnosapp.cola.bloquear_cola` espera su turno:** toma la fila del día con `UPDATE version = version + 1` sin comparar la versión leída, y la relee. En PostgreSQL, el tótem esperaba la fila mientras el lote programaba y, al llegarle el turno, fallaba con `ConflictoCola` porque la versión había cambiado. Con las transacciones seguidas del lote, a veces agotaba sus 12 reintentos y la persona recibía «El sistema está ocupado.». Es un contrato del 05; quedó anotado en su plan.
+- **`programar_lote` reintenta a los ocupados al final del tramo** (`VUELTAS_OCUPADOS = 3`, pausa de 50 ms que crece por vuelta), con la misma operación `uuid5(lote, paciente)`: no duplica. Cubre la SQLite de la herramienta, donde una transacción que lee y luego escribe recibe «database is locked» al instante si otra conexión escribe.
+- **Herramienta HTTP:** informa los omitidos de la confirmación con su motivo (solo el id sintético) y falla si el hilo del tótem no recibe el formulario o se cae. Antes, el hilo podía morir sin que la herramienta lo notara.
+- **Descartadas:** SQLite en modo `IMMEDIATE` en la herramienta (el lote acaparaba la escritura y el hilo del tótem murió en una corrida) y una pausa de 15 ms entre pacientes (no evitó los rechazos del tótem en PostgreSQL y subió el p95 del tramo a más de 5 s). Un tope de 100 pacientes por lote se descartó sin medir: el RF-08-17 pide «sin tope» y el riesgo depende del tiempo en que coinciden el lote y el tótem, no del tamaño del lote.

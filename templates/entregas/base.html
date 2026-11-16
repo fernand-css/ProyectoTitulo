@@ -7,4 +7,7 @@
   {% block migas_contenedor %}{% endblock %}
   {% block entregas %}{% endblock %}
 </div>
+{% include 'entregas/_visor_foto.html' %}
+<script defer src="{% static 'js/entregas/visor.js' %}"></script>
+<script defer src="{% static 'js/entregas/fotos.js' %}"></script>
 {% endblock %}

@@ -5,6 +5,7 @@ salen de las restricciones y de los UPDATE condicionales, no de `select_for_upda
 """
 
 import uuid
+from pathlib import PurePosixPath as Path_
 from concurrent.futures import ThreadPoolExecutor
 from threading import Barrier
 
@@ -12,9 +13,10 @@ from django.core.exceptions import PermissionDenied, ValidationError
 from django.db import close_old_connections, connections
 from django.test import TransactionTestCase
 
-from entregasapp.models import Domicilio, Entrega, IntentoEntrega, RecetaEntrega
+from entregasapp.models import Domicilio, Entrega, FotoDomicilio, IntentoEntrega, RecetaEntrega
 from coreapp.roles import JEFA
 from entregasapp.services import (
+    MENSAJE_FOTOS_CAMBIARON, FotoNueva, gestionar_fotos,
     OMITIDO_ABIERTA, OMITIDO_SIN_RECETAS, guardar_domicilio, inscribir_excepcion, programar_entrega, programar_lote,
     reasignar, registrar_entregada, registrar_no_entregada,
 )
@@ -22,7 +24,7 @@ from recetasapp.models import EntregaReceta, Receta
 from recetasapp.services import registrar_entrega
 from turnosapp.models import Turno, TurnoReceta
 from turnosapp.services import CODIGO_RECHAZO, ErrorEmision, emitir_turno
-from .ayudas import cuenta, equipo, hoy, paciente, receta
+from .ayudas import archivo, cuenta, equipo, hoy, imagen, paciente, receta
 
 DATOS = {"sector": "rojo", "localidad": "Dadinco", "direccion": "Camino a Dadinco km 2", "referencias": "Casa roja"}
 
@@ -275,3 +277,80 @@ class ConcurrenciaRepartoTests(TransactionTestCase):
                 if not individual_gano:
                     self.assertIsInstance(resultados[1], ValidationError)
                     self.assertIn("entrega a domicilio abierta", resultados[1].messages[0])
+
+
+class ConcurrenciaFotosTests(TransactionTestCase):
+    """RF-08-18: guardados simultáneos de fotos del mismo domicilio. Uno gana, nunca más de 3, sin huérfanos."""
+
+    competir = ConcurrenciaRepartoTests.competir
+
+    def setUp(self):
+        import shutil
+        import tempfile
+        from pathlib import Path
+
+        from django.test import override_settings
+
+        self.carpeta = Path(tempfile.mkdtemp(prefix="cesfam-fotos-"))
+        ajuste = override_settings(ARCHIVOS_PRIVADOS_ROOT=self.carpeta)
+        ajuste.enable()
+        self.addCleanup(ajuste.disable)
+        self.addCleanup(shutil.rmtree, self.carpeta, True)
+        self.equipo = equipo()
+        self.encargado = self.equipo["encargado"]
+
+    def preparar(self, cantidad):
+        domicilio = guardar_domicilio(self.encargado, paciente(edad=85).pk, DATOS)
+        for numero in range(cantidad):
+            gestionar_fotos(self.encargado, domicilio.pk, mostradas=self.ids(domicilio),
+                            nuevas=[FotoNueva(1, archivo(imagen(), "foto.jpg"), f"Vista {numero + 1}")])
+        return domicilio
+
+    def ids(self, domicilio):
+        return list(FotoDomicilio.objects.filter(domicilio=domicilio).values_list("pk", flat=True))
+
+    def guardado(self, domicilio, mostradas, *, borrar=(), nuevas=1, actor=None):
+        def ejecutar():
+            fotos_nuevas = [FotoNueva(n + 1, archivo(imagen(), "foto.jpg"), f"Nueva {n + 1}") for n in range(nuevas)]
+            return gestionar_fotos(actor or self.encargado, domicilio.pk, mostradas=mostradas, borrar=borrar,
+                                   nuevas=fotos_nuevas)
+        return ejecutar
+
+    def comprobar(self, domicilio, resultados):
+        ganadores = [r for r in resultados if isinstance(r, list)]
+        rechazos = [r for r in resultados if isinstance(r, ValidationError)]
+        self.assertEqual(len(ganadores), 1, resultados)
+        self.assertEqual(len(rechazos), len(resultados) - 1, resultados)
+        self.assertTrue(all(r.messages[0] == MENSAJE_FOTOS_CAMBIARON for r in rechazos), resultados)
+        self.assertLessEqual(FotoDomicilio.objects.filter(domicilio=domicilio).count(), FotoDomicilio.MAXIMO)
+        guardados = sorted(Path_(n).name for n in FotoDomicilio.objects.values_list("archivo", flat=True))
+        en_disco = sorted(p.name for p in self.carpeta.rglob("*") if p.is_file())
+        self.assertEqual(en_disco, guardados)
+        return ganadores[0]
+
+    def test_11_dos_dispositivos_guardan_desde_el_mismo_estado(self):
+        for vuelta in range(3):
+            with self.subTest(vuelta=vuelta):
+                domicilio = self.preparar(1)
+                mostradas = self.ids(domicilio)
+                resultados = self.competir([self.guardado(domicilio, mostradas),
+                                            self.guardado(domicilio, mostradas, actor=self.equipo["qf"])])
+                self.assertEqual(len(self.comprobar(domicilio, resultados)), 2)
+
+    def test_12_uno_guarda_mientras_el_otro_borra(self):
+        for vuelta in range(3):
+            with self.subTest(vuelta=vuelta):
+                domicilio = self.preparar(2)
+                mostradas = self.ids(domicilio)
+                resultados = self.competir([self.guardado(domicilio, mostradas),
+                                            self.guardado(domicilio, mostradas, borrar=mostradas[:1], nuevas=0)])
+                ganador = self.comprobar(domicilio, resultados)
+                self.assertIn(len(ganador), (1, 3))
+
+    def test_13_dos_agregan_con_dos_fotos_ya_guardadas(self):
+        for vuelta in range(3):
+            with self.subTest(vuelta=vuelta):
+                domicilio = self.preparar(2)
+                mostradas = self.ids(domicilio)
+                resultados = self.competir([self.guardado(domicilio, mostradas) for _ in range(3)])
+                self.assertEqual(len(self.comprobar(domicilio, resultados)), 3)

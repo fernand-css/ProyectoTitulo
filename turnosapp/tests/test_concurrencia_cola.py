@@ -94,3 +94,56 @@ class ConcurrenciaUrgenciaTests(DatosCola, TransactionTestCase):
         self.assertEqual(urgente.ventanilla_id, con_u.pk)
         self.assertEqual(Turno.objects.filter(estado="llamado").count(), 3)
         self.assertEqual(EventoTurno.objects.count(), 3)
+
+
+class LlaveDelDiaTests(TransactionTestCase):
+    """Diagnóstico del 2026-11-15 (spec 08): quien espera la cola del día sigue cuando el otro confirma.
+
+    Antes, `bloquear_cola` comparaba la versión leída: en PostgreSQL, quien había esperado el bloqueo de la fila
+    encontraba la versión cambiada y fallaba con `ConflictoCola`. Con transacciones seguidas (un lote de entregas)
+    el tótem agotaba así sus reintentos.
+    """
+
+    def test_quien_espera_la_cola_sigue_y_ve_la_version_del_otro(self):
+        import time
+        from threading import Event
+        from django.db import connection, transaction
+        from django.utils import timezone
+        from turnosapp.cola import bloquear_cola
+        from turnosapp.models import EstadoColaDiaria
+
+        if connection.vendor != "postgresql":
+            self.skipTest("SQLite bloquea toda la base: no hay espera por fila que probar.")
+        hoy = timezone.localdate()
+        inicial = EstadoColaDiaria.objects.create(fecha=hoy).version
+        tomada = Event()
+
+        def primero():
+            close_old_connections()
+            try:
+                with transaction.atomic():
+                    bloquear_cola(hoy)
+                    tomada.set()
+                    time.sleep(0.4)  # retiene la fila sin confirmar
+                return "confirmado"
+            finally:
+                connections.close_all()
+
+        def segundo():
+            close_old_connections()
+            try:
+                tomada.wait(timeout=10)
+                inicio = time.monotonic()
+                with transaction.atomic():
+                    estado = bloquear_cola(hoy)  # lee la versión antigua y espera la fila
+                    return estado.version, time.monotonic() - inicio
+            finally:
+                connections.close_all()
+
+        with ThreadPoolExecutor(max_workers=2) as pool:
+            uno, dos = pool.submit(primero), pool.submit(segundo)
+            self.assertEqual(uno.result(timeout=20), "confirmado")
+            version, espera = dos.result(timeout=20)
+        self.assertGreaterEqual(espera, 0.2)  # de verdad esperó al primero
+        self.assertEqual(version, inicial + 2)  # y ve la escritura confirmada del primero
+        self.assertEqual(EstadoColaDiaria.objects.get(fecha=hoy).version, inicial + 2)
