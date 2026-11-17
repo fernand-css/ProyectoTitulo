@@ -8,6 +8,12 @@
   falla, el aviso queda junto a ella, el foco va al aviso y el modal sigue abierto con lo elegido. Sin conexión no
   se envía nada y se dice con texto. «Cancelar», Esc o la X descartan lo elegido y el foco vuelve al botón.
 
+  Reducción en el navegador (corrección del 2026-11-16): al elegir una foto, se redibuja en un lienzo con el lado
+  mayor de 1600 px y se codifica como JPEG. «Guardar» envía esa versión, que pesa mucho menos (menos datos en
+  zonas rurales y sin chocar con el límite de 5 MB del servidor) y ya no lleva EXIF ni ubicación, porque el lienzo
+  no los copia. El servidor la valida y recomprime igual que siempre (coreapp/utils/custom_image.py). Si el
+  navegador no puede reducirla, o la reducida no pesa menos, se envía la original.
+
   Sin JavaScript, el botón es un enlace a la página con el mismo formulario.
 */
 (function (global) {
@@ -17,8 +23,99 @@
     sinRed: "No hay conexión. No se guardó ningún cambio; vuelve a pulsar «Guardar» cuando tengas señal.",
     fallo: "No pudimos guardar las fotos y no se aplicó ningún cambio. Inténtalo nuevamente.",
     guardando: "Guardando las fotos…",
+    preparando: "Preparando las fotos…",
     sinEspacio: "Ya hay 3 fotos. Marca una para borrar si quieres agregar otra.",
   };
+
+  // El lado mayor coincide con el del servidor; la calidad es algo mayor porque el servidor vuelve a comprimir.
+  var REDUCCION = { ladoMaximo: 1600, calidad: 0.85, minimoBytes: 500 * 1024 };
+
+  function medidas(ancho, alto, ladoMaximo) {
+    var mayor = Math.max(ancho, alto);
+    if (!mayor || mayor <= ladoMaximo) return { ancho: ancho, alto: alto };
+    var factor = ladoMaximo / mayor;
+    return { ancho: Math.max(1, Math.round(ancho * factor)), alto: Math.max(1, Math.round(alto * factor)) };
+  }
+
+  function nombreJpeg(nombre) {
+    return String(nombre || "foto").replace(/\.[^./\\]*$/, "") + ".jpg";
+  }
+
+  function textoArchivo(original, reducida) {
+    var texto = original.name + " · " + tamano(original.size);
+    return reducida ? texto + " (se enviará reducida: " + tamano(reducida.size) + ")" : texto;
+  }
+
+  /*
+    Reduce una foto JPEG o PNG. `herramientas`: decodificar(archivo) → Promise<{fuente, ancho, alto, cerrar?}>
+    (con la orientación ya aplicada) y lienzo(ancho, alto) → canvas. Devuelve {archivo, nombre, reducida}; nunca
+    falla: ante cualquier problema devuelve la original. Una foto chica (hasta 1600 px y 500 KB) no se toca.
+  */
+  function reducir(archivo, herramientas, opciones) {
+    opciones = opciones || REDUCCION;
+    var original = { archivo: archivo, nombre: archivo.name, reducida: false };
+    if (!herramientas || !/^image\/(jpeg|png)$/.test(archivo.type)) return Promise.resolve(original);
+    var imagen = null;
+    return Promise.resolve()
+      .then(function () { return herramientas.decodificar(archivo); })
+      .then(function (decodificada) {
+        imagen = decodificada;
+        var destino = medidas(imagen.ancho, imagen.alto, opciones.ladoMaximo);
+        var igual = destino.ancho === imagen.ancho && destino.alto === imagen.alto;
+        if (igual && archivo.size <= opciones.minimoBytes) return null;
+        var lienzo = herramientas.lienzo(destino.ancho, destino.alto);
+        var contexto = lienzo.getContext("2d");
+        contexto.fillStyle = "#ffffff"; // la transparencia de un PNG queda sobre blanco, como en el servidor
+        contexto.fillRect(0, 0, destino.ancho, destino.alto);
+        contexto.drawImage(imagen.fuente, 0, 0, destino.ancho, destino.alto);
+        return new Promise(function (resolver) { lienzo.toBlob(resolver, "image/jpeg", opciones.calidad); });
+      })
+      .then(function (blob) {
+        if (!blob || !blob.size || blob.size >= archivo.size) return original;
+        return { archivo: blob, nombre: nombreJpeg(archivo.name), reducida: true };
+      }, function () { return original; })
+      .then(function (resultado) {
+        try { if (imagen && imagen.cerrar) imagen.cerrar(); } catch (error) { /* nada que liberar */ }
+        return resultado;
+      });
+  }
+
+  // Herramientas del navegador: createImageBitmap con la orientación de la foto o, si no está, una <img>.
+  function herramientasNavegador(ventana) {
+    var d = ventana.document;
+    var prueba = d && d.createElement("canvas");
+    if (!prueba || typeof prueba.getContext !== "function" || typeof prueba.toBlob !== "function") return null;
+
+    function porImagen(archivo) {
+      return new Promise(function (resolver, rechazar) {
+        var url = ventana.URL.createObjectURL(archivo);
+        var imagen = new ventana.Image();
+        imagen.onload = function () {
+          resolver({ fuente: imagen, ancho: imagen.naturalWidth, alto: imagen.naturalHeight,
+            cerrar: function () { ventana.URL.revokeObjectURL(url); } });
+        };
+        imagen.onerror = function () { ventana.URL.revokeObjectURL(url); rechazar(new Error("No se pudo leer la foto.")); };
+        imagen.src = url;
+      });
+    }
+
+    return {
+      decodificar: function (archivo) {
+        if (typeof ventana.createImageBitmap !== "function") return porImagen(archivo);
+        return Promise.resolve()
+          .then(function () { return ventana.createImageBitmap(archivo, { imageOrientation: "from-image" }); })
+          .then(function (mapa) {
+            return { fuente: mapa, ancho: mapa.width, alto: mapa.height, cerrar: function () { mapa.close(); } };
+          }, function () { return porImagen(archivo); });
+      },
+      lienzo: function (ancho, alto) {
+        var lienzo = d.createElement("canvas");
+        lienzo.width = ancho;
+        lienzo.height = alto;
+        return lienzo;
+      },
+    };
+  }
 
   function espaciosVisibles(guardadas, marcadas, maximo) {
     return Math.max(0, Math.min(maximo, maximo - guardadas + marcadas));
@@ -66,6 +163,15 @@
 
   function preparar(d, entorno) {
     var abridor = null;
+    var reducciones = []; // {espacio, original, promesa}: la reducción de la foto elegida en cada espacio
+
+    function reduccionDe(espacio) {
+      return reducciones.filter(function (r) { return r.espacio === espacio; })[0] || null;
+    }
+
+    function olvidarReduccion(espacio) {
+      reducciones = reducciones.filter(function (r) { return r.espacio !== espacio; });
+    }
 
     function formularioDe(dialogo) { return dialogo.querySelector("[data-fotos-form]"); }
 
@@ -90,6 +196,7 @@
     }
 
     function limpiarPrevia(espacio) {
+      olvidarReduccion(espacio);
       var previa = espacio.querySelector("[data-previa]");
       var imagen = previa.querySelector("img");
       if (imagen && imagen.src && entorno.URL) entorno.URL.revokeObjectURL(imagen.src);
@@ -155,10 +262,19 @@
         }
         var nombre = d.createElement("p");
         nombre.className = "suave";
-        nombre.textContent = archivo.name + " · " + tamano(archivo.size);
+        nombre.textContent = textoArchivo(archivo, null);
         previa.appendChild(nombre);
         previa.hidden = false;
         espacio.querySelector("[data-quitar]").hidden = false;
+        if (entorno.herramientas) {
+          var reduccion = { espacio: espacio, original: archivo, promesa: reducir(archivo, entorno.herramientas) };
+          reducciones.push(reduccion);
+          reduccion.promesa.then(function (resultado) {
+            if (reduccionDe(espacio) === reduccion && resultado.reducida) {
+              nombre.textContent = textoArchivo(archivo, resultado.archivo);
+            }
+          });
+        }
       }
       actualizar(form, false);
     }
@@ -198,6 +314,21 @@
       if (primero) primero.focus();
     }
 
+    // Cambia en el cuerpo cada foto elegida por su versión reducida, si la hay y sigue siendo la elegida.
+    function usarReducidas(form, cuerpo) {
+      var visibles = espacios(form).filter(function (espacio) { return !espacio.hidden; });
+      return Promise.all(visibles.map(function (espacio) {
+        var reduccion = reduccionDe(espacio);
+        if (!reduccion) return null;
+        return reduccion.promesa.then(function (resultado) {
+          if (!resultado.reducida) return;
+          espacio.querySelectorAll("[data-archivo]").forEach(function (campo) {
+            if (campo.files && campo.files[0] === reduccion.original) cuerpo.set(campo.name, resultado.archivo, resultado.nombre);
+          });
+        });
+      }));
+    }
+
     function enviar(form) {
       var estado = form.querySelector("[data-fotos-estado]");
       var boton = form.querySelector("[data-fotos-guardar]");
@@ -209,11 +340,14 @@
         ["archivo_", "camara_", "descripcion_"].forEach(function (campo) { cuerpo.delete(campo + n); });
       });
       boton.disabled = true;
-      estado.textContent = TEXTOS.guardando;
+      estado.textContent = reducciones.length ? TEXTOS.preparando : TEXTOS.guardando;
       var csrf = form.querySelector("[name=csrfmiddlewaretoken]");
-      return guardar({
-        fetch: entorno.fetch, url: form.action, cuerpo: cuerpo, csrf: csrf ? csrf.value : "",
-        enLinea: entorno.navigator ? entorno.navigator.onLine : true,
+      return usarReducidas(form, cuerpo).then(function () {
+        estado.textContent = TEXTOS.guardando;
+        return guardar({
+          fetch: entorno.fetch, url: form.action, cuerpo: cuerpo, csrf: csrf ? csrf.value : "",
+          enLinea: entorno.navigator ? entorno.navigator.onLine : true,
+        });
       }).then(function (resultado) {
         boton.disabled = false;
         if (resultado.ok) {
@@ -282,6 +416,7 @@
   var api = {
     TEXTOS: TEXTOS, espaciosVisibles: espaciosVisibles, textoCuenta: textoCuenta, textoQuitada: textoQuitada,
     tamano: tamano, guardar: guardar, interpretar: interpretar, preparar: preparar,
+    REDUCCION: REDUCCION, medidas: medidas, nombreJpeg: nombreJpeg, textoArchivo: textoArchivo, reducir: reducir,
   };
 
   if (typeof module !== "undefined" && module.exports) {
@@ -290,7 +425,7 @@
     var iniciar = function () {
       preparar(global.document, {
         fetch: global.fetch.bind(global), FormData: global.FormData, URL: global.URL, navigator: global.navigator,
-        recargar: function () { global.location.reload(); },
+        recargar: function () { global.location.reload(); }, herramientas: herramientasNavegador(global),
       });
     };
     if (global.document.readyState === "loading") global.document.addEventListener("DOMContentLoaded", iniciar);
