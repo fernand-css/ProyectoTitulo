@@ -1,4 +1,6 @@
-"""RF-09-02 y RF-09-05: algoritmo de orden en línea recta, sin base de datos (`entregasapp.ruta` es puro).
+"""RF-09-02, RF-09-05 y RF-09-20: algoritmo de orden, sin base de datos (`entregasapp.ruta` es puro).
+
+Por defecto mide en línea recta; con `distancia` usa otra métrica, por ejemplo una matriz asimétrica por camino.
 
 Las coordenadas son sintéticas: desplazamientos en km alrededor de un punto de prueba, sin relación con
 viviendas reales.
@@ -186,6 +188,79 @@ class InsertarTests(SimpleTestCase):
         self.assertEqual(insertar([], ORIGEN, ORIGEN, km(1, 1, "nueva")), 0)
         # Sobre una parada ya existente: costo 0 antes o después de ella; queda antes.
         self.assertEqual(insertar(self.secuencia, ORIGEN, ORIGEN, km(4, 4, "nueva")), 1)
+
+
+def con_matriz(puntos, matriz):
+    """Función `distancia` sobre una matriz construida a mano (índices en el orden de `puntos`)."""
+    indice = {punto.clave: i for i, punto in enumerate(puntos)}
+    return lambda a, b: matriz[indice[a.clave]][indice[b.clave]]
+
+
+def fuerza_bruta_con(partida, destino, paradas, distancia):
+    return min(longitud_m([partida, *orden, destino], distancia) for orden in itertools.permutations(paradas))
+
+
+class DistanciaPorCaminoTests(SimpleTestCase):
+    """RF-09-20: el orden sigue una matriz de distancias que puede diferir de ida y de vuelta."""
+
+    def test_el_orden_sigue_al_camino_y_no_a_la_linea_recta(self):
+        # A está más cerca del origen en línea recta, pero por camino (un río sin puente) queda lejos.
+        a, b = km(1, 0, "A"), km(0, 3, "B")
+        puntos = [ORIGEN, a, b]
+        matriz = [[0, 9000, 3000],
+                  [9000, 0, 6500],
+                  [3000, 6500, 0]]
+        distancia = con_matriz(puntos, matriz)
+        self.assertEqual(claves(ordenar(ORIGEN, ORIGEN, [a, b])), ["A", "B"])
+        por_camino = ordenar(ORIGEN, ORIGEN, [a, b], distancia=distancia)
+        self.assertEqual(claves(por_camino), ["B", "A"])
+        self.assertEqual(por_camino.total_m, 3000 + 6500 + 9000)
+        for _ in range(3):
+            self.assertEqual(claves(ordenar(ORIGEN, ORIGEN, [b, a], distancia=distancia)), ["B", "A"])
+
+    def test_matriz_asimetrica_construida_a_mano_igual_a_la_fuerza_bruta(self):
+        # Caminos de un solo sentido: ir de 2 a 1 cuesta 4,9 km y volver de 1 a 2, 7,6 km. El vecino más
+        # cercano (4, 3, 1, 2) recorre 20,4 km; el 2-opt adaptado invierte el tramo final y llega al óptimo.
+        p = [ORIGEN, km(1, 1, 1), km(2, 2, 2), km(3, 3, 3), km(4, 4, 4)]
+        matriz = [[0, 2400, 6700, 5800, 1000],
+                  [1400, 0, 7600, 7800, 4500],
+                  [9300, 4900, 0, 8100, 6800],
+                  [6300, 1300, 1600, 0, 3900],
+                  [9400, 9000, 1300, 1200, 0]]
+        distancia = con_matriz(p, matriz)
+        paradas = p[1:]
+        cercano = ordenar(ORIGEN, ORIGEN, paradas, limite=0, distancia=distancia)
+        self.assertEqual(claves(cercano), [4, 3, 1, 2])
+        self.assertEqual(cercano.total_m, 20400)
+        orden = ordenar(ORIGEN, ORIGEN, paradas, distancia=distancia)
+        self.assertEqual(claves(orden), [4, 3, 2, 1])
+        self.assertEqual(orden.total_m, 10100)
+        self.assertEqual(orden.total_m, fuerza_bruta_con(ORIGEN, ORIGEN, paradas, distancia))
+        self.assertEqual(orden.total_m, longitud_m([ORIGEN, *orden.paradas, ORIGEN], distancia))
+
+    def test_matrices_asimetricas_al_azar_nunca_peores_que_el_vecino_mas_cercano(self):
+        azar = Random(2026)
+        for _ in range(40):
+            n = azar.randint(2, 7)
+            puntos = [ORIGEN] + [km(azar.uniform(-5, 5), azar.uniform(-5, 5), clave) for clave in range(1, n + 1)]
+            matriz = [[0 if i == j else azar.randint(500, 9000) for j in range(n + 1)] for i in range(n + 1)]
+            distancia = con_matriz(puntos, matriz)
+            orden = ordenar(ORIGEN, ORIGEN, puntos[1:], distancia=distancia)
+            cercano = ordenar(ORIGEN, ORIGEN, puntos[1:], limite=0, distancia=distancia)
+            self.assertLessEqual(orden.total_m, cercano.total_m)
+            self.assertGreaterEqual(orden.total_m, fuerza_bruta_con(ORIGEN, ORIGEN, puntos[1:], distancia))
+            self.assertEqual(orden.total_m, longitud_m([ORIGEN, *orden.paradas, ORIGEN], distancia))
+
+    def test_insercion_con_matriz(self):
+        a, b, nueva = km(0, 4, "A"), km(4, 4, "B"), km(2, 0, "N")
+        puntos = [ORIGEN, a, b, nueva]
+        # En línea recta la nueva iría al final (entre B y el origen); por camino conviene antes de A.
+        matriz = [[0, 4000, 5700, 500],
+                  [4000, 0, 4000, 9000],
+                  [5700, 4000, 0, 9000],
+                  [600, 4200, 9000, 0]]
+        self.assertEqual(insertar([a, b], ORIGEN, ORIGEN, nueva), 2)
+        self.assertEqual(insertar([a, b], ORIGEN, ORIGEN, nueva, distancia=con_matriz(puntos, matriz)), 0)
 
 
 class ModuloPuroTests(SimpleTestCase):

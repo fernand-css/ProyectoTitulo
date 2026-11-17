@@ -1,7 +1,7 @@
 # Plan técnico — 09 / Mapa y orden de visita
 
 Spec: [spec.md](spec.md). Tareas: [tasks.md](tasks.md). Evidencia: [validation.md](validation.md).
-Fecha: 2026-11-12. Estado: implementado en `crojas-base` (cambios sin commit sobre `5751ec5`); verificación técnica en `validation.md`.
+Fecha: 2026-11-12. Estado: implementado en `crojas-base`; la enmienda del 2026-11-15 se implementó el 2026-11-16, sin commit sobre `72208b8`; verificación técnica en `validation.md`.
 Autorización de implementación: sí, el 2026-11-12 (ver `tasks.md`, «Autorización posterior»).
 
 ## Inspección de la base
@@ -462,9 +462,38 @@ Propuesta técnica para la [enmienda de spec.md](spec.md#enmienda-del-2026-11-15
 - **Respuestas fuera de orden con mala señal:** `AbortController` y un número de solicitud evitan dibujar un tramo viejo sobre uno nuevo.
 - **Datos de OSRM desactualizados:** se actualizan a mano con el procedimiento de `README.md`.
 
-### Pruebas que se ajustarán
+### Pruebas ajustadas (implementación del 2026-11-16)
 
-Se listan al implementar: las del 09 que fijan la línea punteada, el total en línea recta, el rumbo, «Mover a la posición» y la ausencia de solicitudes de red en `ir_a.js`, y las del 08 que usan los formularios de fotos que reemplaza el modal (ver el plan del 08).
+Del 09 (ninguna del 03 al 08 cambió en esta implementación; las del 08 que usaban los formularios de fotos ya se ajustaron con T-08-15):
+
+- `test_ruta_consultas.py::RutaDelDiaTests`: ahora corre con un OSRM simulado cuya distancia «por camino» es la línea recta (`ConOsrmSimulado`, `factor_osrm = 1.0`). Sus aserciones no cambian.
+- `test_vistas_mapa.py::MisEntregasRutaTests::test_lista_numerada_con_secciones_controles_y_guia`: el rótulo pasa a «Orden sugerido según distancia por camino, desde…» y el total a «Recorrido aprox. por camino:»; se retiró «Mover a la posición», así que hay 3 formularios de orden en lugar de 6 y 4 operaciones (3 tarjetas y «Volver al orden sugerido», que ahora se dibuja oculto).
+- `test_vistas_mapa.py::MisEntregasRutaTests::test_volver_al_orden_sugerido_por_http` y `RutasTests::test_fecha_futura_sugerida_desde_el_cesfam_y_fecha_pasada_rechazada`: el rótulo por camino.
+- `test_vistas_mapa.py::MapaTests::test_datos_del_mapa_coinciden_con_la_lista_y_no_traen_datos_privados`: sin `linea` ni su leyenda; agrega `distancia`, las rutas del tramo y la versión.
+- `test_vistas_mapa.py::RutasTests::test_hoy_igual_a_lo_que_ve_el_encargado_y_sin_acciones`: suma tarjetas compactas sin flechas, franja, botón de fotos ni tramo.
+- `test_vistas_mapa.py::IrAParadaTests::test_pagina_de_la_guia_con_destino_enlace_geo_y_coordenadas`: «Guía por camino» en lugar de «nunca se envía al servidor».
+- `test_vistas_mapa.py::MapaDomicilioTests::test_mapa_pequeno_con_coordenadas_y_texto_sin_ellas`: sin coordenadas sigue sin mapa pequeño, pero quien edita (Q.F., encargado y superusuario) carga Leaflet para «Usar mapa»; solo el Técnico no lo carga.
+- `mapa.test.cjs`: el primer caso ya no espera la línea punteada; el destino de «Ir a esta parada» ya no dibuja la línea recta; el módulo hace una sola solicitud (mover la parada sugerida) en lugar de ninguna.
+- `ir_a.test.cjs`: reescrito para la guía por camino (sin haversine ni rumbo; las solicitudes van a la ruta del tramo de Django).
+
+### Notas de implementación (2026-11-16)
+
+Detalles que el plan no fijaba, sin cambiar el contrato del spec:
+
+- **Pruebas sin OSRM real:** `TEST_RUNNER = "coreapp.ejecutor_pruebas.EjecutorPruebas"` deja `OSRM_URL` vacía durante las pruebas (así el contenedor local encendido no cambia sus resultados). Las que necesitan OSRM usan `entregasapp/tests/osrm_simulado.py`, un servidor HTTP en 127.0.0.1 con puerto libre que responde `table` y `route` y simula fallas.
+- **Sin paradas con coordenadas** no se consulta a OSRM: el total es 0 y el rótulo, el de camino.
+- **Orden guardado con OSRM caído:** el rótulo del orden propio agrega «Sin total del recorrido: el servidor de rutas no respondió.».
+- **Mover con JavaScript:** `MoverParadaView` responde, con `Accept: application/json`, `{ok, mensaje, version, manual, orden, rotulo, resumen}` (rótulo y total dibujados por sus parciales) o `{ok: false, error}` con 409 en el conflicto de versión, 400 en un movimiento no válido y 503 si falla la base. `orden.js` mueve los nodos (no reemplaza el HTML, para conservar las tarjetas abiertas y sus diálogos de fotos), renumera, ajusta las flechas, la versión y el rótulo, y genera una operación nueva por envío. Si el servidor responde otras visitas, recarga la página.
+- **Flechas y «Volver al orden sugerido»** se dibujan siempre, ocultas cuando no aplican, para que `orden.js` las muestre al reordenar.
+- **Tramo y parada más cercana:** `PosicionView` responde 403 en JSON a cuentas con sesión sin el rol exacto; el límite cuenta por cuenta y por minuto en la caché. La parada más cercana responde también la versión del orden, que usa «Mover al siguiente lugar». Tras moverla, el «Mapa» se recarga y el aviso se lee después desde `sessionStorage` (si no hay almacenamiento, solo se recarga).
+- **Texto de la sugerencia:** se mantiene junto al del tramo («La más cercana por camino es la parada 4, a 900 m. Parada 4: 900 m por camino.») hasta elegir otro destino.
+- **Sin JavaScript** el panel de la guía del «Mapa», «Trazar tramo hasta aquí» y «Usar mapa» no aparecen.
+- **Mapa pequeño de la tarjeta:** sin arrastre ni zoom con los dedos o la rueda (`MapaEntregas.FIJO`), con los botones de zoom. Leaflet se carga en «Mis entregas» y «Rutas»; el mapa, recién al expandir.
+- **«Usar mapa»:** el diálogo va fuera del formulario; acepta coma decimal al leer las coordenadas; abre con zoom 17 sobre un punto y 14 sobre el CESFAM; el foco va al mapa (con `tabindex="0"`, para moverlo con las flechas) y vuelve al botón al cerrar; un aviso `aria-live` en Coordenadas confirma la copia.
+- **Botón «Entregar»** en lugar de «Entregada» en las tarjetas y en «Ir a esta parada», como dice RF-09-16.
+- **Corte de 30 s tras una caída de OSRM** (revisión de navegador): tras una falla de red, de tiempo o del servidor, `osrm.py` da el servicio por no disponible durante `SEGUNDOS_CAIDO` sin volver a esperarlo, para que una página con dos consultas no pase de los 2 s de RNF-05 con OSRM apagado. Un camino imposible (`NoRoute`) no activa el corte. Las pruebas que pasan de OSRM caído a activo vacían la caché (`test_ruta_consultas.py`, dos casos).
+- **Encuadre del tramo:** al cambiar de destino, el mapa encuadra la posición, el tramo y la parada (zoom máximo 16); al recalcular el mismo destino no mueve la vista.
+- **Marcadores:** `.leaflet-container .marcador` gana a `leaflet.css` para centrar el número.
 
 ### Documentos afectados al implementar
 

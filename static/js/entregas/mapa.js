@@ -1,13 +1,17 @@
 /*
-  Mapas del reparto (spec 09): la ruta del encargado y de «Rutas» (RF-09-08), el mapa pequeño del domicilio
-  (RF-09-11) y el destino de «Ir a esta parada» (RF-09-09, que completa ir_a.js).
+  Mapas del reparto (spec 09): la ruta del encargado y de «Rutas» (RF-09-08, RF-09-21 y RF-09-24), el mapa pequeño
+  del domicilio y de la tarjeta (RF-09-11 y RF-09-18) y el destino de «Ir a esta parada» (RF-09-23, con ir_a.js).
 
   - Leaflet se sirve desde static/vendor; las teselas las pide el navegador al proveedor configurado, con un
     referente reducido al origen del sitio («strict-origin»), sin la ruta de la página.
   - Los datos llegan en un json_script, sin RUT. Los textos del resumen se arman con textContent, nunca con HTML.
   - Número, estado y tipo se dicen con texto y forma; los marcadores se alcanzan con el teclado y tienen nombre.
-  - Si el mapa base no carga, los marcadores y la línea siguen y un texto lo avisa; la lista es la alternativa.
-  Este archivo no hace solicitudes propias: no usa fetch, XMLHttpRequest ni sendBeacon.
+  - Desde la enmienda del 2026-11-15 no hay línea del recorrido completo. En «Mapa», el encargado puede mostrar su
+    posición: se dibuja solo el tramo por camino hasta la próxima parada o la que elija, y «Sugerir parada más
+    cercana» la destaca con forma y texto (tramo.js pide ambos a Django). En «Rutas» solo hay marcadores.
+  - Si el mapa base no carga, los marcadores siguen y un texto lo avisa; la lista es la alternativa.
+  Este archivo solo hace dos solicitudes, a Django: mover la parada sugerida al primer lugar y (con tramo.js) el
+  tramo y la parada más cercana.
 */
 (function (global) {
   "use strict";
@@ -55,8 +59,28 @@
     return capa;
   }
 
-  function crearMapa(L, contenedor, teselas, aviso) {
-    var mapa = L.map(contenedor, { keyboard: true, scrollWheelZoom: false, zoomControl: true });
+  /*
+    Zoom con Ctrl + rueda (corrección del 2026-11-16): la rueda sola sigue desplazando la página, para no quedar
+    atrapado en el mapa al bajar por la lista; con Ctrl (o el gesto de pellizcar del panel táctil, que el
+    navegador envía como rueda con Ctrl) el giro llega al zoom de rueda de Leaflet, que evita el zoom de la
+    página. Se filtra en la fase de captura del contenedor, antes que el manejador de Leaflet.
+  */
+  function soloConCtrl(evento) {
+    if (!evento.ctrlKey) evento.stopImmediatePropagation();
+  }
+
+  function zoomConCtrl(contenedor) {
+    if (contenedor && contenedor.addEventListener) contenedor.addEventListener("wheel", soloConCtrl, true);
+  }
+
+  // `extra` agrega opciones de Leaflet: el mapa pequeño de la tarjeta no se arrastra ni se acerca con los dedos,
+  // para no capturar el desplazamiento de la página (RF-09-18); se acerca y se aleja con sus botones o con
+  // Ctrl + rueda. `scrollWheelZoom: true` en `extra` deja la rueda sola acercar (el diálogo «Usar mapa»).
+  function crearMapa(L, contenedor, teselas, aviso, extra) {
+    var opciones = { keyboard: true, scrollWheelZoom: true, zoomControl: true };
+    Object.keys(extra || {}).forEach(function (clave) { opciones[clave] = extra[clave]; });
+    if (!extra || extra.scrollWheelZoom !== true) zoomConCtrl(contenedor);
+    var mapa = L.map(contenedor, opciones);
     if (mapa.attributionControl && mapa.attributionControl.setPrefix) {
       mapa.attributionControl.setPrefix("<a href=\"https://leafletjs.com\" rel=\"noopener noreferrer\" target=\"_blank\">Leaflet</a>");
     }
@@ -87,6 +111,10 @@
 
   function iconoCesfam(L) {
     return L.divIcon({ className: "marcador marcador-cesfam", html: "<span>C</span>", iconSize: [36, 36], iconAnchor: [18, 18], popupAnchor: [0, -18] });
+  }
+
+  function iconoCercana(L, parada) {
+    return L.divIcon({ className: "marcador marcador-parada marcador-cercana", html: "<span>" + Number(parada.numero) + "</span>", iconSize: [48, 48], iconAnchor: [24, 24], popupAnchor: [0, -24] });
   }
 
   function iconoDestino(L, numero) {
@@ -127,7 +155,7 @@
   }
 
   // Resumen del marcador: número, estado, sector, localidad, dirección y referencias, y sus enlaces.
-  function resumenParada(documento, parada) {
+  function resumenParada(documento, parada, conTramo) {
     var caja = documento.createElement("div");
     caja.className = "mapa-resumen";
     linea(documento, caja, "Parada " + parada.numero + " · " + parada.estado + (parada.nueva ? " · Nueva" : ""), "mapa-resumen-titulo");
@@ -141,6 +169,14 @@
     enlace(documento, enlaces, parada.url_ir, "Ir a esta parada");
     enlace(documento, enlaces, parada.url_domicilio, "Detalles del domicilio");
     caja.appendChild(enlaces);
+    if (conTramo) {
+      var boton = documento.createElement("button");
+      boton.type = "button";
+      boton.className = "boton boton-secundario";
+      boton.setAttribute("data-trazar", String(parada.intento));
+      boton.textContent = "Trazar tramo hasta aquí";
+      caja.appendChild(boton);
+    }
     return caja;
   }
 
@@ -167,12 +203,14 @@
     }
   }
 
-  // Mapa de una ruta: CESFAM, paradas numeradas, registradas de hoy y la línea punteada del recorrido.
+  // Mapa de una ruta: CESFAM, paradas numeradas y registradas de hoy, sin línea del recorrido completo. Para el
+  // encargado, devuelve además cómo dibujar su posición, el tramo por camino y la parada destacada.
   function dibujarRuta(L, documento, contenedor, datos, aviso) {
     var mapa = crearMapa(L, contenedor, datos.teselas, aviso);
     var puntos = [[datos.origen.lat, datos.origen.lon]];
     var marcadores = { paradas: [], registradas: [] };
-    L.polyline(datos.linea, { className: "linea-recorrido", dashArray: "8 10", weight: 4, interactive: false }).addTo(mapa);
+    var porIntento = {};
+    var conTramo = Boolean(datos.url_tramo);
     nombrar(L.marker([datos.origen.lat, datos.origen.lon], { icon: iconoCesfam(L), keyboard: true, zIndexOffset: -100 }),
       "CESFAM, inicio y fin del recorrido").bindPopup("CESFAM: inicio y fin del recorrido").addTo(mapa);
     datos.registradas.forEach(function (registrada) {
@@ -185,17 +223,78 @@
     datos.paradas.forEach(function (parada) {
       var marcador = nombrar(L.marker([parada.lat, parada.lon], { icon: iconoParada(L, parada), keyboard: true, zIndexOffset: 100 }),
         nombreParada(parada));
-      marcador.bindPopup(resumenParada(documento, parada)).addTo(mapa);
+      marcador.bindPopup(resumenParada(documento, parada, conTramo)).addTo(mapa);
       marcadores.paradas.push(marcador);
+      porIntento[parada.intento] = { marcador: marcador, parada: parada };
       puntos.push([parada.lat, parada.lon]);
     });
     encuadrar(mapa, puntos);
-    return { mapa: mapa, marcadores: marcadores };
+    var yo = null;
+    var precision = null;
+    var tramo = null;
+    var destacada = null;
+    var encuadradoPara = null;
+    return {
+      mapa: mapa,
+      marcadores: marcadores,
+      mostrarPosicion: function (lat, lon, metros) {
+        var aqui = [lat, lon];
+        if (!yo) {
+          precision = L.circle(aqui, { radius: metros || 0, className: "circulo-precision", interactive: false }).addTo(mapa);
+          yo = nombrar(L.circleMarker(aqui, { radius: 9, className: "mi-posicion", interactive: false }), "Tu posición").addTo(mapa);
+        } else {
+          yo.setLatLng(aqui);
+          precision.setLatLng(aqui);
+          precision.setRadius(metros || 0);
+        }
+      },
+      // Línea continua del tramo por camino (no punteada: no es línea recta). Al cambiar de destino encuadra la
+      // posición, el tramo y la parada, para no perder el contexto; al recalcular el mismo destino no mueve la vista.
+      dibujarTramo: function (geometria, intento) {
+        if (tramo) tramo.setLatLngs(geometria);
+        else tramo = L.polyline(geometria, { className: "linea-tramo", weight: 6, interactive: false }).addTo(mapa);
+        if (mapa.fitBounds && intento !== encuadradoPara) {
+          var puntos = geometria.slice();
+          if (yo && yo.getLatLng) puntos.push(yo.getLatLng());
+          if (porIntento[intento]) puntos.push([porIntento[intento].parada.lat, porIntento[intento].parada.lon]);
+          if (puntos.length > 1) mapa.fitBounds(puntos, { padding: [48, 48], maxZoom: 16 });
+          encuadradoPara = intento;
+        }
+      },
+      limpiar: function () {
+        encuadradoPara = null;
+        if (tramo) { mapa.removeLayer(tramo); tramo = null; }
+        if (yo) { mapa.removeLayer(yo); mapa.removeLayer(precision); yo = null; precision = null; }
+        this.quitarDestacada();
+      },
+      limpiarTramo: function () {
+        if (tramo) { mapa.removeLayer(tramo); tramo = null; }
+      },
+      destacar: function (intento) {
+        this.quitarDestacada();
+        var elegido = porIntento[intento];
+        if (!elegido) return false;
+        elegido.marcador.setIcon(iconoCercana(L, elegido.parada));
+        var elemento = elegido.marcador.getElement && elegido.marcador.getElement();
+        if (elemento) elemento.setAttribute("aria-label", nombreParada(elegido.parada) + ", la más cercana por camino");
+        destacada = elegido;
+        return true;
+      },
+      quitarDestacada: function () {
+        if (!destacada) return;
+        destacada.marcador.setIcon(iconoParada(L, destacada.parada));
+        var elemento = destacada.marcador.getElement && destacada.marcador.getElement();
+        if (elemento) elemento.setAttribute("aria-label", nombreParada(destacada.parada));
+        destacada = null;
+      },
+    };
   }
 
   // Mapa pequeño del domicilio: el punto y su círculo de precisión, sin interacción de edición.
-  function dibujarPunto(L, documento, contenedor, datos, aviso) {
-    var mapa = crearMapa(L, contenedor, datos.teselas, aviso);
+  var FIJO = { dragging: false, touchZoom: false, doubleClickZoom: false, boxZoom: false, tap: false };
+
+  function dibujarPunto(L, documento, contenedor, datos, aviso, fijo) {
+    var mapa = crearMapa(L, contenedor, datos.teselas, aviso, fijo ? FIJO : null);
     nombrar(L.marker([datos.lat, datos.lon], { icon: iconoPunto(L), keyboard: true }), "Ubicación del domicilio").addTo(mapa);
     if (datos.precision) {
       L.circle([datos.lat, datos.lon], { radius: datos.precision, className: "circulo-precision", interactive: false }).addTo(mapa);
@@ -204,7 +303,7 @@
     return { mapa: mapa };
   }
 
-  // Destino de «Ir a esta parada»; ir_a.js mueve después «mi posición», su precisión y la línea hasta la parada.
+  // Destino de «Ir a esta parada»; ir_a.js mueve después «mi posición», su precisión y el tramo por camino.
   function dibujarDestino(L, documento, contenedor, datos, aviso) {
     var mapa = crearMapa(L, contenedor, datos.teselas, aviso);
     var destino = [datos.lat, datos.lon];
@@ -213,6 +312,7 @@
     var yo = null;
     var precision = null;
     var tramo = null;
+    var encuadrado = false;
     return {
       mapa: mapa,
       actualizar: function (lat, lon, metros) {
@@ -220,14 +320,29 @@
         if (!yo) {
           precision = L.circle(aqui, { radius: metros || 0, className: "circulo-precision", interactive: false }).addTo(mapa);
           yo = nombrar(L.circleMarker(aqui, { radius: 9, className: "mi-posicion", interactive: false }), "Tu posición").addTo(mapa);
-          tramo = L.polyline([aqui, destino], { className: "linea-recorrido", dashArray: "8 10", weight: 4, interactive: false }).addTo(mapa);
-          mapa.fitBounds([aqui, destino], { padding: [32, 32], maxZoom: 17 });
         } else {
           yo.setLatLng(aqui);
           precision.setLatLng(aqui);
           precision.setRadius(metros || 0);
-          tramo.setLatLngs([aqui, destino]);
         }
+      },
+      dibujarTramo: function (geometria) {
+        if (tramo) tramo.setLatLngs(geometria);
+        else tramo = L.polyline(geometria, { className: "linea-tramo", weight: 6, interactive: false }).addTo(mapa);
+        if (!encuadrado && geometria.length > 1) {
+          var puntos = geometria.concat([destino]);
+          if (yo && yo.getLatLng) puntos.push(yo.getLatLng());
+          mapa.fitBounds(puntos, { padding: [40, 40], maxZoom: 16 });
+          encuadrado = true;
+        }
+      },
+      limpiar: function () {
+        if (tramo) { mapa.removeLayer(tramo); tramo = null; }
+        if (yo) { mapa.removeLayer(yo); mapa.removeLayer(precision); yo = null; precision = null; }
+        encuadrado = false;
+      },
+      limpiarTramo: function () {
+        if (tramo) { mapa.removeLayer(tramo); tramo = null; }
       },
     };
   }
@@ -251,8 +366,162 @@
     return resultado;
   }
 
+  var CLAVE_ANUNCIO = "entregas-anuncio-mapa";
+  var TEXTOS_GUIA = {
+    sinPosicionCercana: "Para sugerir la parada más cercana necesitas activar tu ubicación con «Mostrar mi posición».",
+    yaPrimera: "Ya es tu próxima parada.",
+    movida: "Parada movida al primer lugar. Tu orden de hoy quedó guardado.",
+    sinParadas: "No hay paradas con coordenadas para trazar un tramo.",
+  };
+
+  function textoTramo(resultado) {
+    return "Parada " + resultado.numero + ": " + resultado.distancia_texto + " por camino.";
+  }
+
+  function textoCercana(resultado) {
+    return "La más cercana por camino es la parada " + resultado.numero + ", a " + resultado.distancia_texto + ".";
+  }
+
+  function leerAnuncio(almacen) {
+    try {
+      var texto = almacen.getItem(CLAVE_ANUNCIO);
+      almacen.removeItem(CLAVE_ANUNCIO);
+      return texto || "";
+    } catch (error) {
+      return "";
+    }
+  }
+
+  /*
+    Controles del «Mapa» del encargado (RF-09-21 y RF-09-22): «Mostrar mi posición», «Detener», «Sugerir parada
+    más cercana», «Trazar tramo hasta aquí» y «Mover al siguiente lugar». `entorno`: dibujo (de dibujarRuta),
+    datos, seguimiento (tramo.js), cliente, elementos {estado, anuncio, mostrar, detener, cercana, mover},
+    mover(intento, version) → Promise, almacen, recargar.
+  */
+  function prepararGuia(documento, entorno) {
+    var datos = entorno.datos;
+    var el = entorno.elementos;
+    var destino = datos.paradas.length ? datos.paradas[0].intento : null;
+    var sugerida = null;
+    var sugerencia = ""; // el texto de la parada sugerida se mantiene junto al del tramo hasta cambiar de destino
+    var alternar = false;
+
+    function mostrarTexto(texto) { el.estado.textContent = texto; }
+    function anunciar(texto) {
+      alternar = !alternar;
+      el.anuncio.textContent = texto + (alternar ? "" : " ");
+    }
+    function botones(siguiendo) {
+      el.mostrar.disabled = siguiendo;
+      el.detener.disabled = !siguiendo;
+    }
+    function ocultarMover() { el.mover.hidden = true; sugerida = null; }
+
+    var seguimiento = entorno.crearSeguimiento({
+      destino: function () { return destino; },
+      avisos: {
+        inicio: function (texto) { botones(true); mostrarTexto(texto); anunciar(texto); },
+        posicion: function (p) { entorno.dibujo.mostrarPosicion(p.lat, p.lon, p.precision); },
+        tramo: function (resultado) {
+          entorno.dibujo.dibujarTramo(resultado.geometria, resultado.intento);
+          mostrarTexto((sugerencia ? sugerencia + " " : "") + textoTramo(resultado));
+        },
+        error: function (texto) {
+          entorno.dibujo.limpiarTramo();
+          mostrarTexto(texto);
+          anunciar(texto);
+          if (!seguimiento || !seguimiento.siguiendo()) botones(false);
+        },
+        espera: function (texto) { mostrarTexto(texto); },
+        fin: function (texto) {
+          sugerencia = "";
+          entorno.dibujo.limpiar();
+          ocultarMover();
+          botones(false);
+          if (texto) { mostrarTexto(texto); anunciar(texto); }
+        },
+      },
+    });
+
+    function trazarHasta(intento) {
+      destino = intento;
+      sugerencia = "";
+      if (!seguimiento.siguiendo()) seguimiento.iniciar();
+      else seguimiento.recalcular();
+    }
+
+    el.mostrar.addEventListener("click", function () {
+      if (destino === null) { mostrarTexto(TEXTOS_GUIA.sinParadas); anunciar(TEXTOS_GUIA.sinParadas); }
+      seguimiento.iniciar();
+    });
+    el.detener.addEventListener("click", function () { seguimiento.detener(); });
+    el.cercana.addEventListener("click", function () {
+      var posicion = seguimiento.posicion();
+      if (!posicion) { mostrarTexto(TEXTOS_GUIA.sinPosicionCercana); anunciar(TEXTOS_GUIA.sinPosicionCercana); return; }
+      entorno.cliente.pedirCercana(posicion).then(function (resultado) {
+        if (resultado.descartada) return;
+        if (!resultado.ok) {
+          entorno.dibujo.quitarDestacada();
+          ocultarMover();
+          mostrarTexto(resultado.mensaje);
+          anunciar(resultado.mensaje);
+          return;
+        }
+        entorno.dibujo.destacar(resultado.intento);
+        var texto = textoCercana(resultado);
+        if (resultado.es_primera) {
+          texto += " " + TEXTOS_GUIA.yaPrimera;
+          ocultarMover();
+        } else {
+          sugerida = resultado;
+          el.mover.hidden = false;
+        }
+        mostrarTexto(texto);
+        anunciar(texto);
+        sugerencia = texto;
+        destino = resultado.intento;
+        seguimiento.recalcular();
+      });
+    });
+    el.mover.addEventListener("click", function () {
+      if (!sugerida) return;
+      var elegida = sugerida;
+      el.mover.disabled = true;
+      entorno.mover(elegida.intento, elegida.version).then(function (resultado) {
+        el.mover.disabled = false;
+        if (!resultado.ok) { mostrarTexto(resultado.mensaje); anunciar(resultado.mensaje); return; }
+        try { entorno.almacen.setItem(CLAVE_ANUNCIO, TEXTOS_GUIA.movida); } catch (error) { /* sin almacenamiento */ }
+        mostrarTexto(TEXTOS_GUIA.movida);
+        anunciar(TEXTOS_GUIA.movida);
+        entorno.recargar();
+      });
+    });
+    documento.addEventListener("click", function (evento) {
+      var boton = evento.target && evento.target.closest ? evento.target.closest("[data-trazar]") : null;
+      if (!boton) return;
+      trazarHasta(Number(boton.getAttribute("data-trazar")));
+    });
+    if (entorno.ventana) entorno.ventana.addEventListener("pagehide", function () { seguimiento.detener(true); });
+    // Oculta (otra pestaña o ventana minimizada): pausa sin borrar el tramo ni la posición; al volver, sigue sola.
+    documento.addEventListener("visibilitychange", function () {
+      if (documento.visibilityState === "hidden") seguimiento.pausar();
+      else seguimiento.reanudar();
+    });
+    if (el.panel) el.panel.hidden = false; // sin JavaScript el panel y «Trazar tramo hasta aquí» no aparecen
+    Array.prototype.forEach.call(documento.querySelectorAll("button[data-trazar]"), function (b) { b.hidden = false; });
+    var pendiente = entorno.almacen ? leerAnuncio(entorno.almacen) : "";
+    if (pendiente) { mostrarTexto(pendiente); anunciar(pendiente); }
+    botones(false);
+    return { seguimiento: seguimiento, trazarHasta: trazarHasta, destino: function () { return destino; } };
+  }
+
   var api = {
     AVISO_TESELAS: AVISO_TESELAS,
+    TEXTOS_GUIA: TEXTOS_GUIA,
+    CLAVE_ANUNCIO: CLAVE_ANUNCIO,
+    textoTramo: textoTramo,
+    textoCercana: textoCercana,
+    prepararGuia: prepararGuia,
     POLITICA_REFERENTE: POLITICA_REFERENTE,
     atribucion: atribucion,
     opcionesTeselas: opcionesTeselas,
@@ -261,15 +530,85 @@
     resumenParada: resumenParada,
     dibujarRuta: dibujarRuta,
     dibujarPunto: dibujarPunto,
+    crearMapa: crearMapa,
+    nombrar: nombrar,
+    iconoPunto: iconoPunto,
+    FIJO: FIJO,
     dibujarDestino: dibujarDestino,
     iniciar: iniciar,
   };
+
+  function csrfDe(documento) {
+    var campo = documento.querySelector("[name=csrfmiddlewaretoken]");
+    return campo ? campo.value : "";
+  }
+
+  function nuevaOperacion() {
+    if (global.crypto && typeof global.crypto.randomUUID === "function") return global.crypto.randomUUID();
+    return "10000000-1000-4000-8000-100000000000".replace(/[018]/g, function (c) {
+      return (c ^ (global.crypto.getRandomValues(new Uint8Array(1))[0] & (15 >> (c / 4)))).toString(16);
+    });
+  }
+
+  // En la página, la guía del encargado necesita tramo.js; en «Rutas» (consulta) no hay controles.
+  function arrancarGuia(documento, mapas) {
+    var fuente = documento.getElementById("datos-mapa");
+    var guia = documento.querySelector("[data-guia-mapa]");
+    if (!fuente || !guia || !mapas.ruta || !global.TramoEntregas) return null;
+    var datos = JSON.parse(fuente.textContent);
+    if (!datos.url_tramo) return null;
+    var T = global.TramoEntregas;
+    var cliente = T.crearCliente({
+      fetch: global.fetch.bind(global), AbortController: global.AbortController, urlTramo: datos.url_tramo,
+      urlCercana: datos.url_cercana, csrf: function () { return csrfDe(documento); },
+      enLinea: function () { return global.navigator.onLine; },
+    });
+    var almacen = null;
+    try { almacen = global.sessionStorage; } catch (error) { almacen = null; }
+    return prepararGuia(documento, {
+      datos: datos, dibujo: mapas.ruta, cliente: cliente, ventana: global, almacen: almacen,
+      crearSeguimiento: function (op) {
+        op.geo = global.navigator.geolocation;
+        op.seguro = Boolean(global.isSecureContext);
+        op.cliente = cliente;
+        op.ahora = function () { return Date.now(); };
+        return T.crearSeguimiento(op);
+      },
+      recargar: function () { global.location.reload(); },
+      mover: function (intento, version) {
+        var cuerpo = new global.FormData();
+        cuerpo.set("intento", String(intento));
+        cuerpo.set("destino", "1");
+        cuerpo.set("version", String(version));
+        cuerpo.set("operacion_id", nuevaOperacion());
+        if (global.navigator.onLine === false) return Promise.resolve({ ok: false, mensaje: "Sin conexión: no se guardó el cambio de orden." });
+        return global.fetch(datos.url_mover, {
+          method: "POST", body: cuerpo, credentials: "same-origin",
+          headers: { Accept: "application/json", "X-CSRFToken": csrfDe(documento) },
+        }).then(function (respuesta) {
+          return respuesta.json().then(function (r) { return r.ok ? r : { ok: false, mensaje: r.error || "No pudimos guardar el orden." }; });
+        }, function () { return { ok: false, mensaje: "Sin conexión: no se guardó el cambio de orden." }; });
+      },
+      elementos: {
+        estado: documento.getElementById("mapa-guia-estado"),
+        anuncio: documento.getElementById("mapa-guia-anuncio"),
+        mostrar: documento.getElementById("mapa-mostrar"),
+        detener: documento.getElementById("mapa-detener"),
+        cercana: documento.getElementById("mapa-cercana"),
+        mover: documento.getElementById("mapa-mover"),
+        panel: guia,
+      },
+    });
+  }
 
   if (typeof module !== "undefined" && module.exports) {
     module.exports = api;
   } else {
     global.MapaEntregas = api;
-    var arrancar = function () { global.MapaEntregas.mapas = iniciar(global.document, global.L); };
+    var arrancar = function () {
+      global.MapaEntregas.mapas = iniciar(global.document, global.L);
+      global.MapaEntregas.guia = arrancarGuia(global.document, global.MapaEntregas.mapas);
+    };
     if (global.document.readyState === "loading") {
       global.document.addEventListener("DOMContentLoaded", arrancar);
     } else {

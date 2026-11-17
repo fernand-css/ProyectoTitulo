@@ -1,0 +1,26 @@
+{# «Usar mapa» del formulario del domicilio (spec 09, enmienda del 2026-11-15, RF-09-25). Diálogo modal con un mapa que se mueve y se acerca libremente; tocar o hacer clic marca el punto, y con teclado se mueve el mapa con las flechas y se marca la mira central. Solo copia latitud y longitud al formulario (nada se guarda hasta «Guardar domicilio»). Sin JavaScript, el botón que lo abre no aparece. Espera `datos_usar_mapa` (origen del CESFAM y teselas, sin datos del paciente). #}
+{% if datos_usar_mapa %}
+<dialog class="dialogo-fotos dialogo-mapa" id="dialogo-usar-mapa" aria-labelledby="dialogo-usar-mapa-titulo" aria-describedby="dialogo-usar-mapa-ayuda" data-usar-mapa>
+  <div class="dialogo-fotos-cabecera">
+    <div>
+      <h2 id="dialogo-usar-mapa-titulo">Marcar el domicilio en el mapa</h2>
+      <p class="suave" id="dialogo-usar-mapa-ayuda">Mueve y acerca el mapa hasta el domicilio y toca su ubicación. Con teclado: mueve el mapa con las flechas, acércalo con + y − y pulsa «Marcar el centro del mapa».</p>
+    </div>
+    <button class="dialogo-cerrar" type="button" data-usar-mapa-cerrar><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-cerrar"/></svg><span class="sr-only">Cerrar sin cambios</span></button>
+  </div>
+  <div class="dialogo-mapa-cuerpo">
+    <div class="mapa-elegir-marco">
+      <div class="mapa mapa-elegir" id="mapa-usar-mapa" role="region" aria-label="Mapa para marcar el domicilio" tabindex="0" data-usar-mapa-mapa></div>
+      <span class="mapa-mira" aria-hidden="true"></span>
+    </div>
+    <p class="mapa-aviso" id="aviso-usar-mapa" role="status" aria-live="polite" hidden></p>
+    <p class="usar-mapa-estado" role="status" aria-live="polite" data-usar-mapa-estado>Aún no marcas un punto.</p>
+  </div>
+  <div class="acciones fotos-pie">
+    <button class="boton boton-secundario" type="button" data-usar-mapa-centro>Marcar el centro del mapa</button>
+    <button class="boton" type="button" data-usar-mapa-usar disabled>Usar este punto</button>
+    <button class="boton boton-secundario" type="button" data-usar-mapa-cancelar>Cancelar</button>
+  </div>
+  {{ datos_usar_mapa|json_script:"datos-usar-mapa" }}
+</dialog>
+{% else %}<p class="suave">No hay datos para marcar el domicilio en el mapa.</p>{% endif %}

@@ -1,17 +1,24 @@
-"""RF-09-01 a RF-09-03, RF-09-05 y RF-09-07: la ruta del día se arma en cada consulta, sin escribir nada."""
+"""RF-09-01 a RF-09-03, RF-09-05, RF-09-07 y RF-09-20: la ruta del día se arma en cada consulta, sin escribir nada.
+
+Desde la enmienda del 2026-11-15, la ruta pide a OSRM la matriz por camino. Estas pruebas usan un OSRM simulado:
+en `RutaDelDiaTests` su distancia es la línea recta (los órdenes y totales de antes siguen valiendo) y en
+`RutaPorCaminoTests` se construye a mano para que el camino y la línea recta no coincidan.
+"""
 
 import uuid
 from datetime import timedelta
 
+from django.core.cache import cache
 from django.db import connection
 from django.test import TestCase
 from django.test.utils import CaptureQueriesContext
 from django.utils import timezone
 
-from entregasapp.consultas import MANUAL, SUGERIDO, partida_del_dia, registradas_hoy, ruta_del_dia
+from entregasapp.consultas import CAMINO, MANUAL, RECTA, SUGERIDO, partida_del_dia, registradas_hoy, ruta_del_dia
 from entregasapp.models import IntentoEntrega, OrdenRuta, ParadaRuta
 from entregasapp.services import anular_entrega, reasignar, registrar_entregada, registrar_no_entregada
 from .ayudas import equipo, hoy, visita
+from .osrm_simulado import ConOsrmSimulado, haversine
 
 
 def ids(paradas):
@@ -24,8 +31,9 @@ def atrasar(intento, dias=1):
     return intento
 
 
-class RutaDelDiaTests(TestCase):
+class RutaDelDiaTests(ConOsrmSimulado, TestCase):
     def setUp(self):
+        super().setUp()
         self.equipo = equipo()
         self.encargado = self.equipo["encargado"]
 
@@ -205,3 +213,108 @@ class RutaDelDiaTests(TestCase):
         self.visita((2, 3))
         self.assertEqual(contar(incluir_proximas=True), manual)
         self.assertLessEqual(manual, 8)
+
+
+def coordenadas(intento):
+    domicilio = intento.entrega.paciente.domicilio
+    return float(domicilio.latitud), float(domicilio.longitud)
+
+
+def cerca(a, b):
+    return abs(a[0] - b[0]) < 1e-6 and abs(a[1] - b[1]) < 1e-6
+
+
+class RutaPorCaminoTests(ConOsrmSimulado, TestCase):
+    """RF-09-20: orden, «Nuevas» y total por camino; respaldo en línea recta rotulado y sin total."""
+
+    def setUp(self):
+        super().setUp()
+        self.equipo = equipo()
+        self.encargado = self.equipo["encargado"]
+
+    def visita(self, en=None, **opciones):
+        return visita(self.equipo, en, **opciones)
+
+    def rio_hacia(self, intento, metros=9000):
+        """Del CESFAM a `intento` hay que rodear un río (`metros`); de vuelta, línea recta. Matriz asimétrica."""
+        from django.conf import settings
+        cesfam = (round(settings.REPARTO_ORIGEN_LATITUD, 6), round(settings.REPARTO_ORIGEN_LONGITUD, 6))
+        destino = coordenadas(intento)
+        self.osrm.distancia = lambda a, b: metros if cerca(a, cesfam) and cerca(b, destino) else haversine(a, b)
+
+    def test_el_orden_sigue_al_camino_y_el_total_es_la_suma_de_la_matriz(self):
+        a, b = self.visita((1, 0)), self.visita((0, 3))
+        self.osrm.modo = "error500"
+        recta = ruta_del_dia(self.encargado)
+        self.assertEqual(ids(recta.paradas), [a.pk, b.pk])  # en línea recta A está más cerca del CESFAM
+        self.osrm.modo = ""
+        cache.clear()  # tras la caída, OSRM se da por no disponible 30 s (osrm.SEGUNDOS_CAIDO)
+        self.rio_hacia(a)
+        ruta = ruta_del_dia(self.encargado)
+        self.assertEqual(ruta.distancia, CAMINO)
+        self.assertEqual(ids(ruta.paradas), [b.pk, a.pk])
+        matriz_b_a = haversine(coordenadas(b), coordenadas(a))
+        self.assertAlmostEqual(ruta.total_m, 3000 + matriz_b_a + 1000, delta=3)
+        self.assertEqual(ruta.total_km, "7,2")
+        for _ in range(3):
+            self.assertEqual(ids(ruta_del_dia(self.encargado).paradas), [b.pk, a.pk])
+
+    def test_osrm_no_disponible_usa_la_linea_recta_rotulada_y_sin_total(self):
+        a, b = self.visita((0, 3)), self.visita((0, 1))
+        for modo in ("error500", "noroute", "malformado", "nulo"):
+            with self.subTest(modo=modo):
+                self.osrm.modo = modo
+                ruta = ruta_del_dia(self.encargado)
+                self.assertEqual(ruta.distancia, RECTA)
+                self.assertFalse(ruta.por_camino)
+                self.assertIsNone(ruta.total_m)
+                self.assertIsNone(ruta.total_km)
+                self.assertEqual(ids(ruta.paradas), [b.pk, a.pk])
+        from django.test import override_settings
+        with override_settings(OSRM_URL=""):
+            self.assertEqual(ruta_del_dia(self.encargado).distancia, RECTA)
+
+    def test_sin_paradas_con_coordenadas_no_consulta_osrm(self):
+        self.visita(None)
+        ruta = ruta_del_dia(self.encargado)
+        self.assertEqual((ruta.distancia, ruta.total_m), (CAMINO, 0.0))
+        self.assertEqual(self.osrm.solicitudes, [])
+
+    def test_las_nuevas_se_insertan_con_la_matriz(self):
+        a, b = self.visita((1, 0)), self.visita((0, 3))
+        orden = OrdenRuta.objects.create(encargado=self.encargado, fecha=hoy(), creado_por=self.encargado,
+                                         modificado_por=self.encargado)
+        ParadaRuta.objects.create(orden=orden, intento=b, posicion=1)
+        self.osrm.modo = "error500"
+        self.assertEqual(ids(ruta_del_dia(self.encargado).paradas), [a.pk, b.pk])  # línea recta: empate, al inicio
+        self.osrm.modo = ""
+        cache.clear()  # tras la caída, OSRM se da por no disponible 30 s (osrm.SEGUNDOS_CAIDO)
+        self.rio_hacia(a)
+        ruta = ruta_del_dia(self.encargado)
+        self.assertEqual(ids(ruta.paradas), [b.pk, a.pk])
+        self.assertEqual([p.nueva for p in ruta.paradas], [False, True])
+
+    def test_el_orden_manual_no_cambia_con_osrm_caido(self):
+        a, b, c = self.visita((0, 3)), self.visita((0, 1)), self.visita((0, 2))
+        orden = OrdenRuta.objects.create(encargado=self.encargado, fecha=hoy(), creado_por=self.encargado,
+                                         modificado_por=self.encargado)
+        ParadaRuta.objects.bulk_create([ParadaRuta(orden=orden, intento=i, posicion=n) for n, i in enumerate((a, c, b), 1)])
+        con = ruta_del_dia(self.encargado)
+        from django.core.cache import cache
+        cache.clear()  # si no, la matriz guardada unos minutos todavía serviría
+        self.osrm.modo = "error500"
+        sin = ruta_del_dia(self.encargado)
+        self.assertEqual(ids(con.paradas), ids(sin.paradas))
+        self.assertEqual(sin.modo, MANUAL)
+        self.assertEqual((con.distancia, sin.distancia), (CAMINO, RECTA))
+        self.assertIsNotNone(con.total_m)
+        self.assertIsNone(sin.total_m)
+
+    def test_la_matriz_se_guarda_en_cache_sin_la_posicion(self):
+        self.visita((0, 3)), self.visita((0, 1))
+        ruta_del_dia(self.encargado)
+        ruta_del_dia(self.encargado)
+        ruta_del_dia(self.encargado)
+        self.assertEqual(len(self.osrm.solicitudes), 1)
+        self.assertTrue(self.osrm.solicitudes[0].startswith("/table/v1/driving/"))
+        self.assertNotIn("sources=", self.osrm.solicitudes[0])

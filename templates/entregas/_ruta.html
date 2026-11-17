@@ -1,25 +1,31 @@
-{# Lista de la ruta del día (spec 09): la vista principal y accesible; el mapa la complementa. Espera `ruta` (consultas.RutaDelDia); `controles` agrega subir, bajar y mover (solo el encargado); `consulta` es «Rutas» de la Q.F., sin acciones. #}
+{# Lista de la ruta del día (spec 09): la vista principal y accesible; el mapa la complementa. Espera `ruta` (consultas.RutaDelDia); `controles` agrega las flechas y la franja de arrastre (solo el encargado); `consulta` es «Rutas» de la Q.F., sin acciones. Las tarjetas son compactas (enmienda del 2026-11-15, RF-09-16). #}
 {% include 'entregas/_ruta_rotulo.html' %}
-<p class="resumen-visitas">Recorrido aprox.: {{ ruta.total_km }} km · Por visitar ({{ ruta.paradas|length }}){% if ruta.es_hoy %} · Registradas hoy ({{ ruta.registradas|length }}){% endif %}</p>
+{% include 'entregas/_ruta_resumen.html' %}
 {% if ruta.limite_2opt_excedido %}<p class="suave">Con más de 200 paradas, el orden sugerido solo elige la parada más cercana en cada paso.</p>{% endif %}
 
-<section class="visitas" id="lista-paradas" aria-labelledby="titulo-por-visitar" tabindex="-1">
-  <h2 id="titulo-por-visitar">Por visitar en orden ({{ ruta.numeradas|length }})</h2>
+<section class="visitas" id="lista-paradas" aria-labelledby="titulo-por-visitar" tabindex="-1" data-ruta-lista>
+  <h2 id="titulo-por-visitar">Por visitar en orden (<span data-ruta-cantidad>{{ ruta.numeradas|length }}</span>)</h2>
+  {% if controles and ruta.paradas|length > 1 %}<p class="suave orden-ayuda">Cambia el orden con las flechas de cada tarjeta o arrastrando la franja de su borde derecho.</p>{% endif %}
+  <div class="visitas-lista" data-ruta-paradas>
   {% for parada in ruta.numeradas %}
-  {% include 'entregas/_tarjeta_intento.html' with intento=parada.intento registrable=ruta.es_hoy sin_acciones=consulta %}
+  {% include 'entregas/_tarjeta_intento.html' with intento=parada.intento registrable=ruta.es_hoy sin_acciones=consulta compacta=True %}
   {% empty %}
-  <p class="suave">{% if ruta.sin_coordenadas %}Ninguna visita tiene coordenadas: el orden no se puede calcular. Usa la dirección y las referencias.{% elif ruta.es_hoy %}No quedan visitas por hacer hoy.{% else %}No hay visitas programadas para esta fecha.{% endif %}</p>
+  <p class="suave" data-ruta-vacia>{% if ruta.sin_coordenadas %}Ninguna visita tiene coordenadas: el orden no se puede calcular. Usa la dirección y las referencias.{% elif ruta.es_hoy %}No quedan visitas por hacer hoy.{% else %}No hay visitas programadas para esta fecha.{% endif %}</p>
   {% endfor %}
+  </div>
 </section>
 
-{% if ruta.sin_coordenadas %}
-<section class="visitas" aria-labelledby="titulo-sin-coordenadas">
-  <h2 id="titulo-sin-coordenadas">Sin coordenadas: fuera del orden sugerido ({{ ruta.sin_coordenadas|length }})</h2>
-  <p class="suave">No entran al cálculo del recorrido ni tienen marcador en el mapa. Van agrupadas por sector y localidad{% if controles %}; puedes ubicarlas en tu orden con «Subir» o «Mover a la posición»{% endif %}.</p>
+{# Con controles, la sección existe aunque esté vacía (oculta) si hay visitas sin coordenadas en la ruta: así una que el encargado devuelve al final vuelve a ella sin recargar (corrección del 2026-11-16). #}
+{% if ruta.sin_coordenadas or controles and ruta.sin_marcador %}
+<section class="visitas" aria-labelledby="titulo-sin-coordenadas" data-ruta-sin-coordenadas{% if not ruta.sin_coordenadas %} hidden{% endif %}>
+  <h2 id="titulo-sin-coordenadas">Sin coordenadas: fuera del orden sugerido (<span data-ruta-sin-cantidad>{{ ruta.sin_coordenadas|length }}</span>)</h2>
+  <p class="suave">No entran al cálculo del recorrido ni tienen marcador en el mapa. Van agrupadas por sector y localidad{% if controles %}; puedes ubicarlas en tu orden con las flechas o arrastrándolas entre las paradas numeradas{% endif %}.</p>
+  <div class="visitas-lista" data-ruta-sin-lista>
   {% for parada in ruta.sin_coordenadas %}
-  {% ifchanged parada.intento.domicilio.sector parada.intento.domicilio.localidad %}<p class="grupo-sector">{% if parada.intento.domicilio.sector %}Sector {{ parada.intento.domicilio.get_sector_display }}{% else %}Sin sector{% endif %}{% if parada.intento.domicilio.localidad %} · {{ parada.intento.domicilio.localidad }}{% endif %}</p>{% endifchanged %}
-  {% include 'entregas/_tarjeta_intento.html' with intento=parada.intento registrable=ruta.es_hoy sin_acciones=consulta %}
+  {% ifchanged parada.intento.domicilio.sector parada.intento.domicilio.localidad %}<p class="grupo-sector" data-grupo-sector>{% include 'entregas/_grupo_sector.html' with domicilio=parada.intento.domicilio %}</p>{% endifchanged %}
+  {% include 'entregas/_tarjeta_intento.html' with intento=parada.intento registrable=ruta.es_hoy sin_acciones=consulta compacta=True %}
   {% endfor %}
+  </div>
 </section>
 {% endif %}
 

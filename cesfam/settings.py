@@ -173,6 +173,20 @@ MAPA_TESELAS_URL = os.getenv("MAPA_TESELAS_URL", "").strip() or "https://tile.op
 MAPA_TESELAS_ATRIBUCION = os.getenv("MAPA_TESELAS_ATRIBUCION", "").strip() or "© colaboradores de OpenStreetMap"
 MAPA_ZOOM_MAXIMO = _numero_entorno("MAPA_ZOOM_MAXIMO", 19, int)
 
+# Servidor de rutas propio (spec 09, enmienda del 2026-11-15). Solo Django lo consulta, por la red interna; nunca
+# se expone a internet ni lo conoce el navegador. Sin la variable: el OSRM local en 127.0.0.1:5000. Con la
+# variable vacía: servicio desactivado y orden en línea recta como respaldo. Tiempo de espera entre 0,2 y 2 s.
+def _osrm_url_entorno():
+    """Sin la variable, el OSRM local; con la variable vacía, "" (servicio desactivado)."""
+    return os.getenv("OSRM_URL", "http://127.0.0.1:5000").strip()
+
+
+OSRM_URL = _osrm_url_entorno()
+OSRM_TIEMPO_ESPERA = _numero_entorno("OSRM_TIEMPO_ESPERA", 1.0)
+
+# Las pruebas no dependen de un OSRM real: este ejecutor lo desactiva y cada prueba lo simula (coreapp).
+TEST_RUNNER = "coreapp.ejecutor_pruebas.EjecutorPruebas"
+
 # En desarrollo no se envía correo real; fuera de él se usa SMTP.
 EMAIL_BACKEND = (
     "django.core.mail.backends.console.EmailBackend"

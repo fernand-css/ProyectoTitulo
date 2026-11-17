@@ -32,7 +32,7 @@ ENTREGAS_FARMACIA = ("indice", "programacion", "programar", "pendientes", "detal
                      "rutas")
 # Pantallas del encargado bajo «Mis entregas»: lista, registro y, desde el 09, mapa, guía y orden de visita.
 MIS_ENTREGAS = ("mis", "registro", "intento_entregada", "intento_no_entregada", "detalle", "mapa", "ir_a", "orden_mover",
-                "orden_sugerido")
+                "orden_sugerido", "tramo", "cercana")
 
 
 def _en(app, *nombres, prefijos=()):

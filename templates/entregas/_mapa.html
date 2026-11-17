@@ -1,8 +1,23 @@
-{# Mapa de una ruta (spec 09, RF-09-08): Leaflet local y teselas configurables; los datos van en json_script, sin RUT. Complementa la lista, que sigue siendo la alternativa completa. Espera `ruta`, `datos_mapa`, `sin_marcador_texto` y `destino_saltar` (id de la lista). #}
+{# Mapa de una ruta (spec 09, RF-09-08; enmienda del 2026-11-15, RF-09-21, RF-09-22 y RF-09-24): Leaflet local y teselas configurables; los datos van en json_script, sin RUT. Sin línea del recorrido completo. Para el encargado (`guia`), «Mostrar mi posición» dibuja solo el tramo por camino y «Sugerir parada más cercana» destaca una parada; en «Rutas» (`consulta`) solo hay marcadores. Complementa la lista, que sigue siendo la alternativa completa. Espera `ruta`, `datos_mapa`, `sin_marcador_texto` y `destino_saltar` (id de la lista). #}
 <section class="mapa-seccion" aria-labelledby="titulo-mapa">
-  <h2 id="titulo-mapa">Mapa del recorrido</h2>
+  <h2 id="titulo-mapa">Mapa de las paradas</h2>
   <a class="enlace-secundario saltar-mapa" href="#{{ destino_saltar }}">Saltar el mapa e ir a la lista</a>
-  <p class="mapa-leyenda">Recorrido en línea recta; no sigue los caminos. Total aprox.: <strong>{{ ruta.total_km }} km</strong>.{% if ruta.sin_marcador %} <strong>{{ sin_marcador_texto }}</strong>: están en la lista.{% endif %}</p>
+  <p class="mapa-leyenda">{% if ruta.total_km and ruta.numeradas %}Recorrido aprox. por camino: <strong>{{ ruta.total_km }} km</strong>, desde la partida, por las paradas, hasta el CESFAM.{% elif not ruta.por_camino and not ruta.manual %}Sin total del recorrido: el servidor de rutas no respondió.{% endif %}{% if ruta.sin_marcador %} <strong>{{ sin_marcador_texto }}</strong>: están en la lista.{% endif %}</p>
+  {% if guia %}
+  <div class="panel guia guia-mapa" data-guia-mapa hidden>
+    {% csrf_token %}
+    <p class="suave">Tu posición solo se usa para calcular el tramo por camino en el momento: no se guarda. Necesita señal.</p>
+    <div class="acciones guia-botones">
+      <button class="boton" type="button" id="mapa-mostrar"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ubicacion"/></svg>Mostrar mi posición</button>
+      <button class="boton boton-secundario" type="button" id="mapa-cercana">Sugerir parada más cercana</button>
+      <button class="boton boton-secundario" type="button" id="mapa-detener" disabled>Detener</button>
+      <button class="boton" type="button" id="mapa-mover" hidden>Mover al siguiente lugar</button>
+    </div>
+    <p class="guia-estado" id="mapa-guia-estado">Pulsa «Mostrar mi posición» para ver el tramo por camino hasta tu próxima parada.</p>
+    <p class="sr-only" id="mapa-guia-anuncio" role="status" aria-live="polite"></p>
+  </div>
+  <noscript><p class="suave">El tramo por camino necesita JavaScript. Sigue el orden de la lista.</p></noscript>
+  {% endif %}
   <div class="mapa mapa-ruta" id="mapa-ruta" role="region" aria-label="Mapa de las paradas{% if ruta.es_hoy %} de hoy{% else %} del {{ ruta.fecha|date:'d/m/Y' }}{% endif %}" data-mapa="ruta" data-datos="datos-mapa" data-aviso="aviso-mapa-ruta"></div>
   <noscript><p class="suave">El mapa necesita JavaScript. La lista tiene toda la información.</p></noscript>
   <p class="mapa-aviso" id="aviso-mapa-ruta" role="status" aria-live="polite" hidden></p>
@@ -10,7 +25,8 @@
     <li><span class="simbolo simbolo-parada" aria-hidden="true">1</span>Parada por visitar, con el número de la lista</li>
     <li><span class="simbolo simbolo-registrada" aria-hidden="true">✓</span>Registrada hoy: ✓ entregada, ✗ no entregada</li>
     <li><span class="simbolo simbolo-cesfam" aria-hidden="true"><span>C</span></span>CESFAM: inicio y fin del recorrido</li>
-    <li><span class="simbolo simbolo-linea" aria-hidden="true"></span>Recorrido en línea recta (punteado)</li>
+    {% if guia %}<li><span class="simbolo simbolo-tramo" aria-hidden="true"></span>Tramo por camino desde tu posición (línea continua)</li>
+    <li><span class="simbolo simbolo-cercana" aria-hidden="true">4</span>Parada más cercana por camino (borde doble y aviso en texto)</li>{% endif %}
   </ul>
   {{ datos_mapa|json_script:"datos-mapa" }}
 </section>

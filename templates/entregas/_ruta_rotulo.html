@@ -1,5 +1,5 @@
-{# De dónde sale el orden de la ruta (spec 09). Espera `ruta` y, en «Rutas», `consulta`. #}
-<p class="ruta-rotulo">
-  <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-mapa"/></svg>
-  <span>{% if ruta.manual %}{% if consulta %}Orden guardado por el encargado a las {{ ruta.guardado_en|time:"H:i" }}{% else %}Tu orden de hoy, guardado a las {{ ruta.guardado_en|time:"H:i" }}{% endif %}. Las visitas que llegan después entran donde menos alargan el recorrido.{% else %}Orden sugerido desde {% if ruta.parte_del_origen %}el CESFAM{% else %}la última visita registrada{% endif %}, según distancia en línea recta; no considera caminos.{% endif %}</span>
+{# De dónde sale el orden de la ruta (spec 09; enmienda del 2026-11-15, RF-09-20: por camino, o en línea recta como respaldo rotulado). Espera `ruta` y, en «Rutas», `consulta`. #}
+<p class="ruta-rotulo{% if not ruta.por_camino %} ruta-rotulo-respaldo{% endif %}" id="ruta-rotulo" data-ruta-rotulo>
+  <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-{% if ruta.por_camino %}mapa{% else %}alerta{% endif %}"/></svg>
+  <span>{% if ruta.manual %}{% if consulta %}Orden guardado por el encargado a las {{ ruta.guardado_en|time:"H:i" }}{% else %}Tu orden de hoy, guardado a las {{ ruta.guardado_en|time:"H:i" }}{% endif %}. Las visitas que llegan después entran donde menos alargan el recorrido{% if ruta.por_camino %} por camino{% endif %}.{% if not ruta.por_camino %} Sin total del recorrido: el servidor de rutas no respondió.{% endif %}{% elif ruta.por_camino %}Orden sugerido según distancia por camino, desde {% if ruta.parte_del_origen %}el CESFAM{% else %}la última visita registrada{% endif %}.{% else %}Orden aproximado en línea recta: el servidor de rutas no respondió.{% endif %}</span>
 </p>

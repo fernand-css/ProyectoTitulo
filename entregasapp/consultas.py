@@ -16,6 +16,7 @@ from django.utils import timezone
 from coreapp.roles import ENCARGADO
 from coreapp.utils.rut import normalizar_rut
 from recetasapp.models import Paciente
+from . import osrm
 from .models import Domicilio, Entrega, InscripcionReparto, IntentoEntrega, OrdenRuta, RecetaEntrega
 from .ruta import Punto, formatear_km, insertar, longitud_m, ordenar
 
@@ -328,6 +329,8 @@ def no_descontadas():
 
 SUGERIDO = "sugerido"
 MANUAL = "manual"
+CAMINO = "camino"  # distancias de la matriz de OSRM (RF-09-20)
+RECTA = "recta"    # respaldo en línea recta: OSRM no respondió o está desactivado; sin total
 REGISTRADOS = (IntentoEntrega.Resultado.ENTREGADA, IntentoEntrega.Resultado.NO_ENTREGADA)
 
 
@@ -369,9 +372,10 @@ class RutaDelDia:
     paradas: list                # Parada en orden; en el modo sugerido, las sin coordenadas van al final sin número
     registradas: list            # intentos registrados hoy (solo si la fecha es hoy)
     proximas: list               # intentos de fechas posteriores (solo para el encargado)
-    total_m: float               # partida → paradas con coordenadas → CESFAM, en línea recta
+    total_m: object              # partida → paradas con coordenadas → CESFAM, por camino; None en el respaldo
     segundos_calculo: float
     limite_2opt_excedido: bool
+    distancia: str = CAMINO      # CAMINO (matriz de OSRM) o RECTA (respaldo rotulado, sin total)
 
     @property
     def es_hoy(self):
@@ -387,7 +391,8 @@ class RutaDelDia:
 
     @property
     def sin_coordenadas(self):
-        """En el orden sugerido: visitas sin coordenadas, fuera del cálculo, ya ordenadas por sector y localidad."""
+        """Visitas sin coordenadas fuera del cálculo, al final: en el orden sugerido, ordenadas por sector y
+        localidad; en el manual, las que siguen después de la última con coordenadas, en el orden guardado."""
         return [parada for parada in self.paradas if not parada.numerada]
 
     @property
@@ -400,10 +405,24 @@ class RutaDelDia:
 
     @property
     def total_km(self):
-        return formatear_km(self.total_m)
+        return None if self.total_m is None else formatear_km(self.total_m)
+
+    @property
+    def por_camino(self):
+        return self.distancia == CAMINO
 
     def parada_de(self, intento_id):
         return next((parada for parada in self.paradas if parada.intento.pk == intento_id), None)
+
+    def parada_con_punto(self, intento_id):
+        """La parada de la ruta con ese intento y coordenadas, o None: destino válido de un tramo (RF-09-21)."""
+        parada = self.parada_de(intento_id)
+        return parada if parada is not None and parada.punto is not None else None
+
+    @property
+    def proxima_con_punto(self):
+        """La primera parada de la lista con coordenadas: el destino por defecto del tramo."""
+        return next((parada for parada in self.paradas if parada.punto is not None), None)
 
 
 def _inicio_y_fin(dia):
@@ -451,7 +470,25 @@ def orden_guardado(encargado, fecha):
     return orden, list(orden.paradas.order_by("posicion").values_list("intento_id", flat=True))
 
 
-def _aplicar_orden_guardado(guardados, vigentes, partida, origen, hoy):
+def distancia_por_camino(puntos):
+    """Función `distancia(a, b)` sobre la matriz de OSRM entre `puntos` (partida, domicilios y CESFAM), o None
+    si OSRM no está disponible. La matriz solo tiene domicilios y el CESFAM, así que se guarda unos minutos en la
+    caché (RF-09-20); la posición del encargado nunca pasa por aquí."""
+    unicos, indice = [], {}
+    for punto in puntos:
+        if punto.clave not in indice:
+            indice[punto.clave] = len(unicos)
+            unicos.append(punto)
+    if len(unicos) < 2:
+        return None
+    try:
+        matriz = osrm.tabla(unicos, cachear=True)
+    except osrm.OsrmNoDisponible:
+        return None
+    return lambda a, b: matriz[indice[a.clave]][indice[b.clave]]
+
+
+def _aplicar_orden_guardado(guardados, vigentes, partida, origen, hoy, puntos, distancia):
     """Cruza el orden guardado con la ruta vigente e inserta las visitas nuevas (RF-09-05).
 
     Las guardadas que ya no están en la ruta (registradas, reasignadas o anuladas) desaparecen. Cada nueva con
@@ -460,21 +497,25 @@ def _aplicar_orden_guardado(guardados, vigentes, partida, origen, hoy):
     secuencia = [(intento_id, False) for intento_id in guardados if intento_id in vigentes]
     presentes = {intento_id for intento_id, _ in secuencia}
     nuevas = [vigentes[pk] for pk in sorted(vigentes) if pk not in presentes]
-    puntos = {pk: punto_de(intento) for pk, intento in vigentes.items()}
     for intento in nuevas:
         punto = puntos[intento.pk]
         if punto is None:
             continue
         con_coordenadas = [indice for indice, (pk, _) in enumerate(secuencia) if puntos[pk] is not None]
-        lugar = insertar([puntos[secuencia[indice][0]] for indice in con_coordenadas], partida, origen, punto)
+        lugar = insertar([puntos[secuencia[indice][0]] for indice in con_coordenadas], partida, origen, punto,
+                         distancia)
         if lugar < len(con_coordenadas):
             posicion = con_coordenadas[lugar]
         else:
             posicion = con_coordenadas[-1] + 1 if con_coordenadas else len(secuencia)
         secuencia.insert(posicion, (intento.pk, True))
     secuencia += [(intento.pk, True) for intento in nuevas if puntos[intento.pk] is None]
+    # Las visitas sin coordenadas que quedan después de la última con coordenadas siguen en su sección, sin número
+    # (corrección del 2026-11-16): solo pasa a numerada la que el encargado ubica entre las demás.
+    ultima = max((indice for indice, (pk, _) in enumerate(secuencia) if puntos[pk] is not None), default=-1)
     return [
-        Parada(numero, vigentes[pk], puntos[pk], vigentes[pk].fecha_programada < hoy, nueva=nueva)
+        Parada(numero, vigentes[pk], puntos[pk], vigentes[pk].fecha_programada < hoy, nueva=nueva,
+               numerada=puntos[pk] is not None or numero - 1 < ultima)
         for numero, (pk, nueva) in enumerate(secuencia, start=1)
     ]
 
@@ -484,6 +525,10 @@ def ruta_del_dia(encargado, fecha=None, hoy=None, *, incluir_proximas=False):
 
     Hoy: visitas sin resultado de hoy y atrasadas, partida desde la última visita registrada y orden guardado si
     existe. Fecha posterior (consulta de la Q.F.): solo las de esa fecha, sugeridas desde el CESFAM.
+
+    Desde la enmienda (RF-09-20), el orden, las «Nuevas» y el total usan la distancia por camino de OSRM. Si OSRM
+    no está disponible, el orden se calcula en línea recta (`distancia = RECTA`) y no hay total; un orden guardado
+    no cambia, solo dónde se insertan las «Nuevas».
     """
     hoy = hoy or timezone.localdate()
     fecha = fecha or hoy
@@ -502,25 +547,33 @@ def ruta_del_dia(encargado, fecha=None, hoy=None, *, incluir_proximas=False):
         registradas = registradas_hoy(encargado, hoy)
         partida, partida_intento = partida_del_dia(encargado, hoy, registradas)
         orden, guardados = orden_guardado(encargado, hoy)
+    puntos = {pk: punto_de(intento) for pk, intento in vigentes.items()}
+    con_punto = [punto for punto in puntos.values() if punto is not None]
+    distancia = distancia_por_camino([partida, *con_punto, origen]) if con_punto else None
     inicio = reloj.perf_counter()
     excedido = False
     if guardados:
         modo = MANUAL
-        paradas = _aplicar_orden_guardado(guardados, vigentes, partida, origen, hoy)
+        paradas = _aplicar_orden_guardado(guardados, vigentes, partida, origen, hoy, puntos, distancia)
     else:
         modo = SUGERIDO
-        puntos = {pk: punto_de(intento) for pk, intento in vigentes.items()}
-        sugerido = ordenar(partida, origen, [punto for punto in puntos.values() if punto is not None])
+        sugerido = ordenar(partida, origen, con_punto, distancia=distancia)
         excedido = sugerido.limite_excedido
         paradas = [Parada(numero, vigentes[punto.clave], punto, vigentes[punto.clave].fecha_programada < hoy)
                    for numero, punto in enumerate(sugerido.paradas, start=1)]
         sin = sorted((intento for pk, intento in vigentes.items() if puntos[pk] is None), key=_clave_sin_coordenadas)
         paradas += [Parada(numero, intento, None, intento.fecha_programada < hoy, numerada=False)
                     for numero, intento in enumerate(sin, start=len(paradas) + 1)]
-    total = longitud_m([partida, *[parada.punto for parada in paradas if parada.punto is not None], origen])
+    if distancia is not None:
+        total = longitud_m([partida, *[parada.punto for parada in paradas if parada.punto is not None], origen], distancia)
+    elif not con_punto and partida == origen:
+        total = 0.0  # sin paradas con coordenadas no hay nada que preguntar a OSRM
+    else:
+        total = None
     return RutaDelDia(
         fecha=fecha, hoy=hoy, modo=modo, version=orden.version if orden else 0,
         guardado_en=orden.modificado_en if guardados else None, origen=origen, partida=partida,
         partida_intento=partida_intento, paradas=paradas, registradas=registradas, proximas=proximas,
         total_m=total, segundos_calculo=reloj.perf_counter() - inicio, limite_2opt_excedido=excedido,
+        distancia=CAMINO if distancia is not None or total == 0.0 else RECTA,
     )

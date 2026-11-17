@@ -40,7 +40,9 @@ class OrdenManualTests(TestCase):
         self.assertEqual(ruta.modo, MANUAL)
         self.assertEqual(ids(ruta), [self.c.pk, self.b.pk, self.a.pk, self.d.pk])
         self.assertEqual((ruta.version, orden.version), (1, 1))
-        self.assertTrue(all(p.numerada for p in ruta.paradas))
+        # Corrección del 2026-11-16: D, sin coordenadas y al final, sigue en su sección sin número.
+        self.assertEqual([p.numerada for p in ruta.paradas], [True, True, True, False])
+        self.assertEqual([p.intento.pk for p in ruta.sin_coordenadas], [self.d.pk])
         self.assertEqual(list(ParadaRuta.objects.filter(orden=orden).values_list("posicion", flat=True)), [1, 2, 3, 4])
         registrar_entregada(self.encargado, self.c.pk, uuid.uuid4())
         self.assertEqual(ids(self.ruta()), [self.b.pk, self.a.pk, self.d.pk])  # sin recálculo desde C
@@ -54,6 +56,12 @@ class OrdenManualTests(TestCase):
         ruta = self.ruta()
         self.assertEqual(ids(ruta), [self.b.pk, self.a.pk, self.d.pk, self.c.pk])
         self.assertEqual(ruta.version, 3)
+        # D quedó entre visitas con coordenadas: pasa a la lista numerada.
+        self.assertTrue(all(p.numerada for p in ruta.paradas))
+        self.mover(self.c, 3)
+        ruta = self.ruta()
+        self.assertEqual(ids(ruta), [self.b.pk, self.a.pk, self.c.pk, self.d.pk])
+        self.assertEqual([p.numerada for p in ruta.paradas], [True, True, True, False])  # vuelve a su sección
 
     def test_mover_una_visita_sin_coordenadas_a_la_posicion_1(self):
         self.mover(self.d, "1")

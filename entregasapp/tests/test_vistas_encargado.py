@@ -45,7 +45,8 @@ class MisEntregasVistaTests(TestCase):
                       atrasado.apellidos, manana.apellidos, "Próximas (1)",
                       # Spec 09 (RF-09-01 y RF-09-03): hoy y atrasadas forman una sola ruta numerada; la atrasada no
                       # tiene domicilio, así que va aparte, sin número.
-                      "Por visitar (2)", "Parada 1", "Sin coordenadas: fuera del orden sugerido (1)"):
+                      "Por visitar (2)", "Parada 1",
+                      "Sin coordenadas: fuera del orden sugerido (<span data-ruta-sin-cantidad>1</span>)"):
             with self.subTest(texto=texto):
                 self.assertIn(texto, html)
         self.assertNotIn(ajeno.apellidos, html)

@@ -63,8 +63,10 @@ Las variables del proceso prevalecen sobre `.env`.
 | `MAPA_TESELAS_URL` | Mapa base: `https://tile.openstreetmap.org/{z}/{x}/{y}.png`. Debe usar `https://` e incluir `{z}`, `{x}` e `{y}`. |
 | `MAPA_TESELAS_ATRIBUCION` | Texto de la atribución visible: `© colaboradores de OpenStreetMap`. |
 | `MAPA_ZOOM_MAXIMO` | Zoom máximo del proveedor, entre 1 y 22: `19`. |
+| `OSRM_URL` | Servidor de rutas propio (enmienda del 09). Sin la variable: `http://127.0.0.1:5000`. Vacía (`OSRM_URL=`): servicio desactivado y orden en línea recta, rotulado. Debe ser `http://` o `https://` con host, sin consulta ni fragmento. |
+| `OSRM_TIEMPO_ESPERA` | Segundos de espera por consulta a OSRM, entre `0.2` y `2.0`: `1.0`. |
 
-Los booleanos aceptan `true/false`, `1/0`, `yes/no` y `on/off`, sin distinguir mayúsculas. Valores desconocidos producen un error claro. Un origen fuera de rango, una URL de teselas sin `{z}`, `{x}` o `{y}` o un zoom fuera de rango hacen que `python manage.py check` informe `entregasapp.E001`, `E002` o `E003`. Con `DEBUG=False` las cookies de sesión y CSRF usan `Secure`. HTTPS y el servicio de estáticos en producción corresponden al despliegue, fuera del spec 01.
+Los booleanos aceptan `true/false`, `1/0`, `yes/no` y `on/off`, sin distinguir mayúsculas. Valores desconocidos producen un error claro. Un origen fuera de rango, una URL de teselas sin `{z}`, `{x}` o `{y}` o un zoom fuera de rango hacen que `python manage.py check` informe `entregasapp.E001`, `E002` o `E003`; una dirección de OSRM no válida, `E004`, y un tiempo de espera fuera de rango, `E005` (`check` no comprueba que OSRM responda). Con `DEBUG=False` las cookies de sesión y CSRF usan `Secure`. HTTPS y el servicio de estáticos en producción corresponden al despliegue, fuera del spec 01.
 
 ## Pruebas
 
@@ -269,13 +271,16 @@ Verificación aislada: `python tools/verificar_spec_08_http.py` crea y elimina u
 
 ## Mapa y orden de visita (spec 09)
 
-El encargado de terreno ve en **Mis entregas** sus visitas de hoy y las atrasadas numeradas en un **orden sugerido**: distancia en línea recta (haversine), vecino más cercano y mejora 2-opt, saliendo del CESFAM y volviendo a él. Después de cada visita registrada, el orden se recalcula desde ese domicilio. Las visitas sin coordenadas van al final, rotuladas; «Registradas hoy» y «Próximas» van aparte. El orden **no considera caminos**: la lista y el mapa lo dicen.
+El encargado de terreno ve en **Mis entregas** sus visitas de hoy y las atrasadas numeradas en un **orden sugerido por camino** (enmienda del 2026-11-15): Django pide a su propio OSRM la matriz de distancias entre la partida, las paradas con coordenadas y el CESFAM, y la ordena con vecino más cercano y mejora 2-opt (adaptada a distancias distintas de ida y de vuelta), saliendo del CESFAM y volviendo a él. Después de cada visita registrada, el orden se recalcula desde ese domicilio. La lista dice «Recorrido aprox. por camino: 23,4 km». Si OSRM no responde, el orden se calcula en línea recta, se rotula «Orden aproximado en línea recta: el servidor de rutas no respondió» y no hay total. Las visitas sin coordenadas van al final, rotuladas; «Registradas hoy» y «Próximas» van aparte.
 
-- **Orden propio:** «Subir», «Bajar» y «Mover a la posición» guardan el orden del día; desde ahí manda ese orden. Una visita que llega después entra donde menos alarga el recorrido, rotulada «Nueva». «Volver al orden sugerido» lo descarta. Al día siguiente vuelve la sugerencia. Si dos dispositivos guardan a la vez, el segundo recibe «Tu orden cambió en otro dispositivo; revisa la lista.».
-- **Mapa:** pestaña **Mapa** con marcadores numerados (los mismos números de la lista), las visitas registradas hoy, el CESFAM y la línea punteada del recorrido con su total aproximado en km. Si el mapa base no carga, los puntos siguen y un texto lo avisa.
-- **Ir a esta parada:** con «Mostrar mi posición», el navegador sigue la ubicación hasta «Detener» y muestra la distancia en línea recta y la dirección. La posición **nunca se envía al servidor**. Exige HTTPS o `localhost`; sin eso, ofrece el enlace «Abrir en app de navegación» (`geo:`) y las coordenadas.
-- **Rutas (Q.F. y superusuario):** en **Entregas › Rutas**, eligen un encargado y una fecha (hoy o posterior) y ven su lista y su mapa, solo para consultar. El Técnico no la ve.
-- **Domicilio:** si tiene coordenadas, su página muestra un mapa pequeño de solo lectura.
+- **Tarjetas compactas:** número de parada, rótulos («Atrasada», «Nueva», «Sin coordenadas»), nombre, dirección y los botones «Entregar», «No entregada» y «Expandir». Al expandir aparecen el teléfono, las referencias, las recetas, las fotos, un mapa pequeño (se carga recién ahí), «Ir a esta parada» y «Detalles del domicilio». Sin JavaScript se ven expandidas.
+- **Orden propio:** las flechas de la esquina de cada tarjeta, o la franja de su borde derecho (arrastrar; en el celular, mantener presionada unos 300 ms), guardan el orden del día; desde ahí manda ese orden. Sin JavaScript las flechas funcionan con recarga. Una visita que llega después entra donde menos alarga el recorrido por camino, rotulada «Nueva». «Volver al orden sugerido» lo descarta. Al día siguiente vuelve la sugerencia. Si dos dispositivos guardan a la vez, el segundo recibe «Tu orden cambió en otro dispositivo; revisa la lista.».
+- **Mapa:** pestaña **Mapa** con marcadores numerados (los mismos números de la lista), las visitas registradas hoy y el CESFAM, sin línea del recorrido completo. «Mostrar mi posición» sigue la ubicación y dibuja solo el **tramo por camino** hasta la próxima parada o la que se elija con «Trazar tramo hasta aquí»; se recalcula al moverse más de 150 m con al menos 20 s (30 m y 10 s cerca de la parada). «Sugerir parada más cercana» la destaca, solo por camino, y ofrece «Mover al siguiente lugar». Si el mapa base no carga, los puntos siguen y un texto lo avisa.
+- **Ir a esta parada:** la misma guía para una parada: tramo y distancia por camino, aviso al quedar a menos de 100 m, «Detener». Sin OSRM, sin permiso o sin HTTPS, ofrece el enlace «Abrir en app de navegación» (`geo:`) y las coordenadas.
+- **Rutas (Q.F. y superusuario):** en **Entregas › Rutas**, eligen un encargado y una fecha (hoy o posterior) y ven sus tarjetas compactas y un mapa solo con marcadores, para consultar. Nunca ven la posición del encargado. El Técnico no la ve.
+- **Domicilio:** si tiene coordenadas, su página muestra un mapa pequeño de solo lectura. En el formulario, **«Usar mapa»** abre un diálogo para marcar el punto (clic, toque o «Marcar el centro del mapa» con teclado) y lo copia con 6 decimales; guardar deja el domicilio pendiente de verificar.
+
+**Posición del encargado.** Para el tramo y la parada más cercana, el navegador envía la posición a Django por POST (con CSRF, sesión de encargado y un límite de 30 solicitudes por minuto). Django la usa solo en esa solicitud para consultar a OSRM: no la guarda en la base, la sesión, la caché ni la auditoría, ni la escribe en sus registros. El navegador nunca conoce la dirección de OSRM.
 
 **Cartografía y privacidad.** Leaflet 1.9.4 se sirve desde `static/vendor/leaflet/` con su licencia BSD-2-Clause, sin CDN. Las teselas del mapa base las pide el navegador a OpenStreetMap (o al proveedor de `MAPA_TESELAS_URL`) con un referente reducido al origen del sitio. El proveedor ve la dirección IP del equipo y el área visible del mapa, pero nunca recibe nombres, direcciones ni coordenadas de pacientes. La política de uso de OpenStreetMap exige la atribución visible y prohíbe la descarga masiva. Para una implementación real, el DESAMU elige el proveedor o teselas propias.
 
@@ -288,7 +293,46 @@ python manage.py generar_domicilios_demo --aplicar --cuenta <usuario Q.F.> --sem
 
 Las entregas de la demostración se programan después en **Entregas › Programación**. En la base de demostración elegida, aplicar `python manage.py migrate` antes de usar el módulo: `entregasapp/0002_ordenruta` agrega el orden guardado. Revertirla solo borra los órdenes manuales. La implementación solo aplicó migraciones en bases temporales y de pruebas.
 
-Verificación aislada: `python tools/verificar_spec_09_http.py` crea y elimina una SQLite temporal con 670 pacientes sintéticos, 660 domicilios generados y 10 sin coordenadas, y cuatro encargados con 50 visitas cada uno. Mide «Mis entregas», «Mapa», «Ir a esta parada», «Rutas», mover y volver al orden sugerido, y aparte el cálculo con 200 paradas. [Evidencia y límites](specs/09-mapa-y-orden-de-visita/validation.md): navegador, axe, teselas y ubicación reales, usabilidad con cinco personas y aceptación funcional siguen pendientes.
+Verificación aislada: `python tools/verificar_spec_09_http.py` crea y elimina una SQLite temporal con 670 pacientes sintéticos, 660 domicilios generados y 10 sin coordenadas, y cuatro encargados con 50 visitas cada uno, con un OSRM simulado. Mide «Mis entregas», «Mapa», «Ir a esta parada», «Rutas», el tramo, la parada más cercana, mover y volver al orden sugerido, y aparte el cálculo con 200 paradas. Con `--osrm-real` mide además la matriz de 52 y 202 puntos y un tramo contra el OSRM local. [Evidencia y límites](specs/09-mapa-y-orden-de-visita/validation.md): navegador, axe, teselas y ubicación reales, arrastre en un celular, usabilidad con cinco personas y aceptación funcional siguen pendientes.
+
+### Servidor de rutas (OSRM)
+
+El prototipo usa un OSRM propio (imagen oficial `ghcr.io/project-osrm/osrm-backend`, perfil de auto y algoritmo MLD) con el mapa de Chile de Geofabrik recortado a Ñuble. Solo Django lo consulta, por la red interna; en local escucha únicamente en `127.0.0.1:5000` y en el despliegue no se expone a internet. Las pruebas de Django no lo necesitan: el ejecutor de pruebas lo desactiva y cada prueba usa un OSRM simulado.
+
+Preparación (una vez, fuera de OneDrive, por ejemplo en `C:\osrm`):
+
+1. Descargar el extracto de Chile de Geofabrik (`chile-latest.osm.pbf`) en `C:\osrm`.
+2. Recortarlo a Ñuble con osmium (en WSL Ubuntu, `sudo apt install osmium-tool`):
+
+   ```bash
+   osmium extract -b -73.0,-37.3,-70.9,-35.9 /mnt/c/osrm/chile-latest.osm.pbf -o /mnt/c/osrm/nuble.osm.pbf --overwrite
+   ```
+
+3. Procesarlo con el perfil de auto y MLD (los tres pasos):
+
+   ```powershell
+   docker run --rm -t -v C:\osrm:/data ghcr.io/project-osrm/osrm-backend osrm-extract -p /opt/car.lua /data/nuble.osm.pbf
+   docker run --rm -t -v C:\osrm:/data ghcr.io/project-osrm/osrm-backend osrm-partition /data/nuble.osrm
+   docker run --rm -t -v C:\osrm:/data ghcr.io/project-osrm/osrm-backend osrm-customize /data/nuble.osrm
+   ```
+
+4. Levantar el contenedor solo en `127.0.0.1`, con matrices de hasta 300 puntos (200 paradas, la partida y el CESFAM) y **sin registrar solicitudes** (`--verbosity WARNING`: con el nivel por defecto, cada línea del registro llevaría la URL con coordenadas):
+
+   ```powershell
+   docker run -d --name osrm --restart unless-stopped -p 127.0.0.1:5000:5000 -v C:\osrm:/data ghcr.io/project-osrm/osrm-backend osrm-routed --algorithm mld --max-table-size 300 --verbosity WARNING /data/nuble
+   ```
+
+Consulta de prueba (del CESFAM a un punto sintético; las coordenadas van como `longitud,latitud`):
+
+```powershell
+curl "http://127.0.0.1:5000/route/v1/driving/-72.2123601,-36.4988773;-72.20,-36.51?overview=false"
+```
+
+Debe responder `"code":"Ok"` con la distancia en metros, y `docker logs osrm` no debe mostrar la solicitud.
+
+Si OSRM se cae, Django lo da por no disponible durante 30 segundos tras la primera falla (sin volver a esperarlo en cada página) y usa la línea recta rotulada; pasado ese plazo vuelve a consultarlo solo.
+
+**Actualizar el mapa** (a mano; no hay actualización automática): descargar un extracto nuevo, repetir los pasos 2 y 3 y reiniciar el contenedor con `docker restart osrm`. Si OpenStreetMap no tiene un camino rural, OSRM ajusta el punto al camino conocido más cercano y la distancia puede engañar: por eso la lista dice «aprox.» y el encargado puede ajustar su orden. Para una implementación real, el DESAMU decide con su unidad TIC dónde corre OSRM y cómo se mantiene el mapa al día.
 
 ## Recursos de Alpine.js
 

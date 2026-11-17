@@ -5,17 +5,22 @@ encargado, y otra vez en `entregasapp.services`. Ocultar un botón nunca es el c
 llevan `Cache-Control: no-store` y las URL solo contienen identificadores internos (nunca RUT ni nombres).
 """
 
+import json
+import math
+import time
 import uuid
 from datetime import date
 
 from django.contrib import messages
 from django.contrib.auth import get_user_model
 from django.core import signing
+from django.core.cache import cache
 from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.paginator import Paginator
 from django.db import DatabaseError
 from django.http import FileResponse, Http404, JsonResponse
 from django.shortcuts import get_object_or_404, redirect, render
+from django.template.loader import render_to_string
 from django.urls import reverse
 from django.utils import timezone
 from django.utils.decorators import method_decorator
@@ -27,7 +32,8 @@ from coreapp.mixins import RolRequeridoMixin, tiene_rol
 from coreapp.roles import ENCARGADO, JEFA, TECNICO
 from recetasapp.models import Paciente
 from recetasapp.services import evaluar_elegibilidad
-from . import consultas, fotos, mapa, services
+from . import consultas, fotos, mapa, osrm, services
+from .ruta import Punto, formatear_distancia
 from .forms import (
     AnularForm, BusquedaForm, DomicilioForm, EntregadaForm, ExcepcionForm, FiltroDomiciliosForm, FiltroEntregasForm,
     FiltroProgramarForm, FotosForm, MoverParadaForm, NoEntregadaForm, ProgramarForm, ProgramarVariosForm, ReasignarForm,
@@ -539,6 +545,7 @@ class MisEntregasView(SoloEncargadoView):
         return self.render("mis_entregas.html", {
             **_contexto_ruta(ruta), "hoy": hoy, "pestanas": self.pestanas("mis"), "controles": True,
             "restablecer": RestablecerOrdenForm(initial={"version": ruta.version, "operacion_id": uuid.uuid4()}),
+            "teselas": mapa.teselas(),
         })
 
 
@@ -575,23 +582,168 @@ class IrAView(SoloEncargadoView):
         })
 
 
+def _quiere_json(request):
+    return "application/json" in request.headers.get("Accept", "")
+
+
+def _json_sin_cache(datos, status=200):
+    respuesta = JsonResponse(datos, status=status)
+    respuesta["Cache-Control"] = "no-store, private"
+    return respuesta
+
+
+def _orden_en_json(request, mensaje):
+    """Estado del orden tras guardarlo (RF-09-17): la secuencia que manda el servidor, la versión nueva, el rótulo
+    y el total, para que orden.js reordene la lista sin recargar. Sin datos personales en la secuencia."""
+    hoy = timezone.localdate()
+    ruta = consultas.ruta_del_dia(request.user, hoy=hoy)
+    contexto = {"ruta": ruta}
+    return _json_sin_cache({
+        "ok": True, "mensaje": mensaje, "version": ruta.version, "manual": ruta.manual,
+        "orden": [{"intento": parada.intento.pk, "numero": parada.numero, "numerada": parada.numerada}
+                  for parada in ruta.paradas],
+        "rotulo": render_to_string("entregas/_ruta_rotulo.html", contexto, request=request),
+        "resumen": render_to_string("entregas/_ruta_resumen.html", contexto, request=request),
+    })
+
+
 class MoverParadaView(SoloEncargadoView):
+    """Flechas y arrastre (RF-09-17). Sin JavaScript, POST y recarga; con `Accept: application/json`, responde
+    el orden nuevo en JSON. El servicio y sus garantías (versión, operación idempotente) son los mismos."""
+
     def post(self, request):
         form = MoverParadaForm(request.POST)
         destino = reverse("entregasapp:mis")
+        quiere_json = _quiere_json(request)
         if not form.is_valid():
-            messages.error(request, "No se pudo cambiar el orden. Vuelve a intentarlo desde la lista.")
+            texto = "No se pudo cambiar el orden. Vuelve a intentarlo desde la lista."
+            if quiere_json:
+                return _json_sin_cache({"ok": False, "error": texto}, status=400)
+            messages.error(request, texto)
             return redirect(destino)
         datos = form.cleaned_data
         try:
             services.mover_parada(request.user, datos["intento"], datos["destino"], datos["version"], datos["operacion_id"])
         except ValidationError as error:
-            messages.error(request, _mensaje(error))
+            texto, status = _mensaje(error), 409 if _mensaje(error) == services.MENSAJE_ORDEN_CAMBIO else 400
         except DatabaseError:
-            messages.error(request, "No pudimos guardar el orden. Inténtalo nuevamente.")
+            texto, status = "No pudimos guardar el orden. Inténtalo nuevamente.", 503
         else:
-            messages.success(request, "Orden guardado. Desde ahora manda tu orden de hoy.")
+            texto = "Orden guardado. Desde ahora manda tu orden de hoy."
+            if quiere_json:
+                return _orden_en_json(request, texto)
+            messages.success(request, texto)
+            return redirect(f"{destino}#parada-{datos['intento']}")
+        if quiere_json:
+            return _json_sin_cache({"ok": False, "error": texto}, status=status)
+        messages.error(request, texto)
         return redirect(f"{destino}#parada-{datos['intento']}")
+
+
+# Tramo por camino y parada más cercana (spec 09, enmienda del 2026-11-15, RF-09-19, RF-09-21 y RF-09-22) -------
+#
+# La posición del encargado llega por POST (JSON con X-CSRFToken) solo para la solicitud en curso: vive en variables
+# locales, nunca se guarda en la base, la sesión, la caché ni la auditoría, ni se escribe en registros ni en los
+# mensajes de error. El destino del tramo se lee siempre de la ruta de hoy en la base; del cuerpo solo se toma el
+# identificador de la visita. El límite de solicitudes cuenta por cuenta, nunca por posición.
+
+LIMITE_POSICION_POR_MINUTO = 30
+TEXTO_SIN_OSRM = "No se pudo calcular el tramo: el servidor de rutas no respondió. Sigue el orden de la lista."
+TEXTO_SIN_OSRM_CERCANA = ("No se pudo sugerir una parada: el servidor de rutas no respondió. "
+                          "La más cercana solo se mide por camino; sigue el orden de la lista.")
+TEXTO_POSICION_INVALIDA = "No recibimos una posición válida. Vuelve a pulsar «Mostrar mi posición»."
+TEXTO_LIMITE = "Pediste muchos cálculos seguidos. Espera un minuto y vuelve a intentarlo."
+
+
+class PosicionNoValida(ValueError):
+    pass
+
+
+def _leer_posicion(cuerpo):
+    """Punto con la posición del cuerpo JSON, o `PosicionNoValida` (sin repetir los valores recibidos)."""
+    try:
+        latitud, longitud = float(cuerpo["latitud"]), float(cuerpo["longitud"])
+    except (KeyError, TypeError, ValueError):
+        raise PosicionNoValida from None
+    if not (math.isfinite(latitud) and math.isfinite(longitud) and -90 <= latitud <= 90 and -180 <= longitud <= 180):
+        raise PosicionNoValida
+    return Punto("posicion", latitud, longitud)
+
+
+def _limite_superado(usuario):
+    """30 solicitudes por minuto por encargado, con un contador en la caché que solo lleva el id de la cuenta."""
+    clave = f"entregas:posicion:{usuario.pk}:{int(time.time() // 60)}"
+    cache.add(clave, 0, 90)
+    try:
+        return cache.incr(clave) > LIMITE_POSICION_POR_MINUTO
+    except ValueError:  # la clave venció entre add e incr
+        cache.set(clave, 1, 90)
+        return False
+
+
+class PosicionView(SoloEncargadoView):
+    """Base del tramo y la parada más cercana: solo el encargado (comprobación exacta), POST con CSRF y JSON."""
+
+    http_method_names = ["post"]
+
+    def handle_no_permission(self):
+        if self.request.user.is_authenticated:
+            return _json_sin_cache({"error": "Solo el encargado de terreno calcula tramos de su ruta."}, status=403)
+        return super().handle_no_permission()
+
+    def post(self, request):
+        if _limite_superado(request.user):
+            return _json_sin_cache({"error": TEXTO_LIMITE}, status=429)
+        try:
+            cuerpo = json.loads(request.body or b"{}")
+            if not isinstance(cuerpo, dict):
+                raise PosicionNoValida
+            posicion = _leer_posicion(cuerpo)
+        except (ValueError, UnicodeDecodeError):
+            return _json_sin_cache({"error": TEXTO_POSICION_INVALIDA}, status=400)
+        ruta = consultas.ruta_del_dia(request.user, hoy=timezone.localdate())
+        return self.responder(cuerpo, posicion, ruta)
+
+
+class TramoView(PosicionView):
+    """RF-09-21 y RF-09-23: tramo por camino desde la posición hasta una parada de la ruta de hoy."""
+
+    def responder(self, cuerpo, posicion, ruta):
+        try:
+            intento_id = int(cuerpo.get("intento"))
+        except (TypeError, ValueError):
+            return _json_sin_cache({"error": "Elige una parada de tu ruta de hoy."}, status=400)
+        parada = ruta.parada_con_punto(intento_id)
+        if parada is None:
+            return _json_sin_cache({"error": "Esa visita no está en tu ruta de hoy o no tiene coordenadas."}, status=404)
+        try:
+            tramo = osrm.tramo(posicion, parada.punto)
+        except osrm.OsrmNoDisponible:
+            return _json_sin_cache({"error": TEXTO_SIN_OSRM}, status=503)
+        return _json_sin_cache({
+            "intento": parada.intento.pk, "numero": parada.numero, "distancia_m": round(tramo.distancia_m),
+            "distancia_texto": formatear_distancia(tramo.distancia_m), "geometria": tramo.geometria,
+        })
+
+
+class ParadaCercanaView(PosicionView):
+    """RF-09-22: la parada con coordenadas más cercana por camino desde la posición. Sin OSRM no sugiere nada."""
+
+    def responder(self, cuerpo, posicion, ruta):
+        con_punto = [parada for parada in ruta.paradas if parada.punto is not None]
+        if not con_punto:
+            return _json_sin_cache({"error": "No hay paradas con coordenadas en tu ruta de hoy."}, status=404)
+        try:
+            fila = osrm.tabla([posicion, *[parada.punto for parada in con_punto]], origenes=[0])[0]
+        except osrm.OsrmNoDisponible:
+            return _json_sin_cache({"error": TEXTO_SIN_OSRM_CERCANA}, status=503)
+        distancia, elegida = min(((fila[i + 1], parada) for i, parada in enumerate(con_punto)),
+                                 key=lambda par: (par[0], par[1].intento.pk))
+        return _json_sin_cache({
+            "intento": elegida.intento.pk, "numero": elegida.numero, "distancia_m": round(distancia),
+            "distancia_texto": formatear_distancia(distancia),
+            "es_primera": ruta.paradas[0].intento.pk == elegida.intento.pk, "version": ruta.version,
+        })
 
 
 class RestablecerOrdenView(SoloEncargadoView):
@@ -625,7 +777,7 @@ class RutasView(EntregasView):
             encargado, fecha = form.cleaned_data["encargado"], form.cleaned_data["fecha"]
             ruta = _preparar_ruta(consultas.ruta_del_dia(encargado, fecha, hoy), hoy)
             contexto.update(_contexto_ruta(ruta), encargado=encargado, encargado_nombre=_nombre(encargado),
-                            datos_mapa=mapa.datos_mapa(ruta, consulta=True))
+                            datos_mapa=mapa.datos_mapa(ruta, consulta=True), teselas=mapa.teselas())
         return self.render("rutas.html", contexto, status=400 if filtrado and not form.is_valid() else 200)
 
 
@@ -740,6 +892,7 @@ class DomicilioView(EntregasView):
         }
         if contexto["puede_editar"]:
             contexto["form"] = form or DomicilioForm.desde_domicilio(domicilio, paciente)
+            contexto["datos_usar_mapa"] = mapa.datos_usar_mapa()  # RF-09-25: «Usar mapa», sin datos del paciente
         if domicilio is not None and puede_editar:  # RF-08-18: gestionan fotos el encargado, la Q.F. y el superusuario
             volver = reverse("entregasapp:domicilio", args=[paciente.pk]) + "#fotos"
             contexto["fotos_form"] = contexto_fotos(domicilio, contexto["fotos"], prefijo="domicilio", volver=volver)

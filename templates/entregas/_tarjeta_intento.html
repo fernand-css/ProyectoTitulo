@@ -1,48 +1,90 @@
 {% load core_tags l10n %}
-{# Tarjeta de una visita. Espera `intento` preparado por la vista, `registrable` (hoy o atrasada) y, en la página de registro, `sin_acciones`. Spec 09: si el intento trae `parada`, muestra su número y rótulos; `controles` agrega subir, bajar y mover (solo el encargado) y `consulta` es «Rutas» de la Q.F. #}
+{% comment %}
+Tarjeta de una visita. Espera `intento` preparado por la vista, `registrable` (hoy o atrasada) y, en la página de
+registro, `sin_acciones`. Spec 09: si el intento trae `parada`, muestra su número y rótulos; `controles` agrega las
+flechas y la franja de arrastre (solo el encargado, RF-09-17) y `consulta` es «Rutas» de la Q.F. (RF-09-24).
+`compacta` (enmienda del 2026-11-15, RF-09-16): número, rótulos, nombre, dirección y acciones a la vista; el resto
+se abre con «Expandir». Sin JavaScript el detalle se ve completo y el botón no aparece (tarjetas.js lo muestra).
+{% endcomment %}
 {% if intento %}
-{% with parada=intento.parada %}
-<article class="visita{% if intento.atrasada %} visita-atrasada{% endif %}{% if parada.nueva %} visita-nueva{% endif %}" id="parada-{{ intento.pk }}" aria-labelledby="visita-{{ intento.pk }}">
-  {% if parada %}
-  <p class="parada-rotulos">
-    {% if parada.numerada %}<span class="parada-numero">Parada {{ parada.numero }}</span>{% endif %}
-    {% if parada.nueva %}<span class="etiqueta-ruta etiqueta-nueva"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-mas"/></svg>Nueva: no estaba en {% if consulta %}el orden guardado{% else %}tu orden{% endif %}</span>{% endif %}
-    {% if parada.punto is None %}<span class="etiqueta-ruta etiqueta-sin-coordenadas"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-info"/></svg>Sin coordenadas</span>{% endif %}
-  </p>
-  {% endif %}
-  {% if intento.atrasada %}<p class="visita-aviso"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-alerta"/></svg>Atrasada desde el {{ intento.fecha_programada|date:"d/m" }}</p>{% endif %}
-  <h3 id="visita-{{ intento.pk }}">{{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</h3>
-  <dl class="visita-datos">
-    <div><dt>Teléfono</dt><dd>{% if intento.paciente.telefono %}<a href="tel:{{ intento.paciente.telefono|cut:' ' }}">{{ intento.paciente.telefono }}</a>{% else %}No registrado{% endif %}</dd></div>
-    {% if intento.domicilio %}
-    <div><dt>Sector y localidad</dt><dd>{% if intento.domicilio.sector %}Sector {{ intento.domicilio.get_sector_display }}{% else %}Sin sector{% endif %}{% if intento.domicilio.localidad %} · {{ intento.domicilio.localidad }}{% endif %}</dd></div>
-    <div><dt>Dirección</dt><dd>{{ intento.domicilio.direccion }}</dd></div>
-    {% if intento.domicilio.referencias %}<div><dt>Referencias</dt><dd>{{ intento.domicilio.referencias }}</dd></div>{% endif %}
-    {% if intento.domicilio.latitud is not None %}<div><dt>Coordenadas</dt><dd>{{ intento.domicilio.latitud|unlocalize }}, {{ intento.domicilio.longitud|unlocalize }}{% if intento.domicilio.precision_metros is not None %} (±{{ intento.domicilio.precision_metros }} m){% endif %}</dd></div>{% endif %}
-    {% else %}
-    <div><dt>Dirección del padrón</dt><dd>{{ intento.paciente.direccion|default:"No registrada" }}</dd></div>
-    {% endif %}
-    <div><dt>Domicilio</dt><dd>{% include 'entregas/_estado_domicilio.html' with estado=intento.domicilio_estado domicilio=intento.domicilio %}</dd></div>
-    <div><dt>Recetas</dt><dd><ul class="visita-recetas">{% for receta in intento.lista_recetas %}<li>{{ receta.codigo }} (entrega {{ receta.numero }} de {{ receta.maximo }})</li>{% endfor %}</ul></dd></div>
-  </dl>
-  {% if intento.fotos %}
-  <ul class="fotos-miniaturas" aria-label="Fotos del entorno">
-    {% for foto in intento.fotos %}<li>{% include 'entregas/_miniatura_foto.html' %}</li>{% endfor %}
-  </ul>
-  {% endif %}
-  <div class="acciones visita-acciones">
-    {% if sin_acciones %}
-    {% elif registrable %}
-    <a class="boton" href="{% url 'entregasapp:registro' intento.pk %}?resultado=entregada#registrar-entregada"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg>Entregada<span class="sr-only">: {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></a>
-    <a class="boton boton-secundario" href="{% url 'entregasapp:registro' intento.pk %}?resultado=no_entregada#registrar-no-entregada">No entregada<span class="sr-only">: {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></a>
-    {% else %}
-    <p class="suave">Programada para el {{ intento.fecha_programada|date:"d/m/Y" }}.{% if not consulta %} Podrás registrarla desde ese día.{% endif %}</p>
-    {% endif %}
-    {% if parada.punto and registrable and not sin_acciones and not consulta %}<a class="boton boton-secundario" href="{% url 'entregasapp:ir_a' intento.pk %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-brujula"/></svg>Ir a esta parada<span class="sr-only">: {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></a>{% endif %}
-    {% if intento.fotos_form and es_encargado and not consulta and not sin_acciones %}{% include 'entregas/_fotos_boton.html' with f=intento.fotos_form nombre=intento.paciente.nombres|add:" "|add:intento.paciente.apellidos %}{% endif %}
-    <a class="enlace-secundario" href="{% url 'entregasapp:domicilio' intento.paciente.pk %}">Detalles del domicilio<span class="sr-only"> de {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></a>
+{% with parada=intento.parada nombre=intento.paciente.nombres|add:" "|add:intento.paciente.apellidos %}
+<article class="visita{% if compacta %} visita-compacta{% endif %}{% if intento.atrasada %} visita-atrasada{% endif %}{% if parada.nueva %} visita-nueva{% endif %}{% if controles and parada %} visita-ordenable{% endif %}" id="parada-{{ intento.pk }}" aria-labelledby="visita-{{ intento.pk }}" data-intento="{{ intento.pk }}"{% if compacta %} data-compacta{% endif %}{% if controles and parada %} data-arrastrable data-grupo="{% include 'entregas/_grupo_sector.html' with domicilio=intento.domicilio %}"{% endif %}>
+  <div class="visita-cabecera">
+    <div class="visita-resumen">
+      {% if parada %}
+      <p class="parada-rotulos" data-rotulos>
+        {% if parada.numerada %}<span class="parada-numero" data-numero>Parada {{ parada.numero }}</span>{% endif %}
+        {% if parada.nueva %}<span class="etiqueta-ruta etiqueta-nueva" data-nueva><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-mas"/></svg>Nueva: no estaba en {% if consulta %}el orden guardado{% else %}tu orden{% endif %}</span>{% endif %}
+        {% if parada.punto is None %}<span class="etiqueta-ruta etiqueta-sin-coordenadas"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-info"/></svg>Sin coordenadas</span>{% endif %}
+      </p>
+      {% endif %}
+      {% if intento.atrasada %}<p class="visita-aviso"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-alerta"/></svg>Atrasada desde el {{ intento.fecha_programada|date:"d/m" }}</p>{% endif %}
+      <h3 id="visita-{{ intento.pk }}">{{ nombre }}</h3>
+      {% if compacta %}<p class="visita-direccion">{% if intento.domicilio %}{{ intento.domicilio.direccion }}{% else %}{{ intento.paciente.direccion|default:"Sin dirección registrada" }}{% endif %}</p>{% endif %}
+    </div>
+    {% if controles and parada %}{% include 'entregas/_orden_controles.html' %}{% endif %}
   </div>
-  {% if controles and parada %}{% include 'entregas/_orden_controles.html' %}{% endif %}
+
+  {% if compacta %}
+  <div class="acciones visita-acciones">
+    {% if consulta %}
+    {% elif registrable %}
+    <a class="boton" href="{% url 'entregasapp:registro' intento.pk %}?resultado=entregada#registrar-entregada"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg>Entregar<span class="sr-only">: {{ nombre }}</span></a>
+    <a class="boton boton-secundario" href="{% url 'entregasapp:registro' intento.pk %}?resultado=no_entregada#registrar-no-entregada">No entregada<span class="sr-only">: {{ nombre }}</span></a>
+    {% else %}
+    <p class="suave visita-programada">Programada para el {{ intento.fecha_programada|date:"d/m/Y" }}.</p>
+    {% endif %}
+    <button class="boton boton-secundario visita-expandir" type="button" aria-expanded="false" aria-controls="detalle-{{ intento.pk }}" data-expandir hidden><span data-expandir-texto>Expandir</span><span class="sr-only">: {{ nombre }}</span></button>
+  </div>
+  {% endif %}
+
+  <div class="visita-detalle" id="detalle-{{ intento.pk }}" data-detalle>
+    <div class="visita-detalle-datos">
+      <dl class="visita-datos">
+        <div><dt>Teléfono</dt><dd>{% if intento.paciente.telefono %}<a href="tel:{{ intento.paciente.telefono|cut:' ' }}">{{ intento.paciente.telefono }}</a>{% else %}No registrado{% endif %}</dd></div>
+        {% if intento.domicilio %}
+        <div><dt>Sector y localidad</dt><dd>{% if intento.domicilio.sector %}Sector {{ intento.domicilio.get_sector_display }}{% else %}Sin sector{% endif %}{% if intento.domicilio.localidad %} · {{ intento.domicilio.localidad }}{% endif %}</dd></div>
+        {% if not compacta %}<div><dt>Dirección</dt><dd>{{ intento.domicilio.direccion }}</dd></div>{% endif %}
+        {% if intento.domicilio.referencias %}<div><dt>Referencias</dt><dd>{{ intento.domicilio.referencias }}</dd></div>{% endif %}
+        {% if intento.domicilio.latitud is not None %}<div><dt>Coordenadas</dt><dd>{{ intento.domicilio.latitud|unlocalize }}, {{ intento.domicilio.longitud|unlocalize }}{% if intento.domicilio.precision_metros is not None %} (±{{ intento.domicilio.precision_metros }} m){% endif %}</dd></div>{% endif %}
+        {% elif not compacta %}
+        <div><dt>Dirección del padrón</dt><dd>{{ intento.paciente.direccion|default:"No registrada" }}</dd></div>
+        {% endif %}
+        <div><dt>Domicilio</dt><dd>{% include 'entregas/_estado_domicilio.html' with estado=intento.domicilio_estado domicilio=intento.domicilio %}</dd></div>
+        <div><dt>Recetas</dt><dd><ul class="visita-recetas">{% for receta in intento.lista_recetas %}<li>{{ receta.codigo }} (entrega {{ receta.numero }} de {{ receta.maximo }})</li>{% endfor %}</ul></dd></div>
+      </dl>
+      {% if intento.fotos %}
+      <ul class="fotos-miniaturas" aria-label="Fotos del entorno">
+        {% for foto in intento.fotos %}<li>{% include 'entregas/_miniatura_foto.html' %}</li>{% endfor %}
+      </ul>
+      {% endif %}
+      <div class="acciones visita-acciones">
+        {% if not compacta %}
+        {% if sin_acciones %}
+        {% elif registrable %}
+        <a class="boton" href="{% url 'entregasapp:registro' intento.pk %}?resultado=entregada#registrar-entregada"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg>Entregar<span class="sr-only">: {{ nombre }}</span></a>
+        <a class="boton boton-secundario" href="{% url 'entregasapp:registro' intento.pk %}?resultado=no_entregada#registrar-no-entregada">No entregada<span class="sr-only">: {{ nombre }}</span></a>
+        {% else %}
+        <p class="suave">Programada para el {{ intento.fecha_programada|date:"d/m/Y" }}.{% if not consulta %} Podrás registrarla desde ese día.{% endif %}</p>
+        {% endif %}
+        {% endif %}
+        {% if parada.punto and registrable and not sin_acciones and not consulta %}<a class="boton boton-secundario" href="{% url 'entregasapp:ir_a' intento.pk %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-brujula"/></svg>Ir a esta parada<span class="sr-only">: {{ nombre }}</span></a>{% endif %}
+        {% if intento.fotos_form and es_encargado and not consulta and not sin_acciones %}{% include 'entregas/_fotos_boton.html' with f=intento.fotos_form %}{% endif %}
+        <a class="enlace-secundario" href="{% url 'entregasapp:domicilio' intento.paciente.pk %}">Detalles del domicilio<span class="sr-only"> de {{ nombre }}</span></a>
+      </div>
+    </div>
+    {% if compacta %}
+    <div class="visita-detalle-mapa">
+      {% if intento.domicilio and intento.domicilio.latitud is not None %}
+      <div class="mapa mapa-tarjeta" id="mapa-tarjeta-{{ intento.pk }}" role="region" aria-label="Mapa del domicilio de {{ nombre }}" data-mapa-tarjeta data-latitud="{{ intento.domicilio.latitud|unlocalize }}" data-longitud="{{ intento.domicilio.longitud|unlocalize }}"{% if intento.domicilio.precision_metros is not None %} data-precision="{{ intento.domicilio.precision_metros }}"{% endif %} data-aviso="aviso-mapa-tarjeta-{{ intento.pk }}"><p class="suave mapa-tarjeta-espera">El mapa se carga al expandir la tarjeta.</p></div>
+      <p class="mapa-aviso" id="aviso-mapa-tarjeta-{{ intento.pk }}" role="status" aria-live="polite" hidden></p>
+      {% else %}
+      <p class="mapa-tarjeta-vacio">Domicilio sin coordenadas</p>
+      {% endif %}
+    </div>
+    {% endif %}
+  </div>
+  {% if controles and parada %}<div class="visita-franja" aria-hidden="true" data-franja hidden><span></span></div>{% endif %}
 </article>
 {% endwith %}
 {% else %}

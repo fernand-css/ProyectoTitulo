@@ -1,0 +1,2 @@
+{# Total del recorrido por camino (RF-09-20) y cantidades. Sin total si OSRM no respondió. Espera `ruta`. #}
+<p class="resumen-visitas" id="ruta-resumen" data-ruta-resumen>{% if ruta.total_km and ruta.numeradas %}Recorrido aprox. por camino: {{ ruta.total_km }} km · {% endif %}Por visitar ({{ ruta.paradas|length }}){% if ruta.es_hoy %} · Registradas hoy ({{ ruta.registradas|length }}){% endif %}</p>

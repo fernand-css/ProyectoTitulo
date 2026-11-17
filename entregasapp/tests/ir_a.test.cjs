@@ -1,164 +1,191 @@
-// Spec 09 (RF-09-09): «Ir a esta parada» con una geolocalización simulada. La posición nunca sale del navegador.
+// Spec 09, enmienda del 2026-11-15 (RF-09-23): «Ir a esta parada» por camino, con geolocalización y servidor
+// simulados. La distancia es la del tramo por camino que responde Django; ya no hay línea recta ni rumbo.
 const assert = require("node:assert/strict");
 const fs = require("node:fs");
 const path = require("node:path");
-const vm = require("node:vm");
 const test = require("node:test");
 
 const ruta = path.join(__dirname, "../../static/js/entregas/ir_a.js");
 const guia = require(ruta);
+const tramo = require(path.join(__dirname, "../../static/js/entregas/tramo.js"));
 
-const DESTINO = { lat: -36.4988773, lon: -72.2123601, numero: 3 };
-const METROS_POR_GRADO = (6371000 * Math.PI) / 180;
-
-// Punto desde el que la parada queda `este` metros al este y `norte` metros al norte (aproximación plana).
-function desde(este, norte) {
-  return {
-    lat: DESTINO.lat - norte / METROS_POR_GRADO,
-    lon: DESTINO.lon - este / (METROS_POR_GRADO * Math.cos((DESTINO.lat * Math.PI) / 180)),
-  };
-}
+const DESTINO = { intento: 41, numero: 3 };
 
 function boton() {
   return { disabled: false, manejadores: {}, addEventListener(evento, funcion) { this.manejadores[evento] = funcion; },
     click() { this.manejadores.click(); } };
 }
 
-function preparar({ seguro = true, sinGeolocalizacion = false } = {}) {
-  const llamadas = { observar: [], limpiar: [], mapa: [] };
+const esperar = () => new Promise((r) => setImmediate(r));
+
+function preparar({ seguro = true, sinGeo = false, respuestas = [] } = {}) {
+  const llamadas = { observar: [], limpiar: [], mapa: [], pedidos: [] };
   let exito;
   let error;
-  const geolocation = {
-    watchPosition(alExito, alError, opciones) {
-      exito = alExito;
-      error = alError;
-      llamadas.observar.push(opciones);
-      return 77;
-    },
+  const geo = {
+    watchPosition(alExito, alError, opciones) { exito = alExito; error = alError; llamadas.observar.push(opciones); return 77; },
     clearWatch(id) { llamadas.limpiar.push(id); },
   };
-  const ventana = { isSecureContext: seguro, manejadores: {}, addEventListener(evento, funcion) { this.manejadores[evento] = funcion; } };
+  const reloj = { t: 0 };
+  const cliente = {
+    pedirTramo(intento, pos) {
+      llamadas.pedidos.push({ intento, pos });
+      return Promise.resolve(respuestas.length ? respuestas.shift() : { ok: false, mensaje: tramo.TEXTOS.fallo });
+    },
+    abortar() {},
+  };
+  const ventana = { manejadores: {}, addEventListener(evento, funcion) { this.manejadores[evento] = funcion; } };
   const documento = { visibilityState: "visible", manejadores: {}, addEventListener(evento, funcion) { this.manejadores[evento] = funcion; } };
   const elementos = { estado: { textContent: "" }, anuncio: { textContent: "" }, iniciar: boton(), leer: boton(), detener: boton() };
-  elementos.leer.disabled = true;
-  elementos.detener.disabled = true;
+  const mapa = {
+    actualizar(lat, lon, precision) { llamadas.mapa.push(["posicion", lat, lon, precision]); },
+    dibujarTramo(geometria) { llamadas.mapa.push(["tramo", geometria.length]); },
+    limpiar() { llamadas.mapa.push(["limpiar"]); },
+    limpiarTramo() { llamadas.mapa.push(["limpiarTramo"]); },
+  };
   const instancia = guia.crearGuia({
-    destino: DESTINO,
-    navegador: sinGeolocalizacion ? {} : { geolocation },
-    ventana,
-    documento,
-    elementos,
-    mapa: { actualizar(lat, lon, precision) { llamadas.mapa.push([lat, lon, precision]); } },
+    destino: DESTINO, ventana, documento, elementos, mapa,
+    crearSeguimiento: (op) => tramo.crearSeguimiento(Object.assign(op, { geo: sinGeo ? null : geo, seguro, cliente, ahora: () => reloj.t })),
   });
-  const posicion = (punto, precision = 15) => exito({ coords: { latitude: punto.lat, longitude: punto.lon, accuracy: precision } });
-  return { instancia, elementos, llamadas, ventana, documento, posicion, fallar: (codigo) => error({ code: codigo }) };
+  return {
+    instancia, elementos, llamadas, ventana, documento, reloj,
+    posicion: (lat, lon, precision) => exito({ coords: { latitude: lat, longitude: lon, accuracy: precision } }),
+    fallar: (code) => error({ code }),
+  };
 }
 
-test("distancia haversine y formato en metros o kilómetros", () => {
-  assert.ok(Math.abs(guia.distanciaM({ lat: 0, lon: 0 }, { lat: 1, lon: 0 }) - 111194.93) < 0.01);
-  assert.ok(Math.abs(guia.distanciaM(desde(0, 850), DESTINO) - 850) < 1);
-  assert.equal(guia.formatearDistancia(850), "850 m");
-  assert.equal(guia.formatearDistancia(844), "840 m");
-  assert.equal(guia.formatearDistancia(5), "10 m");
-  assert.equal(guia.formatearDistancia(0), "0 m");
-  assert.equal(guia.formatearDistancia(995), "1,0 km");
-  assert.equal(guia.formatearDistancia(1249), "1,2 km");
-  assert.equal(guia.formatearDistancia(12345), "12,3 km");
+const tramoDe = (metros) => ({ ok: true, intento: 41, numero: 3, distancia_m: metros, distancia_texto: tramo.formatearDistancia(metros),
+  geometria: [[-36.5, -72.2], [-36.49, -72.21]] });
+
+test("los textos dicen la distancia por camino, sin rumbo ni línea recta", () => {
+  assert.equal(guia.texto(3, 850), "La parada 3 está a 850 m por camino.");
+  assert.equal(guia.texto(3, 1234), "La parada 3 está a 1,2 km por camino.");
+  assert.equal(guia.texto(3, 80), "Estás a menos de 100 m por camino de la parada 3.");
+  assert.equal(guia.rumbo, undefined);
+  assert.equal(guia.distanciaM, undefined);
 });
 
-test("rumbo en ocho direcciones desde la posición hacia la parada", () => {
-  const casos = [
-    [desde(0, 1000), "norte"], [desde(1000, 1000), "noreste"], [desde(1000, 0), "este"], [desde(1000, -1000), "sureste"],
-    [desde(0, -1000), "sur"], [desde(-1000, -1000), "suroeste"], [desde(-1000, 0), "oeste"], [desde(-1000, 1000), "noroeste"],
-  ];
-  for (const [punto, esperado] of casos) assert.equal(guia.rumbo(punto, DESTINO), esperado);
+test("mostrar mi posición pide el tramo a Django, lo dibuja y deja «Leer distancia» con el texto por camino", async () => {
+  const p = preparar({ respuestas: [tramoDe(1234)] });
+  assert.equal(p.elementos.leer.disabled, true);
+  p.elementos.iniciar.click();
+  assert.equal(p.llamadas.observar.length, 1);
+  assert.equal(p.llamadas.observar[0].enableHighAccuracy, true);
+  assert.equal(p.elementos.iniciar.disabled, true);
+  assert.equal(p.elementos.leer.disabled, false);
+  assert.equal(p.elementos.anuncio.textContent.trim(), tramo.TEXTOS.iniciando);
+  p.posicion(-36.51, -72.21, 14);
+  await esperar();
+  assert.deepEqual(p.llamadas.pedidos, [{ intento: 41, pos: { lat: -36.51, lon: -72.21 } }]);
+  assert.deepEqual(p.llamadas.mapa, [["posicion", -36.51, -72.21, 14], ["tramo", 2]]);
+  assert.equal(p.elementos.estado.textContent, "La parada 3 está a 1,2 km por camino.");
+  p.elementos.leer.click();
+  assert.equal(p.elementos.anuncio.textContent.trim(), "La parada 3 está a 1,2 km por camino.");
 });
 
-test("texto de la guía con distancia, dirección y precisión", () => {
-  assert.equal(guia.texto(3, 1200, "noreste", 15.4), "La parada 3 está a 1,2 km hacia el noreste (precisión ±15 m).");
-  assert.equal(guia.texto(3, 850, "sur"), "La parada 3 está a 850 m hacia el sur.");
-  assert.equal(guia.texto(3, 60, "sur", 5), "Estás a menos de 100 m de la parada 3.");
+test("avisa una vez al quedar a menos de 100 m por camino", async () => {
+  const p = preparar({ respuestas: [tramoDe(450), tramoDe(80), tramoDe(60)] });
+  p.elementos.iniciar.click();
+  p.posicion(-36.5, -72.2, 5);
+  await esperar();
+  p.reloj.t = 11000;
+  p.posicion(-36.5 + 40 / 111195, -72.2, 5); // cerca: recalcula al moverse 30 m con 10 s
+  await esperar();
+  assert.equal(p.elementos.anuncio.textContent.trim(), "Estás a menos de 100 m por camino de la parada 3.");
+  p.elementos.anuncio.textContent = "";
+  p.reloj.t = 22000;
+  p.posicion(-36.5 + 80 / 111195, -72.2, 5);
+  await esperar();
+  assert.equal(p.llamadas.pedidos.length, 3);
+  assert.equal(p.elementos.anuncio.textContent, ""); // no repite el aviso
 });
 
-test("sigue la posición con el gesto, actualiza el texto y el mapa y avisa solo al iniciar, al leer y al llegar", () => {
-  const { elementos, llamadas, posicion } = preparar();
-  assert.match(elementos.estado.textContent, /^$|Pulsa/);
-  elementos.iniciar.click();
-  assert.equal(llamadas.observar.length, 1);
-  assert.equal(llamadas.observar[0].enableHighAccuracy, true);
-  assert.equal(elementos.iniciar.disabled, true);
-  assert.equal(elementos.detener.disabled, false);
-  assert.match(elementos.anuncio.textContent, /Buscando tu posición/);
-  const inicial = elementos.anuncio.textContent;
-  posicion(desde(850, 850), 15);
-  assert.equal(elementos.estado.textContent, "La parada 3 está a 1,2 km hacia el noreste (precisión ±15 m).");
-  assert.equal(elementos.anuncio.textContent, inicial); // no satura al lector de pantalla
-  assert.equal(llamadas.mapa.length, 1);
-  elementos.leer.click();
-  assert.match(elementos.anuncio.textContent, /La parada 3 está a 1,2 km hacia el noreste/);
-  posicion(desde(0, 60), 5);
-  assert.match(elementos.anuncio.textContent, /Estás a menos de 100 m de la parada 3\./);
-  const cerca = elementos.anuncio.textContent;
-  posicion(desde(0, 40), 5);
-  assert.equal(elementos.anuncio.textContent, cerca); // el aviso de llegada se da una vez
-  elementos.iniciar.click();
-  assert.equal(llamadas.observar.length, 1); // no abre un segundo seguimiento
-});
-
-test("«Detener», salir de la página u ocultarla terminan el seguimiento", () => {
-  const primero = preparar();
-  primero.elementos.iniciar.click();
-  primero.elementos.detener.click();
-  assert.deepEqual(primero.llamadas.limpiar, [77]);
-  assert.match(primero.elementos.estado.textContent, /Seguimiento detenido/);
-  assert.equal(primero.instancia.siguiendo(), false);
-  assert.equal(primero.elementos.iniciar.disabled, false);
-
-  const segundo = preparar();
-  segundo.elementos.iniciar.click();
-  segundo.ventana.manejadores.pagehide();
-  assert.deepEqual(segundo.llamadas.limpiar, [77]);
-
-  const tercero = preparar();
-  tercero.elementos.iniciar.click();
-  tercero.documento.visibilityState = "hidden";
-  tercero.documento.manejadores.visibilitychange();
-  assert.deepEqual(tercero.llamadas.limpiar, [77]);
-});
-
-test("permiso denegado, sin posición o sin contexto seguro se explican con texto", () => {
+test("sin OSRM, sin señal, sin permiso, sin posición o sin HTTPS: texto sin distancia", async () => {
+  const caido = preparar({ respuestas: [{ ok: false, mensaje: "No se pudo calcular el tramo: el servidor de rutas no respondió. Sigue el orden de la lista." }] });
+  caido.elementos.iniciar.click();
+  caido.posicion(-36.5, -72.2, 5);
+  await esperar();
+  assert.match(caido.elementos.estado.textContent, /servidor de rutas no respondió/);
+  assert.doesNotMatch(caido.elementos.estado.textContent, /\d+ (m|km)\b/);
+  assert.deepEqual(caido.llamadas.mapa.at(-1), ["limpiarTramo"]);
+  caido.elementos.leer.click();
+  assert.equal(caido.elementos.anuncio.textContent.trim(), guia.TEXTOS.sinDatos);
+  const sinRed = preparar({ respuestas: [{ ok: false, mensaje: tramo.TEXTOS.sinRed }] });
+  sinRed.elementos.iniciar.click();
+  sinRed.posicion(-36.5, -72.2, 5);
+  await esperar();
+  assert.equal(sinRed.elementos.estado.textContent, "Sin conexión: no se pudo calcular el tramo. Sigue el orden de la lista.");
   const denegado = preparar();
   denegado.elementos.iniciar.click();
   denegado.fallar(1);
-  assert.match(denegado.elementos.estado.textContent, /No diste permiso/);
-  assert.match(denegado.elementos.anuncio.textContent, /app de navegación o las coordenadas/);
+  assert.equal(denegado.elementos.estado.textContent, tramo.TEXTOS.sinPermiso);
   assert.deepEqual(denegado.llamadas.limpiar, [77]);
-
+  assert.equal(denegado.elementos.iniciar.disabled, false);
   const sinPosicion = preparar();
   sinPosicion.elementos.iniciar.click();
   sinPosicion.fallar(2);
-  assert.match(sinPosicion.elementos.estado.textContent, /No pudimos obtener tu posición/);
-  sinPosicion.fallar(3);
-  assert.match(sinPosicion.elementos.estado.textContent, /Aún buscamos tu posición/);
-
-  for (const opciones of [{ seguro: false }, { sinGeolocalizacion: true }]) {
-    const inseguro = preparar(opciones);
-    assert.match(inseguro.elementos.estado.textContent, /conexión segura \(HTTPS\)/);
-    inseguro.elementos.iniciar.click();
-    assert.equal(inseguro.llamadas.observar.length, 0);
-    assert.match(inseguro.elementos.anuncio.textContent, /coordenadas/);
-  }
+  assert.equal(sinPosicion.elementos.estado.textContent, tramo.TEXTOS.sinPosicion);
+  const inseguro = preparar({ seguro: false });
+  inseguro.elementos.iniciar.click();
+  assert.equal(inseguro.llamadas.observar.length, 0);
+  assert.equal(inseguro.elementos.estado.textContent, tramo.TEXTOS.sinContexto);
 });
 
-test("la posición nunca se envía: el módulo no usa red ni almacenamiento", () => {
-  const codigo = fs.readFileSync(ruta, "utf8");
-  const sinComentarios = codigo.replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
-  assert.doesNotMatch(sinComentarios, /\bfetch\s*\(|XMLHttpRequest|sendBeacon|WebSocket|localStorage|sessionStorage|indexedDB|new Image/);
-  // En un contexto donde cualquier acceso a la red falla, la guía completa funciona igual.
-  const prohibido = () => { throw new Error("solicitud de red"); };
-  const contexto = { module: { exports: {} }, fetch: prohibido, XMLHttpRequest: prohibido, navigator: { sendBeacon: prohibido },
-    Math, Number, Boolean, String };
-  vm.runInNewContext(codigo, contexto);
-  const aislado = contexto.module.exports;
-  assert.equal(aislado.formatearDistancia(1249), "1,2 km");
+test("«Detener» o salir de la página terminan el seguimiento y borran el tramo", async () => {
+  const p = preparar({ respuestas: [tramoDe(900)] });
+  p.elementos.iniciar.click();
+  p.posicion(-36.5, -72.2, 5);
+  await esperar();
+  p.elementos.detener.click();
+  assert.deepEqual(p.llamadas.limpiar, [77]);
+  assert.deepEqual(p.llamadas.mapa.at(-1), ["limpiar"]);
+  assert.equal(p.elementos.estado.textContent, tramo.TEXTOS.detenido);
+  const salir = preparar();
+  salir.elementos.iniciar.click();
+  salir.ventana.manejadores.pagehide();
+  assert.deepEqual(salir.llamadas.limpiar, [77]);
+});
+
+// Corrección del 2026-11-16: cambiar de pestaña o minimizar no borra el tramo ni pide otra vez la posición.
+test("ocultar la página pausa el GPS sin borrar el tramo y al volver sigue sola", async () => {
+  const p = preparar({ respuestas: [tramoDe(900)] });
+  p.elementos.iniciar.click();
+  p.posicion(-36.5, -72.2, 5);
+  await esperar();
+  const dibujos = p.llamadas.mapa.length;
+  p.documento.visibilityState = "hidden";
+  p.documento.manejadores.visibilitychange();
+  assert.deepEqual(p.llamadas.limpiar, [77]); // suelta el GPS mientras está oculta
+  assert.equal(p.llamadas.mapa.length, dibujos); // sin «limpiar»: el tramo y la posición siguen dibujados
+  assert.equal(p.elementos.estado.textContent, "La parada 3 está a 900 m por camino.");
+  assert.equal(p.elementos.detener.disabled, false);
+  assert.equal(p.instancia.siguiendo(), true);
+  p.documento.visibilityState = "visible";
+  p.documento.manejadores.visibilitychange();
+  assert.equal(p.llamadas.observar.length, 2); // vuelve a seguir sin otro gesto
+  assert.equal(p.elementos.iniciar.disabled, true);
+  p.posicion(-36.5, -72.2, 5); // misma posición: no repite el cálculo
+  await esperar();
+  assert.equal(p.llamadas.pedidos.length, 1);
+  p.elementos.detener.click();
+  assert.deepEqual(p.llamadas.mapa.at(-1), ["limpiar"]);
+  // Pausada y luego detenida (por ejemplo, al salir con la página oculta): también limpia.
+  const q = preparar();
+  q.elementos.iniciar.click();
+  q.documento.visibilityState = "hidden";
+  q.documento.manejadores.visibilitychange();
+  q.ventana.manejadores.pagehide();
+  assert.deepEqual(q.llamadas.limpiar, [77]);
+  assert.deepEqual(q.llamadas.mapa.at(-1), ["limpiar"]);
+  assert.equal(q.elementos.iniciar.disabled, false);
+});
+
+test("el módulo solo pide el tramo a Django con tramo.js; la plantilla deja el enlace y las coordenadas", () => {
+  const codigo = fs.readFileSync(ruta, "utf8").replace(/\/\*[\s\S]*?\*\//g, "").replace(/\/\/.*$/gm, "");
+  assert.doesNotMatch(codigo, /XMLHttpRequest|sendBeacon|WebSocket|rumbo|noreste|localStorage|sessionStorage/);
+  assert.match(codigo, /urlTramo: datos\.url_tramo/);
+  const plantilla = fs.readFileSync(path.join(__dirname, "../../templates/entregas/ir_a.html"), "utf8");
+  assert.match(plantilla, /Abrir en app de navegación/);
+  assert.match(plantilla, /coordenadas-texto/);
+  assert.doesNotMatch(plantilla, /línea recta/);
 });

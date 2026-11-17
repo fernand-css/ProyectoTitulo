@@ -1,4 +1,6 @@
 {% extends 'entregas/base.html' %}
+{% load static %}
+{% block estilos %}{{ block.super }}<link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}">{% endblock %}
 {% block titulo %}Mis entregas · Entregas en terreno{% endblock %}
 {% block entregas %}
 {% include 'entregas/_cabecera.html' with titulo='Mis entregas' texto='Tus visitas de hoy en orden de visita, las registradas hoy y las próximas. Registra cada una al visitar el domicilio.' %}
@@ -15,25 +17,26 @@
   </div>
 </div>
 {% else %}
+<p class="orden-estado" id="orden-estado" role="status" aria-live="polite" data-orden-estado></p>
 {% include 'entregas/_ruta.html' %}
 
-{% if ruta.manual %}
-<details class="panel restablecer-orden">
+<details class="panel restablecer-orden" data-restablecer{% if not ruta.manual %} hidden{% endif %}>
   <summary>Volver al orden sugerido</summary>
-  <p>Se descartará tu orden de hoy y las visitas volverán al orden sugerido según distancia en línea recta, desde {% if ruta.parte_del_origen %}el CESFAM{% else %}la última visita registrada{% endif %}.</p>
+  <p>Se descartará tu orden de hoy y las visitas volverán al orden sugerido según distancia por camino (o en línea recta si el servidor de rutas no responde), desde {% if ruta.parte_del_origen %}el CESFAM{% else %}la última visita registrada{% endif %}.</p>
   <form method="post" action="{% url 'entregasapp:orden_sugerido' %}">
     {% csrf_token %}{{ restablecer.version }}{{ restablecer.operacion_id }}
     <button class="boton" type="submit">Sí, volver al orden sugerido</button>
   </form>
 </details>
-{% endif %}
 
 {% if ruta.proximas %}
 <section class="visitas" aria-labelledby="titulo-proximas">
   <h2 id="titulo-proximas">Próximas ({{ ruta.proximas|length }})</h2>
   <p class="suave">Sin número: entran a tu ruta el día de la visita.</p>
-  {% for intento in ruta.proximas %}{% include 'entregas/_tarjeta_intento.html' with registrable=False controles=False %}{% endfor %}
+  {% for intento in ruta.proximas %}{% include 'entregas/_tarjeta_intento.html' with registrable=False controles=False compacta=True %}{% endfor %}
 </section>
 {% endif %}
 {% endif %}
+{{ teselas|json_script:"datos-teselas" }}
 {% endblock %}
+{% block scripts %}<script src="{% static 'vendor/leaflet/leaflet.js' %}"></script><script src="{% static 'js/entregas/mapa.js' %}"></script><script src="{% static 'js/entregas/tarjetas.js' %}"></script><script src="{% static 'js/entregas/orden.js' %}"></script>{% endblock %}
