@@ -15,8 +15,10 @@ class MigracionColaTests(TransactionTestCase):
     def test_preserva_turno_entrada_y_entregas_previas_al_05(self):
         executor = MigrationExecutor(connection)
         finales = executor.loader.graph.leaf_nodes()
-        anteriores = [n for n in finales if n[0] not in {"turnosapp", "recetasapp"}] + [
+        # Entregas 0003 (spec 13) depende de recetas 0004: el reparto vuelve a su 0002, anterior a ese vínculo.
+        anteriores = [n for n in finales if n[0] not in {"turnosapp", "recetasapp", "entregasapp"}] + [
             ("recetasapp", "0002_resultadofilaimportacion_pacientes_actualizados_and_more"),
+            ("entregasapp", "0002_ordenruta"),
             ("turnosapp", "0001_initial"),
         ]
         try:

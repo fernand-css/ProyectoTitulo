@@ -123,11 +123,16 @@ def _registrar_entrega_sin_reintento(actor, receta_id, operacion_id, *,
     `desde_despacho` (spec 08) es la receta de una entrega a domicilio que el encargado de terreno registra
     como entregada: sin turno y con la vigencia de la fecha de la visita. Sin él, una receta fijada a una
     entrega a domicilio abierta no se dispensa en farmacia (bloqueo de doble vía).
+
+    Spec 13: si el despacho lleva la preparación (`desde_despacho.preparacion`), llegan juntos `desde_preparado`
+    y el vínculo de su turno, y la entrega queda ligada a ese vínculo, como un retiro tardío hecho en el domicilio.
     """
     if desde_despacho is not None:
         if estado_acceso(actor) != (True, ENCARGADO):
             raise PermissionDenied
-        if turno_receta_id is not None or desde_despacho.receta_id != receta_id:
+        if (desde_despacho.receta_id != receta_id
+                or getattr(desde_preparado, "pk", None) != desde_despacho.preparacion_id
+                or turno_receta_id != getattr(desde_preparado, "turno_receta_id", None)):
             raise ValidationError("La receta no corresponde a este despacho.")
     elif desde_preparado is not None:
         autorizar(actor, JEFA, TECNICO)

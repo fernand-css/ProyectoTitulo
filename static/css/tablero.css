@@ -1,8 +1,9 @@
 /*
-  Resumen de Recetas: cifras con tendencia, columnas con promedio móvil, barra segmentada y calendario de calor.
+  Resumen de Recetas (cifras con tendencia, barra segmentada, «vencen primero» y última carga) y las piezas de
+  gráfico que comparte el panel de Indicadores (tarjetas, columnas con promedio móvil, tabla de datos).
   Solo usa variables de base.css: no declara colores propios (lo vigila coreapp/tests/test_estaticos.py).
-  Colores de los gráficos: --serie-1 (azul) para lo que se cuenta, --serie-2 (ámbar oscuro) para su promedio,
-  --rampa-1..5 para la intensidad del calendario y --neutro-1..3 para lo que no se destaca.
+  Colores de los gráficos: --serie-1 (azul) para lo que se cuenta, --serie-2 (ámbar oscuro) para su promedio
+  y --neutro-1..3 para lo que no se destaca.
   El movimiento va en @keyframes cuyo estado inicial es el final, de modo que sin animación (reducir movimiento,
   impresión, errores de carga) todo se ve completo. base.css apaga las animaciones con «reducir movimiento».
 */
@@ -58,9 +59,8 @@ a.kpi:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
 .tendencia-punto { fill: var(--serie-1); stroke: var(--panel-fondo); stroke-width: 2; }
 
 /* ------------------------------------------------------------------ Tarjetas */
-/* Dos columnas independientes: entregas y «vencen primero» (anchas) | situación y calendario (angostas). */
+/* Dos columnas: «vencen primero» (ancha) | situación (angosta). */
 .tablero-columnas { display: grid; grid-template-columns: minmax(0, 2fr) minmax(0, 1fr); gap: 1.25rem; align-items: start; }
-.tablero-columna { display: grid; gap: 1.25rem; min-width: 0; }
 .tarjeta { min-width: 0; padding: 1.4rem; background: var(--panel-fondo); border: 1px solid var(--linea); border-radius: var(--radio-panel); }
 .tarjeta-cabeza { display: flex; flex-wrap: wrap; align-items: flex-start; justify-content: space-between; gap: 0.5rem 1rem; margin-bottom: 1rem; }
 .tarjeta-cabeza h3 { margin: 0 0 0.2rem; font-size: 1.25rem; }
@@ -69,12 +69,6 @@ a.kpi:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
 .tarjeta-vacia { display: flex; align-items: center; gap: 1rem; padding: 1.25rem; color: var(--suave-texto); background: var(--suave-fondo); border: 1px solid var(--linea); border-radius: var(--radio-panel); }
 .tarjeta-vacia .icono { flex: none; width: 2rem; height: 2rem; color: var(--ladrillo); }
 .tarjeta-vacia p { margin: 0; }
-
-/* Selector de periodo: enlaces que recargan la página con otro rango. */
-.periodos { display: flex; gap: 0.25rem; margin: 0; padding: 0.25rem; list-style: none; background: var(--suave-fondo); border: 1px solid var(--linea); border-radius: 0.6rem; }
-.periodos a { display: inline-flex; align-items: center; min-height: 2.5rem; padding: 0.2rem 0.9rem; color: var(--panel-texto); border-radius: 0.35rem; font-weight: 600; text-decoration: none; }
-.periodos a:hover { background: var(--arena-fondo); }
-.periodos a[aria-current="true"] { color: var(--marca-texto); background: var(--marca-fondo); }
 
 /* ------------------------------------------------------------------ Gráficos: base común */
 .grafico { position: relative; margin: 0; }
@@ -100,14 +94,13 @@ a.kpi:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
 }
 .grafico-tip[hidden] { display: none; }
 
-/* ------------------------------------------------------------------ Columnas de entregas por día */
+/* ------------------------------------------------------------------ Columnas por día (panel de Indicadores) */
 .columnas { display: block; width: 100%; height: auto; overflow: visible; touch-action: pan-y; }
 .columna { fill: var(--serie-1); transform-box: fill-box; transform-origin: bottom; }
 .columnas-promedio { fill: none; stroke: var(--serie-2); stroke-width: 2.2; stroke-linecap: round; stroke-linejoin: round; stroke-dasharray: 1; }
 /* Cada día tiene una ranura invisible del alto del gráfico: al pasar sobre ella se marca el día y aparece su texto. */
 .ranura { fill: transparent; }
 .ranura:hover { fill: var(--serie-1); fill-opacity: 0.1; }
-.tarjeta-entregas .grafico { margin-top: 0.4rem; }
 .datos { margin-top: 0.9rem; }
 .datos summary { cursor: pointer; font-weight: 700; }
 .datos-tabla { max-height: 18rem; margin-top: 0.75rem; overflow: auto; }
@@ -137,36 +130,6 @@ a.kpi:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
 .grafico:has([data-clave="futura"]:hover, [data-clave="futura"]:focus-visible) .segmento:not(.segmento-futura) a,
 .grafico:has([data-clave="agotada"]:hover, [data-clave="agotada"]:focus-visible) .segmento:not(.segmento-agotada) a,
 .grafico:has([data-clave="vencida"]:hover, [data-clave="vencida"]:focus-visible) .segmento:not(.segmento-vencida) a { opacity: 0.3; }
-
-/* ------------------------------------------------------------------ Calendario de calor: vencimientos por día */
-.calor { display: grid; grid-template-columns: minmax(3.6rem, 4.6rem) repeat(7, minmax(0, 1fr)); gap: 2px; }
-.calor-nombre { padding-bottom: 0.2rem; color: var(--secundario-texto); font-size: 0.8rem; font-weight: 600; text-align: center; }
-.calor-semana { align-self: center; padding-right: 0.3rem; color: var(--secundario-texto); font-size: 0.8rem; white-space: nowrap; }
-.calor-celda {
-  display: grid;
-  place-items: center;
-  height: 2.1rem;
-  color: var(--secundario-texto);
-  background: var(--suave-fondo);
-  border-radius: 0.4rem;
-  box-shadow: inset 0 0 0 1px var(--linea);
-  font-size: 0.8rem;
-  font-variant-numeric: tabular-nums;
-}
-.calor-pasado { background: transparent; box-shadow: none; }
-.calor-t1 { color: var(--panel-texto); background: var(--rampa-1); }
-.calor-t2 { color: var(--panel-texto); background: var(--rampa-2); }
-.calor-t3 { color: var(--panel-fondo); background: var(--rampa-3); }
-.calor-t4 { color: var(--panel-fondo); background: var(--rampa-4); }
-.calor-t5 { color: var(--panel-fondo); background: var(--rampa-5); }
-.calor-t1, .calor-t2, .calor-t3, .calor-t4, .calor-t5 { box-shadow: inset 0 0 0 1px var(--rampa-4); }
-/* Hoy lleva contorno de tinta y su número en negrita: se reconoce sin depender del color. */
-.calor-hoy { outline: 2px solid var(--tinta); outline-offset: -2px; font-weight: 800; }
-.calor-escala { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.9rem; margin-top: 0.9rem; color: var(--secundario-texto); font-size: 0.88rem; font-variant-numeric: tabular-nums; }
-.calor-paso { display: inline-flex; align-items: center; gap: 0.35rem; white-space: nowrap; }
-.calor-muestra { display: inline-block; width: 1.3rem; height: 1.3rem; border-radius: 0.3rem; box-shadow: inset 0 0 0 1px var(--linea); }
-.calor-muestra.calor-t0 { background: var(--suave-fondo); }
-.calor-muestra.calor-t1, .calor-muestra.calor-t2, .calor-muestra.calor-t3, .calor-muestra.calor-t4, .calor-muestra.calor-t5 { box-shadow: inset 0 0 0 1px var(--rampa-4); }
 
 /* ------------------------------------------------------------------ Ranking: vencen primero */
 .tarjeta .tabla { font-size: 1rem; }
@@ -214,13 +177,8 @@ a.kpi:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
   .carga-acciones { grid-column: 1 / -1; justify-content: flex-start; }
 }
 @media (max-width: 60rem) {
-  /* Una sola columna, en el orden de lectura: entregas, situación, calendario y lo que vence primero. */
+  /* Una sola columna, en el orden de lectura: lo que vence primero y la situación. */
   .tablero-columnas { grid-template-columns: minmax(0, 1fr); }
-  .tablero-columna { display: contents; }
-  .tarjeta-entregas { order: 1; }
-  .tarjeta-situacion { order: 2; }
-  .tarjeta-calor { order: 3; }
-  .tarjeta-vencen { order: 4; }
 }
 @media (max-width: 44rem) {
   /* El SVG se reduce a ~50 % de su tamaño: textos y trazo se agrandan para seguir siendo legibles. */
@@ -233,19 +191,16 @@ a.kpi:focus-visible { outline: 3px solid var(--tinta); outline-offset: 2px; }
   .carga-cifras { flex-wrap: wrap; gap: 1rem 1.5rem; }
   .carga-acciones { justify-content: flex-start; }
   .listado .busqueda { padding: 1rem; }
-  .calor { grid-template-columns: minmax(3.2rem, 4.2rem) repeat(7, minmax(0, 1fr)); }
-  .calor-celda { height: 2rem; }
 }
 
 @media (forced-colors: active) {
-  .kpi, .tarjeta, .periodos { border-color: CanvasText; }
+  .kpi, .tarjeta { border-color: CanvasText; }
   .columna { forced-color-adjust: none; fill: Highlight; }
   .columnas-promedio { stroke: CanvasText; }
-  .segmento a, .calor-celda { forced-color-adjust: none; }
+  .segmento a { forced-color-adjust: none; }
   .segmento-vigente a { background: Highlight; }
   .segmento-futura a, .segmento-agotada a, .segmento-vencida a { background: CanvasText; }
-  .calor-celda { border: 1px solid CanvasText; }
 }
 @media print {
-  .periodos, .datos { display: none; }
+  .datos { display: none; }
 }

@@ -1,5 +1,13 @@
-"""Rutas de indicadoresapp; se incorporan en los siguientes pasos y specs."""
+"""Rutas de indicadoresapp: panel de mermas (spec 13)."""
+
+from django.urls import path
+
+from . import views
 
 app_name = "indicadoresapp"
 
-urlpatterns = []
+urlpatterns = [
+    path("mermas/", views.PanelMermasView.as_view(), name="mermas"),
+    path("mermas/reporte.<str:formato>", views.ReporteMermasView.as_view(), name="mermas_reporte"),
+    path("mermas/derivar/<int:paciente_id>/", views.DerivarMermaView.as_view(), name="mermas_derivar"),
+]

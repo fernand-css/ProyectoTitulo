@@ -1,4 +1,4 @@
-"""Resumen de recetas con sus gráficos, pestañas de la sección, lista con filtros, filtro de pacientes y menú."""
+"""Resumen de recetas (cifras, situación y lo que vence primero), pestañas de la sección, lista con filtros, filtro de pacientes y menú."""
 
 import re
 from datetime import date, datetime
@@ -135,105 +135,23 @@ class PanelTests(TestCase):
         html = html[html.index('class="tablero"'):]  # el resto de la página trae íconos ajenos a esta regla
         for atributo in re.findall(r'\b(?:x|y|x1|x2|y1|y2|cx|cy|width|height|viewBox|d)="([^"]*)"', html):
             self.assertNotIn(",", atributo)
-        self.assertRegex(html, r'<path class="columna" d="M[0-9. ]+V')
+        self.assertRegex(html, r'<path class="tendencia-linea" d="M[0-9. ]+L')
 
-    # --- Resumen: entregas por día (columnas con promedio) --------------------------------------------------
-    def test_las_columnas_cuentan_entregas_por_dia_con_ceros_y_ofrecen_los_datos_en_tabla(self):
-        self.escenario()
-        self.entregas(self.recetas["Holgada"], momento(2), momento(2, hora=18), momento(1), momento(25, mes=10))
-        self.entrar()
-        respuesta = self.client.get(reverse("recetasapp:recetas"))
-        grafico = respuesta.context["tablero"]["entregas"]
-        por_dia = {c["fecha"]: c["valor"] for c in grafico["columnas"]}
-        self.assertEqual(len(por_dia), 30)
-        self.assertEqual((por_dia[date(2026, 11, 2)], por_dia[date(2026, 11, 1)], por_dia[date(2026, 10, 25)], por_dia[date(2026, 10, 30)]), (2, 1, 1, 0))
-        self.assertEqual((grafico["total"], grafico["maximo"], grafico["dia_maximo"]), (4, 2, date(2026, 11, 2)))
-        self.assertContains(respuesta, '<svg class="columnas"')
-        self.assertContains(respuesta, "Ver los datos en una tabla")
-        self.assertContains(respuesta, "4 entregas en 30 días")
-        # Hay una ranura con el texto del dato por cada día, y la leyenda nombra las dos marcas.
-        self.assertEqual(respuesta.content.decode().count('class="ranura"'), 30)
-        self.assertContains(respuesta, "Entregas del día")
-        self.assertContains(respuesta, "Promedio de 7 días")
-        self.assertContains(respuesta, 'data-tip="lunes 2 de noviembre: 2 entregas · promedio de 7 días: ')
-
-    def test_el_promedio_de_siete_dias_incluye_los_dias_anteriores_al_periodo(self):
-        self.escenario()
-        # Con 14 días se muestra del 20 de octubre al 2 de noviembre; el 17 de octubre queda fuera del gráfico
-        # pero entra en el promedio de los siete días que terminan el 20 y el 23.
-        self.entregas(self.recetas["Holgada"], *([momento(17, mes=10)] * 7))
-        self.entrar()
-        grafico = self.tablero(periodo=14)["entregas"]
-        self.assertEqual((grafico["n"], grafico["total"]), (14, 0))
-        self.assertTrue(all(c["promedio"] is not None for c in grafico["columnas"]))
-        por_dia = {c["fecha"]: c["promedio"] for c in grafico["columnas"]}
-        self.assertEqual((por_dia[date(2026, 10, 20)], por_dia[date(2026, 10, 23)], por_dia[date(2026, 10, 24)]), (1.0, 1.0, 0.0))
-
-    def test_el_periodo_se_elige_por_la_url_y_un_valor_invalido_vuelve_a_treinta_dias(self):
-        self.escenario()
-        self.entregas(self.recetas["Holgada"], momento(2), momento(25, mes=10), momento(10, mes=9))
-        self.entrar()
-        self.assertEqual(self.tablero(periodo=14)["periodo"], 14)
-        self.assertEqual(len(self.tablero(periodo=14)["entregas"]["columnas"]), 14)
-        self.assertEqual(self.tablero(periodo=14)["entregas"]["total"], 2)
-        self.assertEqual(self.tablero(periodo=90)["entregas"]["total"], 3)
-        for invalido in ("999", "abc", "-7", "7", ""):
-            with self.subTest(periodo=invalido):
-                self.assertEqual(self.tablero(periodo=invalido)["periodo"], 30)
-        respuesta = self.client.get(reverse("recetasapp:recetas"), {"periodo": 14})
-        self.assertContains(respuesta, '<a href="?periodo=14#entregas" aria-current="true">14 días</a>')
-
-    def test_con_noventa_dias_hay_una_ranura_por_dia(self):
+    # --- Resumen: lo que ya no está (entregas por día y calendario de vencimientos) ---------------------
+    def test_el_resumen_no_trae_graficos_de_tendencia_ni_calendario(self):
+        """«Entregas por día» vive en Indicadores y el calendario repetía «Vencen primero»: no vuelven aquí."""
         self.escenario()
         self.entregas(self.recetas["Holgada"], momento(2))
         self.entrar()
-        html = self.client.get(reverse("recetasapp:recetas"), {"periodo": 90}).content.decode()
-        self.assertEqual(html.count('class="ranura"'), 90)
+        respuesta = self.client.get(reverse("recetasapp:recetas"), {"periodo": 14})
+        self.assertNotIn("entregas", respuesta.context["tablero"])
+        self.assertNotIn("calor", respuesta.context["tablero"])
+        for texto in ('<svg class="columnas"', 'class="calor"', "Entregas por día", "Cuándo vencen las vigentes", 'class="periodos"'):
+            self.assertNotContains(respuesta, texto)
+        self.assertContains(respuesta, "Vencen primero")
+        self.assertContains(respuesta, "Situación de las recetas")
 
-    def test_sin_entregas_el_grafico_se_reemplaza_por_una_explicacion(self):
-        self.escenario()
-        self.entrar()
-        respuesta = self.client.get(reverse("recetasapp:recetas"))
-        self.assertContains(respuesta, "Todavía no hay entregas confirmadas en este periodo.")
-        self.assertNotContains(respuesta, '<svg class="columnas"')
-
-    # --- Resumen: calendario de vencimientos, ranking y carga -----------------------------------------------
-    def test_el_calendario_cuenta_vigentes_por_su_ultimo_dia_valido(self):
-        self.escenario()
-        self.entrar()
-        calor = self.tablero()["calor"]
-        dias = {d["fecha"]: d["valor"] for semana in calor["semanas"] for d in semana["dias"] if d["valor"]}
-        # Urgente termina el 19 nov, Pronta el 19 dic y Holgada el 31 dic; las demás no son vigentes.
-        self.assertEqual(dias, {date(2026, 11, 19): 1, date(2026, 12, 19): 1, date(2026, 12, 31): 1})
-        self.assertEqual(calor["total"], 3)
-        respuesta = self.client.get(reverse("recetasapp:recetas"))
-        self.assertContains(respuesta, "Cuándo vencen las vigentes")
-        self.assertContains(respuesta, 'data-tip="jueves 19 de noviembre: 1 receta vence"')
-        self.assertContains(respuesta, 'data-tip="viernes 20 de noviembre: ninguna receta vence"')
-        # La tabla alternativa solo lista los días con vencimientos.
-        self.assertContains(respuesta, "Ver los días con vencimientos en una tabla")
-        self.assertEqual(len(calor["con_vencimientos"]), 3)
-
-    def test_el_calendario_marca_hoy_y_deja_en_blanco_lo_anterior_a_hoy(self):
-        self.escenario()
-        self.entrar()
-        primera = self.tablero()["calor"]["semanas"][0]
-        self.assertEqual(primera["texto"], "Esta semana")
-        self.assertEqual([d["es_hoy"] for d in primera["dias"]], [True] + [False] * 6)  # hoy es lunes
-        html = self.client.get(reverse("recetasapp:recetas")).content.decode()
-        self.assertEqual(html.count("calor-hoy"), 1)
-        # Con hoy a mitad de semana, lo anterior queda sin número ni texto de ayuda.
-        from recetasapp import graficos
-        calor = graficos.mapa_calor({}, date(2026, 11, 4))
-        self.assertEqual([d["pasado"] for d in calor["semanas"][0]["dias"]], [True, True] + [False] * 5)
-
-    def test_el_calendario_se_reemplaza_por_una_explicacion_si_nada_vence(self):
-        self.receta("Futura", date(2027, 1, 1))
-        self.entrar()
-        respuesta = self.client.get(reverse("recetasapp:recetas"))
-        self.assertContains(respuesta, "Ninguna receta vigente vence en las próximas 12 semanas.")
-        self.assertNotContains(respuesta, 'class="calor"')
-
+    # --- Resumen: ranking y carga ---------------------------------------------------------------------------
     def test_el_ranking_ordena_por_la_que_vence_primero_y_cuenta_los_dias(self):
         self.escenario()
         self.receta("Cercana", date(2026, 5, 10))             # fin 2026-11-10: 8 días
@@ -281,7 +199,6 @@ class PanelTests(TestCase):
         respuesta = self.client.get(reverse("recetasapp:recetas"))
         self.assertContains(respuesta, "Todavía no hay recetas que mostrar.")
         self.assertContains(respuesta, "Todavía no se ha cargado ningún archivo.")
-        self.assertContains(respuesta, "Ninguna receta vigente vence en las próximas 12 semanas.")
         self.assertNotContains(respuesta, '<ol class="segmentos"')
 
     def test_el_resumen_carga_el_script_de_ayuda_y_la_lista_no(self):

@@ -73,19 +73,29 @@
   --menu-hover-texto: #182c42;
   --menu-hover-fondo: #f3f6fa;
   --velo: color-mix(in srgb, var(--tinta) 55%, transparent);
-  /* Gráficos de Recetas: dos series (azul y ámbar oscuro), una rampa azul de cinco pasos para el mapa de calor
-     y tres neutros para lo que no se destaca. Se validaron con el script del skill dataviz sobre fondo blanco
-     (contraste, separación para daltonismo, pasos de luminosidad). */
+  /* Gráficos de Recetas e Indicadores: dos series (azul y ámbar oscuro) y tres neutros para lo que no se
+     destaca. Se validaron con el script del skill dataviz sobre fondo blanco (contraste, separación para
+     daltonismo, pasos de luminosidad). */
   --serie-1: #244bc3;
   --serie-2: #955a12;
-  --rampa-1: #9bb9e0;
-  --rampa-2: #6f9bd1;
-  --rampa-3: #3f78bf;
-  --rampa-4: #1f5fae;
-  --rampa-5: #0b3d7a;
   --neutro-1: #7f94b0;
   --neutro-2: #5f7390;
   --neutro-3: #3b4a60;
+
+  /* Panel de mermas: ámbar de frasco para lo que sigue sin entregar, verde botica para lo recuperado, el aluminio
+     del blíster de fondo y una rampa ámbar de cinco pasos para el calendario (texto oscuro en las tres primeras,
+     blanco en las dos últimas: todos superan 4,5:1). Validados con el script del skill dataviz sobre fondo blanco. */
+  --merma: #b0530a;
+  --merma-claro: #f7e2cc;
+  --recuperada: #00826b;
+  --aluminio: #e6eaee;
+  --aluminio-tira: #f4f6f8;
+  --aluminio-borde: #cdd4da;
+  --ambar-1: #fbebd7;
+  --ambar-2: #f5d0a6;
+  --ambar-3: #e9a867;
+  --ambar-4: #a24f0c;
+  --ambar-5: #7a3806;
 
   /* Letras de la fila (P, G, C, U): blanco sobre cada una supera 4,5:1. El color acompaña a la letra escrita. */
   --letra-p: #6d28d9;

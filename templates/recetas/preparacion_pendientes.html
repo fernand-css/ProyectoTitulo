@@ -35,10 +35,15 @@
         <td data-title="Preparada el">{{ item.preparada_el|date:"d/m/Y" }}</td>
         <td data-title="Días">{{ item.dias_transcurridos }}</td>
         <td data-title="Acción">
+          {% if item.en_despacho %}
+          {# Spec 13: viaja en una entrega a domicilio abierta; la ventanilla no la entrega. #}
+          <span class="estado-despacho"><strong>En despacho</strong> · se entrega a domicilio</span>
+          {% else %}
           <form method="post" action="{% url 'recetasapp:preparacion_retirar' item.pk %}">
             {% csrf_token %}{{ item.retiro_form.operacion_id }}
             <button class="boton" type="submit">Registrar retiro</button>
           </form>
+          {% endif %}
         </td>
       </tr>
       {% endfor %}

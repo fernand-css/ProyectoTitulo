@@ -649,6 +649,11 @@ class MoverParadaView(SoloEncargadoView):
 
 LIMITE_POSICION_POR_MINUTO = 30
 TEXTO_SIN_OSRM = "No se pudo calcular el tramo: el servidor de rutas no respondió. Sigue el orden de la lista."
+# OSRM respondió, pero no hay camino por calles desde la posición (por ejemplo, fuera de la zona del mapa cargado).
+TEXTO_SIN_CAMINO = ("No hay un camino por calles desde tu ubicación hasta esa parada. Si estás fuera de la zona "
+                    "del mapa de rutas, no se puede calcular. Sigue el orden de la lista.")
+TEXTO_SIN_CAMINO_CERCANA = ("No se pudo sugerir una parada: no hay un camino por calles desde tu ubicación. Si estás "
+                            "fuera de la zona del mapa de rutas, no se puede calcular. Sigue el orden de la lista.")
 TEXTO_SIN_OSRM_CERCANA = ("No se pudo sugerir una parada: el servidor de rutas no respondió. "
                           "La más cercana solo se mide por camino; sigue el orden de la lista.")
 TEXTO_POSICION_INVALIDA = "No recibimos una posición válida. Vuelve a pulsar «Mostrar mi posición»."
@@ -718,6 +723,8 @@ class TramoView(PosicionView):
             return _json_sin_cache({"error": "Esa visita no está en tu ruta de hoy o no tiene coordenadas."}, status=404)
         try:
             tramo = osrm.tramo(posicion, parada.punto)
+        except osrm.SinCamino:
+            return _json_sin_cache({"error": TEXTO_SIN_CAMINO}, status=422)
         except osrm.OsrmNoDisponible:
             return _json_sin_cache({"error": TEXTO_SIN_OSRM}, status=503)
         return _json_sin_cache({
@@ -735,6 +742,8 @@ class ParadaCercanaView(PosicionView):
             return _json_sin_cache({"error": "No hay paradas con coordenadas en tu ruta de hoy."}, status=404)
         try:
             fila = osrm.tabla([posicion, *[parada.punto for parada in con_punto]], origenes=[0])[0]
+        except osrm.SinCamino:
+            return _json_sin_cache({"error": TEXTO_SIN_CAMINO_CERCANA}, status=422)
         except osrm.OsrmNoDisponible:
             return _json_sin_cache({"error": TEXTO_SIN_OSRM_CERCANA}, status=503)
         distancia, elegida = min(((fila[i + 1], parada) for i, parada in enumerate(con_punto)),

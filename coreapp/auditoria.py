@@ -38,6 +38,14 @@ def registrar_accion(usuario, accion, objeto, *, using=None):
     )
 
 
+def registrar_referencia(usuario, accion, objeto_tipo, objeto_id, *, using=None):
+    """Acción sin objeto guardado (por ejemplo, la descarga de un reporte): el llamador fija tipo y referencia.
+
+    La referencia es un texto armado por el servidor (fechas y filtros), nunca datos de la petición sin validar.
+    """
+    return _guardar_registro(usuario, accion, objeto_tipo, objeto_id, using=using or DEFAULT_DB_ALIAS)
+
+
 def registrar_evento(usuario, accion, *, objeto=None, using=None):
     """Registrar eventos de cuentas sin aceptar datos libres de la petición.
 

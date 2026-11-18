@@ -12,15 +12,17 @@ from django.urls import reverse
 
 from coreapp.context_processors import menu_principal
 from coreapp.navegacion import ENTRADAS, MAXIMO_EN_BARRA, PERFIL, armar_menu
-from coreapp.roles import ENCARGADO, JEFA, SUPERUSUARIO, TECNICO
+from coreapp.roles import DIRECTOR, ENCARGADO, JEFA, SUPERUSUARIO, TECNICO
 from usuariosapp.tests.test_gestion_usuarios import cuenta_personal
 
 # Spec 08 (RF-08-13): «Entregas» para la farmacia; «Mis entregas» y «Domicilios» para el encargado de terreno.
+# Spec 13: «Mermas» para la Q.F., el superusuario y la Dirección (cuyo inicio es el panel: no ve «Inicio»).
 VISIBLES = {
-    JEFA: ["Inicio", "Atención", "Pacientes", "Recetas", "Entregas", "Sala de espera", "Ventanillas y pesos", "Usuarios"],
+    JEFA: ["Inicio", "Atención", "Pacientes", "Recetas", "Entregas", "Sala de espera", "Mermas", "Ventanillas y pesos", "Usuarios"],
     TECNICO: ["Inicio", "Atención", "Pacientes", "Recetas", "Entregas", "Sala de espera"],
     ENCARGADO: ["Inicio", "Mis entregas", "Domicilios"],
-    SUPERUSUARIO: ["Inicio", "Atención", "Pacientes", "Recetas", "Entregas", "Sala de espera", "Ventanillas y pesos", "Usuarios", "Administración"],
+    SUPERUSUARIO: ["Inicio", "Atención", "Pacientes", "Recetas", "Entregas", "Sala de espera", "Mermas", "Ventanillas y pesos", "Usuarios", "Administración"],
+    DIRECTOR: ["Mermas"],
     "": ["Inicio"],
 }
 
@@ -37,8 +39,8 @@ class MenuPorPerfilTests(TestCase):
 
     def test_los_grupos_tienen_titulo_y_el_inicio_va_suelto(self):
         menu = armar_menu(JEFA)
-        self.assertEqual([grupo.titulo for grupo in menu.grupos], ["", "Trabajo", "Equipo"])
-        self.assertEqual([len(grupo.opciones) for grupo in menu.grupos], [1, 5, 2])
+        self.assertEqual([grupo.titulo for grupo in menu.grupos], ["", "Trabajo", "Seguimiento", "Equipo"])
+        self.assertEqual([len(grupo.opciones) for grupo in menu.grupos], [1, 5, 1, 2])
         self.assertEqual([grupo.titulo for grupo in armar_menu(ENCARGADO).grupos], ["", "Entregas en terreno"])
 
     def test_una_cuenta_sin_perfil_solo_ve_el_inicio_y_no_tiene_mi_perfil(self):
@@ -50,10 +52,11 @@ class MenuPorPerfilTests(TestCase):
 
     def test_la_barra_del_celular_lleva_el_trabajo_y_el_resto_va_en_mas_sin_perder_nada(self):
         esperado = {
-            JEFA: (["inicio", "turnos", "padron", "recetas"], ["entregas", "sala", "ventanillas", "usuarios"]),
+            JEFA: (["inicio", "turnos", "padron", "recetas"], ["entregas", "sala", "mermas", "ventanillas", "usuarios"]),
             TECNICO: (["inicio", "turnos", "padron", "recetas"], ["entregas", "sala"]),
             ENCARGADO: (["inicio", "mis_entregas"], ["domicilios"]),
-            SUPERUSUARIO: (["inicio", "turnos", "padron", "recetas"], ["entregas", "sala", "ventanillas", "usuarios", "administracion"]),
+            SUPERUSUARIO: (["inicio", "turnos", "padron", "recetas"], ["entregas", "sala", "mermas", "ventanillas", "usuarios", "administracion"]),
+            DIRECTOR: (["mermas"], []),
         }
         for rol, (barra, mas) in esperado.items():
             with self.subTest(rol=rol):

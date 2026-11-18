@@ -3,7 +3,9 @@
 Solo Django consulta a OSRM; el navegador nunca conoce su dirección. Usa la biblioteca estándar (sin dependencias
 nuevas), no usa los proxies del entorno y espera a lo más `OSRM_TIEMPO_ESPERA` segundos por operación de red.
 Cualquier falla (tiempo, red, código distinto de `Ok`, JSON mal formado o una distancia nula) se informa como
-`OsrmNoDisponible`, con un mensaje que nunca incluye coordenadas: quien llama usa su respaldo.
+`OsrmNoDisponible`, con un mensaje que nunca incluye coordenadas: quien llama usa su respaldo. «Sin camino»
+(`NoSegment`/`NoRoute`, por ejemplo una posición fuera del mapa cargado) es `SinCamino`, su subclase: OSRM sí
+respondió, así que no se marca como caído.
 
 Las coordenadas viajan como `longitud,latitud` con 6 decimales. La matriz de la ruta (solo domicilios y el CESFAM)
 se puede guardar en la caché de Django unos minutos; la que incluye la posición del encargado, nunca.
@@ -13,7 +15,7 @@ import hashlib
 import json
 import math
 from dataclasses import dataclass
-from urllib.error import URLError
+from urllib.error import HTTPError, URLError
 from urllib.request import ProxyHandler, Request, build_opener
 
 from django.conf import settings
@@ -34,6 +36,27 @@ def _clave_caido(base):
 
 class OsrmNoDisponible(Exception):
     """OSRM no respondió a tiempo, falló o entregó algo que no sirve. El mensaje no lleva coordenadas."""
+
+
+class SinCamino(OsrmNoDisponible):
+    """OSRM respondió, pero no hay camino entre los puntos: por ejemplo, la posición queda fuera del mapa cargado.
+
+    No es una caída: no marca el servidor como no disponible. Hereda de `OsrmNoDisponible` para que quien solo
+    tiene un respaldo (la ruta en línea recta) lo siga usando sin cambios.
+    """
+
+
+# Códigos de OSRM que significan «respondió, pero no hay camino». El servidor real entrega `NoSegment` (un punto
+# sin calle cercana en el mapa cargado) con HTTP 400; `NoRoute` puede llegar con 200 o con 400.
+CODIGOS_SIN_CAMINO = frozenset({"NoSegment", "NoRoute"})
+
+
+def _codigo(cuerpo):
+    try:
+        datos = json.loads(cuerpo)
+    except (ValueError, UnicodeDecodeError):
+        return None
+    return datos.get("code") if isinstance(datos, dict) else None
 
 
 @dataclass(frozen=True)
@@ -68,7 +91,19 @@ def _consultar(servicio, puntos, parametros):
     try:
         with _opener().open(solicitud, timeout=float(settings.OSRM_TIEMPO_ESPERA)) as respuesta:
             cuerpo = respuesta.read(LIMITE_RESPUESTA + 1)
-    except (URLError, OSError, ValueError) as error:  # HTTPError es URLError; el tiempo agotado es OSError
+    except HTTPError as error:
+        # OSRM contestó con un error. «Sin camino» (p. ej. la posición fuera del mapa) no es una caída.
+        try:
+            codigo = _codigo(error.read(64 * 1024))
+        except OSError:
+            codigo = None
+        finally:
+            error.close()
+        if error.code == 400 and codigo in CODIGOS_SIN_CAMINO:
+            raise SinCamino("El servidor de rutas no encontró un camino desde ese punto.") from None
+        cache.set(caido, True, SEGUNDOS_CAIDO)
+        raise OsrmNoDisponible("El servidor de rutas no respondió.") from _sin_detalle(error)
+    except (URLError, OSError, ValueError) as error:  # el tiempo agotado es OSError
         cache.set(caido, True, SEGUNDOS_CAIDO)
         raise OsrmNoDisponible("El servidor de rutas no respondió.") from _sin_detalle(error)
     if len(cuerpo) > LIMITE_RESPUESTA:
@@ -77,8 +112,10 @@ def _consultar(servicio, puntos, parametros):
         datos = json.loads(cuerpo)
     except (ValueError, UnicodeDecodeError):
         raise OsrmNoDisponible("La respuesta del servidor de rutas no se pudo leer.") from None
+    if isinstance(datos, dict) and datos.get("code") in CODIGOS_SIN_CAMINO:
+        raise SinCamino("El servidor de rutas no encontró un camino desde ese punto.")
     if not isinstance(datos, dict) or datos.get("code") != "Ok":
-        raise OsrmNoDisponible("El servidor de rutas no encontró un camino.")
+        raise OsrmNoDisponible("La respuesta del servidor de rutas no se pudo usar.")
     return datos
 
 

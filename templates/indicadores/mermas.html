@@ -1,0 +1,213 @@
+{% extends 'components/Layout/base.html' %}
+{% load static %}
+{% block titulo %}Mermas · Farmacia{% endblock %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/recetas.css' %}"><link rel="stylesheet" href="{% static 'css/tablero.css' %}"><link rel="stylesheet" href="{% static 'css/indicadores.css' %}">{% endblock %}
+{# Recetas preparadas y no retiradas por período: blíster, calendario, días en el estante, tipo, cierre, entregas confirmadas (para comparar) y detalle. #}
+{% block contenido %}
+<div class="contenedor pagina mermas">
+  <header class="seccion">
+    <div class="seccion-fila">
+      <div>
+        <h1>Mermas</h1>
+        <p>Recetas que se prepararon y quedaron en el mesón al cerrar el turno, por fecha de preparación.</p>
+      </div>
+      <div class="acciones mermas-descargas">
+        <a class="boton boton-secundario" href="{% url 'indicadoresapp:mermas_reporte' formato='xlsx' %}{{ consulta }}" download><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-descargar"/></svg>Descargar Excel</a>
+        <a class="boton boton-secundario" href="{% url 'indicadoresapp:mermas_reporte' formato='pdf' %}{{ consulta }}" download><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-descargar"/></svg>Descargar PDF</a>
+      </div>
+    </div>
+  </header>
+
+  <section class="mermas-filtro" aria-labelledby="titulo-filtro">
+    <h2 id="titulo-filtro" class="sr-only">Período y tipo de paciente</h2>
+    <ul class="mermas-atajos" aria-label="Atajos del período">
+      {% for atajo in atajos %}<li><a href="{{ atajo.url }}"{% if atajo.actual %} aria-current="true"{% endif %}>{{ atajo.texto }}</a></li>{% endfor %}
+    </ul>
+    <form class="mermas-formulario" method="get" novalidate>
+      {% if form.non_field_errors %}<div class="message message-error" role="alert">{% for error in form.non_field_errors %}<p>{{ error }} Se muestran los últimos 30 días.</p>{% endfor %}</div>{% endif %}
+      <div class="campo"><label for="{{ form.desde.id_for_label }}">{{ form.desde.label }}</label><input type="date" name="desde" id="{{ form.desde.id_for_label }}" value="{{ periodo.inicio|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}"></div>
+      <div class="campo"><label for="{{ form.hasta.id_for_label }}">{{ form.hasta.label }}</label><input type="date" name="hasta" id="{{ form.hasta.id_for_label }}" value="{{ periodo.fin|date:'Y-m-d' }}" max="{% now 'Y-m-d' %}"></div>
+      <div class="campo"><label for="{{ form.tipo.id_for_label }}">{{ form.tipo.label }}</label>
+        <select name="tipo" id="{{ form.tipo.id_for_label }}">{% for valor, texto in form.fields.tipo.choices %}<option value="{{ valor }}"{% if valor == periodo.tipo %} selected{% endif %}>{{ texto }}</option>{% endfor %}</select>
+      </div>
+      <button class="boton" type="submit">Aplicar</button>
+    </form>
+  </section>
+
+  {% if blister %}
+  <section class="blister-panel" aria-labelledby="titulo-blister">
+    <div class="blister-texto">
+      <h2 id="titulo-blister">{% if resumen.merma %}Queda{{ resumen.merma|pluralize:"n" }} {{ resumen.merma }} receta{{ resumen.merma|pluralize }} por entregar{% else %}Todas las recetas se entregaron{% endif %}</h2>
+      <p class="blister-relato" aria-live="polite">De las {{ resumen.total }} que se prepararon y no se llevaron al cerrar el turno, entre el {{ inicio_texto }} y el {{ fin_texto }}{% if periodo.tipo != 'todos' %} (pacientes de tipo {{ periodo.tipo_texto|lower }}){% endif %}, {% if resumen.recuperadas %}{{ resumen.recuperadas }} se recuperaron después{% else %}ninguna se ha recuperado todavía{% endif %}.</p>
+      <p class="blister-escala">{% if blister.escala == 1 %}Cada alvéolo es una receta preparada.{% else %}Cada alvéolo son {{ blister.escala }} recetas preparadas; las cifras exactas están al lado de cada estado.{% endif %}</p>
+    </div>
+    <figure class="blister-figura">
+      <div class="blister-tiras" role="img" aria-label="{{ resumen.total }} recetas preparadas y no retiradas: {% for parte in blister.leyenda %}{{ parte.cantidad }} {{ parte.texto|lower }}{% if not forloop.last %}, {% endif %}{% endfor %}.">
+        {% for tira in blister.tiras %}<div class="blister-tira" aria-hidden="true">{% for celda in tira %}<span class="alveolo alveolo-{{ celda }}"></span>{% endfor %}</div>{% endfor %}
+      </div>
+      <figcaption>
+        <ul class="blister-leyenda">
+          {% for parte in blister.leyenda %}<li><span class="alveolo alveolo-{{ parte.clave }}" aria-hidden="true"></span><span>{{ parte.texto }}</span><strong>{{ parte.cantidad }}</strong></li>{% endfor %}
+        </ul>
+      </figcaption>
+    </figure>
+  </section>
+
+  {% if resumen.merma %}
+  <div class="mermas-rejilla">
+    <section class="tarjeta" aria-labelledby="titulo-evolucion">
+      <header class="tarjeta-cabeza"><div><h2 id="titulo-evolucion">{% if resumen.por_semana %}Merma por semana{% else %}Merma por día{% endif %}</h2><p>{% if frase_dia %}{{ frase_dia }}{% elif resumen.por_semana %}Semanas de lunes a domingo.{% else %}Recetas por entregar según el día en que se prepararon.{% endif %}</p></div></header>
+      {% if calendario %}
+      <figure class="grafico calendario-merma" data-grafico="calendario">
+        <div class="calendario-rejilla" role="img" aria-label="Calendario del {{ inicio_texto }} al {{ fin_texto }} con las recetas por entregar de cada día; el máximo fue {{ calendario.maximo }}.">
+          {% for corto, largo in calendario.dias %}<span class="calendario-dia" aria-hidden="true" title="{{ largo }}">{{ corto }}</span>{% endfor %}
+          {% for semana in calendario.semanas %}{% for celda in semana %}{% if celda %}<span class="calendario-celda nivel-{{ celda.nivel }}{% if celda.fin_de_semana and not celda.valor %} calendario-libre{% endif %}" aria-hidden="true" data-tip="{{ celda.tip }}"><small>{{ celda.etiqueta }}</small>{% if celda.valor or not celda.fin_de_semana %}<strong>{{ celda.valor }}</strong>{% endif %}</span>{% else %}<span class="calendario-fuera" aria-hidden="true"></span>{% endif %}{% endfor %}{% endfor %}
+        </div>
+        <figcaption class="calendario-escala"><span>Menos</span>{% for n in '12345' %}<span class="calendario-muestra nivel-{{ n }}" aria-hidden="true"></span>{% endfor %}<span>Más</span><span class="calendario-nota"><span class="calendario-muestra calendario-libre" aria-hidden="true"></span>Sábado o domingo sin recetas</span></figcaption>
+      </figure>
+      <details class="datos">
+        <summary>Ver los datos en una tabla</summary>
+        <div class="tabla-caja datos-tabla">
+          <table class="tabla">
+            <caption class="sr-only">Recetas por entregar por día</caption>
+            <thead><tr><th scope="col">Día</th><th scope="col" class="num">Recetas</th></tr></thead>
+            <tbody>{% for semana in calendario.semanas %}{% for celda in semana %}{% if celda %}<tr><th scope="row">{{ celda.fecha|date:"l j \d\e F" }}</th><td class="num">{{ celda.valor }}</td></tr>{% endif %}{% endfor %}{% endfor %}</tbody>
+          </table>
+        </div>
+      </details>
+      {% else %}
+      <figure class="grafico" data-grafico="columnas">
+        <svg class="columnas" viewBox="0 0 {{ evolucion.ancho }} {{ evolucion.alto }}" role="img" aria-labelledby="evolucion-titulo evolucion-desc" focusable="false">
+          <title id="evolucion-titulo">Merma por semana</title>
+          <desc id="evolucion-desc">{{ resumen.merma }} recetas por entregar entre el {{ inicio_texto }} y el {{ fin_texto }}; el máximo semanal fue {{ evolucion.maximo }}.</desc>
+          {% for marca in evolucion.marcas_y %}
+          <line class="grafico-rejilla" x1="{{ evolucion.izquierda }}" x2="{{ evolucion.derecha }}" y1="{{ marca.y }}" y2="{{ marca.y }}"/>
+          <text class="grafico-eje" x="{{ evolucion.izquierda }}" y="{{ marca.y }}" dx="-8" dy="4" text-anchor="end">{{ marca.etiqueta }}</text>
+          {% endfor %}
+          {% for marca in evolucion.marcas_x %}<text class="grafico-eje" x="{{ marca.x }}" y="{{ evolucion.alto|add:'-8' }}" text-anchor="middle">{{ marca.texto }}</text>{% endfor %}
+          {% for columna in evolucion.columnas %}{% if columna.ruta %}<path class="columna" d="{{ columna.ruta }}"/>{% endif %}{% endfor %}
+          <g aria-hidden="true">{% for columna in evolucion.columnas %}<rect class="ranura" x="{{ columna.ranura_x }}" y="{{ evolucion.zona.y }}" width="{{ columna.ranura_ancho }}" height="{{ evolucion.zona.alto }}" data-tip="{{ columna.tip }}"/>{% endfor %}</g>
+        </svg>
+      </figure>
+      <details class="datos">
+        <summary>Ver los datos en una tabla</summary>
+        <div class="tabla-caja datos-tabla">
+          <table class="tabla">
+            <caption class="sr-only">Recetas por entregar por semana</caption>
+            <thead><tr><th scope="col">Semana</th><th scope="col" class="num">Recetas</th></tr></thead>
+            <tbody>{% for columna in evolucion.columnas %}<tr><th scope="row">{{ columna.texto }}</th><td class="num">{{ columna.valor }}</td></tr>{% endfor %}</tbody>
+          </table>
+        </div>
+      </details>
+      {% endif %}
+    </section>
+
+    <section class="tarjeta" aria-labelledby="titulo-espera">
+      <header class="tarjeta-cabeza"><div><h2 id="titulo-espera">Cuánto llevan en el estante</h2><p>{% if resumen.cifras.sin_retirar %}Las {{ resumen.cifras.sin_retirar }} receta{{ resumen.cifras.sin_retirar|pluralize }} sin retirar, por días desde que se preparó.{% if sin_retirar_viejas %} {{ sin_retirar_viejas }} lleva{{ sin_retirar_viejas|pluralize:"n" }} más de dos semanas.{% endif %}{% else %}Todo lo que queda va en un despacho a domicilio.{% endif %}</p></div></header>
+      {% if resumen.cifras.sin_retirar %}
+      <ol class="barras barras-espera">
+        {% for barra in espera %}<li><span class="barra-texto">{{ barra.texto }}</span><span class="barra-carril" aria-hidden="true"><span class="barra barra-tramo-{{ barra.tramo }}" style="width: {{ barra.ancho }}%"></span></span><strong class="barra-cifra">{{ barra.cantidad }}</strong></li>{% endfor %}
+      </ol>
+      <a class="mermas-ir" href="#titulo-detalle">Ver quiénes llevan más días</a>
+      {% endif %}
+    </section>
+
+    <section class="tarjeta" aria-labelledby="titulo-tipo">
+      <header class="tarjeta-cabeza"><div><h2 id="titulo-tipo">Crónico y general</h2><p>Recetas por entregar según la marca de crónico del padrón.</p></div></header>
+      <div class="division" aria-hidden="true">{% for parte in por_tipo %}{% if parte.cantidad %}<span class="division-{{ parte.clave }}" style="flex-grow: {{ parte.cantidad }}"></span>{% endif %}{% endfor %}</div>
+      <ul class="division-leyenda">
+        {% for parte in por_tipo %}<li><span class="muestra division-{{ parte.clave }}" aria-hidden="true"></span>{{ parte.texto }} <strong>{{ parte.cantidad }}</strong> <span>{{ parte.porcentaje }} %</span></li>{% endfor %}
+      </ul>
+    </section>
+
+    <section class="tarjeta" aria-labelledby="titulo-cierre">
+      <header class="tarjeta-cabeza"><div><h2 id="titulo-cierre">Cómo cerró el turno</h2><p>El cierre de la atención en que se preparó cada receta por entregar.</p></div></header>
+      <ol class="barras barras-cierre">
+        {% for barra in por_cierre %}<li><span class="barra-texto">{{ barra.texto }}</span><strong class="barra-cifra">{{ barra.cantidad }}</strong><span class="barra-carril" aria-hidden="true"><span class="barra" style="width: {{ barra.ancho }}%"></span></span></li>{% endfor %}
+      </ol>
+    </section>
+  </div>
+  {% endif %}
+  {% else %}
+  <div class="tarjeta-vacia mermas-vacio"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg><p>No hay recetas no retiradas en este período.</p></div>
+  {% endif %}
+
+  <section class="tarjeta mermas-entregas" aria-labelledby="titulo-entregas">
+    <header class="tarjeta-cabeza"><div>
+      <h2 id="titulo-entregas">Entregas confirmadas por {% if entregas.por_semana %}semana{% else %}día{% endif %}</h2>
+      <p>{% if entregas %}{{ entregas.total }} entrega{{ entregas.total|pluralize }} entre el {{ inicio_texto }} y el {{ fin_texto }}{% if periodo.tipo != 'todos' %} (pacientes de tipo {{ periodo.tipo_texto|lower }}){% endif %} · {{ entregas.promedio_diario }} por día en promedio. Incluye las del mesón y las del reparto, para comparar con la merma.{% else %}Lo que se entregó en el mesón y por el reparto, para comparar con la merma.{% endif %}</p>
+    </div></header>
+    {% if entregas %}
+    <figure class="grafico" data-grafico="columnas">
+      {% if not entregas.por_semana %}
+      <ul class="grafico-leyenda" aria-label="Qué muestra cada marca">
+        <li><span class="grafico-muestra grafico-muestra-columna" aria-hidden="true"></span>Entregas del día</li>
+        <li><span class="grafico-muestra grafico-muestra-linea" aria-hidden="true"></span>Promedio de {{ entregas.ventana }} días</li>
+      </ul>
+      {% endif %}
+      <svg class="columnas" viewBox="0 0 {{ entregas.ancho }} {{ entregas.alto }}" role="img" aria-labelledby="entregas-titulo entregas-desc" focusable="false">
+        <title id="entregas-titulo">Entregas confirmadas por {% if entregas.por_semana %}semana{% else %}día{% endif %}</title>
+        <desc id="entregas-desc">{{ entregas.total }} entregas entre el {{ inicio_texto }} y el {{ fin_texto }}; el máximo fue {{ entregas.maximo }}, {{ entregas.maximo_texto }}.{% if entregas.ultimo_promedio_texto %} El promedio de {{ entregas.ventana }} días termina en {{ entregas.ultimo_promedio_texto }}.{% endif %}</desc>
+        {% for marca in entregas.marcas_y %}
+        <line class="grafico-rejilla" x1="{{ entregas.izquierda }}" x2="{{ entregas.derecha }}" y1="{{ marca.y }}" y2="{{ marca.y }}"/>
+        <text class="grafico-eje" x="{{ entregas.izquierda }}" y="{{ marca.y }}" dx="-8" dy="4" text-anchor="end">{{ marca.etiqueta }}</text>
+        {% endfor %}
+        {% for marca in entregas.marcas_x %}<text class="grafico-eje" x="{{ marca.x }}" y="{{ entregas.alto|add:'-8' }}" text-anchor="middle">{{ marca.texto }}</text>{% endfor %}
+        {% for columna in entregas.columnas %}{% if columna.ruta %}<path class="columna" d="{{ columna.ruta }}"/>{% endif %}{% endfor %}
+        {% if entregas.ruta_promedio %}<path class="columnas-promedio" d="{{ entregas.ruta_promedio }}" pathLength="1"/>{% endif %}
+        <g aria-hidden="true">{% for columna in entregas.columnas %}<rect class="ranura" x="{{ columna.ranura_x }}" y="{{ entregas.zona.y }}" width="{{ columna.ranura_ancho }}" height="{{ entregas.zona.alto }}" data-tip="{{ columna.tip }}"/>{% endfor %}</g>
+      </svg>
+    </figure>
+    <details class="datos">
+      <summary>Ver los datos en una tabla</summary>
+      <div class="tabla-caja datos-tabla">
+        <table class="tabla">
+          <caption class="sr-only">Entregas confirmadas por {% if entregas.por_semana %}semana{% else %}día y promedio de {{ entregas.ventana }} días{% endif %}</caption>
+          <thead><tr><th scope="col">{% if entregas.por_semana %}Semana{% else %}Día{% endif %}</th><th scope="col" class="num">Entregas</th>{% if not entregas.por_semana %}<th scope="col" class="num">Promedio de {{ entregas.ventana }} días</th>{% endif %}</tr></thead>
+          <tbody>{% for columna in entregas.columnas %}<tr><th scope="row">{{ columna.texto }}</th><td class="num">{{ columna.valor }}</td>{% if not entregas.por_semana %}<td class="num">{{ columna.promedio_texto }}</td>{% endif %}</tr>{% endfor %}</tbody>
+        </table>
+      </div>
+    </details>
+    {% else %}
+    <div class="tarjeta-vacia"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-sello"/></svg><p>No hay entregas confirmadas en este período.</p></div>
+    {% endif %}
+  </section>
+
+  <section class="tarjeta mermas-detalle" aria-labelledby="titulo-detalle">
+    <header class="tarjeta-cabeza"><div><h2 id="titulo-detalle">Detalle por paciente</h2><p>{{ pagina.paginator.count }} paciente{{ pagina.paginator.count|pluralize }} con recetas por entregar, desde quien lleva más días.</p></div></header>
+    {% if pagina.object_list %}
+    <div class="tabla-caja">
+      <table class="tabla tabla-apilable">
+        <caption class="sr-only">Pacientes con recetas no retiradas en el período</caption>
+        <thead><tr><th scope="col">Paciente</th><th scope="col">Tipo</th><th scope="col" class="num">Sin retirar</th><th scope="col" class="num">En despacho</th><th scope="col">Esperando</th><th scope="col">Reparto a domicilio</th>{% if puede_derivar %}<th scope="col"><span class="sr-only">Acción</span></th>{% endif %}</tr></thead>
+        <tbody>
+          {% for fila in pagina.object_list %}
+          <tr>
+            <th scope="row">{{ fila.paciente.apellidos }}, {{ fila.paciente.nombres }}<small>RUT {{ fila.paciente.rut }}</small></th>
+            <td data-etiqueta="Tipo">{% if fila.paciente.es_cronico %}Crónico{% else %}General{% endif %}</td>
+            <td class="num" data-etiqueta="Sin retirar">{{ fila.sin_retirar }}</td>
+            <td class="num" data-etiqueta="En despacho">{{ fila.en_despacho }}</td>
+            <td data-etiqueta="Esperando"><span class="espera-fila"><span class="espera-carril" aria-hidden="true"><span class="espera-barra{% if fila.dias > 14 %} espera-larga{% elif fila.dias > 7 %} espera-media{% endif %}" style="width: {% if fila.dias >= 30 %}100{% else %}{% widthratio fila.dias 30 100 %}{% endif %}%"></span></span><span>{{ fila.dias }} día{{ fila.dias|pluralize }}<small>Desde el {{ fila.mas_antigua|date:"d/m/Y" }}</small></span></span></td>
+            <td data-etiqueta="Reparto a domicilio">{{ fila.elegible }}</td>
+            {% if puede_derivar %}
+            <td data-etiqueta="Acción">{% if fila.sin_retirar %}<a class="boton boton-secundario" href="{% url 'indicadoresapp:mermas_derivar' paciente_id=fila.paciente.pk %}{{ consulta }}">Derivar a domicilio<span class="sr-only"> a {{ fila.paciente.nombres }} {{ fila.paciente.apellidos }}</span></a>{% else %}<span class="mermas-en-camino">Ya en despacho</span>{% endif %}</td>
+            {% endif %}
+          </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    {% if pagina.has_other_pages %}
+    <nav class="mermas-paginas" aria-label="Páginas del detalle">
+      {% if pagina.has_previous %}<a class="boton boton-secundario" href="{{ consulta }}&pagina={{ pagina.previous_page_number }}#titulo-detalle">Anterior</a>{% endif %}
+      <span>Página {{ pagina.number }} de {{ pagina.paginator.num_pages }}</span>
+      {% if pagina.has_next %}<a class="boton boton-secundario" href="{{ consulta }}&pagina={{ pagina.next_page_number }}#titulo-detalle">Siguiente</a>{% endif %}
+    </nav>
+    {% endif %}
+    {% else %}
+    <div class="tarjeta-vacia"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg><p>Ningún paciente tiene recetas no retiradas en este período.</p></div>
+    {% endif %}
+  </section>
+</div>
+{% endblock %}
+{% block scripts %}<script defer src="{% static 'js/graficos.js' %}"></script>{% endblock %}

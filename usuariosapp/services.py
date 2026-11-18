@@ -20,7 +20,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from coreapp.auditoria import ROL_CAMBIADO, USUARIO_CREADO, registrar_evento
-from coreapp.roles import ENCARGADO, JEFA, ROLES_INTERNOS, TECNICO, estado_acceso
+from coreapp.roles import DIRECTOR, ENCARGADO, JEFA, ROLES_INTERNOS, TECNICO, estado_acceso
 from .forms import PerfilForm
 from .models import Perfil
 
@@ -29,6 +29,7 @@ CUENTAS_DEMO = (
     ("demo_qf", JEFA, "QF"),
     ("demo_tecnico", TECNICO, "Técnico"),
     ("demo_terreno", ENCARGADO, "Terreno"),
+    ("demo_director", DIRECTOR, "Dirección"),
 )
 
 

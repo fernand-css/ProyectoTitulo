@@ -134,3 +134,5 @@ Aprobación del documento: Aprobado por el usuario antes de invocar `spec-impl`.
 ## Acuerdo de ejecución
 
 Por instrucción del usuario del 2026-11-01: conservar los cambios existentes, implementar en la rama actual `fdaza` sin crear una nueva y hacer commit cuando termine la implementación completa. No se realizan commits intermedios. El ritmo de revisión por pasos de `spec-impl` se mantiene mientras no se indique otro.
+
+2026-11-17 (spec 13): se agrega un cuarto rol interno, «Director del CESFAM» (etiqueta «Dirección del CESFAM»), de solo consulta del panel de mermas. `crear_roles` crea cuatro grupos, `crear_usuarios_demo` suma `demo_director` y solo el superusuario administra estas cuentas; la Q.F. sigue gestionando solo Técnicos y Encargados. Ver [spec 13](../13-panel-de-mermas/spec.md).

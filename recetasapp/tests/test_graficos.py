@@ -1,4 +1,4 @@
-"""Geometría de los gráficos de Recetas: porcentajes, escala, columnas con promedio, tendencia, segmentos y calendario de calor."""
+"""Geometría de los gráficos de Recetas: porcentajes, escala, columnas con promedio, tendencia, y segmentos."""
 
 from datetime import date, timedelta
 
@@ -155,58 +155,3 @@ class SegmentosTests(SimpleTestCase):
 
     def test_sin_datos_no_hay_partes_visibles(self):
         self.assertFalse(any(p["visible"] for p in graficos.segmentos(self.partes(0, 0))))
-
-
-class CalorTests(SimpleTestCase):
-    HOY = date(2026, 11, 4)  # miércoles; la semana empieza el lunes 2
-
-    def test_cortes_son_cinco_o_menos_y_con_pocos_valores_son_los_propios_valores(self):
-        self.assertEqual(graficos.cortes_de_calor(0), [])
-        self.assertEqual(graficos.cortes_de_calor(1), [1])
-        self.assertEqual(graficos.cortes_de_calor(3), [1, 2, 3])
-        self.assertEqual(graficos.cortes_de_calor(5), [1, 2, 3, 4, 5])
-        self.assertEqual(graficos.cortes_de_calor(10), [2, 4, 6, 8, 10])
-        self.assertEqual(graficos.cortes_de_calor(7), [2, 3, 5, 6, 7])
-        for maximo in range(1, 200):
-            cortes = graficos.cortes_de_calor(maximo)
-            self.assertLessEqual(len(cortes), 5)
-            self.assertEqual(cortes[-1], maximo)
-            self.assertEqual(cortes, sorted(set(cortes)))
-
-    def test_doce_semanas_de_lunes_a_domingo_desde_la_semana_de_hoy(self):
-        calor = graficos.mapa_calor({}, self.HOY)
-        self.assertEqual(len(calor["semanas"]), 12)
-        self.assertEqual(calor["semanas"][0]["lunes"], date(2026, 11, 2))
-        self.assertEqual(calor["semanas"][1]["lunes"], date(2026, 11, 9))
-        for semana in calor["semanas"]:
-            self.assertEqual([d["fecha"].weekday() for d in semana["dias"]], list(range(7)))
-
-    def test_los_dias_anteriores_a_hoy_quedan_en_blanco_aunque_haya_datos(self):
-        calor = graficos.mapa_calor({date(2026, 11, 2): 9, date(2026, 11, 4): 2}, self.HOY)
-        primera = calor["semanas"][0]["dias"]
-        self.assertEqual([d["pasado"] for d in primera], [True, True, False, False, False, False, False])
-        self.assertEqual(primera[0]["valor"], 0)
-        self.assertEqual(primera[2]["valor"], 2)
-        self.assertTrue(primera[2]["es_hoy"])
-        self.assertEqual(calor["total"], 2)
-
-    def test_cada_dia_cae_en_el_tono_de_su_tramo_y_la_leyenda_describe_los_tramos(self):
-        conteos = {self.HOY: 1, self.HOY + timedelta(days=1): 4, self.HOY + timedelta(days=2): 10}
-        calor = graficos.mapa_calor(conteos, self.HOY)
-        dias = {d["fecha"]: d for semana in calor["semanas"] for d in semana["dias"]}
-        self.assertEqual([dias[self.HOY + timedelta(days=i)]["tono"] for i in range(3)], [1, 2, 5])
-        self.assertEqual(dias[self.HOY + timedelta(days=3)]["tono"], 0)
-        self.assertEqual(calor["leyenda"], [
-            {"tono": 1, "desde": 1, "hasta": 2}, {"tono": 2, "desde": 3, "hasta": 4}, {"tono": 3, "desde": 5, "hasta": 6},
-            {"tono": 4, "desde": 7, "hasta": 8}, {"tono": 5, "desde": 9, "hasta": 10},
-        ])
-
-    def test_lo_que_cae_despues_de_las_doce_semanas_no_cuenta(self):
-        lejos = self.HOY + timedelta(days=7 * 12)
-        calor = graficos.mapa_calor({lejos: 3, self.HOY: 1}, self.HOY)
-        self.assertEqual((calor["total"], calor["maximo"]), (1, 1))
-
-    def test_sin_vencimientos_no_hay_tonos_ni_leyenda(self):
-        calor = graficos.mapa_calor({}, self.HOY)
-        self.assertEqual((calor["total"], calor["maximo"], calor["cortes"], calor["leyenda"]), (0, 0, [], []))
-        self.assertTrue(all(d["tono"] == 0 for semana in calor["semanas"] for d in semana["dias"]))

@@ -49,7 +49,7 @@ def main():
         from django.utils import timezone
         from daphne.server import Server
         from cesfam.asgi import application
-        from coreapp.roles import JEFA, TECNICO, ENCARGADO
+        from coreapp.roles import DIRECTOR, JEFA, TECNICO, ENCARGADO
         from coreapp.utils.sinteticos import generar_ruts
         from recetasapp.models import Paciente, Receta, EntregaReceta, PreparacionReceta
         from recetasapp.services import calcular_fin, marcar_lista
@@ -62,10 +62,10 @@ def main():
         call_command("preparar_ventanillas", verbosity=0)
         clave = secrets.token_urlsafe(18) + "9!"
         usuarios = {}
-        for nombre, rol in (("qf", JEFA), ("tecnico", TECNICO), ("terreno", ENCARGADO)):
+        for nombre, rol in (("qf", JEFA), ("tecnico", TECNICO), ("terreno", ENCARGADO), ("director", DIRECTOR)):
             usuario = get_user_model().objects.create_user(
                 username="revision_" + nombre,
-                first_name={"qf": "Equipo", "tecnico": "Personal", "terreno": "Terreno"}[nombre],
+                first_name={"qf": "Equipo", "tecnico": "Personal", "terreno": "Terreno", "director": "Dirección"}[nombre],
                 last_name="de prueba",
                 email=nombre + "@example.invalid",
                 password=clave,
@@ -102,6 +102,27 @@ def main():
             if indice < 12:
                 emitir_turno(rut, uuid.uuid4())
 
+        # Panel de mermas (spec 13): 45 días de turnos cerrados con recetas preparadas y sin retirar.
+        from datetime import datetime, time as hora
+        from turnosapp.models import Turno, TurnoReceta
+        azar = Random(1313)
+        recetas_demo = list(Receta.objects.select_related("paciente").order_by("pk"))
+        cierres = ("ausente", "sin_atencion_cierre", "atendido", "cerrado_sin_entrega")
+        for dias_atras in range(1, 46):
+            fecha = hoy - timedelta(days=dias_atras)
+            momento = timezone.make_aware(datetime.combine(fecha, hora(10)), timezone.get_current_timezone())
+            for numero, receta in enumerate(azar.sample(recetas_demo, azar.randint(0, 4)), start=1):
+                turno = Turno.objects.create(
+                    paciente=receta.paciente, rut=receta.paciente.rut, fecha=fecha, letra="G", numero=numero,
+                    tipo_atencion="general", estado=cierres[(dias_atras + numero) % 4], entrada_cola=momento,
+                    cerrado_en=momento + timedelta(hours=1),
+                )
+                PreparacionReceta.objects.create(
+                    turno_receta=TurnoReceta.objects.create(turno=turno, receta=receta), recibida_en=momento,
+                    lista_en=momento + timedelta(minutes=12), lista_por=usuarios["tecnico"],
+                    inicio_medido=momento, duracion_segundos=720,
+                )
+
         from turnosapp.models import Ventanilla
         ventanilla = Ventanilla.objects.get(numero=1)
         ocupar_ventanilla(usuarios["tecnico"], ventanilla.pk, uuid.uuid4())
@@ -111,7 +132,7 @@ def main():
             marcar_lista(usuarios["qf"], preparacion.pk)
 
         print(f"Vista local aislada: http://127.0.0.1:{argumentos.port}/", flush=True)
-        print("Cuentas sintéticas: revision_qf / revision_tecnico / revision_terreno / revision_admin", flush=True)
+        print("Cuentas sintéticas: revision_qf / revision_tecnico / revision_terreno / revision_director / revision_admin", flush=True)
         print(f"Clave temporal: {clave}", flush=True)
         print("La base temporal se elimina al cerrar con Ctrl+C.", flush=True)
         try:

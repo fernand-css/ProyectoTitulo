@@ -3,7 +3,8 @@
 Un servidor HTTP mínimo en 127.0.0.1 (puerto libre) que responde `table` y `route` de forma determinista, sin
 red externa y sin registrar nada. Por defecto, la distancia «por camino» es la haversine multiplicada por
 `factor`; una prueba puede entregar su propia función `distancia(a, b)` (a y b son `(latitud, longitud)`) para
-construir una matriz a mano. `modo` simula fallas: "lento", "error500", "noroute", "malformado" y "nulo".
+construir una matriz a mano. `modo` simula fallas: "lento", "error500", "noroute", "nosegment" (HTTP 400, como el OSRM real con un punto
+fuera del mapa), "malformado" y "nulo".
 """
 
 import json
@@ -57,6 +58,8 @@ class _Manejador(BaseHTTPRequestHandler):
             return self._enviar(200, b"{no es json", "application/json")
         if modo == "noroute":
             return self._enviar(200, {"code": "NoRoute", "message": "Impossible route between points"})
+        if modo == "nosegment":
+            return self._enviar(400, {"code": "NoSegment", "message": "Could not find a matching segment for any coordinate."})
         segmentos = partes.path.strip("/").split("/")
         if len(segmentos) != 4 or segmentos[1] != "v1" or segmentos[2] != "driving":
             return self._enviar(400, {"code": "InvalidUrl"})

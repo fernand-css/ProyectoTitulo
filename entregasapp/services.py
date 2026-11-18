@@ -405,6 +405,100 @@ def programar_entrega(actor, paciente_id, fecha, encargado_id, operacion_id):
     return entrega
 
 
+# Derivación desde el panel de mermas (spec 13, RF-13-06 y RF-13-07) ---------------------------------------
+
+def preparaciones_para_derivar(paciente):
+    """Preparaciones «Sin retirar» del paciente que pueden viajar en un despacho: una por receta (la más antigua).
+
+    Excluye las que ya van en un despacho abierto y las recetas que el paciente tiene en un turno activo (la
+    ventanilla las está atendiendo).
+    """
+    from recetasapp.preparacion import pendientes_retiro
+    from turnosapp.models import TurnoReceta
+
+    en_turno = set(TurnoReceta.objects.filter(
+        receta__paciente=paciente, turno__estado__in=("esperando", "llamado"),
+    ).values_list("receta_id", flat=True))
+    elegidas = {}
+    for preparacion in pendientes_retiro().filter(
+        turno_receta__receta__paciente=paciente, en_despacho=False,
+    ).order_by("lista_en", "pk"):
+        receta_id = preparacion.turno_receta.receta_id
+        if receta_id not in en_turno and receta_id not in elegidas:
+            elegidas[receta_id] = preparacion
+    return list(elegidas.values())
+
+
+@reintentar_conflictos
+@transaction.atomic
+def derivar_desde_merma(actor, paciente_id, fecha, encargado_id, operacion_id, motivo="", nota=""):
+    """Programa un despacho con lo ya preparado y sin retirar, más las otras recetas elegibles ese día.
+
+    Si el paciente no es elegible para el reparto a esa fecha, crea su excepción con `motivo` en la misma
+    transacción: si algo falla, no queda ni la excepción ni la entrega. Repetir la operación devuelve la misma
+    entrega. Toma la cola del día, como la programación, el tótem y la ventanilla.
+    """
+    autorizar(actor, JEFA)
+    actor = get_user_model().objects.get(pk=actor.pk)
+    operacion = _uuid(operacion_id)
+    hoy = timezone.localdate()
+    _bloquear_jornada(hoy)
+    previa = Entrega.objects.filter(operacion_id=operacion).first()
+    if previa is not None:
+        if previa.creado_por_id != actor.pk or previa.paciente_id != paciente_id:
+            raise ValidationError("La operación no corresponde a esta derivación.")
+        return previa
+    _fecha_valida(fecha, hoy)
+    encargado = _encargado_valido(encargado_id)
+    paciente = _paciente(paciente_id)
+    abierta = consultas.entrega_abierta(paciente)
+    if abierta is not None:
+        raise EntregaAbiertaExistente(abierta.pk)
+    preparaciones = preparaciones_para_derivar(paciente)
+    if not preparaciones:
+        raise ValidationError(
+            "El paciente ya no tiene recetas preparadas sin retirar: se retiraron o se derivaron mientras tanto.",
+            code="sin_preparadas",
+        )
+    inscripcion = None
+    if not consultas.es_elegible(paciente, fecha):
+        if not motivo:
+            raise ValidationError(
+                "El paciente no es postrado ni tiene 80 años o más: elige el motivo de la excepción de reparto.",
+                code="falta_motivo",
+            )
+        nota = _validar_motivo(motivo, nota, InscripcionReparto.Motivo.values, "Elige un motivo de la lista.")
+        try:
+            with transaction.atomic():
+                inscripcion = InscripcionReparto.objects.create(
+                    paciente=paciente, motivo=motivo, nota=nota, creado_por=actor, modificado_por=actor,
+                )
+        except IntegrityError:
+            # Otra persona inscribió la excepción al mismo tiempo: al reintentar, el paciente ya es elegible.
+            raise ConflictoOperacion("La excepción cambió durante la derivación.") from None
+    preparadas = {preparacion.turno_receta.receta_id for preparacion in preparaciones}
+    otras = [receta for receta in recetas_para_despacho(paciente, fecha) if receta.pk not in preparadas]
+    try:
+        with transaction.atomic():
+            entrega = Entrega.objects.create(paciente=paciente, operacion_id=operacion, creado_por=actor, modificado_por=actor)
+    except IntegrityError:
+        abierta = consultas.entrega_abierta(paciente)
+        if abierta is not None:
+            raise EntregaAbiertaExistente(abierta.pk) from None
+        raise ConflictoOperacion("La derivación cambió durante la operación.") from None
+    RecetaEntrega.objects.bulk_create([
+        *(RecetaEntrega(entrega=entrega, receta_id=preparacion.turno_receta.receta_id, preparacion=preparacion,
+                        creado_por=actor, modificado_por=actor) for preparacion in preparaciones),
+        *(RecetaEntrega(entrega=entrega, receta=receta, creado_por=actor, modificado_por=actor) for receta in otras),
+    ])
+    IntentoEntrega.objects.create(entrega=entrega, numero=1, fecha_programada=fecha, encargado=encargado,
+                                  creado_con=operacion, creado_por=actor, modificado_por=actor)
+    if inscripcion is not None:
+        auditar(actor, "reparto.excepcion_inscrita", inscripcion)
+    auditar(actor, "entrega.derivada_merma", entrega)
+    return entrega
+
+
 # Programación de varios pacientes (RF-08-17, ampliación del 2026-11-13) ---------------------------------------
 
 OMITIDO_ABIERTA = "Ya tiene una entrega abierta"
@@ -573,7 +667,12 @@ def _cerrar_intento(actor, intento, operacion, ahora, **resultado):
 @reintentar_conflictos
 @transaction.atomic
 def registrar_entregada(actor, intento_id, operacion_id):
-    """Cierra la entrega y descuenta cada receta que sigue elegible en la fecha de la visita (hoy)."""
+    """Cierra la entrega y descuenta cada receta que sigue elegible en la fecha de la visita (hoy).
+
+    Una receta que viaja con su preparación (derivada desde el panel de mermas, spec 13) se evalúa a la fecha de
+    preparación, como el retiro tardío del 07, y su entrega queda ligada al vínculo del turno: así sale de
+    «Pendientes de retiro». Si no puede descontarse, queda «no descontada» y la preparación vuelve a esperar.
+    """
     from recetasapp.services import _registrar_entrega_sin_reintento
 
     _exigir_encargado(actor)
@@ -590,16 +689,21 @@ def registrar_entregada(actor, intento_id, operacion_id):
         estado=Entrega.Estado.ENTREGADA, cerrada_en=ahora, modificado_por=actor, modificado_en=ahora,
     ):
         raise ConflictoOperacion("La entrega cambió durante el registro.")
-    for vinculo in RecetaEntrega.objects.filter(entrega_id=intento.entrega_id, resultado=RecetaEntrega.Resultado.PENDIENTE):
+    for vinculo in RecetaEntrega.objects.select_related("preparacion").filter(
+        entrega_id=intento.entrega_id, resultado=RecetaEntrega.Resultado.PENDIENTE,
+    ):
         receta = Receta.objects.get(pk=vinculo.receta_id)
-        causas = evaluar_elegibilidad(receta, hoy)["causas"]
+        preparacion = vinculo.preparacion
+        fecha = timezone.localdate(preparacion.lista_en) if preparacion is not None else hoy
+        causas = evaluar_elegibilidad(receta, fecha)["causas"]
         entrega_receta = None
         if not causas:
             try:
                 with transaction.atomic():
                     entrega_receta = _registrar_entrega_sin_reintento(
                         actor, receta.pk, uuid.uuid5(operacion, f"receta:{receta.pk}"),
-                        turno_receta_id=None, fecha=hoy, desde_despacho=vinculo,
+                        turno_receta_id=getattr(preparacion, "turno_receta_id", None), fecha=fecha,
+                        desde_preparado=preparacion, desde_despacho=vinculo,
                     )
             except ConflictoOperacion:
                 raise  # Reintentar la unidad completa en una transacción nueva.

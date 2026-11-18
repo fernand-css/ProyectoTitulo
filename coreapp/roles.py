@@ -5,14 +5,17 @@ from django.contrib.auth import get_user_model
 JEFA = "Jefa de Farmacia"
 TECNICO = "Técnico en Farmacia"
 ENCARGADO = "Encargado de entrega"
+# Spec 13: cuarto rol interno, de solo consulta del panel de mermas; solo lo administra el superusuario.
+DIRECTOR = "Director del CESFAM"
 TOTEM = "Tótem"
 SUPERUSUARIO = "superusuario"
 
-ROLES_INTERNOS = (JEFA, TECNICO, ENCARGADO)
+ROLES_INTERNOS = (JEFA, TECNICO, ENCARGADO, DIRECTOR)
 ETIQUETAS_ROLES = {
     JEFA: "Q.F.",
     TECNICO: "Técnico en Farmacia",
     ENCARGADO: "Encargado de terreno",
+    DIRECTOR: "Dirección del CESFAM",
 }
 
 

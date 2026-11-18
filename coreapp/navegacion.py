@@ -15,15 +15,17 @@ from typing import Callable
 from django.urls import reverse
 from django.utils import timezone
 
-from .roles import ENCARGADO, JEFA, SUPERUSUARIO, TECNICO
+from .roles import DIRECTOR, ENCARGADO, JEFA, SUPERUSUARIO, TECNICO
 
 # La barra inferior muestra a lo más estos destinos más «Más»; con cinco botones cada uno sigue siendo
 # lo bastante ancho (48 px o más) para tocarlo con el pulgar, incluso con texto muy grande.
 MAXIMO_EN_BARRA = 4
 
-CON_ACCESO = frozenset({JEFA, TECNICO, ENCARGADO, SUPERUSUARIO})
+CON_ACCESO = frozenset({JEFA, TECNICO, ENCARGADO, DIRECTOR, SUPERUSUARIO})
 PERSONAL_DE_FARMACIA = frozenset({JEFA, TECNICO, SUPERUSUARIO})
 GESTION = frozenset({JEFA, SUPERUSUARIO})
+# Spec 13: el panel de mermas lo ven la Q.F., el superusuario y la Dirección del CESFAM (solo consulta).
+MERMAS = frozenset({JEFA, DIRECTOR, SUPERUSUARIO})
 
 # Pantallas de turnosapp que configuran la atención (las usa la Jefa de Farmacia): no son «Atención».
 CONFIGURACION_DE_TURNOS = ("gestion", "ventanilla_nueva", "ventanilla_configurar", "pesos")
@@ -57,12 +59,15 @@ class Entrada:
     etiquetas_por_rol: tuple = ()  # variantes del texto por perfil: ((rol, texto), ...)
     contador: str = ""             # clave en `contadores_del_menu` de la cantidad que muestra como insignia
     contador_texto: str = ""       # cómo la lee un lector de pantalla: «en espera», «por preparar»
+    excepto: frozenset = frozenset()  # perfiles que no la ven aunque `roles` sea None (toda cuenta)
 
 
 ENTRADAS = (
     Entrada(
         "inicio", "Inicio", "coreapp:inicio", "i-inicio", roles=None, corta="Inicio", en_barra=True,
         activa=_en("coreapp", "inicio"),
+        # La Dirección tiene como inicio el panel de mermas: «Inicio» repetiría «Mermas» (spec 13, RF-13-08).
+        excepto=frozenset({DIRECTOR}),
     ),
     Entrada(
         "turnos", "Atención", "turnosapp:panel", "i-turno", grupo="Trabajo", roles=PERSONAL_DE_FARMACIA,
@@ -85,6 +90,9 @@ ENTRADAS = (
             activa=_en("entregasapp", *MIS_ENTREGAS)),
     Entrada("domicilios", "Domicilios", "entregasapp:domicilios", "i-casa", grupo="Entregas en terreno",
             roles=frozenset({ENCARGADO}), activa=_en("entregasapp", prefijos=("domicilio", "foto"))),
+    # Spec 13: panel de mermas por período. Para la Dirección es su inicio y su único destino de trabajo.
+    Entrada("mermas", "Mermas", "indicadoresapp:mermas", "i-grafico", grupo="Seguimiento", roles=MERMAS,
+            en_barra=True, activa=_en("indicadoresapp", prefijos=("merma",))),
     Entrada("ventanillas", "Ventanillas y pesos", "turnosapp:gestion", "i-ventanilla", grupo="Equipo", roles=GESTION,
             corta="Ventan.", activa=lambda app, nombre: app == "turnosapp" and nombre in CONFIGURACION_DE_TURNOS),
     Entrada("usuarios", "Usuarios", "usuariosapp:gestion_usuarios", "i-usuarios", grupo="Equipo", roles=GESTION,
@@ -136,6 +144,8 @@ class Menu:
 
 
 def _visible(entrada, rol):
+    if rol in entrada.excepto:
+        return False
     if entrada.roles is None:  # el inicio lo ve toda cuenta, aunque aún no tenga perfil
         return True
     return rol in entrada.roles

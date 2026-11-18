@@ -1,0 +1,11 @@
+{
+  "version": "0.0.1",
+  "configurations": [
+    {
+      "name": "previsualizacion-sintetica",
+      "runtimeExecutable": "venv/Scripts/python.exe",
+      "runtimeArgs": ["tools/previsualizar_interfaz.py", "--port", "8765"],
+      "port": 8765
+    }
+  ]
+}

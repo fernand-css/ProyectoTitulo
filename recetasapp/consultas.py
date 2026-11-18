@@ -83,19 +83,3 @@ def entregas_por_dia(dias, hoy=None):
         .annotate(dia=TruncDate("creado_en")).values("dia").annotate(n=Count("pk"))
     }
     return [(desde + timedelta(days=i), cuentas.get(desde + timedelta(days=i), 0)) for i in range(dias)]
-
-
-def vencimientos_por_dia(desde, hasta, hoy=None):
-    """Recetas vigentes cuyo último día válido cae en cada día de `desde` a `hasta` (ambos incluidos).
-
-    El último día válido es el anterior a `fecha_fin_exclusiva`. Devuelve `{fecha: cantidad}` solo con los días
-    que tienen alguna; las que ya vencieron o aún no admiten entregas no cuentan.
-    """
-    uno = timedelta(days=1)
-    filas = (
-        Receta.objects.filter(
-            condiciones(hoy)["vigente"], fecha_fin_exclusiva__gte=desde + uno, fecha_fin_exclusiva__lte=hasta + uno,
-        )
-        .values("fecha_fin_exclusiva").annotate(n=Count("pk"))
-    )
-    return {fila["fecha_fin_exclusiva"] - uno: fila["n"] for fila in filas}

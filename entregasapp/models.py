@@ -226,6 +226,11 @@ class RecetaEntrega(ModeloAuditado):
         "recetasapp.EntregaReceta", null=True, blank=True, on_delete=models.PROTECT, related_name="despacho",
     )
     causa = models.CharField(max_length=200, blank=True)
+    # Spec 13 (RF-13-07): la preparación que viaja en el despacho cuando la Q.F. deriva desde el panel de mermas.
+    # Al entregarse, la entrega de la receta se liga al vínculo del turno y sale de «Pendientes de retiro».
+    preparacion = models.ForeignKey(
+        "recetasapp.PreparacionReceta", null=True, blank=True, on_delete=models.PROTECT, related_name="despachos",
+    )
     revisada_en = models.DateTimeField(null=True, blank=True)
     revisada_por = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+",

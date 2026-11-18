@@ -106,7 +106,7 @@ class ComandosTests(TestCase):
         ) as preguntar:
             call_command("crear_usuarios_demo", stdout=salida)
         self.assertEqual(preguntar.call_count, 2)
-        self.assertEqual(get_user_model().objects.count(), 3)
+        self.assertEqual(get_user_model().objects.count(), 4)  # cuatro cuentas demo desde la spec 13
         self.assertNotIn(self.clave, salida.getvalue())
 
     def test_confirmacion_distinta_cancela_sin_escrituras(self):

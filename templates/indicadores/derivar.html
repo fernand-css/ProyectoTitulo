@@ -1,0 +1,56 @@
+{% extends 'components/Layout/base.html' %}
+{% load static %}
+{% block titulo %}Derivar a domicilio · Mermas{% endblock %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/recetas.css' %}"><link rel="stylesheet" href="{% static 'css/indicadores.css' %}">{% endblock %}
+{# Spec 13 (RF-13-06): programa un despacho con lo ya preparado y sin retirar, más las otras recetas elegibles. #}
+{% block contenido %}
+<div class="contenedor pagina">
+  <nav class="migas" aria-label="Ruta de navegación"><ol>
+    <li><a href="{{ volver }}">Mermas</a></li>
+    <li><span aria-current="page">Derivar a domicilio</span></li>
+  </ol></nav>
+  <header class="seccion">
+    <h1>Derivar a domicilio</h1>
+    <p><strong>{{ paciente.apellidos }}, {{ paciente.nombres }}</strong> · RUT {{ paciente.rut }} · {% if motivos %}Elegible para el reparto: {{ motivos|join:", " }}{% else %}No es postrado ni tiene 80 años o más{% endif %}.</p>
+  </header>
+
+  {% if abierta %}
+  <div class="message message-warning derivar-aviso" role="status">
+    <p>Ya tiene una entrega abierta. <a href="{% url 'entregasapp:detalle' pk=abierta.pk %}">Ver la entrega abierta</a>. Lo preparado se podrá sumar en la próxima entrega.</p>
+  </div>
+  {% endif %}
+
+  <h2 class="seccion-subtitulo">Recetas preparadas sin retirar</h2>
+  {% if preparaciones %}
+  <ul class="derivar-recetas">
+    {% for preparacion in preparaciones %}<li>Receta {{ preparacion.turno_receta.receta.codigo }} · preparada el {{ preparacion.lista_en|date:"d/m/Y" }}</li>{% endfor %}
+  </ul>
+  <p>La entrega lleva estas recetas y las otras del paciente que estén en condiciones de entregarse ese día. Lo preparado se descuenta con la vigencia de su fecha de preparación.</p>
+  {% else %}
+  <p>El paciente ya no tiene recetas preparadas sin retirar.</p>
+  {% endif %}
+
+  {% if preparaciones and not abierta %}
+  <form method="post" novalidate>
+    {% csrf_token %}
+    {% if form.non_field_errors %}<div class="message message-error" role="alert">{% for error in form.non_field_errors %}<p>{{ error }}</p>{% endfor %}</div>{% endif %}
+    {% if not elegible %}<p class="derivar-aviso">Para el reparto se inscribe una <strong>excepción</strong> con el motivo que elijas, junto con la entrega.</p>{% endif %}
+    {% for campo in form.visible_fields %}
+    <div class="campo">
+      <label for="{{ campo.id_for_label }}">{{ campo.label }}</label>
+      {{ campo }}
+      {% if campo.help_text %}<p class="ayuda" id="{{ campo.id_for_label }}_ayuda">{{ campo.help_text }}</p>{% endif %}
+      {% for error in campo.errors %}<p class="error" role="alert">{{ error }}</p>{% endfor %}
+    </div>
+    {% endfor %}
+    {% for campo in form.hidden_fields %}{{ campo }}{% endfor %}
+    <div class="derivar-acciones">
+      <button class="boton" type="submit">Programar entrega a domicilio</button>
+      <a class="boton boton-secundario" href="{{ volver }}">Volver al panel</a>
+    </div>
+  </form>
+  {% else %}
+  <p><a class="boton boton-secundario" href="{{ volver }}">Volver al panel</a></p>
+  {% endif %}
+</div>
+{% endblock %}

@@ -4,11 +4,10 @@ Los gráficos son SVG y HTML sin librerías (el sistema no puede depender de un 
 termina en un atributo SVG sale ya formateado como texto con punto decimal: con la configuración
 regional es-cl, Django escribiría la coma y el atributo quedaría inválido.
 
-Formas: columnas con promedio móvil (entregas por día), tendencia mínima para las cifras, barra
-segmentada (situación de las recetas) y mapa de calor de calendario (vencimientos).
+Formas: tendencia mínima para las cifras y barra segmentada (situación de las recetas) en el resumen; las
+columnas con promedio móvil las usa el panel de Indicadores.
 """
 
-from datetime import timedelta
 from math import ceil
 
 
@@ -138,47 +137,3 @@ def segmentos(partes):
     """
     enteros = porcentajes([parte["cantidad"] for parte in partes])
     return [{**parte, "porcentaje": entero, "visible": bool(parte["cantidad"])} for parte, entero in zip(partes, enteros)]
-
-
-def cortes_de_calor(maximo):
-    """Límite superior de cada uno de los (hasta) cinco tonos del mapa de calor, de menor a mayor."""
-    if maximo <= 0:
-        return []
-    if maximo <= 5:
-        return list(range(1, maximo + 1))
-    return sorted({ceil(maximo * k / 5) for k in range(1, 6)})
-
-
-def mapa_calor(conteos, hoy, semanas=12):
-    """Calendario de `semanas` filas (lunes a domingo) desde la semana de `hoy`, con un tono por día.
-
-    `conteos` es un dict `{fecha: cantidad}`. Los días anteriores a `hoy` quedan como `pasado` y no pintan.
-    Devuelve las semanas, los límites de cada tono y la leyenda (`tono`, `desde`, `hasta`).
-    """
-    lunes = hoy - timedelta(days=hoy.weekday())
-    ultimo = lunes + timedelta(days=7 * semanas - 1)
-    visibles = {dia: cantidad for dia, cantidad in conteos.items() if hoy <= dia <= ultimo and cantidad > 0}
-    maximo = max(visibles.values(), default=0)
-    cortes = cortes_de_calor(maximo)
-
-    def tono(cantidad):
-        if cantidad <= 0:
-            return 0
-        return next(i for i, corte in enumerate(cortes, start=1) if cantidad <= corte)
-
-    filas = []
-    for semana in range(semanas):
-        primer_dia = lunes + timedelta(days=7 * semana)
-        dias = []
-        for desplazamiento in range(7):
-            fecha = primer_dia + timedelta(days=desplazamiento)
-            pasado = fecha < hoy
-            cantidad = 0 if pasado else visibles.get(fecha, 0)
-            dias.append({"fecha": fecha, "valor": cantidad, "tono": tono(cantidad), "pasado": pasado, "es_hoy": fecha == hoy})
-        filas.append({"lunes": primer_dia, "dias": dias})
-
-    leyenda, desde = [], 1
-    for i, corte in enumerate(cortes, start=1):
-        leyenda.append({"tono": i, "desde": desde, "hasta": corte})
-        desde = corte + 1
-    return {"semanas": filas, "cortes": cortes, "leyenda": leyenda, "maximo": maximo, "total": sum(visibles.values())}

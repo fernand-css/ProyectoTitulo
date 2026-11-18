@@ -16,8 +16,10 @@ class MigracionTurnosTests(TransactionTestCase):
         executor = MigrationExecutor(connection)
         finales = executor.loader.graph.leaf_nodes()
         # Recetas 0003 depende de turnos 0001: la base anterior al 04 usa 0002.
-        anteriores = [nodo for nodo in finales if nodo[0] not in {"turnosapp", "recetasapp"}] + [
+        # Entregas 0003 (spec 13) depende de recetas 0004: el reparto vuelve a su 0002, anterior a ese vínculo.
+        anteriores = [nodo for nodo in finales if nodo[0] not in {"turnosapp", "recetasapp", "entregasapp"}] + [
             ("turnosapp", None), ("recetasapp", "0002_resultadofilaimportacion_pacientes_actualizados_and_more"),
+            ("entregasapp", "0002_ordenruta"),
         ]
         try:
             executor.migrate(anteriores)

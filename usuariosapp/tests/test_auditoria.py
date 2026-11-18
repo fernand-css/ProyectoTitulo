@@ -125,7 +125,8 @@ class CambiosAuditoriaTests(TestCase):
     def test_altas_demo_y_roles_tienen_eventos_sin_duplicar_al_repetir(self):
         crear_cuentas_demo(self.clave)
         crear_cuentas_demo()
-        self.assertEqual(RegistroAuditoria.objects.count(), 6)
+        # Cuatro cuentas demo desde la spec 13 (Q.F., Técnico, Terreno y Dirección), con dos eventos cada una.
+        self.assertEqual(RegistroAuditoria.objects.count(), 8)
         for cuenta in get_user_model().objects.all():
             registros = RegistroAuditoria.objects.filter(objeto_tipo="auth.User", objeto_id=str(cuenta.pk))
             self.assertCountEqual(registros.values_list("accion", flat=True), ["usuario.creado", "usuario.rol_cambiado"])

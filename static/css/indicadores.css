@@ -1,0 +1,136 @@
+/*
+  Panel de mermas. Toma las tarjetas, tablas y la ayuda de los gráficos de tablero.css y recetas.css; aquí van el
+  filtro, el blíster, el calendario, las barras y el detalle. Los colores salen de base.css (--merma, --recuperada,
+  --aluminio y la rampa --ambar-*): este archivo no declara colores propios. Sin animaciones.
+*/
+.mermas .seccion-fila { flex-wrap: wrap; }
+.mermas-descargas { display: flex; flex-wrap: wrap; gap: 0.5rem; }
+
+/* Filtro: atajos como pastillas y fechas en una fila que se envuelve. */
+.mermas-filtro { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 1rem 1.5rem; margin: 0 0 1.75rem; padding-bottom: 1.5rem; border-bottom: 1px solid var(--linea); }
+.mermas-atajos { display: flex; flex-wrap: wrap; gap: 0.5rem; margin: 0; padding: 0; list-style: none; }
+.mermas-atajos a { display: inline-flex; align-items: center; min-height: 2.75rem; padding: 0 1rem; color: var(--panel-texto); background: var(--panel-fondo); border: 1px solid var(--linea); border-radius: 999px; font-weight: 600; text-decoration: none; }
+.mermas-atajos a:hover { border-color: var(--borde); }
+.mermas-atajos a[aria-current="true"] { color: var(--hover-texto); background: var(--tinta); border-color: var(--tinta); }
+.mermas-formulario { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 0.75rem 1rem; }
+.mermas-formulario .campo { margin: 0; min-width: 11rem; }
+.mermas-formulario .message { flex-basis: 100%; }
+
+/* Blíster: la cabecera del panel. Cada alvéolo es una receta; lleno si sigue por entregar, vacío si se recuperó. */
+.blister-panel { display: flex; flex-wrap: wrap; align-items: center; gap: 2.25rem; margin: 0 0 1.75rem; padding: 2.25rem; color: var(--tinta); background: var(--aluminio); border-radius: 1.1rem; }
+.blister-texto { display: grid; flex: 1 1 18rem; gap: 1.1rem; max-width: 26rem; }
+.blister-texto h2 { margin: 0; font-family: var(--fuente-titulo); font-size: clamp(2rem, 1.4rem + 2vw, 2.75rem); font-weight: 800; line-height: 1.08; letter-spacing: -0.02em; }
+.blister-relato { margin: 0; font-size: 1.125rem; line-height: 1.55; }
+.blister-escala { margin: 0; color: var(--secundario-texto); font-size: 0.95rem; }
+.blister-figura { display: grid; flex: 1 1 30rem; gap: 1.4rem; min-width: 0; margin: 0; }
+.blister-tiras { display: flex; flex-wrap: wrap; gap: 0.6rem; }
+.blister-tira { display: grid; grid-template-columns: repeat(5, 1.125rem); gap: 0.375rem; padding: 0.55rem; background: var(--aluminio-tira); border-radius: 0.6rem; box-shadow: inset 0 0 0 1px var(--aluminio-borde); }
+.alveolo { flex: none; box-sizing: border-box; width: 1.125rem; height: 1.125rem; border-radius: 50%; }
+.alveolo-sin_retirar { background: var(--merma); box-shadow: inset -3px -3px 0 color-mix(in srgb, var(--tinta) 25%, transparent), inset 2px 2px 0 color-mix(in srgb, var(--panel-fondo) 35%, transparent); }
+.alveolo-en_despacho { background: repeating-linear-gradient(135deg, var(--merma) 0 3px, var(--merma-claro) 3px 6px); box-shadow: inset 0 0 0 2px var(--merma); }
+.alveolo-tarde { background: var(--aluminio-tira); border: 3px solid var(--recuperada); }
+.alveolo-despacho { background: repeating-linear-gradient(135deg, var(--recuperada) 0 2px, var(--aluminio-tira) 2px 5px); border: 3px solid var(--recuperada); }
+.alveolo-vacio { border: 2px dashed var(--aluminio-borde); }
+.blister-leyenda { display: grid; grid-template-columns: repeat(auto-fit, minmax(13rem, 1fr)); gap: 0.6rem 1.5rem; margin: 0; padding: 0; list-style: none; }
+.blister-leyenda li { display: flex; align-items: center; gap: 0.75rem; }
+.blister-leyenda li > span:nth-child(2) { flex: 1; }
+.blister-leyenda strong { font-family: var(--fuente-titulo); font-size: 1.25rem; font-variant-numeric: tabular-nums; }
+
+/* Rejilla de cuatro tarjetas: dos columnas en computador, una en celular. */
+.mermas-rejilla { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 26rem), 1fr)); gap: 1.5rem; align-items: start; }
+.mermas-rejilla .tarjeta, .mermas-entregas, .mermas-detalle { padding: 1.75rem; }
+.mermas .tarjeta-cabeza h2 { margin: 0 0 0.3rem; font-size: 1.375rem; }
+.mermas .tarjeta-cabeza p { max-width: 40rem; }
+
+/* Calendario de la merma por día: la cifra siempre escrita; el tono ámbar acompaña a la cantidad. */
+.calendario-merma { margin: 0; }
+.calendario-rejilla { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); gap: 0.375rem; }
+.calendario-dia { padding-bottom: 0.15rem; color: var(--secundario-texto); font-size: 0.85rem; font-weight: 700; text-align: center; }
+.calendario-celda { display: flex; flex-direction: column; justify-content: space-between; box-sizing: border-box; min-height: 3.6rem; padding: 0.45rem 0.5rem; color: var(--tinta); border-radius: 0.5rem; }
+.calendario-celda small { font-size: 0.78rem; line-height: 1; }
+.calendario-celda strong { align-self: flex-end; font-family: var(--fuente-titulo); font-size: 1.25rem; line-height: 1; font-variant-numeric: tabular-nums; }
+.nivel-0 { background: var(--aluminio-tira); box-shadow: inset 0 0 0 1px var(--linea); }
+.nivel-1 { background: var(--ambar-1); }
+.nivel-2 { background: var(--ambar-2); }
+.nivel-3 { background: var(--ambar-3); }
+.nivel-4 { color: var(--hover-texto); background: var(--ambar-4); }
+.nivel-5 { color: var(--hover-texto); background: var(--ambar-5); }
+.calendario-libre { color: var(--secundario-texto); background: repeating-linear-gradient(135deg, var(--aluminio-tira) 0 4px, var(--aluminio) 4px 8px); box-shadow: none; }
+.calendario-escala { display: flex; flex-wrap: wrap; align-items: center; gap: 0.5rem; margin-top: 1rem; color: var(--secundario-texto); font-size: 0.85rem; }
+.calendario-muestra { width: 1.6rem; height: 0.9rem; border-radius: 0.25rem; }
+.calendario-nota { display: inline-flex; align-items: center; gap: 0.5rem; margin-left: auto; }
+
+/* Barras horizontales con la cifra escrita al lado. */
+.barras { display: grid; gap: 0.9rem; margin: 0; padding: 0; list-style: none; }
+.barras-espera li { display: grid; grid-template-columns: 8rem minmax(0, 1fr) 2.75rem; align-items: center; gap: 0.75rem; }
+.barras-cierre li { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 0.35rem 0.75rem; }
+.barras-cierre .barra-carril { grid-column: 1 / -1; height: 0.65rem; }
+.barra-carril { display: flex; height: 1.375rem; overflow: hidden; background: var(--aluminio-tira); border-radius: 0.25rem; }
+.barra { background: var(--neutro-3); border-radius: 0 0.25rem 0.25rem 0; }
+.barra-tramo-0 { background: var(--ambar-2); }
+.barra-tramo-1 { background: var(--ambar-3); }
+.barra-tramo-2 { background: var(--merma); }
+.barra-tramo-3 { background: var(--ambar-4); }
+.barra-tramo-4 { background: var(--ambar-5); }
+.barra-cifra { font-family: var(--fuente-titulo); font-size: 1.125rem; text-align: right; font-variant-numeric: tabular-nums; }
+.mermas-ir { display: inline-flex; align-items: center; min-height: 2.75rem; margin-top: 0.5rem; font-weight: 600; }
+
+/* Crónico y general: una barra dividida con su leyenda escrita. */
+.division { display: flex; gap: 2px; height: 2.25rem; overflow: hidden; border-radius: 0.4rem; }
+.division-cronico { background: var(--neutro-3); }
+.division-general { background: var(--neutro-1); }
+.division-leyenda { display: flex; flex-wrap: wrap; gap: 0.75rem 2rem; margin: 1rem 0 0; padding: 0; list-style: none; }
+.division-leyenda li { display: flex; align-items: center; gap: 0.6rem; }
+.division-leyenda strong { font-family: var(--fuente-titulo); font-size: 1.25rem; }
+.division-leyenda li > span:last-child { color: var(--secundario-texto); }
+.division-leyenda .muestra { width: 0.9rem; height: 0.9rem; border-radius: 0.2rem; }
+
+/* Detalle por paciente. */
+.mermas-vacio { margin: 0 0 1.5rem; }
+.mermas-detalle { margin-top: 1.5rem; }
+.mermas-detalle .tabla td, .mermas-detalle .tabla th { vertical-align: middle; }
+.espera-fila { display: flex; align-items: center; gap: 0.65rem; min-width: 9rem; }
+.espera-fila small { display: block; white-space: nowrap; color: var(--secundario-texto); font-size: 0.82rem; }
+.espera-carril { display: flex; flex: none; width: 4rem; height: 0.5rem; overflow: hidden; background: var(--aluminio); border-radius: 0.25rem; }
+.espera-barra { background: var(--ambar-3); }
+.espera-media { background: var(--merma); }
+.espera-larga { background: var(--ambar-5); }
+.mermas-en-camino { color: var(--secundario-texto); font-weight: 600; }
+.mermas-paginas { display: flex; flex-wrap: wrap; align-items: center; gap: 0.75rem; margin-top: 1rem; }
+
+/* La serie semanal (períodos largos) usa el ámbar de la merma. */
+.mermas .columna { fill: var(--merma); }
+/* Las entregas son lo que salió bien: van en el azul de la serie principal, no en el ámbar de la merma. */
+.mermas-entregas { margin-top: 1.5rem; }
+/* El SVG crece con el ancho: en pantallas grandes se limita para que no supere la altura de la ventana. */
+.mermas-entregas .grafico { max-width: 56rem; }
+.mermas .mermas-entregas .columna { fill: var(--serie-1); }
+
+@media (max-width: 40rem) {
+  .blister-panel { padding: 1.5rem 1.1rem; gap: 1.5rem; }
+  .calendario-celda { min-height: 3rem; padding: 0.35rem; }
+  .calendario-celda small { font-size: 0.7rem; }
+  .calendario-celda strong { font-size: 1.05rem; }
+  .barras-espera li { grid-template-columns: 6.5rem minmax(0, 1fr) 2.25rem; }
+  .calendario-nota { margin-left: 0; }
+}
+
+@media (forced-colors: active) {
+  .alveolo, .calendario-celda, .barra, .division span, .espera-barra { forced-color-adjust: none; }
+  .alveolo-sin_retirar { background: CanvasText; box-shadow: none; }
+  .alveolo-en_despacho { background: repeating-linear-gradient(135deg, CanvasText 0 3px, Canvas 3px 6px); box-shadow: inset 0 0 0 2px CanvasText; }
+  .alveolo-tarde { background: Canvas; border-color: CanvasText; }
+  .alveolo-despacho { background: repeating-linear-gradient(135deg, CanvasText 0 2px, Canvas 2px 5px); border-color: CanvasText; }
+  .calendario-celda { color: CanvasText; background: Canvas; border: 1px solid CanvasText; }
+  .barra, .division span, .espera-barra { background: CanvasText; }
+}
+
+@media print {
+  .mermas-filtro, .mermas-descargas, .mermas-ir, .datos { display: none; }
+  .blister-panel, .alveolo, .calendario-celda, .barra { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
+}
+
+/* Derivación al reparto */
+.derivar-recetas { margin: 0 0 1.25rem; padding-left: 1.2rem; }
+.derivar-aviso { margin: 0 0 1.25rem; }
+.derivar-acciones { display: flex; flex-wrap: wrap; gap: 0.75rem; }

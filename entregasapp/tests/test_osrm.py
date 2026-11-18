@@ -65,7 +65,7 @@ class OsrmTests(SimpleTestCase):
         self.assertEqual(resultado.geometria[-1], [-36.48, -72.25])
 
     def test_fallas_son_no_disponible_sin_coordenadas_en_el_mensaje(self):
-        casos = [(modo, llamada) for modo in ("error500", "noroute", "malformado")
+        casos = [(modo, llamada) for modo in ("error500", "noroute", "nosegment", "malformado")
                  for llamada in (lambda: osrm.tabla([O, A, B]), lambda: osrm.tramo(A, B))]
         casos.append(("nulo", lambda: osrm.tabla([O, A, B])))  # una distancia nula solo existe en la tabla
         for modo, llamada in casos:
@@ -147,8 +147,23 @@ class OsrmTests(SimpleTestCase):
         self.assertEqual(osrm.SEGUNDOS_CAIDO, 30)
 
     def test_un_camino_imposible_no_marca_el_servidor_como_caido(self):
-        self.servidor.modo = "noroute"
-        with self.assertRaises(osrm.OsrmNoDisponible):
+        for modo in ("noroute", "nosegment"):  # NoSegment llega con HTTP 400, como en el OSRM real
+            with self.subTest(modo=modo):
+                cache.clear()
+                self.servidor.modo = modo
+                with self.assertRaises(osrm.SinCamino):
+                    osrm.tramo(A, B)
+                with self.assertRaises(osrm.SinCamino):
+                    osrm.tabla([O, A, B], origenes=[0])
+                self.servidor.modo = ""
+                self.assertEqual(len(osrm.tabla([O, A, B])), 3)
+
+    def test_otros_errores_http_si_marcan_el_servidor_como_caido(self):
+        cache.clear()
+        self.servidor.modo = "error500"
+        with self.assertRaises(osrm.OsrmNoDisponible) as error:
             osrm.tramo(A, B)
+        self.assertNotIsInstance(error.exception, osrm.SinCamino)
         self.servidor.modo = ""
-        self.assertEqual(len(osrm.tabla([O, A, B])), 3)
+        with self.assertRaises(osrm.OsrmNoDisponible):  # durante 30 s no vuelve a esperarlo
+            osrm.tramo(A, B)

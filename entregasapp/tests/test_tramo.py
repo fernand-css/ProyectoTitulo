@@ -107,7 +107,7 @@ class TramoTests(ConOsrmSimulado, TestCase):
 
     def test_osrm_no_disponible_responde_503_con_texto(self):
         intento = visita(self.equipo, (0, 2))
-        for modo in ("error500", "noroute", "malformado"):
+        for modo in ("error500", "malformado"):
             with self.subTest(modo=modo):
                 cache.clear()
                 self.osrm.modo = modo
@@ -115,6 +115,19 @@ class TramoTests(ConOsrmSimulado, TestCase):
                 self.assertEqual(respuesta.status_code, 503)
                 self.assertEqual(respuesta.json()["error"], views.TEXTO_SIN_OSRM)
                 self.assertIn("no-store", respuesta["Cache-Control"])
+
+    def test_sin_camino_desde_la_posicion_responde_422_y_no_deja_osrm_caido(self):
+        intento = visita(self.equipo, (0, 2))
+        for modo in ("nosegment", "noroute"):
+            with self.subTest(modo=modo):
+                cache.clear()
+                self.osrm.modo = modo
+                respuesta = self.pedir({"intento": intento.pk, "latitud": LATITUD, "longitud": LONGITUD})
+                self.assertEqual(respuesta.status_code, 422)
+                self.assertEqual(respuesta.json()["error"], views.TEXTO_SIN_CAMINO)
+                self.assertIn("no-store", respuesta["Cache-Control"])
+                self.osrm.modo = ""  # OSRM sigue disponible: la consulta siguiente funciona de inmediato
+                self.assertEqual(self.pedir({"intento": intento.pk, "latitud": LATITUD, "longitud": LONGITUD}).status_code, 200)
 
     def test_limite_de_30_por_minuto_por_encargado(self):
         intento = visita(self.equipo, (0, 2))
@@ -232,6 +245,13 @@ class ParadaCercanaTests(ConOsrmSimulado, TestCase):
         datos = self.pedir(*origen).json()
         self.assertEqual(datos["intento"], lejos.pk)
         self.assertNotEqual(datos["intento"], cerca.pk)
+
+    def test_sin_camino_desde_la_posicion_no_sugiere_y_explica(self):
+        visita(self.equipo, (0, 1))
+        self.osrm.modo = "nosegment"
+        respuesta = self.pedir(LATITUD, LONGITUD)
+        self.assertEqual(respuesta.status_code, 422)
+        self.assertEqual(respuesta.json(), {"error": views.TEXTO_SIN_CAMINO_CERCANA})
 
     def test_sin_osrm_no_sugiere_nada(self):
         visita(self.equipo, (0, 1))

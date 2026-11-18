@@ -6,7 +6,7 @@ from datetime import timedelta
 from math import ceil
 
 from django.core.exceptions import ValidationError
-from django.db.models import Avg, Count, F, Q, Value
+from django.db.models import Avg, Count, Exists, F, OuterRef, Q, Value
 from django.db.models.functions import Lower, Replace
 from django.utils import timezone
 
@@ -61,8 +61,15 @@ def _apellidos_sin_acentos():
 
 
 def pendientes_retiro(buscar=None):
-    """Preparaciones listas, aún no entregadas, de turnos que ya cerraron."""
-    pendientes = PreparacionReceta.objects.filter(
+    """Preparaciones listas, aún no entregadas, de turnos que ya cerraron.
+
+    `en_despacho` (spec 13): la preparación viaja en una entrega a domicilio abierta; la ventanilla no la entrega.
+    """
+    from entregasapp.models import Entrega, RecetaEntrega
+
+    pendientes = PreparacionReceta.objects.annotate(en_despacho=Exists(RecetaEntrega.objects.filter(
+        preparacion=OuterRef("pk"), entrega__estado__in=Entrega.ABIERTAS,
+    ))).filter(
         lista_en__isnull=False,
         turno_receta__entrega__isnull=True,
         turno_receta__turno__estado__in=(

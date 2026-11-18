@@ -92,7 +92,7 @@ class EstaticosTests(SimpleTestCase):
         """recetas.css no declara colores propios: todo sale de base.css, donde se verifica el contraste."""
         base = (settings.BASE_DIR / "static/css/base.css").read_text(encoding="utf-8")
         # El tablero (tablero.css), el menú (menu.css) y las entregas (entregas.css, spec 08) siguen la misma regla.
-        for nombre in ("recetas.css", "tablero.css", "menu.css", "inicio.css", "entregas.css"):
+        for nombre in ("recetas.css", "tablero.css", "menu.css", "inicio.css", "entregas.css", "indicadores.css"):
             with self.subTest(hoja=nombre):
                 recetas = (settings.BASE_DIR / "static/css" / nombre).read_text(encoding="utf-8")
                 self.assertNotRegex(recetas, r"#[0-9a-fA-F]{3,8}\b")
@@ -115,27 +115,10 @@ class EstaticosTests(SimpleTestCase):
             ("exito-texto", "panel-fondo"), ("error-texto", "panel-fondo"),  # tramos de la barra de carga
             ("serie-1", "panel-fondo"), ("serie-2", "panel-fondo"),  # columnas, línea del promedio y tendencia
             ("neutro-1", "panel-fondo"), ("neutro-2", "panel-fondo"), ("neutro-3", "panel-fondo"),  # partes de la barra de situación
-            ("rampa-4", "panel-fondo"),  # contorno de las casillas coloreadas del calendario de calor
         ]
         for primero, segundo in pares:
             with self.subTest(primero=primero, segundo=segundo):
                 self.assertGreaterEqual(contraste(variables[primero], variables[segundo]), 3)
-
-    def test_el_calendario_de_calor_tiene_texto_legible_en_cada_tono(self):
-        """El número de cada día va sobre su tono: tinta sobre los dos claros, blanco sobre los tres oscuros (4,5:1)."""
-        css = (settings.BASE_DIR / "static/css/base.css").read_text(encoding="utf-8")
-        variables = dict(re.findall(r"--([a-z0-9-]+):\s*(#[0-9a-fA-F]{6})\s*;", css))
-        tablero = (settings.BASE_DIR / "static/css/tablero.css").read_text(encoding="utf-8")
-        for tono, texto in ((1, "panel-texto"), (2, "panel-texto"), (3, "panel-fondo"), (4, "panel-fondo"), (5, "panel-fondo")):
-            with self.subTest(tono=tono):
-                regla = re.search(rf"\.calor-t{tono} \{{ color: var\(--([a-z-]+)\); background: var\(--([a-z0-9-]+)\); \}}", tablero)
-                self.assertIsNotNone(regla)
-                self.assertEqual((regla.group(1), regla.group(2)), (texto, f"rampa-{tono}"))
-                self.assertGreaterEqual(contraste(variables[regla.group(1)], variables[regla.group(2)]), 4.5)
-        # Los cinco tonos se ordenan de claro a oscuro y el más claro se distingue del fondo con al menos 2:1.
-        luces = [luminancia(variables[f"rampa-{tono}"]) for tono in range(1, 6)]
-        self.assertEqual(luces, sorted(luces, reverse=True))
-        self.assertGreaterEqual(contraste(variables["rampa-1"], variables["panel-fondo"]), 2)
 
     def test_menu_cumple_contraste_de_texto_y_de_componentes(self):
         """La píldora de la opción activa, la cápsula del celular y sus bordes se distinguen con al menos 3:1;

@@ -7,7 +7,7 @@ from usuariosapp.services import crear_roles
 
 
 class Command(BaseCommand):
-    help = "Crea idempotentemente los tres grupos operativos; no asigna roles a cuentas."
+    help = "Crea idempotentemente los cuatro grupos operativos; no asigna roles a cuentas."
 
     def add_arguments(self, parser):
         parser.add_argument("--database", default=DEFAULT_DB_ALIAS, choices=tuple(connections))

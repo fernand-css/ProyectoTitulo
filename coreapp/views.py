@@ -7,7 +7,7 @@ from django.views.generic import TemplateView
 
 from .context_processors import contadores_de_la_peticion
 from .mixins import CuentaHabilitadaMixin
-from .roles import ENCARGADO, estado_acceso
+from .roles import DIRECTOR, ENCARGADO, estado_acceso
 
 
 class InicioView(CuentaHabilitadaMixin, TemplateView):
@@ -16,9 +16,14 @@ class InicioView(CuentaHabilitadaMixin, TemplateView):
     def get(self, request, *args, **kwargs):
         # Spec 08 (RF-08-13): el inicio del encargado de terreno abre «Mis entregas» en la misma dirección, sin
         # redirigir: así «/» sigue respondiendo 200 para todos los perfiles, como esperan los specs anteriores.
-        if estado_acceso(request.user) == (True, ENCARGADO):
+        acceso = estado_acceso(request.user)
+        if acceso == (True, ENCARGADO):
             from entregasapp.views import MisEntregasView
             return MisEntregasView.as_view()(request)
+        # Spec 13 (RF-13-08): el inicio de la Dirección del CESFAM es el panel de mermas, con la misma técnica.
+        if acceso == (True, DIRECTOR):
+            from indicadoresapp.views import PanelMermasView
+            return PanelMermasView.as_view()(request)
         return super().get(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):

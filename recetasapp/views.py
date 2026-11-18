@@ -83,12 +83,10 @@ class PacientesView(FarmaciaView):
 
 
 class RecetasView(FarmaciaView):
-    """Resumen de Recetas: cifras, entregas por día, situación, calendario de vencimientos y ranking."""
+    """Resumen de Recetas: cifras, situación, las que vencen primero y la última carga del padrón."""
 
     def get(self, request):
-        hoy = timezone.localdate()
-        # El periodo del gráfico de entregas viaja en la URL: no es un dato personal.
-        panel = tablero.armar(hoy, tablero.periodo_valido(request.GET.get("periodo")))
+        panel = tablero.armar(timezone.localdate())
         return self.render("recetas_resumen.html", {
             "tablero": panel, "pestanas": pestanas.recetas("resumen", total=panel["total"]),
         })
