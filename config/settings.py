@@ -34,6 +34,7 @@ INSTALLED_APPS = [
     "apps.usuarios.apps.UsuariosConfig",
     "apps.pacientes.apps.PacientesConfig",
     "apps.turnos.apps.TurnosConfig",
+    "apps.totem.apps.TotemConfig",
 ]
 MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",

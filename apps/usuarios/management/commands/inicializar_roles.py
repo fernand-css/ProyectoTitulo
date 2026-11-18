@@ -25,6 +25,12 @@ class Command(BaseCommand):
             ] + [
                 ("turnos", "estadocola", "configurar_cola"),
                 ("turnos", "turno", "cancelar_turnos"),
+            ] + [
+                ("totem", "dispositivototem", nombre)
+                for nombre in (
+                    "consultar_dispositivos", "generar_codigos_activacion",
+                    "revocar_dispositivos", "caducar_codigos_activacion",
+                )
             ],
             FUNCIONARIO: [("turnos", "turno", "operar_turnos")],
             QF: [("turnos", "turno", "operar_turnos")],
