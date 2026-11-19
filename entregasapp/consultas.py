@@ -512,12 +512,14 @@ def _aplicar_orden_guardado(guardados, vigentes, partida, origen, hoy, puntos, d
             posicion = con_coordenadas[-1] + 1 if con_coordenadas else len(secuencia)
         secuencia.insert(posicion, (intento.pk, True))
     secuencia += [(intento.pk, True) for intento in nuevas if puntos[intento.pk] is None]
-    # Las visitas sin coordenadas que quedan después de la última con coordenadas siguen en su sección, sin número
-    # (corrección del 2026-11-16): solo pasa a numerada la que el encargado ubica entre las demás.
-    ultima = max((indice for indice, (pk, _) in enumerate(secuencia) if puntos[pk] is not None), default=-1)
+    # Enmienda del 2026-11-19 (decisión de la usuaria): las visitas sin coordenadas nunca entran a la ruta numerada.
+    # Van siempre después de las que tienen coordenadas, sin número y en su orden guardado; un orden guardado antes,
+    # con alguna sin coordenadas entre las numeradas, se lee así.
+    secuencia = ([par for par in secuencia if puntos[par[0]] is not None]
+                 + [par for par in secuencia if puntos[par[0]] is None])
     return [
         Parada(numero, vigentes[pk], puntos[pk], vigentes[pk].fecha_programada < hoy, nueva=nueva,
-               numerada=puntos[pk] is not None or numero - 1 < ultima)
+               numerada=puntos[pk] is not None)
         for numero, (pk, nueva) in enumerate(secuencia, start=1)
     ]
 

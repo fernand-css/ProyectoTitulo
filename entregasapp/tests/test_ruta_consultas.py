@@ -127,17 +127,18 @@ class RutaDelDiaTests(ConOsrmSimulado, TestCase):
     def test_orden_guardado_manda_y_las_registradas_salen_sin_alterar_el_resto(self):
         a, b, c = self.visita((0, 3)), self.visita((0, 1)), self.visita((0, 2))
         sin = self.visita(None)
+        # Enmienda del 2026-11-19: un orden guardado con una sin coordenadas adelante se lee con ella al final.
         self.guardar_orden(sin, a, c, b)
         ruta = ruta_del_dia(self.encargado)
         self.assertEqual(ruta.modo, MANUAL)
-        self.assertEqual(ids(ruta.paradas), [sin.pk, a.pk, c.pk, b.pk])
+        self.assertEqual(ids(ruta.paradas), [a.pk, c.pk, b.pk, sin.pk])
         self.assertEqual([p.numero for p in ruta.paradas], [1, 2, 3, 4])
-        self.assertTrue(all(p.numerada for p in ruta.paradas))
-        self.assertIsNone(ruta.paradas[0].punto)  # numerada y sin marcador
+        self.assertEqual([p.numerada for p in ruta.paradas], [True, True, True, False])
+        self.assertIsNone(ruta.paradas[3].punto)
         self.assertEqual(ruta.version, 1)
         self.assertIsNotNone(ruta.guardado_en)
         registrar_entregada(self.encargado, a.pk, uuid.uuid4())
-        self.assertEqual(ids(ruta_del_dia(self.encargado).paradas), [sin.pk, c.pk, b.pk])
+        self.assertEqual(ids(ruta_del_dia(self.encargado).paradas), [c.pk, b.pk, sin.pk])
 
     def test_visitas_nuevas_entran_donde_menos_alargan_y_las_que_salen_desaparecen(self):
         """Criterio de RF-09-05: A, B, C guardado; D entre A y B; E sin coordenadas; anular B."""
@@ -162,7 +163,7 @@ class RutaDelDiaTests(ConOsrmSimulado, TestCase):
         sin = self.visita(None)
         self.guardar_orden(sin)
         lejos = self.visita((0, 9))
-        self.assertEqual(ids(ruta_del_dia(self.encargado).paradas), [sin.pk, lejos.pk])
+        self.assertEqual(ids(ruta_del_dia(self.encargado).paradas), [lejos.pk, sin.pk])  # enmienda del 2026-11-19
 
     def test_orden_vacio_vale_la_sugerencia_y_otro_dia_no_aplica(self):
         a, b = self.visita((0, 2)), self.visita((0, 1))

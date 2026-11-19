@@ -8,6 +8,8 @@
     antes, es desplazamiento de la página). La tarjeta sigue al puntero, un hueco muestra dónde caerá y la
     página se desplaza sola cerca de los bordes. Esc, la cancelación del puntero o soltar fuera de la lista
     cancelan sin cambios.
+  - Enmienda del 2026-11-19: cada sección («Por visitar en orden» y «Sin coordenadas») se ordena por separado;
+    las flechas de borde se ocultan y el arrastre no sale de la sección de la tarjeta.
   - Cada guardado usa el servicio `mover_parada` (versión y operación nueva por envío). Si falla, la lista vuelve
     a como estaba y se muestra el motivo; si resulta, manda el orden que responde el servidor.
   - El resultado se anuncia en la región aria-live («Parada movida a la posición 2»).
@@ -227,6 +229,9 @@
     var enviados = respuesta.orden.map(function (p) { return String(p.intento); }).sort();
     if (!lista || presentes.join(",") !== enviados.join(",")) return false;
     var total = respuesta.orden.length;
+    // Enmienda del 2026-11-19: cada sección se ordena por separado; la última numerada no baja y la primera sin
+    // coordenadas no sube.
+    var numeradas = respuesta.orden.filter(function (p) { return p.numerada !== false; }).length;
     respuesta.orden.forEach(function (parada) {
       var tarjeta = documento.getElementById("parada-" + parada.intento);
       (parada.numerada === false && sinLista ? sinLista : lista).appendChild(tarjeta);
@@ -253,7 +258,9 @@
       ["subir", "bajar"].forEach(function (sentido) {
         var flecha = tarjeta.querySelector('[data-flecha="' + sentido + '"]');
         if (!flecha) return;
-        flecha.hidden = sentido === "subir" ? parada.numero <= 1 : parada.numero >= total;
+        flecha.hidden = sentido === "subir"
+          ? parada.numero <= 1 || (parada.numerada === false && parada.numero <= numeradas + 1)
+          : parada.numero >= total || (parada.numerada !== false && parada.numero >= numeradas);
         var texto = flecha.querySelector("[data-flecha-nombre]");
         if (texto) texto.textContent = (sentido === "subir" ? "Subir " : "Bajar ") + quien;
       });
@@ -357,16 +364,28 @@
     // Arrastre con Pointer Events sobre la franja.
     var actual = null;
 
+    // Enmienda del 2026-11-19: el arrastre se queda en la sección de la tarjeta («Por visitar en orden» o «Sin
+    // coordenadas»). `antes` es cuántas tarjetas hay en las secciones anteriores, para enviar la posición completa.
+    function delGrupo(tarjeta) {
+      var padre = tarjeta.parentNode;
+      return tarjetasDe(documento).filter(function (t) { return t.parentNode === padre; });
+    }
+
     function adaptador(tarjeta, ventana) {
       var hueco = documento.createElement("div");
       var foto = null;
       var desfase = 0;
       var caja = null;
+      var grupo = [];
+      var antes = 0;
       hueco.className = "visita-hueco";
       hueco.setAttribute("aria-hidden", "true");
+      function otras() { return grupo.filter(function (t) { return t !== tarjeta; }); }
       return {
         iniciar: function () {
           foto = fotografiar(documento);
+          grupo = delGrupo(tarjeta);
+          antes = tarjetasDe(documento).indexOf(grupo[0]);
           caja = tarjeta.getBoundingClientRect();
           desfase = 0;
           hueco.style.height = caja.height + "px";
@@ -375,22 +394,23 @@
           tarjeta.style.width = caja.width + "px";
           tarjeta.style.left = caja.left + "px";
           tarjeta.style.top = caja.top + "px";
-          return tarjetasDe(documento).indexOf(tarjeta);
+          return grupo.indexOf(tarjeta);
         },
+        antes: function () { return antes; },
         seguir: function (y) {
           if (!desfase) desfase = y - caja.top;
           tarjeta.style.top = (y - desfase) + "px";
         },
         centros: function () {
-          return tarjetasDe(documento).filter(function (t) { return t !== tarjeta; }).map(function (t) {
+          return otras().map(function (t) {
             var r = t.getBoundingClientRect();
             return r.top + r.height / 2;
           });
         },
         colocarHueco: function (indice) {
-          var otras = tarjetasDe(documento).filter(function (t) { return t !== tarjeta; });
-          if (indice < otras.length) otras[indice].parentNode.insertBefore(hueco, otras[indice]);
-          else if (otras.length) otras[otras.length - 1].parentNode.insertBefore(hueco, otras[otras.length - 1].nextSibling);
+          var resto = otras();
+          if (indice < resto.length) resto[indice].parentNode.insertBefore(hueco, resto[indice]);
+          else if (resto.length) resto[resto.length - 1].parentNode.insertBefore(hueco, resto[resto.length - 1].nextSibling);
         },
         desplazar: function (dy) { ventana.scrollBy(0, dy); },
         alto: function () { return ventana.innerHeight; },
@@ -449,7 +469,7 @@
       if (indice === null) return;
       var form = elegido.tarjeta.querySelector("[data-orden-form]");
       if (!form) { restaurar(elegido.adaptador.foto()); return; }
-      enviar(form, indice + 1, elegido.adaptador.foto(), elegido.tarjeta.getAttribute("data-intento"));
+      enviar(form, elegido.adaptador.antes() + indice + 1, elegido.adaptador.foto(), elegido.tarjeta.getAttribute("data-intento"));
     }
 
     function alCancelar() {
@@ -466,7 +486,7 @@
       var franja = evento.target && evento.target.closest ? evento.target.closest("[data-franja]") : null;
       if (!franja || actual || ocupado || evento.button > 0) return;
       var tarjeta = franja.closest("[data-arrastrable]");
-      if (!tarjeta || tarjetasDe(documento).length < 2) return;
+      if (!tarjeta || delGrupo(tarjeta).length < 2) return;
       var ad = adaptador(tarjeta, entorno.ventana);
       var maquina = crearArrastre(ad, entorno.reloj);
       actual = { maquina: maquina, tarjeta: tarjeta, adaptador: ad };

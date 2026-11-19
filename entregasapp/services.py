@@ -993,6 +993,19 @@ def _destino_valido(destino, indice, cantidad):
     return posicion - 1
 
 
+def _dentro_de_su_seccion(parada, destino, nuevo, numeradas):
+    """Enmienda del 2026-11-19 (decisión de la usuaria): «Por visitar en orden» y «Sin coordenadas» se ordenan cada
+    una por separado. Las numeradas (con coordenadas) ocupan las posiciones 0..numeradas-1; las sin coordenadas,
+    las siguientes. Ninguna visita cambia de sección, ni con las flechas ni con el arrastre (una posición)."""
+    if parada.numerada and nuevo >= numeradas:
+        raise ValidationError("Esta parada ya es la última de tu ruta." if destino == BAJAR else
+                              "Una parada con coordenadas no puede ir entre las visitas sin coordenadas.")
+    if not parada.numerada and nuevo < numeradas:
+        raise ValidationError("Esta visita ya es la primera sin coordenadas: no entra a la ruta numerada."
+                              if destino == SUBIR else
+                              "Las visitas sin coordenadas no entran a la ruta numerada; ordénala entre ellas.")
+
+
 @reintentar_conflictos
 @transaction.atomic
 def mover_parada(actor, intento_id, destino, version, operacion_id):
@@ -1010,12 +1023,14 @@ def mover_parada(actor, intento_id, destino, version, operacion_id):
     orden, repetido = _tomar_orden(actor, hoy, version, operacion, ahora)
     if repetido:
         return orden
-    secuencia = [parada.intento.pk for parada in consultas.ruta_del_dia(actor, hoy, hoy).paradas]
+    paradas = consultas.ruta_del_dia(actor, hoy, hoy).paradas
+    secuencia = [parada.intento.pk for parada in paradas]
     try:
         indice = secuencia.index(int(intento_id))
     except (TypeError, ValueError):
         raise ValidationError("Esa visita ya no está en tu ruta de hoy. Revisa la lista.") from None
     nuevo = _destino_valido(destino, indice, len(secuencia))
+    _dentro_de_su_seccion(paradas[indice], destino, nuevo, sum(1 for parada in paradas if parada.numerada))
     secuencia.insert(nuevo, secuencia.pop(indice))
     ParadaRuta.objects.filter(orden=orden).delete()
     ParadaRuta.objects.bulk_create([

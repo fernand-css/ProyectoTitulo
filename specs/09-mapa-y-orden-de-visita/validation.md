@@ -164,6 +164,22 @@ Observación sin corregir: los domicilios sintéticos de demostración caen lejo
 - La parada más cercana y el tramo se miden con un OSRM simulado en la herramienta (distancia = 1,3 × línea recta).
 - La posición viaja a Django en el cuerpo del POST: la evidencia de que no se guarda es de la base de pruebas, la sesión, la caché local y los registros de Django capturados; no cubre registros de un proxy o servidor web delante de Django en un despliegue real.
 
+## Corrección del 2026-11-19: la última numerada no baja
+
+- **Hallazgo (navegador del panel de la app, 375 × 812, previsualización sintética):** con 4 numeradas y 3 sin coordenadas, «Bajar» en la parada 4 la cambió con la primera sin coordenadas, que pasó a «Parada 4»; tres pulsaciones más metieron las tres sin coordenadas a la ruta y la sección quedó vacía. Con 1 numerada y 1 sin coordenadas, la sin coordenadas quedó «Parada 1». La usuaria lo vio también con 1 numerada y 2 en «Sin sector».
+- **Corrección:** `services.mover_parada` rechaza «Bajar» en la última numerada; `_orden_controles.html` y `orden.js` (`aplicarOrden`) ocultan esa flecha.
+- **Pruebas:** `test_orden_manual.py` agrega `test_la_ultima_numerada_no_baja_y_no_arrastra_una_sin_coordenadas` y `test_flechas_de_la_pagina_con_una_numerada_y_dos_sin_coordenadas`; `orden.test.cjs` agrega la prueba de `aplicarOrden`. `python manage.py test entregasapp.tests.test_orden_manual entregasapp.tests.test_vistas_mapa entregasapp.tests.test_concurrencia_ruta entregasapp.tests.test_permisos_mapa entregasapp.tests.test_ruta_consultas`: 59 OK. `node --test entregasapp/tests/*.test.cjs`: 132 OK.
+- **Navegador, después de la corrección (1 numerada y 2 en «Sin sector»):** la numerada no muestra flechas; «Subir» en una sin coordenadas la deja «Parada 1» y la numerada pasa a «Parada 2» sin «Bajar»; «Bajar» en la sin coordenadas la devuelve a su sección.
+- **Detalles menores vistos, sin corregir:** el aviso dice «Parada movida a la posición N» también para visitas sin número; con dos toques rápidos, el aviso «Espera a que termine de guardarse…» lo reemplaza el del primer toque; con una sola visita la franja de arrastre se muestra aunque no hace nada; al separar una visita de su grupo, el rótulo de sector se repite.
+
+## Enmienda del 2026-11-19: las secciones no se mezclan
+
+- **Pedido de la usuaria:** con una sin coordenadas subida a «Parada 1» y una con coordenadas debajo, al subir la con coordenadas la sin coordenadas volvía sola a su sección (límite aceptado del 2026-11-16). La usuaria decidió que las sin coordenadas no puedan pasar a «Por visitar en orden».
+- **Cambio:** `consultas._aplicar_orden_guardado`, `services._dentro_de_su_seccion` (desde `mover_parada`), `_orden_controles.html`, `_ruta.html` (texto) y `orden.js` (flechas y arrastre por sección).
+- **Pruebas actualizadas:** en `test_orden_manual.py`, los casos que subían o movían D (sin coordenadas) a la ruta ahora esperan el rechazo, y hay pruebas nuevas de que las sin coordenadas se ordenan entre ellas (flechas y posición). En `test_ruta_consultas.py`, un orden guardado con la sin coordenadas adelante se lee con ella al final. `test_permisos_mapa.py` arma el orden manual moviendo una con coordenadas. En `orden.test.cjs`: las flechas de borde y un arrastre de una sin coordenadas que no sale de su sección y envía la posición 3.
+- **Comandos:** `python manage.py test entregasapp coreapp`: 546 OK. `node --test entregasapp/tests/*.test.cjs`: 133 OK.
+- **Navegador (375 × 812, previsualización sintética, 4 con coordenadas y 3 sin coordenadas):** la primera sin coordenadas no ofrece «Subir» y la última numerada no ofrece «Bajar»; las flechas reordenan dentro de cada sección. Arrastrar con el mouse una sin coordenadas sobre la última numerada, o la última numerada sobre las sin coordenadas, termina en «La parada quedó en el mismo lugar.» sin cambiar de sección. No se probó el arrastre táctil en un celular real.
+
 ## Aceptación funcional
 
 Pendiente.

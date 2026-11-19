@@ -380,6 +380,41 @@ test("solo la sin coordenadas que se ubica entre las numeradas pasa a la lista c
   assert.equal(documento.querySelector("[data-ruta-sin-cantidad]").textContent, "1");
 });
 
+test("ninguna flecha cambia de sección: la última numerada no baja y la primera sin coordenadas no sube (enmienda del 2026-11-19)", async () => {
+  const documento = paginaConSinCoordenadas();
+  const red = entorno([respuesta(200, ordenMixto([2, 1, 4, 5], [1, 2], 1))]);
+  orden.preparar(documento, red);
+  const form = documento.getElementById("parada-1").querySelector("form");
+  form.dispatchEvent(evento("submit", { target: form, submitter: form.querySelector('[data-flecha="bajar"]') }));
+  await esperar(); await esperar(); await esperar();
+  const flechas = (id) => ["subir", "bajar"].map((s) => !documento.querySelector(`#parada-${id} [data-flecha="${s}"]`).hidden);
+  assert.deepEqual(flechas(2), [false, true], "la parada 1 baja");
+  assert.deepEqual(flechas(1), [true, false], "la última numerada no baja");
+  assert.deepEqual(flechas(4), [false, true], "la primera sin coordenadas no sube a la ruta");
+  assert.deepEqual(flechas(5), [true, false], "la última de todas no baja");
+});
+
+test("el arrastre de una sin coordenadas no sale de su sección y envía la posición completa (enmienda del 2026-11-19)", async () => {
+  const documento = paginaConSinCoordenadas();
+  documento.getElementById("parada-4").rect = { top: 700, bottom: 880, height: 180, left: 0, right: 400, width: 400 };
+  documento.getElementById("parada-5").rect = { top: 900, bottom: 1080, height: 180, left: 0, right: 400, width: 400 };
+  documento.querySelector("[data-ruta-sin-coordenadas]").rect = { top: 640, bottom: 1100, left: 0, right: 400, width: 400, height: 460 };
+  const red = entorno([respuesta(200, ordenMixto([1, 2, 5, 4], [1, 2], 1))]);
+  orden.preparar(documento, red);
+  const franja = documento.querySelector("#parada-5 [data-franja]");
+  franja.dispatchEvent(evento("pointerdown", { target: franja, clientX: 390, clientY: 990, pointerType: "mouse", button: 0 }));
+  documento.dispatchEvent(evento("pointermove", { clientX: 390, clientY: 120 }));  // sobre la parada 1
+  const hueco = documento.querySelector(".visita-hueco");
+  assert.equal(hueco.parentNode, documento.querySelector("[data-ruta-sin-lista]"), "el hueco se queda en su sección");
+  assert.equal(hueco.nextSibling, documento.getElementById("parada-4"));
+  documento.dispatchEvent(evento("pointerup", { clientX: 390, clientY: 120 }));
+  await esperar(); await esperar(); await esperar();
+  assert.equal(red.enviados[0].cuerpo.destino, "3", "2 numeradas antes + primera de su sección");
+  const sinLista = documento.querySelector("[data-ruta-sin-lista]");
+  assert.deepEqual(sinLista.querySelectorAll("[data-arrastrable]").map((t) => t.getAttribute("data-intento")), ["5", "4"]);
+  assert.deepEqual(documento.querySelector("[data-ruta-paradas]").querySelectorAll("[data-arrastrable]").map((t) => t.getAttribute("data-intento")), ["1", "2"]);
+});
+
 test("las únicas solicitudes van a la acción del formulario de Django", () => {
   const codigo = fs.readFileSync(ruta, "utf8");
   assert.doesNotMatch(codigo, /XMLHttpRequest|sendBeacon/);

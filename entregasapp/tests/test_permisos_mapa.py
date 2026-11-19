@@ -126,7 +126,7 @@ class EstructuraMapaTests(TestCase):
         self.encargado = self.equipo["encargado"]
         self.intentos = [visita(self.equipo, en) for en in ((0, 1), (0, 2))]
         self.sin = visita(self.equipo, None)
-        mover_parada(self.encargado, self.sin.pk, "1", 0, uuid.uuid4())
+        mover_parada(self.encargado, self.intentos[1].pk, "1", 0, uuid.uuid4())  # orden manual
         con_punto = paciente(edad=88)
         receta(con_punto)
         from entregasapp.services import guardar_domicilio

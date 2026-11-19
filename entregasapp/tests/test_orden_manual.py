@@ -52,24 +52,69 @@ class OrdenManualTests(TestCase):
         self.assertEqual(ids(self.ruta()), [self.b.pk, self.a.pk, self.c.pk, self.d.pk])
         self.mover(self.c, "1")
         self.assertEqual(ids(self.ruta()), [self.c.pk, self.b.pk, self.a.pk, self.d.pk])
-        self.mover(self.c, 4)
-        ruta = self.ruta()
-        self.assertEqual(ids(ruta), [self.b.pk, self.a.pk, self.d.pk, self.c.pk])
-        self.assertEqual(ruta.version, 3)
-        # D quedó entre visitas con coordenadas: pasa a la lista numerada.
-        self.assertTrue(all(p.numerada for p in ruta.paradas))
+        # Enmienda del 2026-11-19: una con coordenadas no puede ir entre las sin coordenadas (posición 4 = D).
+        with self.assertRaisesMessage(ValidationError, "no puede ir entre las visitas sin coordenadas"):
+            self.mover(self.c, 4)
         self.mover(self.c, 3)
         ruta = self.ruta()
         self.assertEqual(ids(ruta), [self.b.pk, self.a.pk, self.c.pk, self.d.pk])
-        self.assertEqual([p.numerada for p in ruta.paradas], [True, True, True, False])  # vuelve a su sección
+        self.assertEqual(ruta.version, 3)
+        self.assertEqual([p.numerada for p in ruta.paradas], [True, True, True, False])
 
-    def test_mover_una_visita_sin_coordenadas_a_la_posicion_1(self):
-        self.mover(self.d, "1")
+    def test_una_visita_sin_coordenadas_no_entra_a_la_ruta_numerada(self):
+        """Enmienda del 2026-11-19 (decisión de la usuaria): ni con «Subir» ni con una posición (arrastre)."""
+        for destino, texto in (("subir", "ya es la primera sin coordenadas"), ("1", "no entran a la ruta numerada"),
+                               ("3", "no entran a la ruta numerada")):
+            with self.subTest(destino=destino), self.assertRaisesMessage(ValidationError, texto):
+                self.mover(self.d, destino)
+        self.assertFalse(OrdenRuta.objects.exists())
         ruta = self.ruta()
-        self.assertEqual(ids(ruta), [self.d.pk, self.b.pk, self.c.pk, self.a.pk])
-        primera = ruta.paradas[0]
-        self.assertEqual((primera.numero, primera.numerada, primera.punto), (1, True, None))
+        self.assertEqual(ids(ruta), [self.b.pk, self.c.pk, self.a.pk, self.d.pk])
+        self.assertEqual([p.intento.pk for p in ruta.sin_coordenadas], [self.d.pk])
         self.assertEqual(ruta.sin_marcador, 1)
+
+    def test_la_ultima_numerada_no_baja_y_no_arrastra_una_sin_coordenadas(self):
+        """Corrección del 2026-11-19: «Bajar» en A (última numerada, con D sin coordenadas debajo) se rechaza."""
+        with self.assertRaisesMessage(ValidationError, "Esta parada ya es la última de tu ruta."):
+            self.mover(self.a, "bajar")
+        self.assertFalse(OrdenRuta.objects.exists())
+        ruta = self.ruta()
+        self.assertEqual(ids(ruta), [self.b.pk, self.c.pk, self.a.pk, self.d.pk])
+        self.assertEqual([p.intento.pk for p in ruta.sin_coordenadas], [self.d.pk])
+
+    def test_las_sin_coordenadas_se_ordenan_entre_ellas(self):
+        e = visita(self.equipo, None)
+        primera, segunda = (p.intento for p in self.ruta().sin_coordenadas)
+        self.mover(primera, "bajar")
+        ruta = self.ruta()
+        self.assertEqual([p.intento.pk for p in ruta.sin_coordenadas], [segunda.pk, primera.pk])
+        self.assertEqual([p.intento.pk for p in ruta.numeradas], [self.b.pk, self.c.pk, self.a.pk])
+        with self.assertRaisesMessage(ValidationError, "ya es la primera sin coordenadas"):
+            self.mover(segunda, "subir")
+        self.mover(segunda, "5")  # arrastre dentro de su sección
+        self.assertEqual([p.intento.pk for p in self.ruta().sin_coordenadas], [primera.pk, segunda.pk])
+        self.assertIn(e.pk, (primera.pk, segunda.pk))
+
+    def test_flechas_de_la_pagina_con_una_numerada_y_dos_sin_coordenadas(self):
+        """El caso de la usuaria: una en «Por visitar en orden» y dos sin coordenadas; ninguna flecha cambia de sección."""
+        import re
+
+        from django.urls import reverse
+
+        otro = self.equipo["encargado2"]
+        numerada = visita(self.equipo, (0, 1), encargado=otro)
+        sin = [visita(self.equipo, None, encargado=otro) for _ in range(2)]
+        self.client.force_login(otro)
+        html = self.client.get(reverse("entregasapp:mis")).content.decode()
+
+        def flechas(intento):
+            tarjeta = html[html.index(f'id="parada-{intento.pk}"'):]
+            tarjeta = tarjeta[:tarjeta.index("</article>")]
+            return {s: bool(re.search(rf'data-flecha="{s}"(?![^>]*hidden)', tarjeta)) for s in ("subir", "bajar")}
+
+        self.assertEqual(flechas(numerada), {"subir": False, "bajar": False})
+        self.assertEqual(flechas(sin[0]), {"subir": False, "bajar": True})  # enmienda: no sube a la ruta
+        self.assertEqual(flechas(sin[1]), {"subir": True, "bajar": False})
 
     def test_bordes_invalidos_se_rechazan_con_texto_y_sin_cambios(self):
         casos = ((self.b, "subir", "ya es la primera"), (self.d, "bajar", "ya es la última"),
@@ -110,7 +155,7 @@ class OrdenManualTests(TestCase):
         self.assertEqual(self.ruta().version, 2)
 
     def test_al_dia_siguiente_vuelve_la_sugerencia(self):
-        self.mover(self.d, "1")
+        self.mover(self.a, "1")
         OrdenRuta.objects.update(fecha=hoy() - timedelta(days=1))
         ruta = self.ruta()
         self.assertEqual((ruta.modo, ruta.version), (SUGERIDO, 0))
@@ -121,7 +166,7 @@ class OrdenManualTests(TestCase):
         self.assertEqual(OrdenRuta.objects.filter(fecha=hoy()).count(), 1)
 
     def test_volver_al_orden_sugerido(self):
-        self.mover(self.d, "1")
+        self.mover(self.a, "1")
         orden = restablecer_orden(self.encargado, 1, uuid.uuid4())
         ruta = self.ruta()
         self.assertEqual((ruta.modo, ruta.version, orden.version), (SUGERIDO, 2, 2))
@@ -135,7 +180,7 @@ class OrdenManualTests(TestCase):
         self.assertEqual(self.ruta().modo, MANUAL)
 
     def test_solo_el_encargado_reordena_su_ruta(self):
-        self.mover(self.d, "1")
+        self.mover(self.a, "1")
         antes = ids(self.ruta())
         for nombre in ("qf", "admin", "tecnico"):
             with self.subTest(actor=nombre):

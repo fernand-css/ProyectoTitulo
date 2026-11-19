@@ -20,7 +20,7 @@
 {% if ruta.sin_coordenadas or controles and ruta.sin_marcador %}
 <section class="visitas" aria-labelledby="titulo-sin-coordenadas" data-ruta-sin-coordenadas{% if not ruta.sin_coordenadas %} hidden{% endif %}>
   <h2 id="titulo-sin-coordenadas">Sin coordenadas: fuera del orden sugerido (<span data-ruta-sin-cantidad>{{ ruta.sin_coordenadas|length }}</span>)</h2>
-  <p class="suave">No entran al cálculo del recorrido ni tienen marcador en el mapa. Van agrupadas por sector y localidad{% if controles %}; puedes ubicarlas en tu orden con las flechas o arrastrándolas entre las paradas numeradas{% endif %}.</p>
+  <p class="suave">No entran al cálculo del recorrido ni tienen marcador en el mapa. Van agrupadas por sector y localidad{% if controles %}. Puedes cambiar su orden entre ellas con las flechas o arrastrándolas; no entran a «Por visitar en orden»{% endif %}.</p>
   <div class="visitas-lista" data-ruta-sin-lista>
   {% for parada in ruta.sin_coordenadas %}
   {% ifchanged parada.intento.domicilio.sector parada.intento.domicilio.localidad %}<p class="grupo-sector" data-grupo-sector>{% include 'entregas/_grupo_sector.html' with domicilio=parada.intento.domicilio %}</p>{% endifchanged %}

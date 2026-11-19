@@ -1,4 +1,4 @@
-{# Flechas «Subir» y «Bajar» (spec 09, RF-09-17): un formulario POST con CSRF que funciona sin JavaScript, con teclado y lector de pantalla; con JavaScript, orden.js lo envía sin recargar. La flecha que no aplica (primera o última) va oculta para poder mostrarla al reordenar. Espera `parada` y `ruta` (versión y cantidad). Se retiró «Mover a la posición». #}
+{# Flechas «Subir» y «Bajar» (spec 09, RF-09-17): un formulario POST con CSRF que funciona sin JavaScript, con teclado y lector de pantalla; con JavaScript, orden.js lo envía sin recargar. La flecha que no aplica (primera o última) va oculta para poder mostrarla al reordenar. Enmienda del 2026-11-19: cada sección se ordena por separado; «Bajar» va oculta en la última parada numerada y «Subir», en la primera sin coordenadas, porque ninguna visita cambia de sección. Espera `parada` y `ruta` (versión y cantidad). Se retiró «Mover a la posición». #}
 {% if parada %}
 {% with total=ruta.paradas|length nombre=parada.intento.paciente.nombres|add:" "|add:parada.intento.paciente.apellidos %}
 {% if total > 1 %}
@@ -7,8 +7,8 @@
   <input type="hidden" name="intento" value="{{ parada.intento.pk }}">
   <input type="hidden" name="version" value="{{ ruta.version }}" data-version>
   <input type="hidden" name="operacion_id" value="{{ parada.operacion_id }}">
-  <button class="boton boton-secundario boton-flecha" type="submit" name="destino" value="subir" data-flecha="subir"{% if parada.numero <= 1 %} hidden{% endif %}><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-arriba"/></svg><span class="sr-only" data-flecha-nombre>Subir {% if parada.numerada %}parada {{ parada.numero }}{% else %}visita sin coordenadas{% endif %}: {{ nombre }}</span></button>
-  <button class="boton boton-secundario boton-flecha" type="submit" name="destino" value="bajar" data-flecha="bajar"{% if parada.numero >= total %} hidden{% endif %}><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-abajo"/></svg><span class="sr-only" data-flecha-nombre>Bajar {% if parada.numerada %}parada {{ parada.numero }}{% else %}visita sin coordenadas{% endif %}: {{ nombre }}</span></button>
+  <button class="boton boton-secundario boton-flecha" type="submit" name="destino" value="subir" data-flecha="subir"{% if parada.numero <= 1 or not parada.numerada and parada.numero <= ruta.numeradas|length|add:1 %} hidden{% endif %}><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-arriba"/></svg><span class="sr-only" data-flecha-nombre>Subir {% if parada.numerada %}parada {{ parada.numero }}{% else %}visita sin coordenadas{% endif %}: {{ nombre }}</span></button>
+  <button class="boton boton-secundario boton-flecha" type="submit" name="destino" value="bajar" data-flecha="bajar"{% if parada.numero >= total or parada.numerada and parada.numero >= ruta.numeradas|length %} hidden{% endif %}><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-abajo"/></svg><span class="sr-only" data-flecha-nombre>Bajar {% if parada.numerada %}parada {{ parada.numero }}{% else %}visita sin coordenadas{% endif %}: {{ nombre }}</span></button>
 </form>
 {% endif %}
 {% endwith %}
