@@ -1,0 +1,82 @@
+{% load core_tags %}
+{# Resultados del padrón: resumen, filas y páginas. Zona de la búsqueda en vivo (coreapp/busqueda.py); el texto #}
+{# marcado con data-anuncio se anuncia al actualizarse. La paginación sigue viajando por POST. #}
+<div data-zona="resultados">
+{% if page_obj %}
+<p class="padron-resumen" data-anuncio>
+  {% if buscar %}<strong>{{ page_obj.paginator.count }}</strong> paciente{{ page_obj.paginator.count|pluralize }} coincid{{ page_obj.paginator.count|pluralize:"e,en" }} con «<strong>{{ buscar }}</strong>».{% if page_obj.has_other_pages %} Mostrando del {{ page_obj.start_index }} al {{ page_obj.end_index }}.{% endif %}
+  {% elif filtro %}<strong>{{ page_obj.paginator.count }}</strong> paciente{{ page_obj.paginator.count|pluralize }} sin receta vigente: hoy no pueden retirar medicamentos.{% if page_obj.has_other_pages %} Mostrando del {{ page_obj.start_index }} al {{ page_obj.end_index }}.{% endif %}
+  {% else %}Mostrando del <strong>{{ page_obj.start_index }}</strong> al <strong>{{ page_obj.end_index }}</strong> de <strong>{{ page_obj.paginator.count }}</strong> pacientes, por apellido.{% endif %}
+</p>
+<ul class="padron" aria-label="Pacientes">
+  {% for paciente in page_obj %}{% with resumen=paciente.resumen %}
+  <li class="padron-fila">
+    <div class="padron-persona">
+      <p class="padron-nombre"><a href="{% url 'recetasapp:paciente_detalle' pk=paciente.pk %}">{{ paciente.apellidos }}, {{ paciente.nombres }}<span class="sr-only">: ver paciente y recetas</span></a></p>
+      <p class="padron-datos"><span>RUT {{ paciente.rut|rut }}</span><span>{{ paciente.edad }} años</span></p>
+    </div>
+    <div class="padron-etiquetas">
+      {% if paciente.es_cronico or paciente.es_postrado %}
+      <ul class="etiquetas">
+        {% if paciente.es_cronico %}<li class="etiqueta"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-capsula"/></svg>Crónico</li>{% endif %}
+        {% if paciente.es_postrado %}<li class="etiqueta"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-cama"/></svg>Postrado</li>{% endif %}
+      </ul>
+      {% else %}<span class="sin-dato">Sin condición registrada</span>{% endif %}
+    </div>
+    <div class="padron-libreta">
+      {% if resumen.situacion %}
+        {% include 'recetas/_situacion.html' with situacion=resumen.situacion %}
+        {% if resumen.puntos %}
+        <div class="mini" aria-hidden="true">{% for lleno in resumen.puntos %}<span class="punto{% if lleno %} punto-lleno{% endif %}"></span>{% endfor %}</div>
+        {% else %}
+        <div class="mini-barra" aria-hidden="true" style="--p: {{ resumen.porcentaje }}"><span></span></div>
+        {% endif %}
+        <p class="padron-estado">{{ resumen.texto }}<small>{{ resumen.detalle }}</small></p>
+      {% else %}
+        <p class="padron-estado sin-dato">{{ resumen.texto }}</p>
+      {% endif %}
+    </div>
+    <svg class="icono padron-flecha" aria-hidden="true" focusable="false"><use href="#i-flecha"/></svg>
+  </li>
+  {% endwith %}{% endfor %}
+</ul>
+{% if page_obj.has_other_pages %}
+<nav class="paginacion" aria-label="Páginas de pacientes">
+  {% if page_obj.has_previous %}<form method="post" data-en-vivo="pagina">{% csrf_token %}<input type="hidden" name="buscar" value="{{ buscar }}"><input type="hidden" name="filtro" value="{{ filtro }}"><button type="submit" name="pagina" value="{{ page_obj.previous_page_number }}">Página anterior</button></form>{% endif %}
+  <span aria-current="page">Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<form method="post" data-en-vivo="pagina">{% csrf_token %}<input type="hidden" name="buscar" value="{{ buscar }}"><input type="hidden" name="filtro" value="{{ filtro }}"><button type="submit" name="pagina" value="{{ page_obj.next_page_number }}">Página siguiente</button></form>{% endif %}
+</nav>
+{% endif %}
+{% elif buscar %}
+<div class="vacio">
+  <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-lupa"/></svg>
+  <div>
+    <h2 data-anuncio>No encontramos pacientes con «{{ buscar }}»{% if filtro %} sin receta vigente{% endif %}</h2>
+    <p>Revisa el RUT (sirve con o sin puntos) o prueba solo con el apellido.</p>
+    <div class="acciones"><a class="boton boton-secundario" href="{% url 'recetasapp:pacientes' %}">Ver todos los pacientes</a></div>
+  </div>
+</div>
+{% elif filtro %}
+<div class="vacio">
+  <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg>
+  <div>
+    <h2 data-anuncio>Todos los pacientes tienen una receta vigente</h2>
+    <p>No hay nadie sin receta que admita entregas hoy.</p>
+    <div class="acciones"><a class="boton boton-secundario" href="{% url 'recetasapp:pacientes' %}">Ver todos los pacientes</a></div>
+  </div>
+</div>
+{% elif not form.errors %}
+<div class="vacio">
+  <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-documento"/></svg>
+  <div>
+    <h2 data-anuncio>El padrón está vacío</h2>
+    {% if rol == 'Jefa de Farmacia' or rol == 'superusuario' %}
+    <p>Carga un archivo sintético para ver aquí a los pacientes y sus recetas.</p>
+    <div class="acciones"><a class="boton" href="{% url 'recetasapp:importacion_nueva' %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-subir"/></svg>Importar padrón</a></div>
+    {% else %}
+    <p>Pide a la Jefa de Farmacia que cargue el padrón para poder consultarlo.</p>
+    {% endif %}
+  </div>
+</div>
+{% endif %}
+</div>

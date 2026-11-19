@@ -35,6 +35,8 @@
 .busqueda-campo input::placeholder { color: var(--secundario-texto); opacity: 1; }
 .busqueda .boton { min-height: 3.5rem; }
 .busqueda .message { margin: 0.75rem 0 0; }
+/* Ayuda de la búsqueda en vivo, entre la etiqueta y el campo. */
+.busqueda .campo-ayuda { margin: 0 0 0.6rem; }
 
 .padron-resumen { margin: 1.75rem 0 0.75rem; color: var(--secundario-texto); font-size: 1rem; }
 .padron-resumen strong { color: var(--panel-texto); }

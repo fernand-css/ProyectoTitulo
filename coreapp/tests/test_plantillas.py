@@ -111,6 +111,8 @@ class PlantillasTests(TestCase):
                 nombre = archivo.relative_to(settings.BASE_DIR / "templates").as_posix()
                 with self.subTest(plantilla=nombre):
                     datos = {**contexto, "page_obj": Paginator([], 20).page(1)} if nombre.startswith(("recetas/", "entregas/")) else contexto
+                    if nombre == "components/busqueda_en_vivo.html":  # el fragmento dibuja las zonas que le pasa la vista
+                        datos = {**datos, "page_obj": Paginator([], 20).page(1), "zonas": ["recetas/_pacientes_resultados.html"]}
                     self.assertTrue(self.renderizar(nombre, **datos).strip())
 
     def test_layouts_con_idioma_salto_y_un_solo_main(self):

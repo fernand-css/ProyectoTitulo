@@ -1,0 +1,2 @@
+{# «Limpiar» junto a «Buscar», solo si hay búsqueda. Zona de la búsqueda en vivo (coreapp/busqueda.py). #}
+<span class="zona-en-linea" data-zona="quitar">{% if buscar %}<a class="boton boton-secundario" href="{% url 'recetasapp:preparacion_pendientes' %}">Limpiar</a>{% endif %}</span>

@@ -1,0 +1,47 @@
+{# Preparaciones pendientes de retiro y sus páginas. Zona de la búsqueda en vivo (coreapp/busqueda.py); el texto #}
+{# marcado con data-anuncio se anuncia al actualizarse. «Registrar retiro» sigue siendo un envío normal. #}
+<div data-zona="resultados">
+{% if page_obj.object_list %}
+<div class="preparacion-tabla-contenedor">
+  <table class="preparacion-tabla">
+    <caption data-anuncio>{{ page_obj.paginator.count }} preparaci{{ page_obj.paginator.count|pluralize:"ón,ones" }} pendiente{{ page_obj.paginator.count|pluralize }} de retiro</caption>
+    <thead><tr><th scope="col">Paciente</th><th scope="col">Receta</th><th scope="col">Turno</th><th scope="col">Motivo</th><th scope="col">Preparada el</th><th scope="col">Días</th><th scope="col"><span class="sr-only">Acción</span></th></tr></thead>
+    <tbody>
+      {% for item in page_obj %}
+      <tr>
+        <td data-title="Paciente"><strong>{% if item.turno_receta.turno.paciente %}{{ item.turno_receta.turno.paciente.apellidos }}, {{ item.turno_receta.turno.paciente.nombres }}{% else %}No registrado en el padrón{% endif %}</strong><span>RUT {{ item.turno_receta.turno.rut }}</span></td>
+        <td data-title="Receta">{{ item.turno_receta.receta.codigo }}</td>
+        <td data-title="Turno">{{ item.turno_receta.turno.codigo }} ·{{ item.turno_receta.turno.fecha|date:"d/m/Y" }}</td>
+        <td data-title="Motivo">{{ item.motivo_retiro }}</td>
+        <td data-title="Preparada el">{{ item.preparada_el|date:"d/m/Y" }}</td>
+        <td data-title="Días">{{ item.dias_transcurridos }}</td>
+        <td data-title="Acción">
+          {% if item.en_despacho %}
+          {# Spec 13: viaja en una entrega a domicilio abierta; la ventanilla no la entrega. #}
+          <span class="estado-despacho"><strong>En despacho</strong> · se entrega a domicilio</span>
+          {% else %}
+          <form method="post" action="{% url 'recetasapp:preparacion_retirar' item.pk %}">
+            {% csrf_token %}{{ item.retiro_form.operacion_id }}
+            <button class="boton" type="submit">Registrar retiro</button>
+          </form>
+          {% endif %}
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if page_obj.has_other_pages %}
+<nav class="paginacion" aria-label="Páginas de pendientes">
+  {% if page_obj.has_previous %}<form method="post" data-en-vivo="pagina">{% csrf_token %}<input type="hidden" name="buscar" value="{{ buscar }}"><button class="boton boton-secundario" name="pagina" value="{{ page_obj.previous_page_number }}">Anterior</button></form>{% endif %}
+  <span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<form method="post" data-en-vivo="pagina">{% csrf_token %}<input type="hidden" name="buscar" value="{{ buscar }}"><button class="boton boton-secundario" name="pagina" value="{{ page_obj.next_page_number }}">Siguiente</button></form>{% endif %}
+</nav>
+{% endif %}
+{% else %}
+<div class="preparacion-vacia">
+  <h2 data-anuncio>{% if buscar %}No encontramos pendientes con esa búsqueda{% else %}No hay retiros pendientes{% endif %}</h2>
+  <p>{% if buscar %}Revisa el RUT o apellido e inténtalo otra vez.{% else %}Las recetas listas sin entregar aparecerán aquí cuando se cierre un turno.{% endif %}</p>
+</div>
+{% endif %}
+</div>

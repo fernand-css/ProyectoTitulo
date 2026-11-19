@@ -28,6 +28,7 @@ from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.decorators.cache import never_cache
 
+from coreapp.busqueda import plantilla_y_contexto
 from coreapp.mixins import RolRequeridoMixin, tiene_rol
 from coreapp.roles import ENCARGADO, JEFA, TECNICO
 from recetasapp.models import Paciente
@@ -60,10 +61,13 @@ def _nombre(usuario):
 class EntregasView(RolRequeridoMixin, View):
     roles_permitidos = TODOS
 
-    def render(self, template, contexto, **kwargs):
+    def render(self, template, contexto, zonas=(), **kwargs):
         contexto.setdefault("es_encargado", services.es_encargado(self.request.user))
         contexto.setdefault("puede_gestionar", tiene_rol(self.request.user, JEFA))
-        respuesta = render(self.request, "entregas/" + template, contexto, **kwargs)
+        # Con la búsqueda en vivo (coreapp/busqueda.py) se dibujan solo las zonas de la página.
+        template, contexto = plantilla_y_contexto(
+            self.request, "entregas/" + template, contexto, ["entregas/" + zona for zona in zonas])
+        respuesta = render(self.request, template, contexto, **kwargs)
         respuesta.headers["Referrer-Policy"] = "same-origin"
         return respuesta
 
@@ -960,7 +964,7 @@ class DomiciliosView(EntregasView):
             paciente.domicilio_registrado = consultas.domicilio_de(paciente)
         return self.render("domicilios.html", {
             "form": form, "page_obj": page_obj, "filtros": filtros, "pestanas": self.pestanas("domicilios"),
-        })
+        }, zonas=("_domicilios_quitar.html", "_domicilios_resultados.html"))
 
 
 class DomicilioView(EntregasView):
@@ -1153,12 +1157,13 @@ class ExcepcionesView(EntregasView):
     def post(self, request):
         if request.POST.get("accion") == "buscar":
             busqueda = BusquedaForm(request.POST)
-            resultados = []
+            resultados = None  # sin texto no hay resultados que mostrar (la búsqueda en vivo deja la zona vacía)
             if busqueda.is_valid() and busqueda.cleaned_data["buscar"]:
                 pacientes = consultas.filtrar_busqueda(Paciente.objects.order_by("apellidos", "nombres", "pk"),
                                                        busqueda.cleaned_data["buscar"])
                 resultados = self.candidatos(pacientes)
-            return self.render("excepciones.html", self.contexto(busqueda=busqueda, resultados=resultados))
+            return self.render("excepciones.html", self.contexto(busqueda=busqueda, resultados=resultados),
+                               zonas=("_excepciones_resultados.html",))
         prefijo = request.POST.get("prefijo", "")
         form = ExcepcionForm(request.POST, prefix=prefijo if prefijo.startswith("p") and prefijo[1:].isdigit() else None)
         if form.is_valid():

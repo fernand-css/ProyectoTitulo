@@ -499,6 +499,14 @@ form .acciones { margin-top: 0.5rem; }
 .paginacion a:hover { color: var(--trigo-texto); background: var(--trigo-fondo); }
 .paginacion [aria-current="page"] { font-weight: 600; }
 
+/* ------------------------------------------------------------------ Búsqueda en vivo (busqueda_en_vivo.js) */
+/* Una zona dentro de una fila flexible (p. ej. «Quitar filtros» junto a «Buscar»): su contenido se acomoda como
+   si la envoltura no existiera. */
+.zona-en-linea { display: contents; }
+.busqueda-en-vivo-error { margin: 0 0 1rem; }
+.busqueda-en-vivo-error[hidden] { display: none; }
+.busqueda-en-vivo-error .boton { margin-top: 0.6rem; }
+
 /* ------------------------------------------------------------------ Pantallas de acceso (sin sesión) */
 .acceso { flex: 1; display: grid; grid-template-columns: minmax(0, 5fr) minmax(0, 6fr); }
 .paisaje {

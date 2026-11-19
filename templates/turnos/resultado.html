@@ -2,7 +2,7 @@
 {% load static %}
 {% block titulo %}Tu número · Farmacia{% endblock %}
 {% block estilos %}<link rel="stylesheet" href="{% static 'css/turnos.css' %}">
-<noscript><meta http-equiv="refresh" content="30;url={% url 'turnosapp:totem' %}"></noscript>{% endblock %}
+<noscript><meta http-equiv="refresh" content="{{ segundos }};url={% url 'turnosapp:totem' %}"></noscript>{% endblock %}
 {% block contenido %}
 <section class="totem totem-resultado" data-totem data-resultado data-segundos="{{ segundos }}" data-inicio="{% url 'turnosapp:totem' %}" data-continuar="{% url 'turnosapp:continuar' %}">
 <h1 class="sr-only">Tu número de atención</h1>
@@ -17,10 +17,16 @@
 </div>
 </object>
 <div class="totem-franja" data-aviso>
-<p>Esta pantalla vuelve al inicio en <span data-cuenta>{{ segundos }}</span> segundos.</p>
+<p data-frase>Esta pantalla vuelve al inicio en <span data-cuenta>{{ segundos }}</span> segundos.</p>
+{% comment %}Se escribe solo al pedir más tiempo y repite la frase visible: la cuenta no se lee en voz alta cada segundo.{% endcomment %}
+<p class="sr-only" role="status" data-anuncio></p>
+<div class="totem-franja-acciones">
 <button class="boton" type="button" data-ampliar>Necesito más tiempo</button>
+{% comment %}Envía el formulario de finalizar: vuelve al inicio también sin JavaScript.{% endcomment %}
+<button class="boton boton-secundario" type="submit" form="totem-finalizar" data-volver>Volver al tótem</button>
 </div>
-<form method="post" action="{% url 'turnosapp:finalizar' %}" data-finalizar hidden>{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ operacion }}"></form>
+</div>
+<form id="totem-finalizar" method="post" action="{% url 'turnosapp:finalizar' %}" data-finalizar hidden>{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ operacion }}"></form>
 </section>
 {% endblock %}
 {% block scripts %}<script defer src="{% static 'js/totem.js' %}"></script>{% endblock %}

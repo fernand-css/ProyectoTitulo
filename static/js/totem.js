@@ -1,6 +1,7 @@
 /* Nada se guarda en localStorage: la operación pertenece a la sesión del servidor.
    Sin botón «Nueva atención» ni impresión: la pantalla vuelve sola al inicio con un formulario
-   oculto (POST a finalizar) y «Necesito más tiempo» amplía el plazo (WCAG 2.2.1). */
+   oculto (POST a finalizar) y «Necesito más tiempo» amplía el plazo (WCAG 2.2.1). En el resultado,
+   «Volver al tótem» envía ese mismo formulario, así que también funciona sin JavaScript. */
 (() => {
   "use strict";
   const panel = document.querySelector("[data-totem]");
@@ -9,6 +10,8 @@
   const input = panel.querySelector("[name=rut]");
   const aviso = panel.querySelector("[data-aviso]");
   const cuenta = panel.querySelector("[data-cuenta]");
+  const frase = panel.querySelector("[data-frase]");
+  const anuncio = panel.querySelector("[data-anuncio]");
   // En el resultado la franja con la cuenta está siempre visible; en la entrada aparece a los 20 s.
   const resultado = panel.hasAttribute("data-resultado");
   const segundos = Number(panel.dataset.segundos);
@@ -16,12 +19,24 @@
   let avisado = false;
   let limpiando = false;
   let ultimaActividad = Date.now();
-  function limpiar() {
-    if (limpiando) return;
+  // Oculta el número de inmediato y detiene la cuenta para no enviar el formulario dos veces.
+  function ocultar() {
     limpiando = true;
     if (input) input.value = "";
     panel.hidden = true;
+  }
+  function limpiar() {
+    if (limpiando) return;
+    ocultar();
     final.requestSubmit();
+  }
+  final.addEventListener("submit", ocultar);
+  // Lo que se lee en voz alta es la misma frase de la franja. Repetir el mismo texto no se anuncia,
+  // por eso se alterna un espacio duro al final.
+  function anunciar() {
+    if (!anuncio || !frase) return;
+    const texto = frase.textContent.trim();
+    anuncio.textContent = anuncio.textContent === texto ? texto + "\u00a0" : texto;
   }
   const teclado = panel.querySelector(".totem-teclado");
   if (teclado) {
@@ -45,7 +60,10 @@
       limite = Date.now() + segundos * 1000;
       if (!resultado) aviso.hidden = true;
       avisado = false;
-      if (cuenta && resultado) cuenta.textContent = String(segundos);
+      if (cuenta && resultado) {
+        cuenta.textContent = String(segundos);
+        anunciar();
+      }
       return true;
     } catch (_) { limpiar(); return false; }
   }

@@ -20,6 +20,11 @@ from .services import MENSAJE_NEUTRO, emitir_turno, registrar_intento_totem
 from .sala import estado_sala
 
 CLAVE = "turnos_totem"
+# RF-04-07 (enmienda del 2026-11-19): el número queda 20 s en pantalla. La sesión lo guarda unos
+# segundos más para que «Necesito más tiempo» pulsado en el último segundo no falle por la demora
+# entre la respuesta del servidor y el arranque de la cuenta en el navegador (WCAG 2.2.1).
+SEGUNDOS_RESULTADO = 20
+MARGEN_RESULTADO = 5
 logger = logging.getLogger(__name__)
 
 
@@ -114,10 +119,11 @@ def totem(request):
         logger.error("No se pudo completar la operación del tótem.")
         # Repetir con otra operación recupera el mismo turno activo del RUT (RF-04-06).
         return _rechazo(request, "No pudimos confirmar el turno. Reintenta o consulta con el personal.", 503)
-    contexto = {**contexto, "resultado": _datos_resultado(resultado), "vence": time.time() + 30}
+    contexto = {**contexto, "resultado": _datos_resultado(resultado),
+                "vence": time.time() + SEGUNDOS_RESULTADO + MARGEN_RESULTADO}
     request.session[CLAVE] = contexto
     return render(request, "turnos/resultado.html", {
-        "resultado": resultado, "operacion": contexto["operacion"], "segundos": 30,
+        "resultado": resultado, "operacion": contexto["operacion"], "segundos": SEGUNDOS_RESULTADO,
     })
 
 
@@ -156,6 +162,9 @@ def continuar(request):
     contexto = _valido(request)
     if contexto is None:
         return JsonResponse({"vigente": False}, status=400)
-    segundos = 30 if contexto.get("resultado") else 120
-    request.session[CLAVE] = {**contexto, "vence": time.time() + segundos}
+    if contexto.get("resultado"):
+        segundos, margen = SEGUNDOS_RESULTADO, MARGEN_RESULTADO
+    else:
+        segundos, margen = 120, 0
+    request.session[CLAVE] = {**contexto, "vence": time.time() + segundos + margen}
     return JsonResponse({"vigente": True, "segundos": segundos})
