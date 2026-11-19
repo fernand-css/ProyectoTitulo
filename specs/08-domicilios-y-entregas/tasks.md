@@ -132,7 +132,7 @@ Diseño en [plan.md](plan.md#enmienda-del-2026-11-15--diseño-propuesto). Requis
 
 ## Reanudación
 
-Última acción: T-08-14 a T-08-16 (enmienda del 2026-11-15) completas en `crojas-base`, sin commit; antes, T-08-01 a T-08-13. Siguen las T-09-11 a T-09-18 del 09 (la tarjeta compacta del RF-09-16 moverá el botón de fotos a la parte expandida). Siguiente paso: revisión del diff por el usuario; aplicar `python manage.py migrate` en la base de demostración cuando el usuario lo decida; revisión de navegador (escritorio y celular, axe, teclado, zoom, ubicación y cámara reales), usabilidad con cinco personas y aceptación funcional. No pasar a Implementado sin esa evidencia.
+Última acción: T-08-14 a T-08-16 (enmienda del 2026-11-15) completas en `crojas-base` y guardadas en los commits `72208b8` y `fc4680b` (reducción de fotos en el navegador); antes, T-08-01 a T-08-13. Las T-09-11 a T-09-18 del 09 ya se implementaron (commit `4b68242`). La base local de `crojas-base` quedó migrada el 2026-11-18. Siguiente paso: revisión de navegador (escritorio y celular, axe, teclado, zoom, ubicación y cámara reales), usabilidad con cinco personas y aceptación funcional. No pasar a Implementado sin esa evidencia.
 
 ## Aceptación del usuario
 

@@ -180,7 +180,7 @@ Diseño en [plan.md](plan.md#enmienda-del-2026-11-15--diseño-propuesto). Requis
 
 ## Reanudación
 
-Última acción: T-09-11 a T-09-18 (enmienda del 2026-11-15) implementadas y verificadas técnicamente el 2026-11-16, más una revisión en el navegador integrado con 8 defectos corregidos, sin commit. Siguiente paso: revisión del diff por el usuario; revisión en un celular real (tarjetas, arrastre con el dedo, tramo y «Sugerir parada más cercana» con ubicación real en contexto seguro, «Usar mapa», axe, teclado, zoom al 200 % y 320 px); usabilidad con cinco personas y aceptación funcional. Bloqueos: ninguno.
+Última acción: T-09-11 a T-09-18 (enmienda del 2026-11-15) implementadas y verificadas técnicamente el 2026-11-16, más una revisión en el navegador integrado con 8 defectos corregidos; guardadas en el commit `4b68242` de `crojas-base`. Siguiente paso: revisión en un celular real (tarjetas, arrastre con el dedo, tramo y «Sugerir parada más cercana» con ubicación real en contexto seguro, «Usar mapa», axe, teclado, zoom al 200 % y 320 px); usabilidad con cinco personas y aceptación funcional. Bloqueos: ninguno.
 
 ## Aceptación del usuario
 

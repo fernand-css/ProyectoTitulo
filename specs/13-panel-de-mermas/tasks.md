@@ -1,7 +1,7 @@
 # Tareas — 13 / Panel de mermas
 
 Spec: [spec.md](spec.md). Plan: [plan.md](plan.md). Validación: [validation.md](validation.md).
-Estado: implementadas técnicamente el 2026-11-17 en `fdaza`, sin commit. Aceptación de la usuaria pendiente.
+Estado: implementadas técnicamente el 2026-11-17 en `fdaza` (commit `aa08f74`) e incorporadas a `crojas-base` el 2026-11-18. Aceptación de la usuaria pendiente.
 
 - [x] T-13-01 — Rol Director del CESFAM.
   - RF: RF-13-08.
@@ -14,8 +14,8 @@ Estado: implementadas técnicamente el 2026-11-17 en `fdaza`, sin commit. Acepta
   - Hecho: cuatro estados, exclusiones y límites del rango con pruebas en verde.
 - [x] T-13-03 — Panel, gráficos, detalle, menú e inicio del Director.
   - RF: RF-13-03, RF-13-04, RF-13-08, RF-13-09.
-  - Archivos: `indicadoresapp/views.py`, `indicadoresapp/urls.py`, `templates/indicadores/mermas.html`, `templates/indicadores/_segmentos.html`, `static/css/indicadores.css`, `coreapp/navegacion.py` (entrada «Mermas», campo `excepto`), `coreapp/views.py`, `templates/components/iconos.html` (`i-grafico`).
-  - Hecho: panel con cifras, cuatro gráficos con tabla o leyenda escrita y detalle paginado; el Director ve el panel en `/` y 403 en el resto.
+  - Archivos: `indicadoresapp/views.py`, `indicadoresapp/urls.py`, `templates/indicadores/mermas.html`, `indicadoresapp/graficos.py` (blíster, calendario y barras), `indicadoresapp/entregas.py` (entregas confirmadas por día o semana), `static/css/indicadores.css`, `coreapp/navegacion.py` (entrada «Mermas», campo `excepto`), `coreapp/views.py`, `templates/components/iconos.html` (`i-grafico`).
+  - Hecho: panel con cifras, cuatro gráficos con tabla o leyenda escrita y detalle paginado; el Director ve el panel en `/` y 403 en el resto. Los gráficos se dibujan en la misma `mermas.html` (no hay `_segmentos.html`). El panel suma dos tarjetas que la spec no enumera («Cuánto llevan en el estante» y «Entregas confirmadas»), anotadas en [validation.md](validation.md#límites-y-fallos).
 - [x] T-13-04 — Reportes Excel y PDF.
   - RF: RF-13-05.
   - Archivos: `indicadoresapp/reportes.py`, `coreapp/auditoria.py` (`registrar_referencia`).
@@ -48,10 +48,11 @@ Estado: implementadas técnicamente el 2026-11-17 en `fdaza`, sin commit. Acepta
 | 2026-11-17 | T-13-08 | `python tools/verificar_spec_13_http.py` | Aprobado; p95 máximo 485 ms (Excel de 30 días). |
 | 2026-11-17 | T-13-08 | `python manage.py test` | Ver [validation.md](validation.md#regresión-de-la-base). |
 | 2026-11-17 | T-13-08 | Navegador integrado con `tools/previsualizar_interfaz.py` | Panel del Director revisado a 800 px; axe no ejecutado (ver validación). |
+| 2026-11-18 | Reverificación en `crojas-base` | `python manage.py test indicadoresapp --parallel 1`; `python tools/verificar_spec_13_http.py`; suite completa | 59 pruebas OK; HTTP aprobado con p95 máximo 438,72 ms; 1164 pruebas OK. |
 
 ## Reanudación
 
-Última acción real: implementación técnica completa y documentada (2026-11-17), sin commit. Siguiente paso: revisión de la usuaria, axe y apertura real de los reportes; commit solo si la usuaria lo pide.
+Última acción real: reverificación técnica en `crojas-base` y validación rellenada (2026-11-18); el código está en el commit `aa08f74`. Siguiente paso: revisión de la usuaria (incluidas las dos tarjetas que la spec no enumera), axe y apertura real de los reportes.
 
 ## Aceptación del usuario
 

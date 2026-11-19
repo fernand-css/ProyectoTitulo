@@ -1,7 +1,7 @@
 # Plan técnico — 09 / Mapa y orden de visita
 
 Spec: [spec.md](spec.md). Tareas: [tasks.md](tasks.md). Evidencia: [validation.md](validation.md).
-Fecha: 2026-11-12. Estado: implementado en `crojas-base`; la enmienda del 2026-11-15 se implementó el 2026-11-16, sin commit sobre `72208b8`; verificación técnica en `validation.md`.
+Fecha: 2026-11-12. Estado: implementado en `crojas-base`; la enmienda del 2026-11-15 se implementó el 2026-11-16 y quedó en el commit `4b68242`; verificación técnica en `validation.md`.
 Autorización de implementación: sí, el 2026-11-12 (ver `tasks.md`, «Autorización posterior»).
 
 ## Inspección de la base

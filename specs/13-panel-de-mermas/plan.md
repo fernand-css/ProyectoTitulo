@@ -1,7 +1,7 @@
 # Plan técnico — 13 / Panel de mermas
 
-Spec: [spec.md](spec.md). Estado: propuesta; sin código.
-Autorización de implementación: pendiente.
+Spec: [spec.md](spec.md). Estado: ejecutado; implementación técnica completa (commit `aa08f74`).
+Autorización de implementación: otorgada por la usuaria el 2026-11-17 («pasa la spec 13 a aprobado e implementa»), en `fdaza`.
 
 ## Inspección de la base
 
