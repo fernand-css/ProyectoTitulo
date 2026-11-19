@@ -91,3 +91,14 @@ Estado **Verificación técnica ejecutada el 2026-11-18** sobre `fdaza`, sin com
 | RF | Estado |
 |---|---|
 | RF-12-19 a RF-12-23 | Aprobado en pruebas; recepción real pendiente |
+
+## Enmienda del 2026-11-18 — Envío automático desde el servidor web
+
+Estado **Verificación técnica ejecutada el 2026-11-18** sobre `fdaza`, sin commit. Recepción real desde el servidor desplegado y aceptación pendientes.
+
+- `entregasapp/tests/test_despachador.py` agrega **14 pruebas**: modos `smtp`/`simular`/`no` y E009; el ejecutor de pruebas lo desactiva; los comandos no lo inician; un fallo no detiene el ciclo ni registra direcciones; el aviso pendiente despierta al confirmar y el omitido no; un registro repetido no despierta dos veces; y, con el hilo real en `TransactionTestCase`, el clic de «Iniciar traslado» y el de «Entregada» se envían sin comando, un pendiente previo sale al arrancar, hilo y comando a la vez envían una sola vez y el hilo sigue vivo tras un fallo.
+- Corrección durante la implementación: el cierre de conexiones a la base pasó del ciclo al bucle del hilo, porque cerrar en el ciclo también cortaba la conexión del proceso principal cuando se llamaba desde fuera del hilo.
+- `turnosapp.tests.test_sala_servidor` levanta su servidor con `REPARTO_AVISOS_AUTOMATICOS=no`, para que ninguna prueba use la configuración SMTP del `.env`.
+- Pruebas de avisos y despachador: **82 pruebas OK**; `check` sin incidencias.
+- Suite completa: **1164 pruebas, 1163 OK**; el único error es el intermitente ya registrado de `turnosapp.tests.test_sala_servidor` (`PermissionError` de Windows al borrar su SQLite temporal), ajeno a este cambio.
+- En la base local de la usuaria (21:59): los últimos avisos de reasignación quedaron `omitido`/`sin_destino` porque esos pacientes no tienen correo para avisos, y un aviso del día quedó `fallido`/`smtp_sin_conexion` tras tres intentos; a las 21:59 la conexión TCP a `smtp.gmail.com:587` funcionaba. Antes, tres avisos «entregado» y dos del día habían sido aceptados por SMTP con el comando.

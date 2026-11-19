@@ -40,8 +40,6 @@ def ciclo(transporte):
     except Exception as error:  # noqa: BLE001 - el hilo debe sobrevivir a cualquier fallo (RF-12-28)
         # Solo el tipo de error: los mensajes de SMTP o de la base podrían incluir direcciones.
         logger.warning("El despachador de avisos falló en esta vuelta (%s); reintentará.", type(error).__name__)
-    finally:
-        connections.close_all()  # conexiones propias de este hilo
     return procesados
 
 
@@ -86,7 +84,11 @@ class Despachador:
     def _bucle(self, transporte):
         while not self._parar.is_set():
             self._despertar.clear()
-            ciclo(transporte)
+            try:
+                ciclo(transporte)
+            finally:
+                # Solo las conexiones de este hilo: nunca las de las solicitudes web ni las del proceso principal.
+                connections.close_all()
             self._despertar.wait(INTERVALO)
 
 

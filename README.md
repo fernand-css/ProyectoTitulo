@@ -345,7 +345,7 @@ Si OSRM se cae, Django lo da por no disponible durante 30 segundos tras la prime
 
 ## Aviso de reparto en camino (spec 12)
 
-En «Mis entregas», el Encargado asignado pulsa **Iniciar traslado** sobre una parada pendiente. Django guarda el inicio y deja el aviso en la bandeja de salida de PostgreSQL. El procesador envía el correo después de guardar. Un aviso caduco a los 30 minutos o asociado a una visita cerrada, reasignada o anulada se descarta antes de preparar el envío.
+En «Mis entregas», el Encargado asignado pulsa **Iniciar traslado** sobre una parada pendiente. Django guarda el inicio y deja el aviso en la bandeja de salida de PostgreSQL. **El mismo servidor web envía el correo en segundo plano**, uno o dos segundos después del clic, sin ejecutar ningún comando (ver «Envío automático y despliegue» más abajo). Un aviso caduco a los 30 minutos o asociado a una visita cerrada, reasignada o anulada se descarta antes de preparar el envío.
 
 El destino es el **correo para avisos** del paciente en el padrón (columna `correo` del archivo o pestaña «Datos» de la ficha; ver la sección del padrón). Se envía a cualquier correo del padrón. Si quieres limitar los envíos a ciertos dominios (por ejemplo, durante una demo con un padrón importado), agrega `REPARTO_CORREO_DOMINIOS_PERMITIDOS`, separados por comas y sin subdominios implícitos; vacía o sin la línea, no hay restricción:
 
@@ -355,24 +355,37 @@ REPARTO_CORREO_DOMINIOS_PERMITIDOS=example.invalid,prueba.cl
 
 En la demo el padrón es sintético: los correos deben ser buzones de prueba del equipo, nunca correos de pacientes reales. Un paciente sin correo, o con un dominio fuera de la lista cuando hay lista, conserva el inicio del traslado y su aviso queda omitido. Si el correo cambia o se borra antes del envío, el aviso pendiente también se omite. Dos pacientes con el mismo correo (por ejemplo, la misma cuidadora) reciben un aviso cada uno. La antigua lista JSON (`REPARTO_BUZONES_PRUEBA_ARCHIVO`) ya no se lee; si la tienes en tu `.env`, puedes borrarla.
 
-Ejecuta las migraciones en la base sintética elegida. Para la simulación usa otra base de prueba y selecciona el modo en memoria. Para la prueba real usa correos de prueba en el padrón y la configuración `EMAIL_*` y `DEFAULT_FROM_EMAIL` de Django. El procesador SMTP funciona independientemente del backend usado por el correo de cuentas en desarrollo.
+Ejecuta las migraciones en la base sintética elegida. Para la prueba real usa correos de prueba en el padrón y la configuración `EMAIL_*` y `DEFAULT_FROM_EMAIL` de Django. El envío SMTP funciona independientemente del backend usado por el correo de cuentas en desarrollo.
+
+### Envío automático y despliegue
+
+Al arrancar, el servidor web (`runserver`, Daphne o un servidor WSGI) inicia un **despachador de avisos** en segundo plano. Apenas se confirma un clic que genera un aviso (Iniciar traslado, Reasignar, Entregar o No entregada), el despachador lo envía; además revisa la bandeja cada 60 segundos para crear el aviso del día dentro de su franja y reintentar los fallos temporales. La página no espera a Gmail. Se controla con `REPARTO_AVISOS_AUTOMATICOS`:
+
+| Valor | Efecto |
+|---|---|
+| vacío o `smtp` | Envía por SMTP (por omisión). |
+| `simular` | Usa el correo en memoria; no envía nada real. |
+| `no` | Desactivado; los avisos esperan hasta que se ejecute el comando a mano. |
+
+Para desplegar (AWS EC2 u otra VM, o Railway): configura en el entorno del servicio las variables `EMAIL_*`, `DEFAULT_FROM_EMAIL` y, si la usas, `REPARTO_CORREO_DOMINIOS_PERMITIDOS`, ejecuta las migraciones y deja el proceso web encendido. En Railway, desactiva la opción que duerme el servicio sin tráfico: mientras duerme no sale nada, y al despertar se envían los avisos que no hayan caducado. Con varios procesos o réplicas, cada uno tiene su despachador y no se duplican envíos, porque cada aviso se reserva en la base antes de enviarse.
+
+El comando sigue disponible para uso manual o diagnóstico y puede convivir con el despachador:
 
 ```powershell
-python manage.py procesar_avisos_reparto --simular
-python manage.py procesar_avisos_reparto --smtp --continuo
+python manage.py procesar_avisos_reparto --smtp
 ```
 
-El modo continuo revisa la bandeja cada cinco segundos. Al omitir `--continuo`, el comando procesa un lote y termina. Un resultado incierto conserva su estado para revisión y queda fuera del reenvío automático. Para la aceptación verifica la recepción en el buzón de cada paciente sintético del conjunto de prueba y comprueba que el resto de los buzones no haya recibido su aviso. Registra los resultados en la [validación del spec 12](specs/12-notificaciones-reparto/validation.md), sin incluir direcciones ni credenciales.
+Con `--continuo` revisa la bandeja cada cinco segundos; sin él, procesa un lote y termina. Un resultado incierto conserva su estado para revisión y queda fuera del reenvío automático. Para la aceptación verifica la recepción en el buzón de cada paciente sintético del conjunto de prueba y comprueba que el resto de los buzones no haya recibido su aviso. Registra los resultados en la [validación del spec 12](specs/12-notificaciones-reparto/validation.md), sin incluir direcciones ni credenciales.
 
 ### Avisos de reasignación y resultado
 
-El procesador también envía un correo cuando la Q.F. **reasigna** una entrega («Tu reparto de prueba se reprogramó para el DD/MM.», o «para hoy.»), y cuando el Encargado la registra como **entregada** («Tu reparto de prueba fue entregado.») o **no entregada** («No pudimos entregar tu reparto de prueba. La farmacia coordinará una nueva visita.», sin el motivo). Cada uno sale una vez por visita y caduca a las 2 horas si el procesador no estaba corriendo. Anular una entrega no envía correo. Como todos los avisos, necesitan el procesador en marcha (`--continuo`).
+El procesador también envía un correo cuando la Q.F. **reasigna** una entrega («Tu reparto de prueba se reprogramó para el DD/MM.», o «para hoy.»), y cuando el Encargado la registra como **entregada** («Tu reparto de prueba fue entregado.») o **no entregada** («No pudimos entregar tu reparto de prueba. La farmacia coordinará una nueva visita.», sin el motivo). Cada uno sale una vez por visita y caduca a las 2 horas si el servidor no estaba encendido. Anular una entrega no envía correo. Un paciente sin correo para avisos no recibe nada (el aviso queda `omitido` con `sin_destino`).
 
 ### Aviso del día
 
 Además del aviso «en camino», el mismo procesador manda solo, el día programado, el correo **«Hoy llega tu reparto de prueba»** a cada paciente con visita pendiente para hoy y correo para avisos (de un dominio permitido, si configuraste la lista). Nadie tiene que pulsar nada. Sale una sola vez por entrega y día, aunque la visita se reasigne a otro Encargado ese mismo día. Las visitas atrasadas de días anteriores no reciben este aviso.
 
-El aviso se crea y se envía entre `REPARTO_AVISO_DIA_HORA` y `REPARTO_AVISO_DIA_LIMITE` (formato `HH:MM`, por omisión 08:00 y 18:00). Una visita programada para hoy durante la mañana recibe el suyo en la siguiente vuelta. Lo que no alcanzó a salir antes de la hora límite se descarta. Como el procesador es quien crea el aviso, tiene que estar corriendo durante esa franja. Deja abierta una terminal con `python manage.py procesar_avisos_reparto --smtp --continuo`, o programa ese comando en el Programador de tareas de Windows para que se inicie antes de las 08:00 con el entorno virtual activo.
+El aviso se crea y se envía entre `REPARTO_AVISO_DIA_HORA` y `REPARTO_AVISO_DIA_LIMITE` (formato `HH:MM`, por omisión 08:00 y 18:00). Una visita programada para hoy durante la mañana recibe el suyo en la siguiente vuelta. Lo que no alcanzó a salir antes de la hora límite se descarta. El despachador del servidor web lo crea y lo envía, así que basta con que el servidor esté encendido durante esa franja.
 
 ## Recursos de Alpine.js
 

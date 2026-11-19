@@ -171,3 +171,10 @@ Se reprodujeron con pruebas cinco defectos/casos del cliente: activación anunci
 - `.\venv\Scripts\python.exe manage.py test turnosapp coreapp`: **249 pruebas OK**.
 - `node --test turnosapp/tests/*.test.cjs`: **56 pruebas OK**.
 - No se re-ejecutó la medición de `tools/verificar_spec_06_http.py` tras el cambio; su p95 (444,12 ms) corresponde al canal WebSocket y no debería verse afectado, pero no se volvió a medir.
+
+
+## Corrección de la prueba del servidor de sala (2026-11-18)
+
+- **Síntoma.** `turnosapp.tests.test_sala_servidor` fallaba de forma intermitente en Windows con `PermissionError: [WinError 32]` al terminar: todas sus comprobaciones (HTTP, estáticos, WebSocket y anuncio desde otro proceso) pasaban, pero `TemporaryDirectory` no podía borrar `qa.sqlite3`. Habían quedado 20 carpetas `cesfam-sala-asgi-*` en el directorio temporal; se borraron sin problema minutos después, lo que confirma un bloqueo momentáneo del archivo tras cerrar el servidor de prueba (típicamente el antivirus o el indexador de Windows).
+- **Corrección.** La prueba usa `carpeta_temporal`, que reintenta el borrado durante 15 segundos y, si aun así no puede, deja la carpeta sin fallar (contenido sintético y desechable). La pantalla de sala no cambió. Además, el servidor de prueba arranca con `REPARTO_AVISOS_AUTOMATICOS=no` para no despachar correos (spec 12).
+- **Evidencia.** La prueba pasó 5 de 5 veces seguidas, sin carpetas sobrantes, y la suite completa del proyecto quedó con **1164 pruebas OK**.

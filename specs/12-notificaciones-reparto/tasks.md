@@ -96,10 +96,10 @@ Pedida y aprobada por la usuaria en el chat («cuando la reasigne igual envia un
 
 Pedida y aprobada por la usuaria en el chat («necesito que el correo se envie al hacer click en el boton, no por comandos»), con las opciones recomendadas. Se trabaja sobre `fdaza`, sin commit.
 
-- [ ] **T-12-17 — Despachador y configuración.**
+- [x] **T-12-17 — Despachador y configuración.**
   **RF** RF-12-24, RF-12-26 a RF-12-28. **Archivos** `entregasapp/despachador.py`, `cesfam/asgi.py`, `cesfam/wsgi.py`, `cesfam/settings.py`, `.env.example`, `entregasapp/checks.py` (E009) y `coreapp/ejecutor_pruebas.py`.
-- [ ] **T-12-18 — Despertar al confirmar.**
+- [x] **T-12-18 — Despertar al confirmar.**
   **RF** RF-12-25. **Archivos** `entregasapp/notificaciones.py` (`transaction.on_commit` al crear un aviso pendiente).
-- [ ] **T-12-19 — Pruebas y documentación de despliegue.**
+- [x] **T-12-19 — Pruebas y documentación de despliegue.**
   **RF** RF-12-24 a RF-12-28. **Archivos** `entregasapp/tests/test_despachador.py`, `README.md`, [validation.md](validation.md) y `CLAUDE.md`.
   **Hecho cuando** pasan los criterios de la enmienda y la suite completa, y el README explica el despliegue en AWS o Railway.

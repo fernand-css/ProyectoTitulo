@@ -3,13 +3,14 @@ import base64
 import json
 import os
 import secrets
+import shutil
 import socket
 import struct
 import subprocess
 import sys
 import tempfile
 import time
-from contextlib import closing
+from contextlib import closing, contextmanager
 from pathlib import Path
 from urllib.request import urlopen
 
@@ -17,9 +18,33 @@ from django.conf import settings
 from django.test import SimpleTestCase
 
 
+@contextmanager
+def carpeta_temporal(prefijo, espera=15):
+    """Carpeta temporal que se borra con reintentos.
+
+    En Windows, el archivo SQLite puede seguir tomado unos instantes después de cerrar el servidor de prueba (el
+    antivirus o el indexador lo revisan recién cerrado). `TemporaryDirectory` falla de inmediato con
+    `PermissionError`; aquí se reintenta hasta `espera` segundos y, si aun así no se puede, se deja la carpeta en el
+    directorio temporal del sistema sin fallar la prueba, porque su contenido es sintético y desechable.
+    """
+    ruta = Path(tempfile.mkdtemp(prefix=prefijo))
+    try:
+        yield str(ruta)
+    finally:
+        limite = time.monotonic() + espera
+        while ruta.exists():
+            try:
+                shutil.rmtree(ruta)
+            except PermissionError:
+                if time.monotonic() >= limite:
+                    shutil.rmtree(ruta, ignore_errors=True)
+                    break
+                time.sleep(0.2)
+
+
 class ServidorSalaTests(SimpleTestCase):
     def test_runserver_http_estaticos_y_anuncio_desde_otro_proceso(self):
-        with tempfile.TemporaryDirectory(prefix="cesfam-sala-asgi-") as carpeta:
+        with carpeta_temporal("cesfam-sala-asgi-") as carpeta:
             raiz = Path(carpeta)
             modulo = "qa_sala_asgi"
             (raiz / f"{modulo}.py").write_text(
