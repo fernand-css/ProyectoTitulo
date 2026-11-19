@@ -103,7 +103,7 @@ python manage.py test usuariosapp.tests.test_login
 | `/usuarios/entrar/` | Login de Django. |
 | `/usuarios/salir/` | Logout por POST con CSRF. |
 | `/salud/` | Pública: `{"estado": "ok"}`; devuelve 503 si no se puede abrir la conexión a la base. |
-| `/sw.js` | Service worker público, MIME JavaScript y alcance `/`. |
+| `/sw.js` | Service worker público, MIME JavaScript y alcance `/`; caché versionada solo de estáticos y de la vista sin conexión del reparto (spec 11). |
 | `/recetas/` | Recetas: tablero (cifras, entregas por día, situación, vencimientos por mes, ranking y última carga) y, debajo, la lista de todas las recetas, para Q.F., Técnico y superusuario. Admite `?situacion=` (vigente, por_vencer, futura, agotada, vencida) y `?periodo=` (7, 30 o 90 días); la búsqueda por RUT o nombre viaja por POST. |
 | `/recetas/pacientes/` | Padrón privado para Q.F., Técnico y superusuario. Admite `?filtro=sin_vigente` y el mismo filtro por POST. |
 | `/recetas/importaciones/` | Bitácora y carga CSV/XLSX para Q.F. y superusuario. |
@@ -111,7 +111,7 @@ python manage.py test usuariosapp.tests.test_login
 | `/turnos/totem/` | Emisión pública por RUT y recuperación del turno activo. |
 | `/entregas/`, `/indicadores/` | Prefijos montados, todavía sin vistas. |
 
-El manifest declara iconos PNG de 192 y 512 px. El service worker se registra, pero no intercepta solicitudes ni guarda datos en caché. La instalación depende del navegador y requiere un contexto seguro: `localhost` sirve para desarrollo. El funcionamiento sin conexión se implementará en el spec 11.
+El manifest declara iconos PNG de 192 y 512 px. Desde el spec 11, el service worker guarda en una caché versionada (su nombre cambia con la versión de los estáticos y la anterior se borra) solo los estilos, scripts, fuentes e íconos y la vista sin conexión del reparto, que no lleva datos; nunca páginas con datos, JSON, fotos ni POST. Las navegaciones de `/` y `/entregas/…` van primero a la red y, si falla, muestran la vista sin conexión. La instalación y el service worker exigen un contexto seguro: **HTTPS en el despliegue**; `localhost` sirve para desarrollo.
 
 ## Padrón y recetas — spec 03
 
@@ -271,7 +271,8 @@ El menú **Entregas** (Q.F., Técnico y superusuario) tiene tres pestañas: **Pr
 - **Fotos:** hasta tres por domicilio, JPEG o PNG de 5 MB o menos, con descripción obligatoria. Se recomprimen a JPEG (lado mayor de 1600 px), sin EXIF, GPS ni otros metadatos, y se guardan en `ARCHIVOS_PRIVADOS_ROOT`. Solo las entrega `/entregas/fotos/<id>/` con sesión y rol, sin caché. Se agregan y borran en el modal «Registrar fotos» o «Gestionar fotos», que guarda todo junto o nada (enmienda del 2026-11-15), y se ven ampliadas en un visor. Requiere **Pillow** (`requirements.txt`).
 - **Programación:** la Q.F. elige fecha y encargado, revisa las recetas que se fijarán (las vigentes a esa fecha, sin las de un turno activo ni las que esperan retiro) y confirma. Hay una sola entrega abierta por paciente. Mientras está abierta, sus recetas no se dispensan en el tótem ni en la ventanilla.
 - **Programar entrega (lista y varios a la vez):** al entrar se ven todos los elegibles en páginas de 50, con búsqueda por RUT, nombre o apellido y filtros de sector (incluido «Sin sector»), motivo del reparto, estado del domicilio y localidad. La lista se actualiza mientras se escribe (por POST: el RUT no va en la URL); sin JavaScript funciona con «Buscar». Se pueden marcar pacientes o usar «Seleccionar los N filtrados» y luego «Programar seleccionados»: misma fecha y encargado para todos, resumen para revisar (recetas por paciente y los que no se programarán con su motivo) y confirmación en tramos de 25 con avance. Al final: «Se programaron X de Y». Reenviar la confirmación no duplica entregas.
-- **Registro (con conexión):** el encargado registra «Entregada» (descuenta cada receta que sigue vigente el día de la visita; las demás quedan «no descontadas» para revisión de la Q.F.) o «No entregada» con motivo. Repetir el envío no descuenta dos veces. El trabajo sin conexión queda para la reserva 11.
+- **Registro (con conexión):** el encargado registra «Entregada» (descuenta cada receta que sigue vigente el día de la visita; las demás quedan «no descontadas» para revisión de la Q.F.) o «No entregada» con motivo. Repetir el envío no descuenta dos veces.
+- **Sin conexión (spec 11):** al abrir «Mis entregas» con señal, el celular guarda la ruta del día (hoy y atrasadas, sin RUT, fotos, coordenadas ni correo) en IndexedDB. Sin señal, la app muestra esa ruta y permite registrar «Entregada» o «No entregada»; los registros se envían solos al volver la conexión (o con «Sincronizar ahora», y con Background Sync en Chrome para Android), con la hora del celular dentro de los límites del spec y sin duplicados. Si la Q.F. reasignó o anuló la visita, el registro no se aplica y el encargado ve el motivo. Iniciar traslado, fotos, mapa y orden siguen necesitando señal.
 - **Gestión:** la Q.F. filtra los pendientes por motivo, sector, encargado y fechas, y los **reasigna** (nuevo intento; el historial no cambia) o los **anula** con motivo.
 
 En la base de demostración elegida, aplicar `python manage.py migrate` antes de usar el módulo; `entregasapp/0001_initial` crea sus seis tablas. La implementación solo aplicó migraciones en bases temporales y de pruebas. Respaldar la base **y** la carpeta de fotos antes de revertir la migración.
@@ -402,4 +403,4 @@ El índice central está en [specs/README.md](specs/README.md); [specs/00-indice
 - `tasks.md`: tareas y seguimiento de su ejecución.
 - `validation.md`: verificaciones, resultados y límites de la evidencia.
 
-La base implementada está en [specs/01-base-del-proyecto/spec.md](specs/01-base-del-proyecto/spec.md). La [spec 02 de autenticación, roles y auditoría](specs/02-autenticacion-roles-auditoria/spec.md) tiene código y verificación técnica final completados; revisión visual y cierre pendientes. Las plantillas están en `specs/_templates/`. El 06 incorpora pantalla/voz con WebSocket y conserva los pendientes de aceptación de su validación. Se mantienen las reservas 11 para funcionamiento sin conexión y 12 para notificaciones.
+La base implementada está en [specs/01-base-del-proyecto/spec.md](specs/01-base-del-proyecto/spec.md). La [spec 02 de autenticación, roles y auditoría](specs/02-autenticacion-roles-auditoria/spec.md) tiene código y verificación técnica final completados; revisión visual y cierre pendientes. Las plantillas están en `specs/_templates/`. El 06 incorpora pantalla/voz con WebSocket y conserva los pendientes de aceptación de su validación. El 11 (reparto sin conexión) y el 12 (avisos por correo) ya tienen sus documentos e implementación técnica.

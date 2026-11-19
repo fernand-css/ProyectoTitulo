@@ -18,7 +18,9 @@
   <script src="{% static 'js/preferencias.js' %}"></script>
   <script defer src="{% static 'js/alpine.min.js' %}"></script>
   <script defer src="{% static 'js/menu.js' %}"></script>
-  <script defer src="{% static 'js/pwa.js' %}" data-service-worker="{% url 'coreapp:sw_js' %}"></script>
+  {# Spec 11: almacen.js (base del navegador del reparto) antes de pwa.js; `data-cuenta` es el id interno, sin datos personales. #}
+  <script defer src="{% static 'js/entregas/almacen.js' %}"></script>
+  <script defer src="{% static 'js/pwa.js' %}" data-service-worker="{% url 'coreapp:sw_js' %}" data-salir="{% url 'usuariosapp:logout' %}" data-cuenta="{% block cuenta_pwa %}{% if request.user.is_authenticated %}{{ request.user.pk }}{% endif %}{% endblock %}"></script>
 </head>
 <body>
   <a class="skip-link" href="#contenido">Saltar al contenido</a>

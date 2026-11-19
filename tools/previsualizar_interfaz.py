@@ -123,6 +123,24 @@ def main():
                     inicio_medido=momento, duracion_segundos=720,
                 )
 
+        # Reparto (specs 08, 09 y 11): tres visitas de hoy para el encargado, para revisar «Mis entregas» y la vista
+        # sin conexión. Pacientes y coordenadas sintéticos, cerca del origen configurado.
+        from entregasapp.services import guardar_domicilio, programar_entrega
+        for indice, rut in enumerate(generar_ruts(3, Random(1111))):
+            paciente = Paciente.objects.create(
+                rut=rut, nombres="Paciente de reparto", apellidos=f"Simulado {indice + 1:02d}",
+                fecha_nacimiento=date(1940, 3, 1), telefono="+56 9 0000 0000", direccion="Camino sintético",
+            )
+            Receta.objects.create(paciente=paciente, codigo=f"REPARTO-{indice + 1:04d}", fecha_inicio=hoy - timedelta(days=10),
+                                  fecha_fin_exclusiva=hoy + timedelta(days=150), vigencia_meses=6, max_entregas=6)
+            guardar_domicilio(usuarios["qf"], paciente.pk, {
+                "sector": ("verde", "azul", "rojo")[indice], "localidad": "Localidad demo",
+                "direccion": f"Camino sintético km {indice + 2}", "referencias": "Portón sintético",
+                "latitud": f"{settings.REPARTO_ORIGEN_LATITUD + 0.01 * (indice + 1):.6f}",
+                "longitud": f"{settings.REPARTO_ORIGEN_LONGITUD + 0.01 * (indice + 1):.6f}",
+            })
+            programar_entrega(usuarios["qf"], paciente.pk, hoy, usuarios["terreno"].pk, uuid.uuid4())
+
         from turnosapp.models import Ventanilla
         ventanilla = Ventanilla.objects.get(numero=1)
         ocupar_ventanilla(usuarios["tecnico"], ventanilla.pk, uuid.uuid4())

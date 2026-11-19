@@ -1,3 +1,4 @@
+{% load entregas_tags %}
 {# Lista de la ruta del día (spec 09): la vista principal y accesible; el mapa la complementa. Espera `ruta` (consultas.RutaDelDia); `controles` agrega las flechas y la franja de arrastre (solo el encargado); `consulta` es «Rutas» de la Q.F., sin acciones. Las tarjetas son compactas (enmienda del 2026-11-15, RF-09-16). #}
 {% include 'entregas/_ruta_rotulo.html' %}
 {% include 'entregas/_ruta_resumen.html' %}
@@ -37,7 +38,7 @@
     {% for intento in ruta.registradas %}
     <li class="registrada registrada-{{ intento.resultado }}">
       <span class="registrada-marca" aria-hidden="true">{% if intento.resultado == 'entregada' %}✓{% else %}✗{% endif %}</span>
-      <span><strong>{% if intento.resultado == 'entregada' %}Entregada{% else %}No entregada: {{ intento.get_motivo_display }}{% endif %}</strong> · <time datetime="{{ intento.registrado_en|date:'c' }}">{{ intento.registrado_en|time:"H:i" }}</time> · {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span>
+      <span><strong>{% if intento.resultado == 'entregada' %}Entregada{% else %}No entregada: {{ intento.get_motivo_display }}{% endif %}</strong> · <time datetime="{{ intento.registrado_en|date:'c' }}">{{ intento.registrado_en|time:"H:i" }}</time> · {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}{% horas_sin_conexion intento.registrado_en intento.sincronizado_en %}</span>
       <a class="enlace-secundario" href="{% url 'entregasapp:detalle' intento.entrega_id %}">Ver entrega<span class="sr-only"> de {{ intento.paciente.nombres }} {{ intento.paciente.apellidos }}</span></a>
     </li>
     {% endfor %}

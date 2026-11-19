@@ -302,6 +302,9 @@ class IntentoEntrega(ModeloAuditado):
     traslado_iniciado_por = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+",
     )
+    # Spec 11 (RF-11-08): llegada al servidor de un registro hecho sin conexión. En esos registros `registrado_en`
+    # es la hora del celular; en los demás queda vacío y `registrado_en` es la hora del servidor.
+    sincronizado_en = models.DateTimeField(null=True, blank=True)
 
     class Meta:
         ordering = ["numero"]
@@ -337,6 +340,10 @@ class IntentoEntrega(ModeloAuditado):
                 condition=Q(resultado="pendiente", registrado_en__isnull=True, registrado_por__isnull=True, operacion_id__isnull=True)
                 | (~Q(resultado="pendiente") & Q(registrado_en__isnull=False, registrado_por__isnull=False, operacion_id__isnull=False)),
                 name="intento_registro_coherente",
+            ),
+            models.CheckConstraint(
+                condition=Q(sincronizado_en__isnull=True) | Q(registrado_en__isnull=False, registrado_por__isnull=False),
+                name="intento_sincronizado_con_registro",
             ),
         ]
         indexes = [

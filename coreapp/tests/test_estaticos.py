@@ -293,9 +293,45 @@ class EstaticosTests(SimpleTestCase):
                 self.assertNotRegex(texto, r"unpkg|jsdelivr|cdnjs|leafletjs\.com/dist")
 
     def test_service_worker_sin_cache_de_datos(self):
-        worker = (settings.BASE_DIR / "templates/pwa/sw.js").read_text(encoding="utf-8")
-        self.assertNotIn("caches.", worker)
-        self.assertNotRegex(worker, r'addEventListener\([\s]*[\'"]fetch')
+        """Spec 11 (RF-11-01): la caché solo guarda estáticos y la página sin conexión; nunca datos ni JSON."""
+        import json
+        import re
+
+        from django.test import Client
+        from django.urls import reverse
+
+        from coreapp.views import ESTATICOS_SIN_CONEXION
+
+        worker = Client().get(reverse("coreapp:sw_js")).content.decode()
+        lista = json.loads(re.search(r"const ESTATICOS = (\[.*?\]);", worker).group(1))
+        self.assertEqual(len(lista), len(ESTATICOS_SIN_CONEXION))
+        for url in lista:
+            with self.subTest(url=url):
+                self.assertTrue(url.startswith(settings.STATIC_URL))
+                self.assertTrue(finders.find(url.removeprefix(settings.STATIC_URL).split("?")[0]))
+        self.assertIn(f"const SIN_CONEXION = \"{reverse('entregasapp:sin_conexion')}\";", worker)
+        self.assertRegex(worker, r'const CACHE = "cesfam-[0-9a-f]{16}"')
+        # Las cachés anteriores se borran al activarse; solo un `put`, el de la página sin conexión.
+        self.assertIn("caches.delete(nombre)", worker)
+        self.assertEqual(worker.count(".put("), 1)
+        self.assertIn("cache.put(SIN_CONEXION, respuesta)", worker)
+        # Solo GET del mismo origen; las navegaciones del reparto y los estáticos de la lista. Nada de /turnos/.
+        self.assertIn('if (solicitud.method !== "GET") return;', worker)
+        self.assertIn('url.pathname.startsWith("/entregas/")', worker)
+        self.assertNotIn('"/turnos/', worker)  # ninguna ruta de turnos en el código (solo en el comentario)
+        self.assertNotIn("localStorage", worker)
+
+    def test_version_de_la_cache_cambia_con_los_estaticos(self):
+        from unittest.mock import patch
+
+        from django.test import Client
+        from django.urls import reverse
+
+        version = lambda: re.search(r'const CACHE = "(cesfam-[0-9a-f]+)"', Client().get(reverse("coreapp:sw_js")).content.decode()).group(1)  # noqa: E731
+        antes = version()
+        self.assertEqual(antes, version())
+        with patch("coreapp.views.ESTATICOS_SIN_CONEXION", ("css/base.css",)):
+            self.assertNotEqual(antes, version())
 
     def test_html_sin_dependencias_en_cdn(self):
         for archivo in (settings.BASE_DIR / "templates").rglob("*.html"):

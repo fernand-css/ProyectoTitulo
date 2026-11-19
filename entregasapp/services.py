@@ -12,6 +12,7 @@ Reglas comunes (RNF-02 y CLAUDE.md):
 import time
 import uuid
 from dataclasses import dataclass
+from datetime import datetime, timedelta
 from decimal import Decimal, InvalidOperation
 from uuid import UUID
 
@@ -659,49 +660,103 @@ class ResultadoRegistro:
     repetido: bool  # el mismo identificador ya se había registrado: no hubo otro cambio
 
 
-def _intento_para_registrar(actor, intento_id, operacion, resultado, hoy):
-    """Idempotencia, asignación y fecha. Devuelve (intento, previo) donde previo indica un reenvío."""
+# Registro hecho sin conexión (spec 11, RF-11-08): la hora del celular, con límites.
+TOLERANCIA_RELOJ = timedelta(minutes=5)
+PLAZO_SIN_CONEXION_DIAS = 2
+HORA_INVALIDA = "hora_invalida"
+FUERA_DE_PLAZO = "fuera_de_plazo"
+
+
+@dataclass(frozen=True)
+class HoraRegistro:
+    """Hora y fecha local con que se guarda el resultado; `sincronizado_en` solo en los registros sin conexión."""
+    hora: datetime
+    fecha: object
+    sincronizado_en: object = None
+
+    @property
+    def sin_conexion(self):
+        return self.sincronizado_en is not None
+
+
+def _hora_del_registro(registrado_en, ahora):
+    """Sin `registrado_en`, la hora del servidor, como siempre. Con ella (registro sin conexión), la del celular.
+
+    Rechaza con `hora_invalida` una hora sin zona o más de 5 minutos posterior a la del servidor, y con
+    `fuera_de_plazo` un registro que llega después del día del registro + 2 (fechas locales).
+    """
+    if registrado_en is None:
+        return HoraRegistro(ahora, timezone.localdate(ahora))
+    if not isinstance(registrado_en, datetime) or timezone.is_naive(registrado_en):
+        raise ValidationError("La hora del registro no es válida.", code=HORA_INVALIDA)
+    if registrado_en > ahora + TOLERANCIA_RELOJ:
+        raise ValidationError("La hora del registro es posterior a la del servidor. Revisa la hora del celular.",
+                              code=HORA_INVALIDA)
+    fecha = timezone.localdate(registrado_en)
+    if timezone.localdate(ahora) > fecha + timedelta(days=PLAZO_SIN_CONEXION_DIAS):
+        raise ValidationError(f"El registro llegó más de {PLAZO_SIN_CONEXION_DIAS} días después de hecho.",
+                              code=FUERA_DE_PLAZO)
+    return HoraRegistro(registrado_en, fecha, ahora)
+
+
+def _intento_para_registrar(actor, intento_id, operacion, resultado, ahora, registrado_en=None):
+    """Idempotencia, hora, asignación y fecha. Devuelve (intento, repetido, hora).
+
+    Un reenvío de la misma operación se reconoce antes de revisar la hora: así el celular lo da por aplicado
+    aunque llegue tarde. Los errores llevan el código que usa la sincronización (spec 11).
+    """
     previo = IntentoEntrega.objects.filter(operacion_id=operacion).first()
     if previo is not None:
         if previo.pk != intento_id or previo.registrado_por_id != actor.pk or previo.resultado != resultado:
-            raise ValidationError("La operación no corresponde a este registro.")
-        return previo, True
+            raise ValidationError("La operación no corresponde a este registro.", code="invalido")
+        return previo, True, None
+    hora = _hora_del_registro(registrado_en, ahora)
     intento = IntentoEntrega.objects.select_related("entrega").filter(pk=intento_id).first()
     if intento is None:
-        raise ValidationError("El intento de entrega no está disponible.")
+        raise ValidationError("El intento de entrega no está disponible.", code="invalido")
     if intento.encargado_id != actor.pk:
         raise PermissionDenied
     if intento.resultado != IntentoEntrega.Resultado.PENDIENTE:
         mensajes = {
-            "reasignado": "La entrega fue reasignada. Revisa tus entregas actualizadas.",
-            "anulado": "La entrega fue anulada por la Q.F.",
+            "reasignado": ("La entrega fue reasignada. Revisa tus entregas actualizadas.", "reasignada"),
+            "anulado": ("La entrega fue anulada por la Q.F.", "anulada"),
         }
-        raise ValidationError(mensajes.get(intento.resultado, "Este intento ya tiene un resultado registrado."))
-    if intento.fecha_programada > hoy:
+        mensaje, codigo = mensajes.get(intento.resultado, ("Este intento ya tiene un resultado registrado.", "ya_registrada"))
+        raise ValidationError(mensaje, code=codigo)
+    if intento.fecha_programada > hora.fecha:
+        if hora.sin_conexion:
+            raise ValidationError("La hora del registro es anterior a la fecha programada de la visita.",
+                                  code=HORA_INVALIDA)
         raise ValidationError(f"Esta entrega está programada para el {intento.fecha_programada:%d/%m}. Regístrala desde ese día.")
-    return intento, False
+    return intento, False, hora
 
 
-def _cerrar_intento(actor, intento, operacion, ahora, **resultado):
+def _cerrar_intento(actor, intento, operacion, ahora, hora, **resultado):
     try:
         with transaction.atomic():
             actualizados = IntentoEntrega.objects.filter(pk=intento.pk, resultado=IntentoEntrega.Resultado.PENDIENTE).update(
-                registrado_en=ahora, registrado_por=actor, operacion_id=operacion,
-                modificado_por=actor, modificado_en=ahora, **resultado,
+                registrado_en=hora.hora, sincronizado_en=hora.sincronizado_en, registrado_por=actor,
+                operacion_id=operacion, modificado_por=actor, modificado_en=ahora, **resultado,
             )
     except IntegrityError:
-        raise ValidationError("La operación no corresponde a este registro.") from None
+        raise ValidationError("La operación no corresponde a este registro.", code="invalido") from None
     if not actualizados:
         raise ConflictoOperacion("El intento cambió durante el registro.")
 
 
+def _hora_para_aviso(hora):
+    """RF-11-12: los avisos de un registro sin conexión cuentan su vigencia desde la hora del registro."""
+    return hora.hora if hora.sin_conexion else None
+
+
 @reintentar_conflictos
 @transaction.atomic
-def registrar_entregada(actor, intento_id, operacion_id):
-    """Cierra la entrega y descuenta cada receta que sigue elegible en la fecha de la visita (hoy).
+def registrar_entregada(actor, intento_id, operacion_id, registrado_en=None):
+    """Cierra la entrega y descuenta cada receta que sigue elegible en la fecha de la visita.
 
-    Una receta que viaja con su preparación (derivada desde el panel de mermas, spec 13) se evalúa a la fecha de
-    preparación, como el retiro tardío del 07, y su entrega queda ligada al vínculo del turno: así sale de
+    La fecha de la visita es hoy o, en un registro hecho sin conexión (`registrado_en`, spec 11), la fecha local de
+    esa hora. Una receta que viaja con su preparación (derivada desde el panel de mermas, spec 13) se evalúa a la
+    fecha de preparación, como el retiro tardío del 07, y su entrega queda ligada al vínculo del turno: así sale de
     «Pendientes de retiro». Si no puede descontarse, queda «no descontada» y la preparación vuelve a esperar.
     """
     from recetasapp.services import _registrar_entrega_sin_reintento
@@ -710,14 +765,15 @@ def registrar_entregada(actor, intento_id, operacion_id):
     actor = get_user_model().objects.get(pk=actor.pk)
     operacion = _uuid(operacion_id)
     ahora = timezone.now()
-    hoy = timezone.localdate(ahora)
-    _bloquear_jornada(hoy)
-    intento, repetido = _intento_para_registrar(actor, intento_id, operacion, IntentoEntrega.Resultado.ENTREGADA, hoy)
+    _bloquear_jornada(timezone.localdate(ahora))
+    intento, repetido, hora = _intento_para_registrar(
+        actor, intento_id, operacion, IntentoEntrega.Resultado.ENTREGADA, ahora, registrado_en)
     if repetido:
         return ResultadoRegistro(intento, True)
-    _cerrar_intento(actor, intento, operacion, ahora, resultado=IntentoEntrega.Resultado.ENTREGADA)
+    hoy = hora.fecha
+    _cerrar_intento(actor, intento, operacion, ahora, hora, resultado=IntentoEntrega.Resultado.ENTREGADA)
     if not Entrega.objects.filter(pk=intento.entrega_id, estado=Entrega.Estado.PROGRAMADA).update(
-        estado=Entrega.Estado.ENTREGADA, cerrada_en=ahora, modificado_por=actor, modificado_en=ahora,
+        estado=Entrega.Estado.ENTREGADA, cerrada_en=hora.hora, modificado_por=actor, modificado_en=ahora,
     ):
         raise ConflictoOperacion("La entrega cambió durante el registro.")
     for vinculo in RecetaEntrega.objects.select_related("preparacion").filter(
@@ -747,32 +803,36 @@ def registrar_entregada(actor, intento_id, operacion_id):
         ):
             raise ConflictoOperacion("La receta de la entrega cambió durante el registro.")
     intento.refresh_from_db()
-    notificaciones.encolar_resultado(intento, AvisoReparto.Tipo.ENTREGADO, ahora)
+    notificaciones.encolar_resultado(intento, AvisoReparto.Tipo.ENTREGADO, ahora, registrado_en=_hora_para_aviso(hora))
     auditar(actor, "intento.entregado", intento)
     return ResultadoRegistro(intento, False)
 
 
 @reintentar_conflictos
 @transaction.atomic
-def registrar_no_entregada(actor, intento_id, motivo, nota, operacion_id):
-    """La entrega pasa a «pendiente de gestión» sin descontar; sus recetas siguen bloqueadas en farmacia."""
+def registrar_no_entregada(actor, intento_id, motivo, nota, operacion_id, registrado_en=None):
+    """La entrega pasa a «pendiente de gestión» sin descontar; sus recetas siguen bloqueadas en farmacia.
+
+    `registrado_en` es la hora del celular de un registro hecho sin conexión (spec 11, RF-11-08).
+    """
     _exigir_encargado(actor)
     actor = get_user_model().objects.get(pk=actor.pk)
     nota = _validar_motivo(motivo, nota, IntentoEntrega.Motivo.values, "Elige el motivo de la no entrega.")
     operacion = _uuid(operacion_id)
     ahora = timezone.now()
-    hoy = timezone.localdate(ahora)
-    _bloquear_jornada(hoy)
-    intento, repetido = _intento_para_registrar(actor, intento_id, operacion, IntentoEntrega.Resultado.NO_ENTREGADA, hoy)
+    _bloquear_jornada(timezone.localdate(ahora))
+    intento, repetido, hora = _intento_para_registrar(
+        actor, intento_id, operacion, IntentoEntrega.Resultado.NO_ENTREGADA, ahora, registrado_en)
     if repetido:
         return ResultadoRegistro(intento, True)
-    _cerrar_intento(actor, intento, operacion, ahora, resultado=IntentoEntrega.Resultado.NO_ENTREGADA, motivo=motivo, nota=nota)
+    _cerrar_intento(actor, intento, operacion, ahora, hora, resultado=IntentoEntrega.Resultado.NO_ENTREGADA,
+                    motivo=motivo, nota=nota)
     if not Entrega.objects.filter(pk=intento.entrega_id, estado=Entrega.Estado.PROGRAMADA).update(
         estado=Entrega.Estado.PENDIENTE_GESTION, modificado_por=actor, modificado_en=ahora,
     ):
         raise ConflictoOperacion("La entrega cambió durante el registro.")
     intento.refresh_from_db()
-    notificaciones.encolar_resultado(intento, AvisoReparto.Tipo.NO_ENTREGADO, ahora)
+    notificaciones.encolar_resultado(intento, AvisoReparto.Tipo.NO_ENTREGADO, ahora, registrado_en=_hora_para_aviso(hora))
     auditar(actor, "intento.no_entregado", intento)
     return ResultadoRegistro(intento, False)
 

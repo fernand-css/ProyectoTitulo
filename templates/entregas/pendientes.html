@@ -1,5 +1,5 @@
 {% extends 'entregas/base.html' %}
-{% load core_tags %}
+{% load core_tags entregas_tags %}
 {% block titulo %}Pendientes de gestión · Entregas · Farmacia{% endblock %}
 {% block entregas %}
 {% include 'entregas/_cabecera.html' with titulo='Entregas a domicilio' texto='Visitas que no se pudieron entregar: reasígnalas con otra fecha y encargado, o anúlalas con su motivo.' %}
@@ -17,7 +17,7 @@
       <tr>
         <th scope="row" data-etiqueta="Paciente"><strong>{{ entrega.paciente.apellidos }}, {{ entrega.paciente.nombres }}</strong><span class="dato-secundario">RUT {{ entrega.paciente.rut|rut }}</span></th>
         <td data-etiqueta="Sector">{{ entrega.paciente.domicilio.get_sector_display|default:"Sin sector" }}</td>
-        <td data-etiqueta="Último intento">N° {{ entrega.ultimo_numero }} · {{ entrega.ultimo_fecha|date:"d/m/Y" }} · {{ entrega.encargado_nombre }}</td>
+        <td data-etiqueta="Último intento">N° {{ entrega.ultimo_numero }} · {{ entrega.ultimo_fecha|date:"d/m/Y" }} · {{ entrega.encargado_nombre }}{% horas_sin_conexion entrega.ultimo_registrado_en entrega.ultimo_sincronizado_en %}</td>
         <td data-etiqueta="Motivo">{{ entrega.motivo_texto }}{% if entrega.ultimo_nota %}<span class="dato-secundario">«{{ entrega.ultimo_nota }}»</span>{% endif %}</td>
         <td data-etiqueta="Intentos" class="num">{{ entrega.ultimo_numero }}</td>
         <td data-etiqueta="Gestionar"><a class="boton boton-secundario" href="{% url 'entregasapp:detalle' entrega.pk %}">{% if puede_gestionar %}Reasignar o anular{% else %}Ver entrega{% endif %}<span class="sr-only"> de {{ entrega.paciente.apellidos }}, {{ entrega.paciente.nombres }}</span></a></td>

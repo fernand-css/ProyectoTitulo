@@ -622,6 +622,36 @@
 .usar-mapa-estado { min-height: 1.5em; margin: 0; font-weight: 700; }
 .dialogo-mapa .fotos-pie { padding: 0.75rem 1.25rem 1rem; }
 
+/* Reparto sin conexión (spec 11, RF-11-13): estado, registros por enviar, rechazados y vista sin señal.
+   Cada estado se dice con texto; el color y el borde solo acompañan. Solo variables de base.css. */
+/* Los avisos (.message usa display: flex) y los botones respetan `hidden`, como .fotos-form [hidden]. */
+.reparto-estado[hidden], .reparto-estado [hidden], .sin-conexion [hidden], [data-aviso-sin-conexion][hidden] { display: none; }
+.reparto-estado {
+  margin: 1rem 0;
+  padding: 0.85rem 1.1rem;
+  color: var(--panel-texto);
+  background: var(--panel-fondo);
+  border: 1px solid var(--linea);
+  border-left: 0.35rem solid var(--borde);
+  border-radius: var(--radio-panel);
+}
+.sin-conexion .reparto-estado { border-left-color: var(--aviso-texto); }
+.reparto-estado-lista { display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; margin: 0; padding: 0; list-style: none; font-weight: 700; }
+.reparto-estado-lista li:empty { display: none; }
+.reparto-estado .acciones { margin-top: 0.6rem; }
+.reparto-estado .acciones:has(> [hidden]:only-child) { display: none; }
+.reparto-rechazados { margin-top: 1rem; }
+.reparto-rechazados h3 { margin: 0 0 0.25rem; font-size: 1.15rem; color: var(--error-texto); }
+.reparto-rechazados .lista-revision li { border-left: 0.35rem solid var(--error-texto); }
+.sin-conexion-marca { margin: 0.5rem 0 0; color: var(--aviso-texto); background: var(--aviso-fondo); }
+.sin-conexion-horas { margin-top: 0.15rem; }
+.sin-conexion-limites { display: flex; gap: 0.5rem; align-items: flex-start; }
+.sin-conexion-limites .icono { flex: none; width: 1.3rem; height: 1.3rem; margin-top: 0.15rem; }
+.sin-conexion-lista { margin: 0; padding: 0; list-style: none; }
+.sin-conexion-form { margin-top: 1rem; }
+.sin-conexion-form .campo textarea, .sin-conexion-form .campo select { width: 100%; }
+.sin-conexion-barra .marca { display: inline-flex; gap: 0.6rem; align-items: center; }
+
 @media (forced-colors: active) {
   .marcador, .simbolo { forced-color-adjust: none; border-color: CanvasText; }
   .visita-franja span { border-color: CanvasText; }

@@ -1,10 +1,11 @@
 {% extends 'entregas/base.html' %}
+{% load static %}
 {% block titulo %}Registrar visita · Entregas en terreno{% endblock %}
 {% block migas_contenedor %}<nav class="migas" aria-label="Ruta de navegación"><ol><li><a href="{% url 'entregasapp:mis' %}">Mis entregas</a></li><li><span aria-current="page">Registrar visita</span></li></ol></nav>{% endblock %}
 {% block entregas %}
 <h1>Registrar visita</h1>
 {% if intento %}
-<p class="suave">Intento {{ intento.numero }} · programado para el {{ intento.fecha_programada|date:"d/m/Y" }}. Se guarda con la fecha y hora reales del servidor.</p>
+<p class="suave">Intento {{ intento.numero }} · programado para el {{ intento.fecha_programada|date:"d/m/Y" }}. Con señal se guarda con la fecha y hora del servidor; sin señal, con la hora de este celular y se envía al volver la conexión.</p>
 
 <section class="visitas" aria-labelledby="titulo-visita">
   <h2 id="titulo-visita" class="sr-only">Datos de la visita</h2>
@@ -18,12 +19,14 @@
 </div>
 <div class="acciones"><a class="boton boton-secundario" href="{% url 'entregasapp:mis' %}">Volver a mis entregas</a></div>
 {% else %}
+{% include 'entregas/_estado_sin_conexion.html' with cuenta=request.user.pk %}
 <div class="registro-opciones">
   <section class="panel{% if foco == 'entregada' %} registro-elegido{% endif %}" id="registrar-entregada" aria-labelledby="titulo-entregada">
     <h2 id="titulo-entregada"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg>Entregada</h2>
     <p>Se descuenta cada receta que sigue vigente hoy. Las que no, quedan para revisión de la Q.F.</p>
-    <form method="post" action="{% url 'entregasapp:intento_entregada' intento.pk %}">
+    <form method="post" action="{% url 'entregasapp:intento_entregada' intento.pk %}" data-registro-sin-conexion="entregada" data-intento="{{ intento.pk }}">
       {% csrf_token %}
+      <p data-aviso-sin-conexion role="status" aria-live="polite" hidden></p>
       {{ entregada.operacion_id }}
       {% if entregada.non_field_errors %}<div class="message message-error" role="alert">{{ entregada.non_field_errors }}</div>{% endif %}
       {% if entregada.operacion_id.errors %}<div class="campo-error" role="alert">{{ entregada.operacion_id.errors }}</div>{% endif %}
@@ -38,8 +41,9 @@
   <section class="panel{% if foco == 'no_entregada' %} registro-elegido{% endif %}" id="registrar-no-entregada" aria-labelledby="titulo-no-entregada">
     <h2 id="titulo-no-entregada"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-alerta"/></svg>No entregada</h2>
     <p>No se descuenta nada. La Q.F. reprogramará la visita.</p>
-    <form method="post" action="{% url 'entregasapp:intento_no_entregada' intento.pk %}">
+    <form method="post" action="{% url 'entregasapp:intento_no_entregada' intento.pk %}" data-registro-sin-conexion="no_entregada" data-intento="{{ intento.pk }}">
       {% csrf_token %}
+      <p data-aviso-sin-conexion role="status" aria-live="polite" hidden></p>
       {% include 'recetas/campos.html' with form=no_entregada %}
       <button class="boton boton-bloque boton-secundario" type="submit">Registrar no entregada</button>
     </form>
@@ -48,3 +52,4 @@
 {% endif %}
 {% endif %}
 {% endblock %}
+{% block scripts %}<script defer src="{% static 'js/entregas/sincronizar.js' %}"></script><script defer src="{% static 'js/entregas/sin_conexion.js' %}"></script>{% endblock %}

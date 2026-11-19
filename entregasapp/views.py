@@ -32,7 +32,7 @@ from coreapp.mixins import RolRequeridoMixin, tiene_rol
 from coreapp.roles import ENCARGADO, JEFA, TECNICO
 from recetasapp.models import Paciente
 from recetasapp.services import evaluar_elegibilidad
-from . import consultas, fotos, mapa, osrm, services
+from . import consultas, fotos, mapa, osrm, services, sin_conexion
 from .ruta import Punto, formatear_distancia
 from .forms import (
     AnularForm, BusquedaForm, DomicilioForm, EntregadaForm, ExcepcionForm, FiltroDomiciliosForm, FiltroEntregasForm,
@@ -675,12 +675,13 @@ def _leer_posicion(cuerpo):
     return Punto("posicion", latitud, longitud)
 
 
-def _limite_superado(usuario):
+def _limite_superado(usuario, tipo="posicion", limite=None):
     """30 solicitudes por minuto por encargado, con un contador en la caché que solo lleva el id de la cuenta."""
-    clave = f"entregas:posicion:{usuario.pk}:{int(time.time() // 60)}"
+    limite = LIMITE_POSICION_POR_MINUTO if limite is None else limite
+    clave = f"entregas:{tipo}:{usuario.pk}:{int(time.time() // 60)}"
     cache.add(clave, 0, 90)
     try:
-        return cache.incr(clave) > LIMITE_POSICION_POR_MINUTO
+        return cache.incr(clave) > limite
     except ValueError:  # la clave venció entre add e incr
         cache.set(clave, 1, 90)
         return False
@@ -753,6 +754,67 @@ class ParadaCercanaView(PosicionView):
             "distancia_texto": formatear_distancia(distancia),
             "es_primera": ruta.paradas[0].intento.pk == elegida.intento.pk, "version": ruta.version,
         })
+
+
+# Reparto sin conexión (spec 11) ------------------------------------------------------------------------------
+#
+# El paquete y la sincronización responden JSON sin caché. La página sin conexión no lleva datos: el service worker
+# la guarda y la dibuja sin_conexion.js desde la base del navegador. Ninguna respuesta incluye el RUT.
+
+LIMITE_SINCRONIZAR_POR_MINUTO = 30
+TEXTO_SINCRONIZAR_INVALIDO = "El envío no tiene el formato esperado. Abre «Mis entregas» con señal y vuelve a intentarlo."
+
+
+class SoloEncargadoJsonView(SoloEncargadoView):
+    """Como `PosicionView`: 403 en JSON para otras cuentas con sesión; sin sesión, a la entrada (302)."""
+
+    texto_sin_permiso = "Solo el encargado de terreno usa el reparto sin conexión."
+
+    def handle_no_permission(self):
+        if self.request.user.is_authenticated:
+            return _json_sin_cache({"error": self.texto_sin_permiso}, status=403)
+        return super().handle_no_permission()
+
+
+class PaqueteView(SoloEncargadoJsonView):
+    """RF-11-02: visitas pendientes de hoy y atrasadas del encargado, en el orden de su ruta, para el celular."""
+
+    http_method_names = ["get"]
+
+    def get(self, request):
+        return _json_sin_cache(sin_conexion.paquete_del_dia(request.user))
+
+
+class SincronizarView(SoloEncargadoJsonView):
+    """RF-11-06 a RF-11-11: registros guardados sin conexión, hasta 50 por solicitud, con CSRF por cabecera."""
+
+    http_method_names = ["post"]
+
+    def post(self, request):
+        if _limite_superado(request.user, "sincronizar", LIMITE_SINCRONIZAR_POR_MINUTO):
+            return _json_sin_cache({"error": TEXTO_LIMITE}, status=429)
+        try:
+            cuerpo = json.loads(request.body or b"{}")
+        except (ValueError, UnicodeDecodeError):
+            return _json_sin_cache({"error": TEXTO_SINCRONIZAR_INVALIDO}, status=400)
+        registros = cuerpo.get("registros") if isinstance(cuerpo, dict) else None
+        if not isinstance(registros, list):
+            return _json_sin_cache({"error": TEXTO_SINCRONIZAR_INVALIDO}, status=400)
+        if len(registros) > sin_conexion.MAXIMO_POR_LOTE:
+            return _json_sin_cache(
+                {"error": f"Envía como máximo {sin_conexion.MAXIMO_POR_LOTE} registros por solicitud."}, status=413)
+        return _json_sin_cache({"resultados": sin_conexion.sincronizar(request.user, registros)})
+
+
+class SinConexionView(SoloEncargadoView):
+    """RF-11-04: página que el service worker muestra sin señal. No trae datos del servidor ni de la cuenta."""
+
+    http_method_names = ["get"]
+
+    def get(self, request):
+        respuesta = render(request, "entregas/sin_conexion.html", {})
+        respuesta.headers["Referrer-Policy"] = "same-origin"
+        return respuesta
 
 
 class RestablecerOrdenView(SoloEncargadoView):

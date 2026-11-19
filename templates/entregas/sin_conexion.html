@@ -1,0 +1,47 @@
+{% extends 'components/Layout/base.html' %}
+{% load static %}
+{% comment %}
+Spec 11 (RF-11-04): vista sin conexión. El service worker guarda esta página y la muestra cuando una página del
+reparto no carga por falta de red. No lleva datos del servidor ni de la cuenta (ni menú con el nombre, ni token
+CSRF): sin_conexion.js dibuja la ruta desde la base del navegador y, si no hay una ruta de hoy, solo el aviso.
+{% endcomment %}
+{% block titulo %}Sin conexión · Mis entregas{% endblock %}
+{% block cuenta_pwa %}{% endblock %}
+{% block estilos %}<link rel="stylesheet" href="{% static 'css/recetas.css' %}"><link rel="stylesheet" href="{% static 'css/entregas.css' %}">{% endblock %}
+{% block cuerpo %}
+<div class="app">
+  <div class="app-columna">
+    <header class="barra-superior sin-conexion-barra horizonte">
+      <span class="marca">
+        <svg class="marca-svg" viewBox="0 0 48 48" aria-hidden="true" focusable="false"><use href="#marca"/></svg>
+        <span class="marca-texto"><strong>Farmacia</strong><span>CESFAM San Nicolás</span></span>
+      </span>
+    </header>
+    <main id="contenido" class="principal" tabindex="-1">
+      <div class="contenedor pagina entregas sin-conexion" data-sin-conexion>
+        <header class="encabezado">
+          <div>
+            <h1>Mis entregas sin conexión</h1>
+            <p>Tus visitas de hoy y atrasadas, guardadas en este celular. Registra «Entregada» o «No entregada»; se enviarán solas al volver la señal.</p>
+          </div>
+        </header>
+
+        {% include 'entregas/_estado_sin_conexion.html' with cuenta="" %}
+
+        <p class="message message-warning" data-sin-paquete hidden>No hay una ruta guardada para hoy. Ábrela con señal.</p>
+        <noscript><p class="message message-warning">Esta vista necesita JavaScript. Abre «Mis entregas» con señal.</p></noscript>
+        <p class="suave sin-conexion-limites"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-info"/></svg>Sin señal no se muestran el mapa ni las fotos, y no se puede iniciar el traslado ni cambiar el orden de las paradas.</p>
+
+        <section class="visitas" aria-labelledby="titulo-sin-conexion-paradas" data-paradas hidden>
+          <h2 id="titulo-sin-conexion-paradas">Por visitar (<span data-cantidad>0</span>)</h2>
+          <ol class="sin-conexion-lista" data-lista-paradas></ol>
+        </section>
+
+        <div class="acciones"><a class="boton boton-secundario" href="{% url 'entregasapp:mis' %}">Volver a cargar con señal</a></div>
+      </div>
+    </main>
+  </div>
+</div>
+{% endblock %}
+{# `defer`, como almacen.js en la cabecera: así se ejecutan en orden y después de él. #}
+{% block scripts %}<script defer src="{% static 'js/entregas/sincronizar.js' %}"></script><script defer src="{% static 'js/entregas/sin_conexion.js' %}"></script>{% endblock %}

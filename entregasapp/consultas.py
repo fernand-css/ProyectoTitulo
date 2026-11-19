@@ -287,6 +287,8 @@ def _entregas_con_ultimo_intento():
         ultimo_motivo=Subquery(ultimo.values("motivo")[:1]),
         ultimo_nota=Subquery(ultimo.values("nota")[:1]),
         ultimo_resultado=Subquery(ultimo.values("resultado")[:1]),
+        ultimo_registrado_en=Subquery(ultimo.values("registrado_en")[:1]),
+        ultimo_sincronizado_en=Subquery(ultimo.values("sincronizado_en")[:1]),  # spec 11, RF-11-15
         recetas_cantidad=Count("recetas", distinct=True),
     )
 

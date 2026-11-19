@@ -1,5 +1,8 @@
 """Inicio privado y recursos públicos del núcleo."""
 
+import hashlib
+import json
+
 from django.db import DatabaseError, connection
 from django.http import JsonResponse
 from django.views import View
@@ -35,9 +38,38 @@ class InicioView(CuentaHabilitadaMixin, TemplateView):
         return contexto
 
 
+# Spec 11 (RF-11-01): lo único que guarda el service worker, además de la página sin conexión (sin datos).
+ESTATICOS_SIN_CONEXION = (
+    "css/base.css", "css/menu.css", "css/recetas.css", "css/entregas.css",
+    "js/preferencias.js", "js/alpine.min.js", "js/menu.js", "js/pwa.js",
+    "js/entregas/almacen.js", "js/entregas/sincronizar.js", "js/entregas/sin_conexion.js",
+    "fonts/figtree-latin-wght-normal.woff2", "fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2",
+    "icons/marca.svg", "icons/icon-192.png", "manifest.webmanifest",
+)
+
+
 class ServiceWorkerView(TemplateView):
     template_name = "pwa/sw.js"
     content_type = "application/javascript"
+
+    def get_context_data(self, **kwargs):
+        """La versión de la caché es la huella de las URL de los estáticos: llevan su versión (`?v=` o el hash de
+        `collectstatic`), así que cambia en cuanto cambia un archivo y el service worker nuevo borra la caché vieja."""
+        from django.templatetags.static import static
+        from django.urls import reverse
+
+        contexto = super().get_context_data(**kwargs)
+        estaticos = [static(ruta) for ruta in ESTATICOS_SIN_CONEXION]
+        sin_conexion = reverse("entregasapp:sin_conexion")
+        contexto.update(
+            estaticos=json.dumps(estaticos),
+            version=hashlib.sha256("\n".join([*estaticos, sin_conexion]).encode()).hexdigest()[:16],
+            sin_conexion_url=json.dumps(sin_conexion),
+            sincronizar_url=json.dumps(reverse("entregasapp:sincronizar")),
+            almacen_js=json.dumps(static("js/entregas/almacen.js")),
+            sincronizar_js=json.dumps(static("js/entregas/sincronizar.js")),
+        )
+        return contexto
 
     def render_to_response(self, context, **response_kwargs):
         response = super().render_to_response(context, **response_kwargs)

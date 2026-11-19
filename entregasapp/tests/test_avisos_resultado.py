@@ -165,6 +165,46 @@ class AvisosResultadoTests(SinAvisoDelDia, TestCase):
         self.intento.refresh_from_db()
         self.assertEqual(self.intento.resultado, IntentoEntrega.Resultado.PENDIENTE)
 
+    # Spec 11, RF-11-12: registros hechos sin conexión ------------------------------------------------------
+
+    def registro_sin_conexion(self, hace, operacion=None):
+        IntentoEntrega.objects.filter(pk=self.intento.pk).update(fecha_programada=hoy() - timedelta(days=1))
+        hecho = timezone.now() - hace
+        services.registrar_entregada(self.equipo["encargado"], self.intento.pk, operacion or uuid4(), registrado_en=hecho)
+        return hecho
+
+    def test_registro_sin_conexion_de_hace_una_hora_avisa_con_vigencia_desde_el_registro(self):
+        hecho = self.registro_sin_conexion(timedelta(hours=1))
+        aviso = self.avisos(Tipo.ENTREGADO).get()
+        self.assertEqual((aviso.estado, aviso.codigo_resultado), (Estado.PENDIENTE, ""))
+        self.assertEqual(aviso.vence_en, hecho + timedelta(hours=2))
+        enviar = simulado()
+        notificaciones.procesar_avisos(enviar)
+        enviar.assert_called_once_with(self.correo, Tipo.ENTREGADO)
+
+    def test_registro_sin_conexion_de_hace_tres_horas_queda_omitido(self):
+        self.registro_sin_conexion(timedelta(hours=3))
+        aviso = self.avisos(Tipo.ENTREGADO).get()
+        self.assertEqual((aviso.estado, aviso.codigo_resultado), (Estado.OMITIDO, "registro_tardio"))
+        enviar = simulado()
+        notificaciones.procesar_avisos(enviar)
+        enviar.assert_not_called()
+        self.intento.refresh_from_db()
+        self.assertEqual(self.intento.resultado, IntentoEntrega.Resultado.ENTREGADA)
+
+    def test_no_entregada_sin_conexion_tardia_tambien_queda_omitida(self):
+        IntentoEntrega.objects.filter(pk=self.intento.pk).update(fecha_programada=hoy() - timedelta(days=1))
+        services.registrar_no_entregada(self.equipo["encargado"], self.intento.pk, "sin_receptor", "", uuid4(),
+                                        registrado_en=timezone.now() - timedelta(hours=2, minutes=1))
+        aviso = self.avisos(Tipo.NO_ENTREGADO).get()
+        self.assertEqual((aviso.estado, aviso.codigo_resultado), (Estado.OMITIDO, "registro_tardio"))
+
+    def test_sin_correo_el_registro_tardio_conserva_sin_destino(self):
+        Paciente.objects.filter(pk=self.intento.entrega.paciente_id).update(correo_avisos="")
+        self.registro_sin_conexion(timedelta(hours=3))
+        aviso = self.avisos(Tipo.ENTREGADO).get()
+        self.assertEqual((aviso.estado, aviso.codigo_resultado), (Estado.OMITIDO, "sin_destino"))
+
     def test_con_lista_de_dominios_se_respeta_el_freno(self):
         with self.settings(REPARTO_CORREO_DOMINIOS_PERMITIDOS=("prueba.cl",)):
             services.registrar_entregada(self.equipo["encargado"], self.intento.pk, uuid4())

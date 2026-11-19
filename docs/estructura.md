@@ -117,7 +117,7 @@ Las clases `InicioView`, `ServiceWorkerView` y `SaludView` exponen los callables
 - `sinteticos.py` exige un `random.Random` del llamador y usa cuerpos numéricos ficticios en el intervalo 90.000.000–99.999.999. La generación de listas evita duplicados.
 - `rut` devuelve texto vacío ante una entrada inválida. `minutos` convierte segundos a minutos hacia arriba, limita negativos a cero y muestra `—` para valores no numéricos o no finitos.
 - La navegación solo enlaza vistas existentes. Las opciones por rol comparten el inicio hasta que sus specs agreguen las pantallas correspondientes.
-- El service worker no contiene caché ni manejador `fetch`; el spec 11 define ese comportamiento.
+- Desde el spec 11, el service worker (`templates/pwa/sw.js`, plantilla de Django) guarda en una caché versionada solo los estáticos de `coreapp.views.ESTATICOS_SIN_CONEXION` y la vista sin conexión del reparto; ver la sección del spec 11.
 
 ## Archivos que llegan después
 
@@ -313,7 +313,7 @@ La sección vive en Recetas y no agrega entrada al menú. La cifra de trabajo mi
 | `recetasapp/views.py`, `templates/recetas/paciente_detalle.html`, `receta_detalle.html`, `entrega_confirmar.html` | Bloque «Domicilio de reparto» en la pestaña Datos, rótulo «A domicilio» en Entregas y aviso «En entrega a domicilio abierta» sin botón de confirmar. |
 | `tools/verificar_spec_08_http.py` | SQLite y carpeta privada temporales, 670 pacientes sintéticos, 10 excepciones, cuatro encargados; recorre el ciclo completo por HTTP y mide p50/p95/máximo por escenario; desde el 2026-11-13 mide también la lista y su fragmento, la revisión del lote completo, los tramos de 25 y el tótem durante un lote (40 pacientes presenciales); desde el 2026-11-15, el guardado de fotos del modal (p95) y tres fotos de casi 5 MB aparte. |
 
-Las fotos (`privado/`) son datos personales: nunca se versionan ni se sirven por `/media/`. La parte sin conexión de HU-15 queda para la reserva 11; el mapa y el orden de visita, para el 09. Ver `specs/08-domicilios-y-entregas/validation.md` para la evidencia y los límites.
+Las fotos (`privado/`) son datos personales: nunca se versionan ni se sirven por `/media/`. La parte sin conexión de HU-15 está en el spec 11; el mapa y el orden de visita, en el 09. Ver `specs/08-domicilios-y-entregas/validation.md` para la evidencia y los límites.
 
 ## Mapa y orden de visita — spec 09
 
@@ -342,7 +342,7 @@ Celular o computador ──HTTPS──▶ Django (Daphne/ASGI) ──red interna
         └──HTTPS (teselas, sin datos de pacientes)──▶ OpenStreetMap
 ```
 
-Solo Django habla con OSRM; el navegador nunca conoce su dirección. La posición del encargado llega a Django solo para calcular un tramo o la parada más cercana, y no se guarda en la base, la sesión, la caché, la auditoría ni los registros; OSRM corre con `--verbosity WARNING` para no registrar las URL con coordenadas. Si OSRM no responde, el orden cae a la línea recta rotulada y sin total. Mapas, tramos y el modal de fotos necesitan señal (sin conexión: reserva 11). Instalación de OSRM en `README.md`; evidencia y límites en `specs/09-mapa-y-orden-de-visita/validation.md`.
+Solo Django habla con OSRM; el navegador nunca conoce su dirección. La posición del encargado llega a Django solo para calcular un tramo o la parada más cercana, y no se guarda en la base, la sesión, la caché, la auditoría ni los registros; OSRM corre con `--verbosity WARNING` para no registrar las URL con coordenadas. Si OSRM no responde, el orden cae a la línea recta rotulada y sin total. Mapas, tramos y el modal de fotos necesitan señal (el spec 11 no los lleva al celular). Instalación de OSRM en `README.md`; evidencia y límites en `specs/09-mapa-y-orden-de-visita/validation.md`.
 
 ## Gestión de turnos por personal (spec 10)
 
@@ -369,3 +369,19 @@ Solo Django habla con OSRM; el navegador nunca conoce su dirección. La posició
 | `coreapp/roles.py`, `navegacion.py`, `views.py` | Rol `DIRECTOR` («Dirección del CESFAM»), solo consulta: menú con «Mermas» y «Mi perfil», inicio `/` con el panel y 403 en el resto. Solo el superusuario administra sus cuentas. |
 | `tools/verificar_spec_13_http.py` | SQLite temporal, 670 pacientes y 90 días de preparaciones sintéticas: panel y reportes en 30, 90 y 366 días, acceso del Director y 20 derivaciones, con p95. |
 | `indicadoresapp/management/commands/generar_mermas_demo.py` | Solo demostración: historial de días anteriores con recetas preparadas sin retirar (y una parte retirada después con el servicio del 07) sobre el padrón importado. Sin `--aplicar --cuenta <Q.F.>` solo simula. |
+
+## Reparto sin conexión — spec 11
+
+| Archivo | Contrato |
+|---|---|
+| `entregasapp/sin_conexion.py` | `paquete_del_dia` (solo lectura de `consultas.ruta_del_dia`: hoy y atrasadas, en el orden de la ruta, sin RUT, fotos, coordenadas, correo ni medicamentos) y `sincronizar` (cada registro con `registrar_entregada`/`registrar_no_entregada` en su propia transacción; respuestas `aplicado`, `ya_aplicado`, `rechazado` con código de `Rechazo`, o `reintentar`). Los rechazos se auditan como `intento.sincronizacion_rechazada` con `objeto_id` «intento:código», sin la nota. |
+| `entregasapp/services.py` | `registrar_entregada`/`registrar_no_entregada` aceptan `registrado_en` (hora del celular): `_hora_del_registro` aplica 5 min de tolerancia y 2 días de plazo, la vigencia se evalúa a la fecha local del registro y se guarda `IntentoEntrega.sincronizado_en` (migración `0007`). Sin el parámetro, todo sigue como en el 08. |
+| `entregasapp/notificaciones.py` | `encolar_resultado(..., registrado_en=)`: vigencia de 2 h desde el registro; si ya pasó, «omitido» con `registro_tardio`. |
+| `entregasapp/views.py`, `urls.py` | `PaqueteView` (`GET /entregas/mis/paquete/`), `SincronizarView` (`POST /entregas/mis/sincronizar/`, JSON con `X-CSRFToken`, hasta 50 registros, 413 si son más, 30 por minuto por cuenta) y `SinConexionView` (`/entregas/mis/sin-conexion/`, sin datos). Solo el encargado (comprobación exacta); otras cuentas, 403 en JSON. |
+| `templates/pwa/sw.js`, `coreapp/views.py` | Caché `cesfam-<huella de las URL de los estáticos>`; borra las anteriores al activarse. Estáticos de la lista: caché primero. Navegaciones de `/` y `/entregas/…`: red primero y, sin red, la vista sin conexión. JSON, POST, fotos, `/turnos/`, tótem y sala: sin intervenir. Mensaje `guardar-sin-conexion` y evento `sync` (`cesfam-registros`). |
+| `static/js/entregas/almacen.js` | IndexedDB `cesfam-reparto` con `paquete` (por cuenta, solo de hoy), `cola` (clave `operacion_id`; uno por intento y cuenta; se borra a los 2 días) y `meta` (cuenta activa y token CSRF). Adaptador en memoria para Node. |
+| `static/js/entregas/sincronizar.js` | Envío compartido por la página y el service worker: lotes de 50, sin seguir redirecciones, solo la cuenta activa. |
+| `static/js/entregas/sin_conexion.js`, `templates/entregas/_estado_sin_conexion.html`, `sin_conexion.html` | Barra de estado (`aria-live`), descarga del paquete en «Mis entregas», intercepción del formulario de «Registrar visita» solo ante fallo de red, vista sin conexión con validación del 08, «Deshacer», «No se pudo enviar» y «Entendido»; reintento cada 30 s y al volver la señal. |
+| `static/js/pwa.js`, `templates/components/Layout/base.html` | Registro del service worker; con `data-cuenta`, cuenta activa y limpieza de la ruta de otra cuenta u otro día; al salir con pendientes, aviso con la cifra y confirmación; borra la ruta y conserva la cola. |
+
+Pruebas: `test_sin_conexion_hora.py`, `test_sin_conexion_paquete.py`, `test_sin_conexion_sincronizar.py`, `test_concurrencia_sin_conexion.py`, casos nuevos en `test_avisos_resultado.py` y `coreapp/tests/test_estaticos.py`; Node: `almacen.test.cjs`, `sincronizar.test.cjs`, `sin_conexion.test.cjs`, `pwa.test.cjs`. Medición aislada: `tools/verificar_spec_11_http.py`. Evidencia y límites en `specs/11-reparto-sin-conexion/validation.md`.

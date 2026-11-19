@@ -1,0 +1,23 @@
+{% comment %}
+Spec 11 (RF-11-13): estado del reparto sin conexión en «Mis entregas» y en la vista sin conexión. Lo llena
+sin_conexion.js; sin JavaScript queda oculto. `descargar` (solo en «Mis entregas») guarda el paquete de la ruta en el celular. `cuenta` es el identificador interno de la cuenta (vacío en la página
+que guarda el service worker, que no lleva datos de la cuenta). Todo estado se dice con texto, no solo con color.
+{% endcomment %}
+<section class="reparto-estado" aria-labelledby="titulo-reparto-estado" data-reparto-estado data-cuenta="{{ cuenta }}" data-paquete-url="{% url 'entregasapp:paquete' %}" data-sincronizar-url="{% url 'entregasapp:sincronizar' %}" data-sin-conexion-url="{% url 'entregasapp:sin_conexion' %}" data-mis-url="{% url 'entregasapp:mis' %}"{% if descargar %} data-descargar{% endif %} hidden>
+  <h2 id="titulo-reparto-estado" class="sr-only">Estado del registro sin conexión</h2>
+  <ul class="reparto-estado-lista" role="status" aria-live="polite" data-estado-lista>
+    <li data-estado-conexion></li>
+    <li data-estado-guardada></li>
+    <li data-estado-pendientes></li>
+    <li data-estado-envio hidden></li>
+  </ul>
+  <div class="acciones">
+    <button class="boton boton-secundario" type="button" data-sincronizar hidden><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg>Sincronizar ahora</button>
+    <button class="boton boton-secundario" type="button" data-actualizar hidden>Actualizar la lista</button>
+  </div>
+  <section class="reparto-rechazados" aria-labelledby="titulo-rechazados" data-rechazados hidden>
+    <h3 id="titulo-rechazados">No se pudo enviar</h3>
+    <p class="suave">Estos registros no se aplicaron. Lee el motivo y pulsa «Entendido».</p>
+    <ul class="lista-revision" data-lista-rechazados></ul>
+  </section>
+</section>

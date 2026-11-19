@@ -289,3 +289,7 @@ Para desplegar la demo (posiblemente en AWS o Railway), la usuaria pidió: «nec
 ### Revisión
 
 Aprobada en el chat e implementada el 2026-11-18; ver [validation.md](validation.md).
+
+## Compatibilidad con el spec 11 (2026-11-18)
+
+`encolar_resultado` acepta `registrado_en` (hora del celular de un registro hecho sin conexión): el aviso «entregado» o «no entregado» vence 2 horas después de esa hora y, si ya pasaron, se guarda «omitido» con `registro_tardio` y no se envía (RF-11-12). Los registros con señal y los demás avisos no cambian. Ver [spec 11](../11-reparto-sin-conexion/spec.md).

@@ -1,5 +1,5 @@
 {% extends 'entregas/base.html' %}
-{% load core_tags %}
+{% load core_tags entregas_tags %}
 {% block titulo %}Entrega a domicilio · Entregas · Farmacia{% endblock %}
 {% block migas_contenedor %}<nav class="migas" aria-label="Ruta de navegación"><ol><li><a href="{% if es_encargado %}{% url 'entregasapp:mis' %}{% else %}{% url 'entregasapp:programacion' %}{% endif %}">Entregas</a></li><li><span aria-current="page">Entrega a domicilio</span></li></ol></nav>{% endblock %}
 {% block entregas %}
@@ -53,7 +53,7 @@
           <td data-etiqueta="Fecha programada">{{ intento.fecha_programada|date:"d/m/Y" }}</td>
           <td data-etiqueta="Encargado">{% firstof intento.encargado.get_full_name intento.encargado.get_username %}</td>
           <td data-etiqueta="Resultado">{{ intento.get_resultado_display }}{% if intento.motivo %}: {{ intento.get_motivo_display }}{% endif %}{% if intento.nota %}<span class="dato-secundario">«{{ intento.nota }}»</span>{% endif %}</td>
-          <td data-etiqueta="Registro">{% if intento.registrado_en %}{{ intento.registrado_en|date:"d/m/Y H:i" }} · {% firstof intento.registrado_por.get_full_name intento.registrado_por.get_username %}{% else %}—{% endif %}</td>
+          <td data-etiqueta="Registro">{% if intento.registrado_en %}{{ intento.registrado_en|date:"d/m/Y H:i" }} · {% firstof intento.registrado_por.get_full_name intento.registrado_por.get_username %}{% horas_sin_conexion intento.registrado_en intento.sincronizado_en %}{% else %}—{% endif %}</td>
         </tr>
         {% endfor %}
       </tbody>

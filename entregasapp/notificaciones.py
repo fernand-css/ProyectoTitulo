@@ -45,6 +45,7 @@ TEXTOS = {
     ),
 }
 VIGENCIA_RESULTADO = timedelta(hours=2)
+REGISTRO_TARDIO = "registro_tardio"  # spec 11: registro sin conexión que llegó más de 2 h después de hecho
 RESULTADO_ESPERADO = {
     Tipo.ENTREGADO: IntentoEntrega.Resultado.ENTREGADA,
     Tipo.NO_ENTREGADO: IntentoEntrega.Resultado.NO_ENTREGADA,
@@ -113,15 +114,22 @@ def encolar_salida(intento, ahora):
     ))
 
 
-def encolar_resultado(intento, tipo, ahora):
-    """RF-12-19 a RF-12-22: aviso de reasignación o de resultado, en la transacción del servicio que lo origina."""
+def encolar_resultado(intento, tipo, ahora, registrado_en=None):
+    """RF-12-19 a RF-12-22: aviso de reasignación o de resultado, en la transacción del servicio que lo origina.
+
+    Spec 11 (RF-11-12): en un registro hecho sin conexión, `registrado_en` es la hora del celular; la vigencia de
+    2 horas cuenta desde ella y, si ya pasó, el aviso se guarda «omitido» con `registro_tardio` y no se envía.
+    """
     leido = Entrega.objects.filter(pk=intento.entrega_id).values_list("paciente__correo_avisos", flat=True).first()
     correo, codigo = destino(leido)
+    desde = registrado_en or ahora
+    if correo and desde + VIGENCIA_RESULTADO <= ahora:
+        correo, codigo = None, REGISTRO_TARDIO
     aviso, creado = AvisoReparto.objects.get_or_create(
         intento=intento, tipo=tipo,
         defaults={
             "estado": Estado.PENDIENTE if correo else Estado.OMITIDO, "creado_en": ahora,
-            "vence_en": ahora + VIGENCIA_RESULTADO, "proximo_en": ahora,
+            "vence_en": desde + VIGENCIA_RESULTADO, "proximo_en": ahora,
             "firma_destino": _firma(intento.entrega.paciente_id, correo) if correo else "",
             "codigo_resultado": codigo,
         },
