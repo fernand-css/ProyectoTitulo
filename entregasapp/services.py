@@ -25,9 +25,9 @@ from coreapp.mixins import tiene_rol
 from coreapp.roles import ENCARGADO, JEFA, estado_acceso
 from recetasapp.models import Paciente, Receta
 from recetasapp.services import ConflictoOperacion, auditar, evaluar_elegibilidad, reintentar_conflictos
-from . import consultas, fotos
+from . import consultas, fotos, notificaciones
 from .models import (
-    Domicilio, Entrega, FotoDomicilio, InscripcionReparto, IntentoEntrega, OrdenRuta, ParadaRuta, RecetaEntrega,
+    AvisoReparto, Domicilio, Entrega, FotoDomicilio, InscripcionReparto, IntentoEntrega, OrdenRuta, ParadaRuta, RecetaEntrega,
 )
 
 CAMPOS_UBICACION = ("sector", "localidad", "direccion", "referencias", "latitud", "longitud")
@@ -622,6 +622,37 @@ def programar_lote(actor, paciente_ids, fecha, encargado_id, lote_id):
 
 # Registro en terreno -----------------------------------------------------------------------------------------
 
+@reintentar_conflictos
+@transaction.atomic
+def iniciar_traslado(actor, intento_id):
+    _exigir_encargado(actor)
+    hoy = timezone.localdate()
+    _bloquear_jornada(hoy)
+    intento = IntentoEntrega.objects.select_related("entrega").filter(pk=intento_id).first()
+    if intento is None:
+        raise ValidationError("La visita no está disponible.")
+    if intento.encargado_id != actor.pk:
+        raise PermissionDenied
+    if intento.resultado != IntentoEntrega.Resultado.PENDIENTE or intento.entrega.estado != Entrega.Estado.PROGRAMADA:
+        raise ValidationError("La visita ya no está pendiente. Revisa tus entregas.")
+    if intento.fecha_programada > hoy:
+        raise ValidationError("Puedes iniciar el traslado desde el día programado.")
+    if intento.traslado_iniciado_en is not None:
+        return False
+
+    ahora = timezone.now()
+    actualizados = IntentoEntrega.objects.filter(
+        pk=intento.pk, resultado=IntentoEntrega.Resultado.PENDIENTE, traslado_iniciado_en__isnull=True,
+    ).update(
+        traslado_iniciado_en=ahora, traslado_iniciado_por=actor, modificado_en=ahora, modificado_por=actor,
+    )
+    if not actualizados:
+        raise ConflictoOperacion("La visita cambió durante el inicio del traslado.")
+    notificaciones.encolar_salida(intento, ahora)
+    auditar(actor, "intento.traslado_iniciado", intento)
+    return True
+
+
 @dataclass(frozen=True)
 class ResultadoRegistro:
     intento: IntentoEntrega
@@ -716,6 +747,7 @@ def registrar_entregada(actor, intento_id, operacion_id):
         ):
             raise ConflictoOperacion("La receta de la entrega cambió durante el registro.")
     intento.refresh_from_db()
+    notificaciones.encolar_resultado(intento, AvisoReparto.Tipo.ENTREGADO, ahora)
     auditar(actor, "intento.entregado", intento)
     return ResultadoRegistro(intento, False)
 
@@ -740,6 +772,7 @@ def registrar_no_entregada(actor, intento_id, motivo, nota, operacion_id):
     ):
         raise ConflictoOperacion("La entrega cambió durante el registro.")
     intento.refresh_from_db()
+    notificaciones.encolar_resultado(intento, AvisoReparto.Tipo.NO_ENTREGADO, ahora)
     auditar(actor, "intento.no_entregado", intento)
     return ResultadoRegistro(intento, False)
 
@@ -802,6 +835,7 @@ def reasignar(actor, entrega_id, *, fecha, encargado_id, intento_id, operacion_i
         estado=Entrega.Estado.PROGRAMADA, modificado_por=actor, modificado_en=ahora,
     ):
         raise ConflictoOperacion("La entrega cambió durante la reasignación.")
+    notificaciones.encolar_resultado(nuevo, AvisoReparto.Tipo.REPROGRAMADO, ahora)
     auditar(actor, "entrega.reasignada", nuevo)
     return nuevo
 

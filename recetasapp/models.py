@@ -13,6 +13,15 @@ from coreapp.models import ModeloAuditado
 from coreapp.utils.rut import normalizar_rut
 
 
+def normalizar_correo(valor):
+    """Correo para avisos sin espacios en los extremos y con el dominio en minúsculas; vacío si no hay."""
+    valor = (valor or "").strip()
+    if "@" not in valor:
+        return valor
+    usuario, _, dominio = valor.rpartition("@")
+    return f"{usuario}@{dominio.lower()}"
+
+
 class Paciente(ModeloAuditado):
     rut = models.CharField("RUT", max_length=12, unique=True)
     nombres = models.CharField(max_length=150)
@@ -22,9 +31,13 @@ class Paciente(ModeloAuditado):
     es_postrado = models.BooleanField(default=False)
     telefono = models.CharField(max_length=30, blank=True)
     direccion = models.CharField(max_length=500, blank=True)
+    # Correo del paciente o de su cuidador para los avisos de reparto (enmienda del 03, 2026-11-18). No es único:
+    # una misma persona puede cuidar a varios pacientes. Nunca se muestra en vistas públicas.
+    correo_avisos = models.EmailField("correo para avisos", max_length=254, blank=True, default="", db_default="")
 
     def clean(self):
         super().clean()
+        self.correo_avisos = normalizar_correo(self.correo_avisos)
         errores = {}
         try:
             self.rut = normalizar_rut(self.rut)

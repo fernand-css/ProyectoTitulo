@@ -167,6 +167,19 @@ def _numero_entorno(nombre, predeterminado, tipo=float):
 # Mapa y orden de visita (spec 09). El recorrido sale del CESFAM y vuelve a él; el punto lo entregó el equipo
 # el 2026-11-12. Las teselas del mapa base las pide el navegador al proveedor configurado (por defecto,
 # OpenStreetMap, que exige atribución visible y prohíbe la descarga masiva). Leaflet se sirve desde static/vendor.
+# Avisos de reparto por correo (spec 12): el destino es el correo para avisos del padrón. Vacía: se envía a
+# cualquier correo (tercera enmienda). Con dominios separados por comas: solo a esos, en coincidencia exacta.
+REPARTO_CORREO_DOMINIOS_PERMITIDOS = tuple(
+    dominio.strip().lower() for dominio in os.getenv("REPARTO_CORREO_DOMINIOS_PERMITIDOS", "").split(",")
+    if dominio.strip()
+)
+# Envío automático (quinta enmienda del 12): el servidor web despacha los avisos en segundo plano.
+# smtp (por omisión) = por SMTP; simular = correo en memoria; no = desactivado (se usa el comando a mano).
+REPARTO_AVISOS_AUTOMATICOS = os.getenv("REPARTO_AVISOS_AUTOMATICOS", "").strip().lower() or "smtp"
+# Aviso del día (enmienda del 12): franja local HH:MM en que el procesador crea y envía «Hoy llega tu reparto».
+REPARTO_AVISO_DIA_HORA = os.getenv("REPARTO_AVISO_DIA_HORA", "").strip() or "08:00"
+REPARTO_AVISO_DIA_LIMITE = os.getenv("REPARTO_AVISO_DIA_LIMITE", "").strip() or "18:00"
+
 REPARTO_ORIGEN_LATITUD = _numero_entorno("REPARTO_ORIGEN_LATITUD", -36.4988773)
 REPARTO_ORIGEN_LONGITUD = _numero_entorno("REPARTO_ORIGEN_LONGITUD", -72.2123601)
 MAPA_TESELAS_URL = os.getenv("MAPA_TESELAS_URL", "").strip() or "https://tile.openstreetmap.org/{z}/{x}/{y}.png"

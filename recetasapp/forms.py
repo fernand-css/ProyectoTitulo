@@ -77,3 +77,14 @@ class ImportacionForm(forms.Form):
         if archivo.size > MAX_BYTES:
             raise forms.ValidationError("El archivo supera el límite de 5 MiB.")
         return archivo
+
+
+class CorreoAvisosForm(forms.Form):
+    """Correo para avisos del paciente (enmienda del 03). `leido` detecta un cambio hecho mientras se editaba."""
+
+    correo = forms.EmailField(
+        label="Correo para avisos", required=False, max_length=254,
+        help_text="Correo del paciente o de su cuidador para los avisos de reparto. Déjalo vacío para borrarlo.",
+        widget=forms.EmailInput(attrs={"autocomplete": "off", "spellcheck": "false", "autocapitalize": "none"}),
+    )
+    leido = forms.CharField(required=False, max_length=254, widget=forms.HiddenInput)

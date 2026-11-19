@@ -10,6 +10,7 @@ urlpatterns = [
     path("lista/", views.RecetasListaView.as_view(), name="recetas_lista"),
     path("pacientes/", views.PacientesView.as_view(), name="pacientes"),
     path("pacientes/<int:pk>/", views.PacienteView.as_view(), name="paciente_detalle"),
+    path("pacientes/<int:pk>/correo-avisos/", views.CorreoAvisosView.as_view(), name="correo_avisos"),
     path("nueva/", views.CrearRecetaView.as_view(), name="receta_nueva"),
     path("<int:pk>/", views.RecetaView.as_view(), name="receta_detalle"),
     path("<int:pk>/renovar/", views.CrearRecetaView.as_view(), name="receta_renovar"),

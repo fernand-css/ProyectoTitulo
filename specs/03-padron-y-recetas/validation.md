@@ -108,3 +108,23 @@ Verificación posterior: `python manage.py test recetasapp coreapp.tests.test_pl
 Documento: Aprobado. Implementación de código y continuación sin pausas: autorizadas por el usuario. Commit al terminar: autorizado en `fdaza`, excluyendo el cambio previo del spec 02. Aceptación funcional del software: pendiente.
 
 T-03-01 a T-03-05 completadas; T-03-06 tiene comprobaciones técnicas, revisión visual/móvil, axe y documentación completadas; quedan la navegación manual por teclado, la prueba de usabilidad y la aceptación real. Mantener estado Aprobado hasta registrar esa aceptación, sin marcar Implementado automáticamente.
+
+## Enmienda del 2026-11-18 — Correo para avisos (Borrador)
+
+Estado **Verificación técnica ejecutada el 2026-11-18** sobre `fdaza`, sin commit. Navegador/axe de la pestaña «Datos», usabilidad y aceptación pendientes.
+
+- `recetasapp/tests/test_correo_avisos.py` agrega **24 pruebas**: normalización, CSV y Excel de 12 y 13 columnas, fila de doce celdas bajo un encabezado de trece, correo inválido, celda vacía que conserva, reemplazo, encabezado con otro nombre, contradicciones, correo compartido, auditoría y reporte sin direcciones, edición por la Q.F., 403 al Técnico, CSRF, error junto al campo, conflicto, reversión si falla la auditoría, vistas públicas, tres escenarios concurrentes con `TransactionTestCase` e hilos y la migración de `0004` a `0005` y de vuelta.
+- El campo usa también `db_default=""` para que los modelos históricos de otras migraciones puedan crear pacientes sin conocer la columna.
+- El servicio lanza `CorreoCambiado` (sin reintento) en lugar de `ConflictoOperacion`, que `reintentar_conflictos` reintentaría; el comportamiento es el del RF-03-15.
+- `python manage.py check` sin incidencias, `makemigrations --check --dry-run` sin cambios y suite completa con **1134 pruebas OK** en la base PostgreSQL de pruebas, con transporte simulado.
+- La base local de la usuaria quedó migrada (`recetasapp/0005` y `entregasapp/0005`) y, contra ella, la pestaña «Datos» respondió 200 con el formulario para el superusuario. La revisión en el navegador (escritorio, móvil, teclado y axe) sigue pendiente.
+
+| RF | Escenario | Esperado | Estado |
+|---|---|---|---|
+| RF-03-12 | Normalización, correo repetido entre pacientes y vistas públicas. | Guardado normalizado, sin unicidad y nunca en tótem, sala ni comprobantes. | Aprobado en pruebas |
+| RF-03-13 | CSV y Excel de 12 y 13 columnas, correo inválido, celda vacía y reemplazo. | Ambos contratos aceptados; fila inválida rechazada sin detener las demás; la vacía conserva; la presente reemplaza. | Aprobado en pruebas |
+| RF-03-14 | Mismo RUT con correos distintos y con uno vacío. | Contradicción rechazada; con uno vacío vale el informado. | Aprobado en pruebas |
+| RF-03-15 | Q.F. guarda, corrige y borra; Técnico; sin CSRF; conflicto; ediciones concurrentes. | Auditoría sin el correo, 403 al Técnico, sin cambios sin CSRF, conflicto sin sobrescribir y un solo ganador. | Aprobado en pruebas |
+| Privacidad | Auditoría y reporte de la importación. | Sin direcciones de correo. | Aprobado en pruebas |
+
+Regresión prevista: suite completa, `check`, `makemigrations --check --dry-run`, migración de `0004` a `0005` y vuelta atrás en una base de pruebas, y revisión de la pestaña «Datos» en el navegador (escritorio, móvil, teclado y axe).

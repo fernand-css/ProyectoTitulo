@@ -29,6 +29,16 @@ se abre con «Expandir». Sin JavaScript el detalle se ve completo y el botón n
   <div class="acciones visita-acciones">
     {% if consulta %}
     {% elif registrable %}
+    {% if es_encargado and not sin_acciones %}
+      {% if intento.traslado_iniciado_en %}
+      <span class="etiqueta-ruta">Traslado iniciado</span>
+      {% else %}
+      <form method="post" action="{% url 'entregasapp:iniciar_traslado' intento.pk %}">
+        {% csrf_token %}
+        <button class="boton boton-secundario" type="submit">Iniciar traslado<span class="sr-only">: {{ nombre }}</span></button>
+      </form>
+      {% endif %}
+    {% endif %}
     <a class="boton" href="{% url 'entregasapp:registro' intento.pk %}?resultado=entregada#registrar-entregada"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ok"/></svg>Entregar<span class="sr-only">: {{ nombre }}</span></a>
     <a class="boton boton-secundario" href="{% url 'entregasapp:registro' intento.pk %}?resultado=no_entregada#registrar-no-entregada">No entregada<span class="sr-only">: {{ nombre }}</span></a>
     {% else %}

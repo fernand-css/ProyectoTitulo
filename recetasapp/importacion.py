@@ -9,6 +9,7 @@ from datetime import date
 from random import Random
 
 from django.core.exceptions import ValidationError
+from django.core.validators import validate_email
 from django.db import transaction
 from django.db.models import Count, Sum
 
@@ -16,13 +17,17 @@ from coreapp.auditoria import registrar_accion
 from coreapp.roles import JEFA
 from coreapp.utils.rut import normalizar_rut
 from coreapp.utils.sinteticos import generar_ruts
-from .models import ImportacionPadron, Paciente, Receta, ResultadoFilaImportacion
+from .models import ImportacionPadron, Paciente, Receta, ResultadoFilaImportacion, normalizar_correo
 from .services import aplicar_fila, autorizar, calcular_fin, reintentar_conflictos
 
 ENCABEZADOS = (
     "rut", "nombres", "apellidos", "fecha_nacimiento", "es_cronico", "es_postrado",
     "telefono", "direccion", "codigo_receta", "fecha_inicio", "vigencia_meses", "max_entregas",
 )
+# Enmienda del 03 (2026-11-18): el archivo puede traer al final la columna opcional `correo` (correo para avisos).
+ENCABEZADOS_CON_CORREO = ENCABEZADOS + ("correo",)
+COLUMNA_CORREO = len(ENCABEZADOS)
+MENSAJE_CORREO = "El correo no es válido."
 MAX_BYTES = 5 * 1024 * 1024
 MAX_FILAS = 10_000
 CONTADORES = ("pacientes_creados", "pacientes_actualizados", "recetas_creadas", "recetas_actualizadas")
@@ -48,9 +53,27 @@ def _entero(valor):
     return int(valor)
 
 
+class CorreoInvalido(ValidationError):
+    """La fila es válida salvo su correo para avisos. El mensaje no incluye el valor."""
+
+
+def _correo(valor):
+    correo = normalizar_correo(valor)
+    if correo:
+        try:
+            validate_email(correo)
+        except ValidationError:
+            raise CorreoInvalido(MENSAJE_CORREO) from None
+        if len(correo) > 254:
+            raise CorreoInvalido(MENSAJE_CORREO)
+    return correo
+
+
 def validar_fila(valores):
-    if len(valores) != len(ENCABEZADOS):
-        raise ValidationError("La fila no tiene las doce columnas requeridas.")
+    if len(valores) not in (len(ENCABEZADOS), len(ENCABEZADOS_CON_CORREO)):
+        raise ValidationError("La fila no tiene las columnas requeridas.")
+    valores = list(valores)
+    correo = _texto(valores.pop()) if len(valores) == len(ENCABEZADOS_CON_CORREO) else ""
     d = dict(zip(ENCABEZADOS, map(_texto, valores)))
     try:
         paciente = {
@@ -76,6 +99,10 @@ def validar_fila(valores):
             }
             temporal = Receta(**receta, fecha_fin_exclusiva=calcular_fin(receta["fecha_inicio"], receta["vigencia_meses"]))
             temporal.full_clean(exclude=["paciente"], validate_unique=False)
+        # Celda vacía (o archivo sin la columna): no se incluye y el correo guardado se conserva.
+        correo = _correo(correo)
+        if correo:
+            paciente["correo_avisos"] = correo
         return paciente, receta
     except (ValueError, OverflowError, TypeError):
         raise ValidationError("Revisa las fechas ISO, los indicadores 0/1 y los enteros positivos.") from None
@@ -110,7 +137,7 @@ def leer_archivo(contenido, formato):
                 hoja.reset_dimensions()
                 filas = []
                 for celdas in hoja.iter_rows():
-                    if len(celdas) > len(ENCABEZADOS):
+                    if len(celdas) > len(ENCABEZADOS_CON_CORREO):
                         raise ValidationError("Excel tiene columnas adicionales.")
                     filas.append([celda.value if celda.data_type != "f" else FormulaNoAdmitida() for celda in celdas])
                     if len(filas) > MAX_FILAS + 1:
@@ -123,10 +150,13 @@ def leer_archivo(contenido, formato):
             raise ValidationError("No se pudo leer el archivo Excel. Usa la plantilla .xlsx.") from None
     else:
         raise ValidationError("Selecciona CSV o Excel .xlsx.")
-    if not filas or tuple(filas[0]) != ENCABEZADOS:
+    if not filas or tuple(filas[0]) not in (ENCABEZADOS, ENCABEZADOS_CON_CORREO):
         raise ValidationError("Los encabezados deben coincidir con la plantilla, en el mismo orden.")
     if len(filas) < 2:
         raise ValidationError("El archivo no contiene filas de datos.")
+    if len(filas[0]) == len(ENCABEZADOS_CON_CORREO) and formato == "xlsx":
+        # Excel omite la última celda si está vacía: una fila de doce celdas no trae correo.
+        return [list(fila) + [None] if len(fila) == len(ENCABEZADOS) else fila for fila in filas[1:]]
     return filas[1:]
 
 
@@ -137,7 +167,7 @@ class FormulaNoAdmitida:
 @reintentar_conflictos
 def _prevalidar(filas):
     registros = []
-    por_rut, por_codigo = {}, {}
+    por_rut, por_codigo, correos = {}, {}, {}
     for numero, fila in enumerate(filas, 2):
         registro = {"numero": numero, "datos": None, "error": None, "firma": None}
         try:
@@ -145,17 +175,28 @@ def _prevalidar(filas):
             # contradicción debe elegir silenciosamente una de sus versiones.
             valores = tuple(_texto(v) for v in fila)
             if len(valores) == len(ENCABEZADOS):
+                valores += ("",)
+            if len(valores) == len(ENCABEZADOS_CON_CORREO):
                 rut = normalizar_rut(valores[0])
                 valores = (rut,) + valores[1:]
                 registro["firma"] = valores
                 por_rut.setdefault(rut, []).append((registro, valores[:8]))
                 if valores[8]:
-                    por_codigo.setdefault(valores[8], []).append((registro, (rut,) + valores[8:]))
+                    por_codigo.setdefault(valores[8], []).append((registro, (rut,) + valores[8:COLUMNA_CORREO]))
+                # RF-03-14: dos correos distintos y no vacíos contradicen; uno vacío no contradice a otro informado.
+                if valores[COLUMNA_CORREO]:
+                    correos.setdefault(rut, set()).add(normalizar_correo(valores[COLUMNA_CORREO]).casefold())
             registro["datos"] = validar_fila(fila)
+        except CorreoInvalido:
+            registro["error"] = ("correo_invalido", MENSAJE_CORREO)
         except ValidationError as error:
             # Mensajes de validadores pueden contener valores: no persistirlos.
             registro["error"] = ("datos_invalidos", "Revisa RUT, campos obligatorios, formatos y fechas de esta fila.")
         registros.append(registro)
+    for rut, distintos in correos.items():
+        if len(distintos) > 1:
+            for registro, _ in por_rut[rut]:
+                registro["error"] = ("duplicado_contradictorio", "Hay datos contradictorios para la misma identidad dentro del archivo.")
     for agrupados in (por_rut, por_codigo):
         for elementos in agrupados.values():
             if len({firma for _, firma in elementos}) > 1:
@@ -252,8 +293,8 @@ def filas_demo(cantidad=670, semilla=3, inicio=date(2026, 1, 1)):
                "1", "1" if indice > 600 else "0", "", "Sector sintético", f"DEMO-{indice:04}", inicio.isoformat(), "12", "12"]
 
 
-def generar_archivo(formato, filas=()):
-    filas = [ENCABEZADOS, *filas]
+def generar_archivo(formato, filas=(), encabezados=ENCABEZADOS):
+    filas = [encabezados, *filas]
     if formato == "csv":
         salida = io.StringIO(newline="")
         escritor = csv.writer(salida)

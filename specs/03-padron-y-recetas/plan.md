@@ -139,3 +139,33 @@ Ahora: cuatro documentos de la carpeta y `specs/README.md`. Durante implementaci
 ## Decisiones para implementar
 
 El estado canónico permanece Aprobado; usuario autorizó todos los pasos sin pausas, en `fdaza`, con commit al terminar. No quedan decisiones bloqueantes de código. La verificación visual/móvil y axe del módulo no pudo ejecutarse por limitación concreta del entorno; mantenerla pendiente junto con aceptación funcional, sin declarar cumplido íntegramente RNF-04. El cambio previo del spec 02 no pertenece al commit del 03.
+
+## Enmienda del 2026-11-18 — Correo para avisos (Borrador)
+
+Diseño de RF-03-12 a RF-03-15 de la [enmienda](spec.md#enmienda-del-2026-11-18--correo-para-avisos-borrador). Se implementa sobre `fdaza` junto con la [enmienda del spec 12](../12-notificaciones-reparto/spec.md#enmienda-del-2026-11-18--destino-desde-el-padrón-borrador), que usa el correo.
+
+### Diseño y datos
+
+| Elemento | Propuesta |
+|---|---|
+| Modelo | `Paciente.correo_avisos = models.EmailField(max_length=254, blank=True)`, sin índice único. Normalización con `strip()` y dominio en minúsculas (`BaseUserManager.normalize_email`) en un ayudante compartido por la importación y el servicio. |
+| Migración | `recetasapp/0005_paciente_correo_avisos`, aditiva, dependiente de `0004_preparacionreceta`, con `default=""`. |
+| Importación | En `recetasapp/importacion.py`, `ENCABEZADOS` conserva las doce columnas y se agrega `ENCABEZADOS_CON_CORREO = ENCABEZADOS + ("correo",)`. La lectura acepta cualquiera de los dos encabezados exactos (CSV y hoja `padron` de Excel, que admite hasta trece columnas). `validar_fila` recibe el contrato del archivo: si hay correo, lo valida con `validate_email` y lo agrega a los datos del paciente; si la celda está vacía o no hay columna, no incluye `correo_avisos`, y así `aplicar_fila` no lo toca, porque su UPDATE condicional compara y escribe solo los campos presentes. Correo inválido: `ValidationError("El correo no es válido.")`. |
+| Contradicciones | La comparación de filas del mismo RUT ignora `correo_avisos` cuando una de las dos lo trae vacío y lo exige igual cuando ambas lo traen; si solo una lo trae, la fila efectiva usa ese correo. |
+| Servicio de edición | `recetasapp/services.py`: `actualizar_correo_avisos(actor, paciente_id, correo, leido)`. `autorizar(actor, JEFA)` (el superusuario pasa como en el resto del módulo), `transaction.atomic()`, normaliza y valida, y aplica `Paciente.objects.filter(pk=..., correo_avisos=leido).update(correo_avisos=nuevo, modificado_por=actor, modificado_en=ahora)`. Si no cambia ninguna fila, lanza `ConflictoOperacion` con el mensaje del RF-03-15. Audita `paciente.correo_actualizado` con `auditar`, sin el valor; si la auditoría falla, se revierte. Un valor igual al guardado no escribe ni audita. |
+| Vista y URL | `CorreoAvisosView` (solo POST, `roles_permitidos = (JEFA,)`) en `recetasapp/views.py`, ruta `pacientes/<int:pk>/correo-avisos/`, que redirige a la ficha en la pestaña «Datos» con el mensaje correspondiente. Formulario `CorreoAvisosForm` con `correo` (EmailField opcional) y `leido` (oculto). |
+| Plantilla | En la pestaña «Datos» de `templates/recetas/paciente_detalle.html`: el dato «Correo para avisos» (o «Sin correo para avisos») para Q.F. y Técnico, y el formulario solo para Q.F. y superusuario, con etiqueta visible, la ayuda «Correo del paciente o de su cuidador para los avisos de reparto» y el error asociado con `aria-describedby`. |
+| Documentación | `README.md` (contrato de 13 columnas con un ejemplo en `example.invalid`) y `docs/estructura.md`. |
+
+### Pruebas previstas
+
+- Modelo y normalización; migración desde `0004` sin datos retroactivos.
+- Importación: CSV y Excel de 12 y 13 columnas, encabezado de 13 con otro nombre (rechazo del archivo), correo inválido (rechazo de la fila, con las demás confirmadas), celda vacía que conserva, correo que reemplaza, contradicciones del RF-03-14 y reporte sin correos.
+- Servicio y vista: la Q.F. guarda, corrige y borra; Técnico 403; sin CSRF; conflicto con un valor leído distinto; auditoría sin el correo y reversión si falla la auditoría.
+- Concurrencia (`TransactionTestCase` con hilos): dos ediciones simultáneas desde el mismo valor leído, y una edición simultánea con una importación que trae otro correo. Queda exactamente un ganador y el otro recibe el conflicto o el reintento propio de la importación.
+- Vistas públicas sin el correo (tótem, sala y comprobante).
+
+### Riesgos
+
+- **Datos reales.** Un archivo con correos reales violaría la regla de datos sintéticos. El README y la ayuda del campo lo advierten, y el freno de dominios del spec 12 impide enviar fuera de los dominios de prueba.
+- **Borrado accidental por importación.** Se evita con la regla «vacía conserva»; para borrar, la Q.F. usa la ficha.

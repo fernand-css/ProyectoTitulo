@@ -19,14 +19,14 @@ from coreapp.mixins import RolRequeridoMixin, tiene_rol
 from coreapp.roles import JEFA, TECNICO
 from coreapp.utils.rut import normalizar_rut
 from .forms import (
-    BusquedaPacienteForm, BusquedaPreparacionForm, BusquedaRecetaForm,
+    BusquedaPacienteForm, BusquedaPreparacionForm, BusquedaRecetaForm, CorreoAvisosForm,
     EntregaForm, ImportacionForm, RecetaForm, RetiroPreparadoForm,
 )
 from .importacion import filas_demo, generar_archivo, importar_padron
 from . import consultas, pestanas, preparacion as consultas_preparacion, presentacion, tablero
 from .models import EntregaReceta, ImportacionPadron, Paciente, Receta
 from .services import (
-    crear_receta, deshacer_lista, marcar_lista, registrar_entrega,
+    CorreoCambiado, actualizar_correo_avisos, crear_receta, deshacer_lista, marcar_lista, registrar_entrega,
     retirar_preparado,
 )
 
@@ -153,7 +153,57 @@ class PacienteView(FarmaciaView):
             contexto["entregas"] = list(entregas.select_related("receta", "creado_por", "despacho").order_by("-creado_en", "-pk")[:200])
         else:
             contexto["reparto"] = _reparto_del_paciente(paciente)
+            if contexto["puede_crear"]:
+                contexto["form_correo"] = CorreoAvisosForm(
+                    initial={"correo": paciente.correo_avisos, "leido": paciente.correo_avisos},
+                )
         return self.render("paciente_detalle.html", contexto)
+
+
+class CorreoAvisosView(FarmaciaView):
+    """Guarda o borra el correo para avisos desde la pestaña Datos (enmienda del 03, RF-03-15). Solo POST."""
+
+    roles_permitidos = (JEFA,)
+    http_method_names = ["post"]
+
+    def post(self, request, pk):
+        paciente = get_object_or_404(Paciente, pk=pk)
+        form = CorreoAvisosForm(request.POST)
+        if form.is_valid():
+            try:
+                resultado = actualizar_correo_avisos(
+                    request.user, paciente.pk, form.cleaned_data["correo"], form.cleaned_data["leido"],
+                )
+            except CorreoCambiado as error:
+                messages.error(request, error.messages[0])
+            except ValidationError:
+                form.add_error("correo", "El correo no es válido.")
+            except DatabaseError:
+                messages.error(request, "No se pudo guardar el correo. Vuelve a intentarlo.")
+            else:
+                if resultado == "borrado":
+                    messages.success(request, "Correo para avisos borrado.")
+                elif resultado == "guardado":
+                    messages.success(request, "Correo para avisos guardado.")
+                else:
+                    messages.info(request, "El correo para avisos no cambió.")
+            if not form.errors:
+                return redirect(f"{paciente_url(paciente)}?pestana=datos#titulo-correo")
+        # Con errores, se vuelve a mostrar la pestaña Datos con el formulario y su mensaje junto al campo.
+        actual = "datos"
+        recetas = list(paciente.recetas.all())
+        entregas = EntregaReceta.objects.filter(receta__paciente=paciente)
+        contexto = {
+            "paciente": paciente, "pestana": actual, "puede_crear": True,
+            "pestanas": pestanas.ficha(paciente, actual, len(recetas), entregas.count()),
+            "reparto": _reparto_del_paciente(paciente), "form_correo": form,
+        }
+        return self.render("paciente_detalle.html", contexto, status=400)
+
+
+def paciente_url(paciente):
+    from django.urls import reverse
+    return reverse("recetasapp:paciente_detalle", args=[paciente.pk])
 
 
 def _reparto_del_paciente(paciente):

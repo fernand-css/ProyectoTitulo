@@ -82,7 +82,16 @@
     <dt>Teléfono</dt><dd>{{ paciente.telefono|default:"No registrado" }}</dd>
     <dt>Dirección</dt><dd>{{ paciente.direccion|default:"No registrada" }}</dd>
     <dt>Condición</dt><dd>{% if paciente.es_cronico or paciente.es_postrado %}{% if paciente.es_cronico %}Crónico{% endif %}{% if paciente.es_cronico and paciente.es_postrado %} · {% endif %}{% if paciente.es_postrado %}Postrado{% endif %}{% else %}Sin condición registrada{% endif %}</dd>
+    <dt>Correo para avisos</dt><dd>{{ paciente.correo_avisos|default:"Sin correo para avisos" }}</dd>
   </dl>
+  {% if form_correo %}
+  <h3 id="titulo-correo">Correo para avisos</h3>
+  <form method="post" action="{% url 'recetasapp:correo_avisos' paciente.pk %}" class="formulario" aria-labelledby="titulo-correo" novalidate>
+    {% csrf_token %}
+    {% include 'recetas/campos.html' with form=form_correo %}
+    <div class="acciones"><button class="boton boton-secundario" type="submit">Guardar correo</button></div>
+  </form>
+  {% endif %}
   <h3 id="titulo-reparto">Domicilio de reparto</h3>
   {% if reparto.domicilio or reparto.elegible %}
   <dl class="ficha ficha-datos" aria-labelledby="titulo-reparto">

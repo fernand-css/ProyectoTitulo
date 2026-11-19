@@ -436,3 +436,42 @@ def aplicar_fila(actor, datos, *, carga, numero_fila):
         **cambios,
     )
     return cambios
+
+
+# Correo para avisos (enmienda del 03, 2026-11-18) ---------------------------------------------------------------
+
+class CorreoCambiado(ValidationError):
+    """El correo guardado ya no es el que se leyó al abrir el formulario. No se reintenta: se avisa."""
+
+
+MENSAJE_CORREO_CAMBIADO = "El correo cambió mientras lo editabas. Revisa el valor actual."
+
+
+@transaction.atomic
+def actualizar_correo_avisos(actor, paciente_id, correo, leido):
+    """Guarda o borra el correo para avisos si sigue siendo el leído. Devuelve 'guardado', 'borrado' o None."""
+    from django.core.validators import validate_email
+
+    from .models import normalizar_correo
+
+    autorizar(actor, JEFA)
+    nuevo, leido = normalizar_correo(correo), normalizar_correo(leido)
+    if nuevo:
+        validate_email(nuevo)
+        if len(nuevo) > 254:
+            raise ValidationError("El correo no es válido.")
+    paciente = Paciente.objects.filter(pk=paciente_id).first()
+    if paciente is None:
+        raise ValidationError("El paciente no existe.")
+    if paciente.correo_avisos != leido:
+        raise CorreoCambiado(MENSAJE_CORREO_CAMBIADO)
+    if nuevo == leido:
+        return None
+    if not Paciente.objects.filter(pk=paciente_id, correo_avisos=leido).update(
+        correo_avisos=nuevo, modificado_por=actor, modificado_en=timezone.now(),
+    ):
+        raise CorreoCambiado(MENSAJE_CORREO_CAMBIADO)
+    paciente.correo_avisos = nuevo
+    # La auditoría identifica al paciente y a quien cambió el dato, nunca la dirección.
+    auditar(actor, "paciente.correo_actualizado", paciente)
+    return "guardado" if nuevo else "borrado"

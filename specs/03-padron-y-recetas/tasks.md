@@ -60,3 +60,24 @@ Código y documentación implementados en `fdaza`; verificación técnica comple
 ## Aceptación del usuario
 
 Reglas y documento completo: Aprobado. Continuación sin pausas: autorizada expresamente. Aceptación funcional del software: pendiente; servicios e interfaz implementados y verificados técnicamente, con límite visual registrado.
+
+## Enmienda del 2026-11-18 — Correo para avisos (Borrador)
+
+La usuaria aprobó la [enmienda](spec.md#enmienda-del-2026-11-18--correo-para-avisos-borrador) y pidió implementarla el 2026-11-18. Se trabajó sobre `fdaza`, sin commit. T-03-07 a T-03-09 quedaron completas; T-03-10 tiene la documentación y la regresión, y le falta la revisión de la pestaña «Datos» en el navegador.
+
+- [x] **T-03-07 — Campo y migración.**  
+  **RF** RF-03-12. **Depende de** la aprobación de la enmienda.  
+  **Archivos** `recetasapp/models.py`, `recetasapp/migrations/0005_paciente_correo_avisos.py` y pruebas de modelo.  
+  **Hecho cuando** el campo normaliza y valida, la migración aplica y revierte sobre `0004` y `makemigrations --check --dry-run` no informa cambios.
+- [x] **T-03-08 — Importación con columna opcional.**  
+  **RF** RF-03-13 y RF-03-14. **Depende de** T-03-07.  
+  **Archivos** `recetasapp/importacion.py` y sus pruebas.  
+  **Hecho cuando** pasan los casos de 12 y 13 columnas en CSV y Excel, correo inválido, celda vacía, reemplazo, contradicciones y reporte sin correos, y la regresión del 03 sigue verde.
+- [x] **T-03-09 — Edición en la ficha.**  
+  **RF** RF-03-15. **Depende de** T-03-07.  
+  **Archivos** `recetasapp/services.py`, `recetasapp/forms.py`, `recetasapp/views.py`, `recetasapp/urls.py`, `templates/recetas/paciente_detalle.html` y pruebas, incluidas las concurrentes.  
+  **Hecho cuando** la Q.F. guarda, corrige y borra con auditoría sin el correo; el Técnico ve el dato y recibe 403 al guardar; el conflicto no sobrescribe; y el formulario funciona sin JavaScript.
+- [ ] **T-03-10 — Documentar y validar.**  
+  **RF** RF-03-12 a RF-03-15. **Depende de** T-03-08 y T-03-09.  
+  **Archivos** `README.md`, `docs/estructura.md`, [validation.md](validation.md) y `CLAUDE.md`.  
+  **Hecho cuando** queda documentado el contrato de 13 columnas, la suite completa pasa y la revisión de la pestaña «Datos» en el navegador queda registrada o anotada como pendiente.

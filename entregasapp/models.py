@@ -5,6 +5,8 @@ modelos. Las restricciones de la base son la garantía final de las reglas (una 
 un intento pendiente por entrega, tres fotos por domicilio), aunque haya solicitudes simultáneas.
 """
 
+from uuid import uuid4
+
 from django.conf import settings
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models
@@ -296,6 +298,10 @@ class IntentoEntrega(ModeloAuditado):
     operacion_id = models.UUIDField(unique=True, null=True, blank=True)
     # Operación que creó el intento: la programación (intento 1) o una reasignación. Hace idempotente el reenvío.
     creado_con = models.UUIDField(unique=True, null=True, blank=True)
+    traslado_iniciado_en = models.DateTimeField(null=True, blank=True)
+    traslado_iniciado_por = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.PROTECT, related_name="+",
+    )
 
     class Meta:
         ordering = ["numero"]
@@ -303,6 +309,11 @@ class IntentoEntrega(ModeloAuditado):
             models.UniqueConstraint(fields=["entrega", "numero"], name="intento_numero_unico"),
             models.UniqueConstraint(
                 fields=["entrega"], condition=Q(resultado="pendiente"), name="intento_pendiente_unico",
+            ),
+            models.CheckConstraint(
+                condition=Q(traslado_iniciado_en__isnull=True, traslado_iniciado_por__isnull=True)
+                | Q(traslado_iniciado_en__isnull=False, traslado_iniciado_por__isnull=False),
+                name="intento_traslado_inicio_completo",
             ),
             models.CheckConstraint(condition=Q(numero__gte=1), name="intento_numero_positivo"),
             models.CheckConstraint(
@@ -335,6 +346,66 @@ class IntentoEntrega(ModeloAuditado):
 
     def __str__(self):
         return f"Intento {self.numero} de entrega {self.entrega_id}"
+
+
+class AvisoReparto(models.Model):
+    """Bandeja de salida de los avisos por correo (spec 12).
+
+    «En camino» es uno por intento y nace al iniciar el traslado. «Del día» (enmienda del 2026-11-18) es uno por
+    entrega y fecha, lo crea el procesador y guarda además el intento pendiente que lo originó.
+    """
+
+    class Tipo(models.TextChoices):
+        EN_CAMINO = "delivery.departed", "Reparto en camino"
+        DEL_DIA = "delivery.scheduled_today", "Reparto del día"
+        # Cuarta enmienda (2026-11-18): reasignación y resultado de la visita, uno por intento.
+        REPROGRAMADO = "delivery.rescheduled", "Reparto reprogramado"
+        ENTREGADO = "delivery.delivered", "Reparto entregado"
+        NO_ENTREGADO = "delivery.failed", "Reparto no entregado"
+
+    class Estado(models.TextChoices):
+        PENDIENTE = "pendiente", "Pendiente"
+        RESERVADO = "reservado", "Reservado"
+        EN_ENVIO = "en_envio", "En envío"
+        SIMULADO = "simulado", "Simulado"
+        ACEPTADO_SMTP = "aceptado_smtp", "Aceptado por SMTP"
+        OMITIDO = "omitido", "Omitido"
+        OBSOLETO = "obsoleto", "Obsoleto"
+        FALLIDO = "fallido", "Fallido"
+        INCIERTO = "incierto", "Incierto"
+
+    id = models.UUIDField(primary_key=True, default=uuid4, editable=False)
+    intento = models.ForeignKey(IntentoEntrega, on_delete=models.PROTECT, related_name="avisos")
+    tipo = models.CharField(max_length=32, choices=Tipo.choices)
+    entrega = models.ForeignKey(Entrega, null=True, blank=True, on_delete=models.PROTECT, related_name="avisos")
+    fecha = models.DateField(null=True, blank=True)
+    estado = models.CharField(max_length=16, choices=Estado.choices)
+    creado_en = models.DateTimeField()
+    vence_en = models.DateTimeField()
+    proximo_en = models.DateTimeField()
+    firma_destino = models.CharField(max_length=64, blank=True)
+    intentos_envio = models.PositiveSmallIntegerField(default=0)
+    reserva = models.UUIDField(null=True, blank=True)
+    reserva_hasta = models.DateTimeField(null=True, blank=True)
+    aceptado_en = models.DateTimeField(null=True, blank=True)
+    codigo_resultado = models.CharField(max_length=32, blank=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(fields=["intento", "tipo"], name="aviso_reparto_intento_tipo_unico"),
+            models.UniqueConstraint(
+                fields=["entrega", "fecha"], condition=Q(tipo="delivery.scheduled_today"),
+                name="aviso_reparto_dia_unico",
+            ),
+            models.CheckConstraint(
+                condition=Q(tipo="delivery.scheduled_today", entrega__isnull=False, fecha__isnull=False)
+                | (~Q(tipo="delivery.scheduled_today") & Q(entrega__isnull=True, fecha__isnull=True)),
+                name="aviso_reparto_dia_completo",
+            ),
+        ]
+        indexes = [
+            models.Index(fields=["estado", "proximo_en"], name="aviso_reparto_estado_proximo"),
+        ]
 
 
 class OrdenRuta(ModeloAuditado):

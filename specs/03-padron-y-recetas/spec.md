@@ -4,6 +4,7 @@
 > **Depende de:** [SPEC 01 — Base del proyecto](../01-base-del-proyecto/spec.md) y [SPEC 02 — Autenticación, roles y auditoría](../02-autenticacion-roles-auditoria/spec.md)
 > **Fecha:** 2026-11-01
 > **Objetivo:** Permitir a la Q.F. importar el padrón sintético y sus recetas vigentes y crear recetas simuladas, y al Técnico consultar su vigencia y registrar las entregas del ciclo conservando el historial.
+> **Enmienda:** 2026-11-18, **Aprobada** por la usuaria el mismo día en el chat («apruebo las dos enmiendas, impleméntalas») (ver [Enmienda del 2026-11-18](#enmienda-del-2026-11-18--correo-para-avisos-borrador)). Agrega al padrón un «correo para avisos» opcional, importable y editable por la Q.F. en la ficha, que el [SPEC 12](../12-notificaciones-reparto/spec.md) usará como destino de sus avisos. Agrega RF-03-12 a RF-03-15 y amplía RF-03-01, RF-03-02 y RF-03-04. Desde su aprobación, se suma a lo implementado.
 
 Módulo solicitado: `recetasapp`, con reutilización del núcleo y la autenticación existentes.
 Fuente: respuestas del equipo 1A/2A/3A y confirmación expresa de las cuatro reglas; HU-21, HU-23, RNF-01 y RNF-07 de [Informe.md](../../docs/Informe.md).
@@ -126,3 +127,52 @@ Las decisiones funcionales y el diseño de `plan.md` forman parte del documento 
 ## Acuerdo de ejecución
 
 Trabajar en `fdaza` sin crear ni cambiar de rama. El commit está autorizado al terminar la implementación; no se realizan commits intermedios. Conservar el cambio previo del spec 02 y no incluirlo en el commit del 03. La instrucción posterior del usuario autoriza continuar todos los pasos sin pausas y reemplaza la revisión por pasos de la skill. Los límites de validación se registran sin atribuir aceptación funcional al usuario.
+
+## Enmienda del 2026-11-18 — Correo para avisos (Borrador)
+
+**Objetivo de la enmienda:** Guardar en el padrón un correo opcional para avisos de cada paciente, cargado por la importación o corregido por la Q.F. en la ficha, para que los avisos de reparto del [SPEC 12](../12-notificaciones-reparto/spec.md) salgan del padrón y no de una lista aparte.
+
+### Problema y resultado
+
+El spec 12 envía sus avisos a buzones de una lista JSON privada que asocia cada correo al identificador interno del paciente. Esa lista se desalinea si se reconstruye la base o se vuelve a importar el padrón en otra base, y solo se puede corregir editando un archivo en el servidor. Con la enmienda, el correo vive con el paciente, igual que el teléfono: llega en el archivo del padrón o lo corrige la Q.F. en la pestaña «Datos» de la ficha, y queda en la bitácora y en la auditoría.
+
+### Alcance de la enmienda
+
+Incluye el campo `correo_avisos` en `Paciente`, la columna opcional `correo` en el CSV y el Excel del padrón, la edición en la pestaña «Datos» de la ficha para la Q.F. y el superusuario, y la presentación del dato en la ficha para el personal con acceso.
+
+Queda fuera: un segundo correo (por ejemplo, uno del paciente y otro del cuidador), la verificación del correo por enlace o código, editar otros datos del paciente en la ficha (nombres, teléfono, dirección, condiciones), el consentimiento formal del titular (la demo usa buzones sintéticos de prueba) y el envío de avisos, que es del spec 12.
+
+### Requisitos de la enmienda
+
+- **RF-03-12 — Correo para avisos.** EL SISTEMA guarda en cada paciente un `correo_avisos` opcional: el correo del paciente o de su cuidador que la familia indique, uno solo por paciente. Se valida como dirección de correo (hasta 254 caracteres), se guarda sin espacios al inicio ni al final y con el dominio en minúsculas, y vacío significa «sin correo». No es único: una misma persona cuidadora puede ser el contacto de varios pacientes. No es credencial ni identifica al paciente. Las vistas públicas (tótem, sala, comprobantes) nunca lo muestran. *(Amplía RF-03-01.)*
+- **RF-03-13 — Columna opcional en la importación.** EL SISTEMA acepta el archivo del padrón con las doce columnas actuales o con trece, agregando `correo` al final; el encabezado debe coincidir exactamente con uno de los dos contratos, en CSV y en Excel. SI el correo de una fila no es válido, ENTONCES rechaza esa fila con el motivo «El correo no es válido.» sin modificar su paciente ni su receta, y las demás filas siguen (RF-03-03). Un correo presente reemplaza al guardado. Una celda vacía, o un archivo de doce columnas, conserva el correo que el paciente ya tenía. *(Amplía RF-03-02 y RF-03-03.)*
+- **RF-03-14 — Duplicados con correo.** Dentro de un mismo archivo, dos filas del mismo RUT con correos distintos y no vacíos son contradictorias y se rechazan como las demás contradicciones (RF-03-04). Una fila con correo y otra del mismo RUT con la celda vacía no se contradicen: vale el correo informado. *(Amplía RF-03-04.)*
+- **RF-03-15 — Edición en la ficha.** CUANDO la Q.F. o el superusuario guardan el campo «Correo para avisos» en la pestaña «Datos» de la ficha del paciente, EL SISTEMA lo valida, lo guarda o lo borra (campo vacío) mediante un servicio auditado con POST y CSRF, y vuelve a la pestaña con «Correo para avisos guardado.» o «Correo para avisos borrado.». El formulario envía el valor que se leyó; SI el correo cambió entretanto (otra sesión o una importación), ENTONCES no se sobrescribe y se muestra «El correo cambió mientras lo editabas. Revisa el valor actual.». El Técnico ve el correo, pero no el formulario, y un POST suyo recibe 403. El formulario funciona sin JavaScript y con teclado, tiene una etiqueta visible y asocia el mensaje de error al campo.
+- **Privacidad y bitácora.** La auditoría registra `paciente.correo_actualizado` con el identificador del paciente y quién lo cambió, sin el correo. El reporte de la importación no copia correos rechazados. `generar_padron_demo` sigue generando doce columnas, sin correos; los correos de la demo se cargan con un archivo de trece columnas o en la ficha, y siempre son buzones de prueba del equipo, nunca correos de pacientes reales.
+
+### Criterios de aceptación de la enmienda
+
+| RF | Escenario | Resultado verificable |
+|---|---|---|
+| RF-03-12 | Correo con espacios y dominio en mayúsculas; dos pacientes con el mismo correo; tótem y sala. | Se guarda normalizado; los dos pacientes lo conservan; ninguna vista pública lo muestra. |
+| RF-03-13 | Archivos CSV y Excel de 12 y de 13 columnas; correo inválido; celda vacía sobre un paciente con correo; correo nuevo. | Ambos contratos se aceptan; la fila inválida se rechaza sin cambios y las otras siguen; la celda vacía conserva; el correo nuevo reemplaza. |
+| RF-03-14 | Mismo RUT dos veces con correos distintos; mismo RUT con correo y con celda vacía. | El primer caso se rechaza como contradictorio; el segundo guarda el correo informado. |
+| RF-03-15 | Q.F. guarda, corrige y borra; Técnico intenta guardar; edición desde un valor ya cambiado; envío sin CSRF. | La Q.F. ve el mensaje y la auditoría sin el correo; el Técnico recibe 403; el valor cambiado no se sobrescribe; sin CSRF no hay cambios. |
+| Privacidad | Auditoría y reporte de una carga con un correo rechazado. | Ninguno contiene la dirección. |
+
+### Compatibilidad de la enmienda
+
+- Los archivos de doce columnas y `generar_padron_demo` siguen funcionando igual; los pacientes existentes quedan sin correo.
+- Migración aditiva `recetasapp/0005_paciente_correo_avisos` (campo vacío por omisión), sin rellenar datos.
+- No cambian las recetas, las entregas del ciclo, los contadores ni los permisos de las demás acciones de la ficha.
+
+### Decisiones de la enmienda
+
+- 2026-11-18. La usuaria eligió las opciones recomendadas: un solo «correo para avisos» del paciente o su cuidador; carga por importación y edición en la ficha por la Q.F.; y que una celda vacía o un archivo sin la columna conserven el correo guardado, para que la importación no borre una corrección hecha a mano.
+- El correo no es único: se descartó exigir unicidad porque una misma persona puede cuidar a dos pacientes (por ejemplo, una pareja de adultos mayores).
+- Se descartó validar el correo enviando un enlace: no cabe en la demo y no lo pide el informe.
+- Esta enmienda revierte, para el correo, la exclusión «edición de correos en el padrón» del spec 12; el teléfono sigue sin ser un canal de aviso.
+
+### Revisión de la enmienda
+
+Aprobada por la usuaria el 2026-11-18 («apruebo las dos enmiendas, impleméntalas») e implementada técnicamente el mismo día; ver [validation.md](validation.md). El título de esta sección conserva «Borrador» para no romper el enlace; manda la cabecera.

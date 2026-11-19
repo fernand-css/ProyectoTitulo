@@ -813,6 +813,24 @@ class RegistroView(SoloEncargadoView):
         return self.render("registro.html", self.contexto(self.intento(pk)))
 
 
+class InicioTrasladoView(SoloEncargadoView):
+    http_method_names = ["post"]
+
+    def post(self, request, pk):
+        try:
+            registrado = services.iniciar_traslado(request.user, pk)
+        except ValidationError as error:
+            messages.error(request, _mensaje(error))
+        except DatabaseError:
+            messages.error(request, "No se pudo guardar el inicio del traslado. Vuelve a intentarlo.")
+        else:
+            if registrado:
+                messages.success(request, "Traslado iniciado.")
+            else:
+                messages.info(request, "Este traslado ya estaba iniciado.")
+        return redirect("entregasapp:mis")
+
+
 class EntregadaView(RegistroView):
     def post(self, request, pk):
         intento = self.intento(pk)

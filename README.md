@@ -125,6 +125,15 @@ rut,nombres,apellidos,fecha_nacimiento,es_cronico,es_postrado,telefono,direccion
 
 CSV: UTF-8 con BOM opcional, comas y comillas estándar. Excel: una única hoja `padron`, sin macros ni fórmulas. Fechas como texto `AAAA-MM-DD`, indicadores `0`/`1` y vigencia/cupo enteros positivos. Teléfono y dirección son opcionales. Para cargar solo padrón, dejar vacías las cuatro columnas de receta; si se completa una, completar las cuatro. Un paciente puede tener varias recetas en filas separadas con los mismos datos personales. Límites: 5 MiB y 10.000 filas; XLSX descomprimido hasta 50 MiB y 1.000 entradas. El lector usa `openpyxl` (versión probada: 3.1.5).
 
+**Correo para avisos (opcional).** El archivo puede traer una decimotercera columna, `correo`, al final del encabezado:
+
+```text
+rut,nombres,apellidos,fecha_nacimiento,es_cronico,es_postrado,telefono,direccion,codigo_receta,fecha_inicio,vigencia_meses,max_entregas,correo
+11111111-1,Paciente sintético 1,Demostración,1940-06-15,1,1,,Sector sintético,DEMO-0001,2026-11-02,12,12,cuidadora@example.invalid
+```
+
+Es el correo del paciente o de su cuidador para los avisos de reparto (spec 12). Un correo informado reemplaza al guardado; una celda vacía, o un archivo de doce columnas, conserva el que el paciente ya tenía. Un correo inválido rechaza solo esa fila («El correo no es válido.»). Dos filas del mismo RUT con correos distintos se rechazan por contradictorias. La Q.F. también puede guardar, corregir o borrar el correo en la pestaña «Datos» de la ficha del paciente. Usa solo buzones de prueba, nunca correos de pacientes reales. Las plantillas descargables y `generar_padron_demo` siguen con doce columnas.
+
 Cada fila válida se confirma completa, con auditoría; los rechazos no detienen las válidas. Los duplicados idénticos se omiten y las identidades contradictorias dentro del archivo se rechazan. Reimportar actualiza por RUT/código sin duplicar ni borrar ausentes. Una receta con entregas conserva fechas, cupo e historial: su cambio exige renovación con código nuevo. La carga no importa contadores de entrega ni deduce vínculos de renovación. El reporte privado guarda número de fila y motivo, sin copiar valores rechazados ni conservar el archivo subido.
 
 El inicio es inclusivo y el fin exclusivo se calcula sumando meses naturales, ajustando días inexistentes al último día del mes destino. El último día válido es el anterior a ese límite. Ejemplo: inicio 2026-01-31 y un mes → límite 2026-02-28; último día válido 2026-02-27. Se bloquean entregas antes del inicio, tras vencimiento o por cupo agotado; reenviar una misma confirmación no duplica. El servicio de elegibilidad está preparado para integrarse con turnos en su propia spec.
@@ -333,6 +342,37 @@ Debe responder `"code":"Ok"` con la distancia en metros, y `docker logs osrm` no
 Si OSRM se cae, Django lo da por no disponible durante 30 segundos tras la primera falla (sin volver a esperarlo en cada página) y usa la línea recta rotulada; pasado ese plazo vuelve a consultarlo solo.
 
 **Actualizar el mapa** (a mano; no hay actualización automática): descargar un extracto nuevo, repetir los pasos 2 y 3 y reiniciar el contenedor con `docker restart osrm`. Si OpenStreetMap no tiene un camino rural, OSRM ajusta el punto al camino conocido más cercano y la distancia puede engañar: por eso la lista dice «aprox.» y el encargado puede ajustar su orden. Para una implementación real, el DESAMU decide con su unidad TIC dónde corre OSRM y cómo se mantiene el mapa al día.
+
+## Aviso de reparto en camino (spec 12)
+
+En «Mis entregas», el Encargado asignado pulsa **Iniciar traslado** sobre una parada pendiente. Django guarda el inicio y deja el aviso en la bandeja de salida de PostgreSQL. El procesador envía el correo después de guardar. Un aviso caduco a los 30 minutos o asociado a una visita cerrada, reasignada o anulada se descarta antes de preparar el envío.
+
+El destino es el **correo para avisos** del paciente en el padrón (columna `correo` del archivo o pestaña «Datos» de la ficha; ver la sección del padrón). Se envía a cualquier correo del padrón. Si quieres limitar los envíos a ciertos dominios (por ejemplo, durante una demo con un padrón importado), agrega `REPARTO_CORREO_DOMINIOS_PERMITIDOS`, separados por comas y sin subdominios implícitos; vacía o sin la línea, no hay restricción:
+
+```text
+REPARTO_CORREO_DOMINIOS_PERMITIDOS=example.invalid,prueba.cl
+```
+
+En la demo el padrón es sintético: los correos deben ser buzones de prueba del equipo, nunca correos de pacientes reales. Un paciente sin correo, o con un dominio fuera de la lista cuando hay lista, conserva el inicio del traslado y su aviso queda omitido. Si el correo cambia o se borra antes del envío, el aviso pendiente también se omite. Dos pacientes con el mismo correo (por ejemplo, la misma cuidadora) reciben un aviso cada uno. La antigua lista JSON (`REPARTO_BUZONES_PRUEBA_ARCHIVO`) ya no se lee; si la tienes en tu `.env`, puedes borrarla.
+
+Ejecuta las migraciones en la base sintética elegida. Para la simulación usa otra base de prueba y selecciona el modo en memoria. Para la prueba real usa correos de prueba en el padrón y la configuración `EMAIL_*` y `DEFAULT_FROM_EMAIL` de Django. El procesador SMTP funciona independientemente del backend usado por el correo de cuentas en desarrollo.
+
+```powershell
+python manage.py procesar_avisos_reparto --simular
+python manage.py procesar_avisos_reparto --smtp --continuo
+```
+
+El modo continuo revisa la bandeja cada cinco segundos. Al omitir `--continuo`, el comando procesa un lote y termina. Un resultado incierto conserva su estado para revisión y queda fuera del reenvío automático. Para la aceptación verifica la recepción en el buzón de cada paciente sintético del conjunto de prueba y comprueba que el resto de los buzones no haya recibido su aviso. Registra los resultados en la [validación del spec 12](specs/12-notificaciones-reparto/validation.md), sin incluir direcciones ni credenciales.
+
+### Avisos de reasignación y resultado
+
+El procesador también envía un correo cuando la Q.F. **reasigna** una entrega («Tu reparto de prueba se reprogramó para el DD/MM.», o «para hoy.»), y cuando el Encargado la registra como **entregada** («Tu reparto de prueba fue entregado.») o **no entregada** («No pudimos entregar tu reparto de prueba. La farmacia coordinará una nueva visita.», sin el motivo). Cada uno sale una vez por visita y caduca a las 2 horas si el procesador no estaba corriendo. Anular una entrega no envía correo. Como todos los avisos, necesitan el procesador en marcha (`--continuo`).
+
+### Aviso del día
+
+Además del aviso «en camino», el mismo procesador manda solo, el día programado, el correo **«Hoy llega tu reparto de prueba»** a cada paciente con visita pendiente para hoy y correo para avisos (de un dominio permitido, si configuraste la lista). Nadie tiene que pulsar nada. Sale una sola vez por entrega y día, aunque la visita se reasigne a otro Encargado ese mismo día. Las visitas atrasadas de días anteriores no reciben este aviso.
+
+El aviso se crea y se envía entre `REPARTO_AVISO_DIA_HORA` y `REPARTO_AVISO_DIA_LIMITE` (formato `HH:MM`, por omisión 08:00 y 18:00). Una visita programada para hoy durante la mañana recibe el suyo en la siguiente vuelta. Lo que no alcanzó a salir antes de la hora límite se descarta. Como el procesador es quien crea el aviso, tiene que estar corriendo durante esa franja. Deja abierta una terminal con `python manage.py procesar_avisos_reparto --smtp --continuo`, o programa ese comando en el Programador de tareas de Windows para que se inicie antes de las 08:00 con el entorno virtual activo.
 
 ## Recursos de Alpine.js
 

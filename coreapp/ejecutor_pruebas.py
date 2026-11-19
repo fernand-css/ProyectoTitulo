@@ -14,7 +14,11 @@ class EjecutorPruebas(DiscoverRunner):
         super().setup_test_environment(**kwargs)
         self._osrm_url = settings.OSRM_URL
         settings.OSRM_URL = ""
+        # Spec 12, quinta enmienda: ninguna prueba envía avisos en segundo plano sin pedirlo.
+        self._avisos = settings.REPARTO_AVISOS_AUTOMATICOS
+        settings.REPARTO_AVISOS_AUTOMATICOS = "no"
 
     def teardown_test_environment(self, **kwargs):
         settings.OSRM_URL = self._osrm_url
+        settings.REPARTO_AVISOS_AUTOMATICOS = self._avisos
         super().teardown_test_environment(**kwargs)

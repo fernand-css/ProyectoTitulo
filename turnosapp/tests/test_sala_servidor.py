@@ -31,7 +31,9 @@ class ServidorSalaTests(SimpleTestCase):
             entorno = {**os.environ, "DJANGO_SETTINGS_MODULE": modulo,
                 "SECRET_KEY": secrets.token_urlsafe(48), "DB_NAME": "sala_sintetica_qa",
                 "PYTHONPATH": os.pathsep.join((str(raiz), str(settings.BASE_DIR))),
-                "PYTHONUTF8": "1", "PYTHONUNBUFFERED": "1"}
+                "PYTHONUTF8": "1", "PYTHONUNBUFFERED": "1",
+                # Spec 12: el servidor de prueba no despacha correos con la configuración SMTP del .env.
+                "REPARTO_AVISOS_AUTOMATICOS": "no"}
             comando = [sys.executable, str(settings.BASE_DIR / "manage.py")]
             opciones = {"cwd": settings.BASE_DIR, "env": entorno,
                 "creationflags": subprocess.CREATE_NO_WINDOW if os.name == "nt" else 0}

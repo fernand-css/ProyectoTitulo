@@ -14,3 +14,8 @@ from django.core.wsgi import get_wsgi_application
 os.environ.setdefault('DJANGO_SETTINGS_MODULE', 'cesfam.settings')
 
 application = get_wsgi_application()
+
+# Quinta enmienda del spec 12: los avisos por correo salen en segundo plano desde este proceso.
+from entregasapp.despachador import despachador  # noqa: E402
+
+despachador.iniciar()

@@ -27,6 +27,7 @@ urlpatterns = [
     path("mis/cercana/", views.ParadaCercanaView.as_view(), name="cercana"),
     path("rutas/", views.RutasView.as_view(), name="rutas"),
     path("intentos/<int:pk>/", views.RegistroView.as_view(), name="registro"),
+    path("intentos/<int:pk>/iniciar-traslado/", views.InicioTrasladoView.as_view(), name="iniciar_traslado"),
     path("intentos/<int:pk>/entregada/", views.EntregadaView.as_view(), name="intento_entregada"),
     path("intentos/<int:pk>/no-entregada/", views.NoEntregadaView.as_view(), name="intento_no_entregada"),
     path("domicilios/", views.DomiciliosView.as_view(), name="domicilios"),
