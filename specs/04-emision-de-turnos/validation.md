@@ -148,6 +148,19 @@ Estado: **verificación técnica ejecutada el 2026-11-15** (pruebas automáticas
 - **Límite transitorio hasta implementar RF-06-13:** la sala y la voz del spec 06 todavía anuncian el número sin la letra, así que P-001 y G-001 se anunciarían igual.
 - **Hasta implementar RF-05-13:** la fila U aún no se atiende primero, y el cierre de un turno sin recetas usa el flujo actual de cierre sin entrega.
 
+## Enmienda del 2026-11-19: 20 s y «Volver al tótem»
+
+Cambios en RF-04-07 y RF-04-08: la pantalla del número dura 20 s (la sesión guarda la operación 5 s más) y la franja suma «Volver al tótem», un botón de envío del formulario de `finalizar`. Al pedir más tiempo, una región `role="status"` repite la frase visible.
+
+| RF | Prueba | Esperado | Obtenido | Estado |
+|---|---|---|---|---|
+| RF-04-07 | `test_vistas.test_resultado_amplia_por_20_segundos`, `test_resultado_cuenta_20_segundos_con_margen_para_pedir_mas_tiempo`, `test_volver_al_totem_es_un_formulario_real_que_finaliza`; `totem.test.cjs` (7) | Cuenta y `noscript` de 20 s; «Necesito más tiempo» vale hasta el último segundo y vuelve a 20; lo anunciado es la frase visible; «Volver al tótem» cierra la operación (PDF 404) y la cuenta no reenvía | Coincide | aprobado (automático) |
+| RF-04-07/08 | Vista previa sintética: Chromium del panel de la app y Firefox 160 sin interfaz (WebDriver BiDi), con el RUT ficticio 11.111.111-1 | Cuenta desde 20; vuelve sola al inicio; botones con teclado; sin JavaScript, el botón vuelve al inicio | Chromium: 20 → 18, Tab y Enter en «Volver al tótem» vuelven al inicio con el RUT vacío y el PDF anterior en 404. Firefox: 20 → 18, vuelve solo a los 20,2 s, «Necesito más tiempo» reinicia a 20 y anuncia la misma frase, Tab llega a «Volver al tótem», el clic vuelve al inicio (PDF 404) y, con JavaScript desactivado, el PDF se dibuja, la franja dice 20 s sin cambiar y el botón vuelve al inicio. Sin errores de consola. | aprobado (navegador, sin el equipo real) |
+
+- `python manage.py test turnosapp`: 281 OK. `node --test turnosapp/tests/*.test.cjs`: 73 OK. `tools/verificar_spec_04_http.py`: aprobado (p95 del postrado 73,88 ms).
+- Diseño: la franja dejó de ser fija sobre el PDF. La sección ocupa la ventana en columna y el PDF toma el alto restante, porque con dos botones la franja se parte en dos líneas en pantallas angostas o con el texto ampliado. En Firefox, a 1080×1920, 375×812 y 320×640 y con los tres tamaños de texto, la franja nunca tapa el PDF y no hay desplazamiento horizontal.
+- **Límites:** en Firefox sin interfaz, el Enter sintético de BiDi no activa ningún botón, ni siquiera en una página mínima sin código del proyecto. Por eso, en Firefox el teclado se verificó solo hasta el foco, y la activación con Enter se comprobó en Chromium. Sin JavaScript, «Necesito más tiempo» no hace nada (ya era así antes de este cambio). Siguen pendientes axe, el equipo real del tótem, la prueba con usuarios y la aceptación.
+
 ## Aceptación funcional
 
 Pendiente. Documento Aprobado, T-04-01 autorizada mediante «si, comienza» y T-04-02 mediante «si continua el paso 2». Las comprobaciones del esquema y servicios no certifican interfaz, impresión física, accesibilidad ni aceptación del software completo.

@@ -1,0 +1,31 @@
+{% load core_tags %}
+{# Pacientes del padrón encontrados para inscribir una excepción (hasta 10). Zona de la búsqueda en vivo #}
+{# (coreapp/busqueda.py): sin búsqueda queda vacía. «Inscribir excepción» sigue siendo un envío normal. #}
+<div data-zona="resultados">
+  {% if resultados is not None %}
+    {% if resultados %}
+    <p class="suave" data-anuncio>{% if resultados|length >= 10 %}Se muestran los 10 primeros pacientes que coinciden. Si no está quien buscas, escribe más del RUT o del apellido.{% elif resultados|length == 1 %}Encontramos 1 paciente.{% else %}Encontramos {{ resultados|length }} pacientes.{% endif %}</p>
+    <ul class="lista-candidatos">
+      {% for persona in resultados %}
+      <li>
+        <h3>{{ persona.apellidos }}, {{ persona.nombres }} <span class="dato-secundario">RUT {{ persona.rut|rut }} · {{ persona.edad }} años</span></h3>
+        {% if persona.ya_elegible %}
+        <p>Ya es elegible por edad o postración; no necesita excepción.</p>
+        {% elif persona.excepcion %}
+        <p>Ya tiene una excepción vigente: {{ persona.excepcion.get_motivo_display }}.</p>
+        {% else %}
+        <form method="post" novalidate>
+          {% csrf_token %}
+          <input type="hidden" name="prefijo" value="{{ persona.formulario.prefix }}">
+          {% include 'recetas/campos.html' with form=persona.formulario %}
+          <button class="boton" type="submit">Inscribir excepción<span class="sr-only"> de {{ persona.apellidos }}, {{ persona.nombres }}</span></button>
+        </form>
+        {% endif %}
+      </li>
+      {% endfor %}
+    </ul>
+    {% else %}
+    <p data-anuncio>No encontramos pacientes con esa búsqueda.</p>
+    {% endif %}
+  {% endif %}
+</div>

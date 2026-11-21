@@ -1,0 +1,40 @@
+{% load core_tags %}
+{# Pacientes del reparto con su domicilio y sus páginas. Zona de la búsqueda en vivo (coreapp/busqueda.py); el texto #}
+{# marcado con data-anuncio se anuncia al actualizarse. La paginación sigue viajando por POST. #}
+<div data-zona="resultados">
+{% if page_obj.object_list %}
+<div class="tabla-caja">
+  <table class="tabla tabla-apilable">
+    <caption data-anuncio>{{ page_obj.paginator.count }} paciente{{ page_obj.paginator.count|pluralize }} del reparto</caption>
+    <thead><tr><th scope="col">Paciente</th><th scope="col">Sector y localidad</th><th scope="col">Dirección</th><th scope="col">Estado</th><th scope="col">Fotos</th><th scope="col"><span class="sr-only">Acción</span></th></tr></thead>
+    <tbody>
+      {% for persona in page_obj %}
+      <tr>
+        <th scope="row" data-etiqueta="Paciente"><strong>{{ persona.apellidos }}, {{ persona.nombres }}</strong><span class="dato-secundario">RUT {{ persona.rut|rut }}{% if persona.es_postrado %} · Postrado{% endif %}</span></th>
+        <td data-etiqueta="Sector y localidad">{% if persona.domicilio_registrado.sector %}{{ persona.domicilio_registrado.get_sector_display }}{% else %}Sin sector{% endif %}{% if persona.domicilio_registrado.localidad %} · {{ persona.domicilio_registrado.localidad }}{% endif %}</td>
+        <td data-etiqueta="Dirección">{% if persona.domicilio_registrado %}{{ persona.domicilio_registrado.direccion }}{% else %}{{ persona.direccion|default:"Sin dirección" }} <span class="dato-secundario">(del padrón)</span>{% endif %}</td>
+        <td data-etiqueta="Estado">{% include 'entregas/_estado_domicilio.html' with estado=persona.domicilio_estado domicilio=persona.domicilio_registrado %}</td>
+        <td data-etiqueta="Fotos" class="num">{{ persona.fotos_cantidad }}</td>
+        <td data-etiqueta="Acción"><a href="{% url 'entregasapp:domicilio' persona.pk %}">{% if persona.domicilio_registrado %}Detalles del domicilio{% else %}Registrar domicilio{% endif %}<span class="sr-only"> de {{ persona.apellidos }}, {{ persona.nombres }}</span></a></td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+</div>
+{% if page_obj.has_other_pages %}
+<nav class="paginacion" aria-label="Páginas de domicilios">
+  {% if page_obj.has_previous %}<form method="post" data-en-vivo="pagina">{% csrf_token %}<input type="hidden" name="buscar" value="{{ filtros.buscar }}"><input type="hidden" name="sector" value="{{ filtros.sector }}"><input type="hidden" name="estado" value="{{ filtros.estado }}"><button class="boton boton-secundario" name="pagina" value="{{ page_obj.previous_page_number }}">Anterior</button></form>{% endif %}
+  <span>Página {{ page_obj.number }} de {{ page_obj.paginator.num_pages }}</span>
+  {% if page_obj.has_next %}<form method="post" data-en-vivo="pagina">{% csrf_token %}<input type="hidden" name="buscar" value="{{ filtros.buscar }}"><input type="hidden" name="sector" value="{{ filtros.sector }}"><input type="hidden" name="estado" value="{{ filtros.estado }}"><button class="boton boton-secundario" name="pagina" value="{{ page_obj.next_page_number }}">Siguiente</button></form>{% endif %}
+</nav>
+{% endif %}
+{% else %}
+<div class="vacio">
+  <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-casa"/></svg>
+  <div>
+    <h2 data-anuncio>No encontramos pacientes del reparto con esos filtros</h2>
+    <p>Revisa el RUT o el apellido. Solo aparecen pacientes postrados, de 80 años o más o con una excepción vigente.</p>
+  </div>
+</div>
+{% endif %}
+</div>

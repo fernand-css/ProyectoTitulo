@@ -248,7 +248,7 @@ Verificación aislada (la dependencia `websockets` es solo para esta herramienta
 ```powershell
 python -m pip install websockets==16.1.1
 python tools/verificar_spec_06_http.py
-node --test turnosapp/tests/*.test.cjs recetasapp/tests/*.test.cjs entregasapp/tests/*.test.cjs
+node --test coreapp/tests/*.test.cjs turnosapp/tests/*.test.cjs recetasapp/tests/*.test.cjs entregasapp/tests/*.test.cjs
 ```
 
 La herramienta crea/elimina SQLite temporal y 670 pacientes/turnos sintéticos; usa un proceso ASGI aparte, dos clientes WebSocket, cuatro ventanillas y sondeo de cuatro paneles privados. Mide 100 llamados y 96 cierres con entrega/selección posterior; informa p50, p95 y máximo, HTTP y servicio del 05. La medición final dio **p95 444,12 ms** hasta recibir en ambas pantallas (máximo 536,66 ms). Es recepción por loopback, sin medir dibujo/voz en navegador ni la red del CESFAM. [Evidencia y pendientes del 06](specs/06-pantalla-sala-y-voz/validation.md): revisión visual/axe bloqueada por el host de Windows, voz real, cinco personas y aceptación pendientes. El spec conserva **Aprobado**, sin declarar aceptación completa.

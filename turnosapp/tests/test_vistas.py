@@ -115,11 +115,46 @@ class TotemVistasTests(TestCase):
         self.assertEqual(self.client.get(reverse("turnosapp:finalizar")).status_code, 405)
         self.assertEqual(self.client.get("/turnos/totem/1/").status_code, 404)
 
-    def test_resultado_amplia_por_30_segundos(self):
+    def test_resultado_amplia_por_20_segundos(self):
         op = self.abrir()
         self.enviar()
         respuesta = self.client.post(reverse("turnosapp:continuar"), {"operacion_id": op})
-        self.assertEqual(respuesta.json()["segundos"], 30)
+        self.assertEqual(respuesta.json()["segundos"], 20)
+
+    def test_resultado_cuenta_20_segundos_con_margen_para_pedir_mas_tiempo(self):
+        """Enmienda del 2026-11-19: 20 s en pantalla; «Necesito más tiempo» en el último segundo sigue valiendo."""
+        with patch("turnosapp.views.time.time", return_value=1000):
+            op = self.abrir()
+            respuesta = self.enviar()
+        html = respuesta.content.decode()
+        self.assertContains(respuesta, 'data-segundos="20"')
+        self.assertContains(respuesta, "Esta pantalla vuelve al inicio en <span data-cuenta>20</span> segundos.")
+        self.assertContains(respuesta, f'content="20;url={reverse("turnosapp:totem")}"')
+        self.assertInHTML('<p class="sr-only" role="status" data-anuncio></p>', html)
+        with patch("turnosapp.views.time.time", return_value=1020.5):
+            respuesta = self.client.post(reverse("turnosapp:continuar"), {"operacion_id": op})
+        self.assertEqual(respuesta.json(), {"vigente": True, "segundos": 20})
+        with patch("turnosapp.views.time.time", return_value=1046):  # 1020,5 + 20 + 5 de margen = 1045,5
+            respuesta = self.client.post(reverse("turnosapp:continuar"), {"operacion_id": op})
+        self.assertEqual(respuesta.status_code, 400)
+
+    def test_volver_al_totem_es_un_formulario_real_que_finaliza(self):
+        op = self.abrir()
+        respuesta = self.enviar()
+        html = respuesta.content.decode()
+        self.assertInHTML(
+            '<button class="boton boton-secundario" type="submit" form="totem-finalizar" data-volver>Volver al tótem</button>', html)
+        self.assertContains(
+            respuesta, f'<form id="totem-finalizar" method="post" action="{reverse("turnosapp:finalizar")}" data-finalizar hidden>')
+        self.assertContains(respuesta, 'name="csrfmiddlewaretoken"')
+        self.assertContains(respuesta, "Necesito más tiempo")
+        # Lo mismo que hace el navegador sin JavaScript al pulsarlo: POST a finalizar y vuelta al inicio.
+        volver = self.client.post(reverse("turnosapp:finalizar"), {"operacion_id": op})
+        self.assertRedirects(volver, reverse("turnosapp:totem"), fetch_redirect_response=False)
+        self.assertNotIn(CLAVE, self.client.session)
+        self.assertEqual(self.client.get(reverse("turnosapp:comprobante_pdf"), {"operacion": op}).status_code, 404)
+        repetida = self.client.post(reverse("turnosapp:totem"), {"rut": self.paciente.rut, "operacion_id": op})
+        self.assertEqual(repetida.status_code, 400)  # La operación anterior ya no sirve.
 
     def test_pestana_antigua_no_finaliza_contexto_nuevo(self):
         viejo = self.abrir()

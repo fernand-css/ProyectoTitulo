@@ -1,0 +1,2 @@
+{# «Quitar filtros» junto a «Buscar», solo si hay búsqueda o filtros. Zona de la búsqueda en vivo (coreapp/busqueda.py). #}
+<span class="zona-en-linea" data-zona="quitar">{% if filtros.buscar or filtros.sector or filtros.estado %}<a class="boton boton-secundario" href="{% url 'entregasapp:domicilios' %}">Quitar filtros</a>{% endif %}</span>

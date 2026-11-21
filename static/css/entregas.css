@@ -36,6 +36,9 @@
 .filtros-entregas, .busqueda-entregas { margin: 1.25rem 0 1.5rem; }
 .filtros-campos { display: grid; grid-template-columns: repeat(auto-fit, minmax(min(100%, 12rem), 1fr)); gap: 0 1rem; }
 .busqueda-entregas label { display: block; margin-bottom: 0.45rem; font-weight: 700; }
+/* Ayuda de la búsqueda en vivo: entre la etiqueta y el campo, o bajo los filtros de Domicilios. */
+.busqueda-entregas .campo-ayuda { margin: 0 0 0.6rem; }
+.filtros-entregas > .campo-ayuda { margin: -0.5rem 0 1rem; }
 .busqueda-caja { display: flex; flex-wrap: wrap; gap: 0.6rem; }
 .busqueda-caja input {
   flex: 1 1 16rem;

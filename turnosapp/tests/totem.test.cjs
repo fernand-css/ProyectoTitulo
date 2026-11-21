@@ -1,4 +1,5 @@
-// Contrato del tótem sin impresión: vuelve solo al inicio y «Necesito más tiempo» amplía el plazo.
+// Contrato del tótem sin impresión: vuelve solo al inicio, «Necesito más tiempo» amplía el plazo
+// y «Volver al tótem» envía el formulario de finalizar.
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { readFileSync } = require('node:fs');
@@ -8,18 +9,23 @@ const codigo = readFileSync(join(__dirname, '../../static/js/totem.js'), 'utf8')
 
 function entorno({vigente = true, resultado = true} = {}) {
   const ampliar = {};
+  const envio = {};
   let reloj = 0, limpiezas = 0, intervalo;
   const solicitudes = [];
-  const final = {requestSubmit: () => limpiezas++};
+  const final = {requestSubmit: () => limpiezas++, addEventListener: (nombre, fn) => { envio[nombre] = fn; }};
   const aviso = {hidden: !resultado};
   const cuenta = {textContent: ''};
+  // La frase visible se arma como en resultado.html, con la cuenta dentro.
+  const frase = {get textContent() { return `Esta pantalla vuelve al inicio en ${cuenta.textContent} segundos.`; }};
+  const anuncio = {textContent: ''};
   const panel = {
     hidden: false,
-    dataset: {segundos: resultado ? '30' : '120', continuar: '/turnos/totem/continuar/', inicio: '/turnos/totem/'},
+    dataset: {segundos: resultado ? '20' : '120', continuar: '/turnos/totem/continuar/', inicio: '/turnos/totem/'},
     hasAttribute: nombre => nombre === 'data-resultado' && resultado,
     addEventListener() {},
     querySelector(selector) {
       return ({'[data-finalizar]': final, '[data-aviso]': aviso, '[data-cuenta]': cuenta,
+        '[data-frase]': resultado ? frase : null, '[data-anuncio]': resultado ? anuncio : null,
         '[data-ampliar]': {addEventListener: (nombre, fn) => { ampliar[nombre] = fn; }}})[selector] || null;
     }
   };
@@ -29,9 +35,10 @@ function entorno({vigente = true, resultado = true} = {}) {
     fetch: async (url, opciones) => { solicitudes.push([url, opciones.method]); return {ok: vigente}; },
   });
   return {
-    panel, aviso, cuenta, solicitudes,
+    panel, aviso, cuenta, anuncio, solicitudes,
     avanzar(ms) { reloj += ms; intervalo(); },
     ampliar: () => ampliar.click(),
+    volver: () => envio.submit(),
     limpiezas: () => limpiezas,
   };
 }
@@ -41,12 +48,12 @@ test('El código no imprime ni escucha el diálogo de impresión', () => {
   assert.doesNotMatch(codigo, /(localStorage|sessionStorage)\./);
 });
 
-test('El resultado muestra la cuenta y vuelve solo al inicio a los 30 s', () => {
+test('El resultado muestra la cuenta y vuelve solo al inicio a los 20 s', () => {
   const caso = entorno();
   caso.avanzar(1000);
   assert.equal(caso.aviso.hidden, false);
-  assert.equal(caso.cuenta.textContent, '29');
-  caso.avanzar(28000);
+  assert.equal(caso.cuenta.textContent, '19');
+  caso.avanzar(18000);
   assert.equal(caso.limpiezas(), 0);
   caso.avanzar(1000);
   assert.equal(caso.limpiezas(), 1);
@@ -55,17 +62,41 @@ test('El resultado muestra la cuenta y vuelve solo al inicio a los 30 s', () => 
   assert.equal(caso.limpiezas(), 1, 'Envía el formulario oculto una sola vez');
 });
 
-test('«Necesito más tiempo» reinicia los 30 s sin ocultar la franja', async () => {
+test('«Necesito más tiempo» reinicia los 20 s sin ocultar la franja', async () => {
   const caso = entorno();
-  caso.avanzar(25000);
+  caso.avanzar(15000);
   await caso.ampliar();
   assert.deepEqual(caso.solicitudes, [['/turnos/totem/continuar/', 'POST']]);
   assert.equal(caso.aviso.hidden, false);
-  assert.equal(caso.cuenta.textContent, '30');
-  caso.avanzar(29000);
+  assert.equal(caso.cuenta.textContent, '20');
+  caso.avanzar(19000);
   assert.equal(caso.limpiezas(), 0);
   caso.avanzar(1000);
   assert.equal(caso.limpiezas(), 1);
+});
+
+test('Lo que se anuncia al pedir más tiempo es la misma frase de la franja', async () => {
+  const caso = entorno();
+  assert.equal(caso.anuncio.textContent, '', 'La cuenta que baja no se anuncia cada segundo');
+  caso.avanzar(3000);
+  assert.equal(caso.anuncio.textContent, '');
+  await caso.ampliar();
+  assert.equal(caso.anuncio.textContent, 'Esta pantalla vuelve al inicio en 20 segundos.');
+  caso.avanzar(4000);
+  await caso.ampliar();
+  // El mismo texto otra vez no se leería: cambia solo un espacio duro al final.
+  assert.equal(caso.anuncio.textContent, 'Esta pantalla vuelve al inicio en 20 segundos.\u00a0');
+  assert.equal(caso.anuncio.textContent.trim(), 'Esta pantalla vuelve al inicio en 20 segundos.');
+});
+
+test('«Volver al tótem» oculta el número de inmediato y la cuenta ya no reenvía', () => {
+  const caso = entorno();
+  caso.avanzar(2000);
+  caso.volver();  // El navegador envía el formulario de finalizar; el código solo oculta.
+  assert.equal(caso.panel.hidden, true);
+  assert.equal(caso.limpiezas(), 0, 'No vuelve a enviar: el envío ya está en curso');
+  caso.avanzar(30000);
+  assert.equal(caso.limpiezas(), 0, 'La cuenta no envía otra vez el formulario');
 });
 
 test('Una operación vencida limpia la pantalla al pedir más tiempo', async () => {

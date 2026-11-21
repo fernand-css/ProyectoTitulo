@@ -1,0 +1,11 @@
+{# Situación de la receta y errores de la búsqueda. Va dentro del buscador y es una zona de la búsqueda en vivo: #}
+{# el servidor la vuelve a dibujar con cada respuesta (coreapp/busqueda.py). #}
+<div data-zona="filtros">
+  {# Los botones de situación van después de «Buscar»: Enter en el campo envía el primero, que conserva la situación actual. #}
+  <div class="filtros" role="group" aria-label="Situación de la receta">
+    <span class="filtros-etiqueta" aria-hidden="true">Mostrar:</span>
+    {% for filtro in filtros %}<button class="filtro" type="submit" name="situacion" value="{{ filtro.clave }}"{% if filtro.clave == situacion %} aria-pressed="true"{% else %} aria-pressed="false"{% endif %}>{{ filtro.texto }} <span class="filtro-cantidad">{{ filtro.cantidad }}</span></button>{% endfor %}
+    {% if situacion or buscar %}<a class="quitar-filtros" href="{% url 'recetasapp:recetas_lista' %}">Quitar filtros</a>{% endif %}
+  </div>
+  {% if form.errors %}<div class="message message-error" role="alert">{{ form.buscar.errors }}{{ form.pagina.errors }}{{ form.situacion.errors }}</div>{% endif %}
+</div>

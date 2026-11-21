@@ -32,6 +32,8 @@ La spec 02 incorpora Perfil, comandos demo, habilitación, auditoría restringid
 
 El menú ofrece **Atención**, **Pacientes** (`/recetas/pacientes/`; su ficha tiene las pestañas Recetas, Entregas y Datos) y **Recetas** (`/recetas/` abre con el resumen de cifras y gráficos; «Todas las recetas», «Por preparar» y «Pendientes de retiro» son pestañas de la misma sección); no hay entradas «Resumen» ni «Preparación» en el menú. El menú sale de una sola lista (`coreapp/navegacion.py`): columna lateral plegable en computador y dock inferior con «Más» en celular; para una sección nueva, una `Entrada` ahí y su ícono en `iconos.html`. Ver `docs/estructura.md`. Con PostgreSQL, un `UPDATE` condicional no debe filtrar cruzando tablas (`rel__campo=`): Django lo traduce a una subconsulta que PostgreSQL no reevalúa tras esperar el bloqueo.
 
+Búsqueda instantánea (2026-11-19): Pacientes, Todas las recetas, Pendientes de retiro, Domicilios y Excepciones de reparto se actualizan mientras se escribe con `static/js/busqueda_en_vivo.js` (sin Alpine) y `coreapp/busqueda.py`: el mismo POST con la cabecera `X-Busqueda-En-Vivo: 1` recibe solo las zonas `data-zona` de la página (parciales `_*_resultados.html`, filtros y «Quitar filtros»), con el mismo contexto; sin JavaScript todo sigue igual. Para otra lista: `zonas=(...)` en `render`, `data-en-vivo="busqueda"`/`"pagina"` en los formularios y `data-anuncio` en el resumen. «Programar entrega» conserva su `programar.js`. Ver `docs/estructura.md`.
+
 Con el venv activo y `.env` preparado según `README.md`:
 
 ```powershell

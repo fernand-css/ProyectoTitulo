@@ -15,6 +15,7 @@ from django.views import View
 from django.views.decorators.cache import never_cache
 from django.views.decorators.debug import sensitive_post_parameters
 
+from coreapp.busqueda import plantilla_y_contexto
 from coreapp.mixins import RolRequeridoMixin, tiene_rol
 from coreapp.roles import JEFA, TECNICO
 from coreapp.utils.rut import normalizar_rut
@@ -36,8 +37,11 @@ from .services import (
 class FarmaciaView(RolRequeridoMixin, View):
     roles_permitidos = (JEFA, TECNICO)
 
-    def render(self, template, contexto, **kwargs):
-        respuesta = render(self.request, "recetas/" + template, contexto, **kwargs)
+    def render(self, template, contexto, zonas=(), **kwargs):
+        # Con la búsqueda en vivo (coreapp/busqueda.py) se dibujan solo las zonas de la página.
+        template, contexto = plantilla_y_contexto(
+            self.request, "recetas/" + template, contexto, ["recetas/" + zona for zona in zonas])
+        respuesta = render(self.request, template, contexto, **kwargs)
         # Los formularios necesitan conservar su origen para la validación
         # CSRF. No enviar el referente a destinos externos.
         respuesta.headers["Referrer-Policy"] = "same-origin"
@@ -79,7 +83,7 @@ class PacientesView(FarmaciaView):
         return self.render("pacientes_lista.html", {
             "form": form, "page_obj": page_obj, "buscar": buscar, "filtro": filtro,
             "filtros": [{"clave": "", "texto": "Todos"}] + [{"clave": clave, "texto": texto} for clave, texto in consultas.FILTROS_PACIENTE],
-        })
+        }, zonas=("_pacientes_filtros.html", "_pacientes_resultados.html"))
 
 
 class RecetasView(FarmaciaView):
@@ -130,7 +134,7 @@ class RecetasListaView(FarmaciaView):
         return self.render("recetas_lista.html", {
             "form": form, "page_obj": page_obj, "buscar": buscar, "situacion": situacion, "filtros": filtros,
             "pestanas": pestanas.recetas("lista", total=conteos["total"]),
-        })
+        }, zonas=("_recetas_filtros.html", "_recetas_resultados.html"))
 
 
 class PacienteView(FarmaciaView):
@@ -410,7 +414,7 @@ class PendientesRetiroView(FarmaciaView):
             item.retiro_form = RetiroPreparadoForm(initial={"operacion_id": uuid.uuid4()})
         return self.render("preparacion_pendientes.html", {
             "form": form, "page_obj": page_obj, "buscar": buscar, "pestanas": pestanas.recetas("retiro"),
-        })
+        }, zonas=("_pendientes_limpiar.html", "_pendientes_resultados.html"))
 
     def get(self, request):
         return self.mostrar(request, BusquedaPreparacionForm())
