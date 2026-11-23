@@ -132,6 +132,7 @@ class Nodo {
   }
   click() { this.dispatchEvent(evento("click")); }
   focus() { this.ownerDocument.activeElement = this; }
+  contains(otro) { for (let n = otro; n; n = n.parentNode) { if (n === this) return true; } return false; }
   getBoundingClientRect() { return this.rect; }
 }
 

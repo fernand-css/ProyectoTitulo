@@ -249,6 +249,182 @@
   font-weight: 700;
 }
 .mapa-aviso[hidden] { display: none; }
+
+/* «Mapa» del encargado a pantalla completa (2026-11-22): la columna de la página mide el alto de la ventana, sin
+   pie, y el mapa llena el área principal (bajo la franja, a la derecha del menú; en celular termina sobre el dock).
+   Encima van capas con fondo de panel: pestañas, controles compactos arriba a la derecha y paneles desplegables.
+   El zoom de Leaflet baja a la esquina inferior derecha para no quedar bajo las capas de la izquierda. */
+.pagina-mapa .app-columna { height: 100vh; height: 100dvh; }
+.pagina-mapa .principal { display: flex; flex-direction: column; min-height: 0; }
+.pagina-mapa .pie { display: none; }
+.mapa-completo { position: relative; flex: 1 1 auto; min-height: 24rem; }
+.mapa-pantalla { position: absolute; inset: 0; height: auto; min-height: 0; border: 0; border-radius: 0; }
+.mapa-pantalla .leaflet-top.leaflet-left { top: auto; right: 0; bottom: 1.75rem; left: auto; }
+.mapa-pantalla .leaflet-top.leaflet-left .leaflet-control { margin: 0 0.75rem 0.5rem 0; }
+.mapa-capas {
+  position: absolute;
+  z-index: 2;
+  top: 0.75rem;
+  right: 0.75rem;
+  bottom: 0.75rem;
+  left: 0.75rem;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) auto;
+  grid-template-rows: auto minmax(0, 1fr);
+  gap: 0.5rem;
+  align-items: start;
+  justify-items: start;
+  pointer-events: none;
+}
+.mapa-capa {
+  max-width: 100%;
+  color: var(--panel-texto);
+  background: var(--panel-fondo);
+  border: 2px solid var(--borde);
+  border-radius: 0.75rem;
+  box-shadow: 0 0.25rem 0.9rem color-mix(in srgb, var(--tinta) 22%, transparent);
+  pointer-events: auto;
+}
+/* En el computador, el botón redondo que pliega el menú lateral se asoma sobre el mapa: las capas lo dejan libre. */
+@media (min-width: 70.0625rem) { .mapa-capas { left: 2rem; } }
+.mapa-capa-pestanas { position: relative; grid-column: 1; grid-row: 1; display: flex; align-items: center; overflow: hidden; }
+/* Abiertas, las pestañas pasan por encima de los controles para caber en el celular. */
+.mapa-capa-pestanas:has([aria-expanded="true"]) { z-index: 3; grid-column: 1 / -1; }
+/* Botón de tres barras (2026-11-22): las pestañas se despliegan a su derecha, dentro de la misma cápsula. */
+.mapa-menu-boton {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.75rem;
+  height: 2.75rem;
+  padding: 0;
+  color: var(--enlace-texto);
+  background: transparent;
+  border: 0;
+  border-radius: 0.6rem;
+}
+.mapa-menu-boton .icono { width: 1.5rem; height: 1.5rem; }
+.mapa-menu-boton:hover, .mapa-menu-boton[aria-expanded="true"] { color: var(--trigo-texto); background: var(--trigo-fondo); }
+.mapa-menu-boton[hidden], .mapa-pestanas[hidden] { display: none; }
+.mapa-pestanas { min-width: 0; }
+.mapa-capa-pestanas .pestanas { margin: 0; border: 0; }
+.mapa-capa-pestanas .pestanas a { min-height: 2.75rem; padding: 0.35rem 0.8rem; }
+.mapa-controles { grid-column: 2; grid-row: 1 / span 2; justify-self: end; display: flex; flex-direction: column; gap: 0.2rem; padding: 0.3rem; }
+.boton-mapa {
+  display: flex;
+  align-items: center;
+  gap: 0.45rem;
+  min-height: 2.75rem;
+  padding: 0.3rem 0.75rem;
+  color: var(--enlace-texto);
+  background: var(--panel-fondo);
+  border: 2px solid transparent;
+  border-radius: 0.55rem;
+  font: inherit;
+  font-size: 0.95rem;
+  font-weight: 700;
+  text-align: left;
+  cursor: pointer;
+}
+.boton-mapa .icono { flex: none; width: 1.3rem; height: 1.3rem; }
+.boton-mapa:hover:not(:disabled) { color: var(--trigo-texto); background: var(--trigo-fondo); border-color: var(--marca-fondo); }
+.boton-mapa-principal { color: var(--accion-texto); background: var(--accion-fondo); }
+.boton-mapa:disabled { color: var(--secundario-texto); background: var(--suave-fondo); cursor: not-allowed; }
+/* La columna de paneles no pasa del borde inferior del mapa: si la lista abierta es más larga, se desplaza dentro. */
+.mapa-paneles {
+  grid-column: 1;
+  grid-row: 2;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 0.4rem;
+  min-width: 0;
+  max-width: 100%;
+  max-height: 100%;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  pointer-events: none;
+}
+.mapa-paneles > * { pointer-events: auto; }
+.mapa-completo:has(.mapa-paneles > details[open]) .mapa-avisos { display: none; }
+/* Con un panel abierto, la columna se extiende sobre los controles para que la lista no quede angosta en celular. */
+.mapa-paneles:has(> details[open]) { position: relative; z-index: 1; grid-column: 1 / -1; width: min(32rem, 100%); }
+.mapa-panel { min-width: 0; max-width: 100%; }
+.mapa-panel[open] { width: 100%; }
+.mapa-panel > summary {
+  display: flex;
+  align-items: center;
+  gap: 0.5rem;
+  min-height: 2.75rem;
+  padding: 0.35rem 0.85rem;
+  font-weight: 700;
+  list-style: none;
+  cursor: pointer;
+}
+.mapa-panel > summary::-webkit-details-marker { display: none; }
+.mapa-panel > summary .icono { flex: none; width: 1.3rem; height: 1.3rem; }
+.mapa-panel > summary::after {
+  content: "";
+  flex: none;
+  width: 0.55rem;
+  height: 0.55rem;
+  margin-left: auto;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  transform: translateY(-0.15rem) rotate(45deg);
+}
+.mapa-panel[open] > summary::after { transform: translateY(0.15rem) rotate(-135deg); }
+.mapa-panel > summary:hover { color: var(--trigo-texto); background: var(--trigo-fondo); border-radius: 0.6rem; }
+.mapa-panel-cuerpo { padding: 0 0.85rem 0.85rem; }
+.mapa-panel-cuerpo > :first-child { margin-top: 0.25rem; }
+.mapa-panel-cuerpo .ruta-rotulo { margin: 0.25rem 0 0.5rem; }
+.mapa-panel-cuerpo .mapa-simbolos { flex-direction: column; gap: 0.5rem; margin: 0.25rem 0 0.75rem; }
+.mapa-avisos {
+  position: absolute;
+  z-index: 2;
+  right: 4.5rem;
+  bottom: 1.75rem;
+  left: 0.75rem;
+  display: grid;
+  gap: 0.4rem;
+  justify-items: start;
+  pointer-events: none;
+}
+.mapa-avisos > * { max-width: 40rem; margin: 0; pointer-events: auto; }
+/* Mensaje de la guía con su X (2026-11-22). */
+.mapa-guia-caja { display: flex; align-items: flex-start; gap: 0.25rem; padding: 0.2rem 0.2rem 0.2rem 0.85rem; }
+.mapa-guia-caja[hidden] { display: none; }
+.mapa-guia-texto { margin: 0; padding: 0.4rem 0; font-weight: 700; }
+.mapa-avisos > noscript .mapa-guia-texto, .mapa-avisos > .mapa-guia-texto { padding: 0.5rem 0.85rem; }
+.mapa-guia-cerrar {
+  display: inline-flex;
+  flex: none;
+  align-items: center;
+  justify-content: center;
+  width: 2.5rem;
+  height: 2.5rem;
+  padding: 0;
+  color: var(--panel-texto);
+  background: transparent;
+  border: 0;
+  border-radius: 0.55rem;
+}
+.mapa-guia-cerrar:hover { color: var(--trigo-texto); background: var(--trigo-fondo); }
+.mapa-guia-cerrar[hidden] { display: none; }
+.mapa-guia-cerrar .icono { width: 1.3rem; height: 1.3rem; }
+@media (max-width: 44rem) {
+  .mapa-capas { top: 0.5rem; right: 0.5rem; bottom: 0.5rem; left: 0.5rem; gap: 0.4rem; }
+  .mapa-avisos { left: 0.5rem; bottom: 1.5rem; }
+  .boton-mapa { font-size: 0.9rem; padding-inline: 0.6rem; }
+  .mapa-capa-pestanas .pestanas ul { gap: 0; }
+  .mapa-capa-pestanas .pestanas a { gap: 0.3rem; padding-inline: 0.45rem; }
+  /* En celular, «Paradas» y «Símbolos» cerrados muestran solo su símbolo; el nombre sigue para el lector. */
+  .mapa-panel:not([open]) > summary { justify-content: center; width: 2.75rem; padding: 0; }
+  .mapa-panel:not([open]) > summary::after { display: none; }
+  .mapa-panel:not([open]) > summary .icono { width: 1.45rem; height: 1.45rem; }
+  .mapa-panel:not([open]) .mapa-panel-texto { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); white-space: nowrap; }
+}
 .mapa-simbolos { display: flex; flex-wrap: wrap; gap: 0.5rem 1.5rem; margin: 0.75rem 0 0; padding: 0; list-style: none; }
 .mapa-simbolos li { display: inline-flex; gap: 0.5rem; align-items: center; }
 .simbolo {
@@ -552,6 +728,12 @@
 .boton-flecha { width: 3rem; min-width: 3rem; min-height: 3rem; padding: 0; }
 .boton-flecha .icono { width: 1.4rem; height: 1.4rem; }
 .orden-ayuda { margin: 0 0 0.75rem; }
+.orden-ayuda:empty { margin: 0; }
+.titulo-con-ayuda { display: flex; align-items: center; gap: 0.6rem; margin-bottom: 0.75rem; }
+.titulo-con-ayuda > h2 { margin: 0; font-size: 1.35rem; }
+.boton-ayuda { flex: none; width: 3rem; min-width: 3rem; min-height: 3rem; padding: 0; }
+.boton-ayuda .icono { width: 1.4rem; height: 1.4rem; }
+.boton-ayuda[aria-expanded="true"] { color: var(--trigo-texto); background: var(--trigo-fondo); border-color: var(--marca-fondo); }
 .orden-estado { min-height: 1.5em; margin: 0.75rem 0 0; font-weight: 700; }
 .orden-estado:empty { margin: 0; min-height: 0; }
 .visita-ordenable { position: relative; padding-right: calc(clamp(1rem, 4vw, 1.5rem) + 1.25rem); }
@@ -639,6 +821,26 @@
   border-radius: var(--radio-panel);
 }
 .sin-conexion .reparto-estado { border-left-color: var(--aviso-texto); }
+/* X para cerrar el aviso en «Mis entregas» (2026-11-22): área táctil de 3 rem, como .dialogo-cerrar. */
+.reparto-estado[data-cerrable] { position: relative; padding-right: 4rem; }
+.reparto-estado-cerrar {
+  position: absolute;
+  top: 0.35rem;
+  right: 0.35rem;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 3rem;
+  height: 3rem;
+  padding: 0;
+  color: var(--panel-texto);
+  background: var(--panel-fondo);
+  border: 2px solid var(--borde);
+  border-radius: 0.6rem;
+  cursor: pointer;
+}
+.reparto-estado-cerrar:hover { color: var(--trigo-texto); background: var(--trigo-fondo); border-color: var(--marca-fondo); }
+.reparto-estado-cerrar .icono { width: 1.4rem; height: 1.4rem; }
 .reparto-estado-lista { display: flex; flex-wrap: wrap; gap: 0.25rem 1.25rem; margin: 0; padding: 0; list-style: none; font-weight: 700; }
 .reparto-estado-lista li:empty { display: none; }
 .reparto-estado .acciones { margin-top: 0.6rem; }

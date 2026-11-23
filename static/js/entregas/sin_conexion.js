@@ -11,6 +11,9 @@
   En los tres, la barra de estado (región aria-live) dice con texto la conexión, la hora de la última descarga,
   cuántos registros faltan por enviar, «Enviando…» y el resultado del último envío. Nunca muestra el RUT: el paquete
   no lo trae. No usa localStorage: todo vive en IndexedDB (almacen.js).
+  En «Mis entregas» la barra tiene una X (2026-11-22): la cierra mientras todo esté en calma (con señal, sin
+  registros por enviar ni rechazados y sin resultado de envío que mostrar) y lo recuerda en sessionStorage de la
+  pestaña. Si deja de estar en calma, la barra vuelve a aparecer sola.
 */
 (function (global) {
   "use strict";
@@ -122,11 +125,43 @@
     var paquete = null;
     var ultimoEnvio = "";
     var abierto = null;  // {intento, resultado} del formulario abierto en la vista sin conexión
+    var cerrado = false;  // el encargado cerró la barra con la X
 
     function parte(nombre) { return raiz.querySelector("[data-" + nombre + "]"); }
 
     function enLinea() {
       return !(entorno.navegador && entorno.navegador.onLine === false);
+    }
+
+    function claveCerrado() { return "cesfam-estado-cerrado:" + cuenta; }
+
+    function leerCerrado() {
+      if (!entorno.sesion || !cuenta || !parte("cerrar-estado")) return false;
+      try { return entorno.sesion.getItem(claveCerrado()) === "1"; } catch (error) { return false; }
+    }
+
+    function guardarCerrado(valor) {
+      cerrado = valor;
+      if (!entorno.sesion || !cuenta) return;
+      try {
+        if (valor) entorno.sesion.setItem(claveCerrado(), "1");
+        else entorno.sesion.removeItem(claveCerrado());
+      } catch (error) { /* Sin almacenamiento, se recuerda solo en esta página. */ }
+    }
+
+    // Lo importante nunca queda oculto: si hay algo que decir, la barra se vuelve a abrir.
+    function mostrarBarra(pendientes, rechazados) {
+      if (!parte("cerrar-estado")) return;
+      var calma = modo !== "sin_conexion" && enLinea() && !pendientes.length && !rechazados.length && !ultimoEnvio;
+      if (cerrado && !calma) guardarCerrado(false);
+      raiz.hidden = cerrado;
+    }
+
+    function cerrarBarra() {
+      guardarCerrado(true);
+      raiz.hidden = true;
+      var destino = documento.querySelector("[data-ruta-lista]");
+      if (destino && typeof destino.focus === "function") destino.focus({ preventScroll: true });
     }
 
     function decir(nombre, texto) {
@@ -156,6 +191,7 @@
       var boton = parte("sincronizar");
       if (boton) boton.hidden = !pendientes.length;
       dibujarRechazados(rechazados);
+      mostrarBarra(pendientes, rechazados);
       if (modo === "sin_conexion") { if (conLista) dibujarVista(pendientes); }
       else marcarTarjetas(pendientes);
       return { pendientes: pendientes, rechazados: rechazados };
@@ -516,7 +552,8 @@
     /* Arranque -------------------------------------------------------------------------------------------- */
 
     async function iniciar() {
-      raiz.hidden = false;
+      cerrado = leerCerrado();
+      raiz.hidden = cerrado;
       if (modo === "sin_conexion") {
         cuenta = String((await almacen.leerMeta("cuenta_activa")) || "");
         paquete = await almacen.leerPaquete(cuenta);
@@ -541,6 +578,11 @@
       }
       var boton = parte("sincronizar");
       if (boton) boton.addEventListener("click", function () { sincronizar(); });
+      var cerrar = parte("cerrar-estado");
+      if (cerrar && modo === "en_linea") {
+        cerrar.hidden = false;
+        cerrar.addEventListener("click", cerrarBarra);
+      }
       var actualizar = parte("actualizar");
       if (actualizar) actualizar.addEventListener("click", function () { if (entorno.recargar) entorno.recargar(); });
       await refrescar();
@@ -592,6 +634,7 @@
       recargar: function () { global.location.reload(); },
       enviarNormal: function (form) { global.HTMLFormElement.prototype.submit.call(form); },
       registrarSync: function () { return global.EntregasSincronizar.registrarSync(global.navigator); },
+      sesion: (function () { try { return global.sessionStorage; } catch (error) { return null; } })(),
     });
     controlador.iniciar().then(function () {
       programar(controlador, global, global.EntregasSincronizar.INTERVALO_MS);

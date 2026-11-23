@@ -72,6 +72,7 @@ function entorno(documento, almacen, opciones = {}) {
       formData: (form) => ({ form }), ir: (url) => llamadas.ir.push(url), enviarNormal: (form) => llamadas.normal.push(form),
       registrarSync: () => { llamadas.sync += 1; },
       recargar: () => { llamadas.recargas += 1; },
+      sesion: opciones.sesion,
     },
   };
 }
@@ -254,6 +255,74 @@ test("RF-11-02: con señal, «Mis entregas» guarda el paquete de su cuenta y la
   assert.equal(texto(documento, "[data-estado-conexion]"), "Conectado");
   assert.match(documento.querySelector("#parada-41").textContent, /Registrada sin conexión · por enviar · \d\d:\d\d/);
   assert.equal(texto(documento, "[data-estado-envio]"), "El servidor no respondió. Se reintentará en 30 segundos.");
+});
+
+function sesionEnMemoria() {
+  const datos = new Map();
+  return { datos, getItem: (k) => (datos.has(k) ? datos.get(k) : null), setItem: (k, v) => datos.set(k, String(v)),
+    removeItem: (k) => datos.delete(k) };
+}
+
+function paginaMisEntregas() {
+  const documento = new Documento();
+  const barra = estado("7", { "data-descargar": true, "data-cerrable": true });
+  barra.splice(2, 0, ["button", { type: "button", "data-cerrar-estado": true, hidden: true }, "Cerrar el aviso de conexión"]);
+  documento.body.appendChild(crear(documento, ["div", {}, barra,
+    ["section", { id: "lista-paradas", tabindex: "-1", "data-ruta-lista": true }, ["h2", {}, "Por visitar en orden"]]]));
+  return documento;
+}
+
+test("2026-11-22: la X cierra la barra en calma y la recuerda en la pestaña", async () => {
+  const sesion = sesionEnMemoria();
+  const documento = paginaMisEntregas();
+  const almacen = crearAlmacen(memoria());
+  const e = entorno(documento, almacen, { sesion, fetch: async () => respuesta(200, paqueteDe(7)) });
+  await sinConexion.crear(e.entorno).iniciar();
+  const raiz = documento.querySelector("[data-reparto-estado]");
+  const cerrar = documento.querySelector("[data-cerrar-estado]");
+  assert.equal(raiz.hidden, false);
+  assert.equal(cerrar.hidden, false);
+  cerrar.click();
+  assert.equal(raiz.hidden, true);
+  assert.equal(documento.activeElement, documento.querySelector("[data-ruta-lista]"));
+  assert.equal(sesion.getItem("cesfam-estado-cerrado:7"), "1");
+  // Al volver a abrir «Mis entregas» en la misma pestaña, sigue cerrada.
+  const otra = paginaMisEntregas();
+  await sinConexion.crear(entorno(otra, almacen, { sesion, fetch: async () => respuesta(200, paqueteDe(7)) }).entorno).iniciar();
+  assert.equal(otra.querySelector("[data-reparto-estado]").hidden, true);
+});
+
+test("2026-11-22: la barra cerrada vuelve a abrirse sin señal o con registros por enviar", async () => {
+  const sesion = sesionEnMemoria();
+  sesion.setItem("cesfam-estado-cerrado:7", "1");
+  const navegador = { onLine: true };
+  const documento = paginaMisEntregas();
+  const almacen = crearAlmacen(memoria());
+  const e = entorno(documento, almacen, { sesion, navegador, fetch: async () => respuesta(200, paqueteDe(7)) });
+  const controlador = await sinConexion.crear(e.entorno).iniciar();
+  const raiz = documento.querySelector("[data-reparto-estado]");
+  assert.equal(raiz.hidden, true);
+  e.entorno.navegador.onLine = false;
+  await controlador.refrescar({ lista: false });
+  assert.equal(raiz.hidden, false);
+  assert.equal(texto(documento, "[data-estado-conexion]"), "Sin conexión");
+  assert.equal(sesion.getItem("cesfam-estado-cerrado:7"), null);
+  // Cerrada otra vez con señal, un registro por enviar la abre.
+  e.entorno.navegador.onLine = true;
+  documento.querySelector("[data-cerrar-estado]").click();
+  assert.equal(raiz.hidden, true);
+  await almacen.agregarRegistro({ operacion_id: "op-9", intento: 41, resultado: "entregada", motivo: "", nota: "",
+    registrado_en: new Date().toISOString(), fecha_local: HOY, cuenta: 7 });
+  await controlador.refrescar({ lista: false });
+  assert.equal(raiz.hidden, false);
+});
+
+test("2026-11-22: sin la X (vista sin conexión y «Registrar visita») la barra no se puede cerrar", async () => {
+  const sesion = sesionEnMemoria();
+  sesion.setItem("cesfam-estado-cerrado:7", "1");
+  const documento = paginaRegistro();
+  await sinConexion.crear(entorno(documento, crearAlmacen(memoria()), { sesion }).entorno).iniciar();
+  assert.equal(documento.querySelector("[data-reparto-estado]").hidden, false);
 });
 
 test("RF-11-02: un paquete de otra cuenta no se guarda", async () => {

@@ -368,7 +368,7 @@
 
   var CLAVE_ANUNCIO = "entregas-anuncio-mapa";
   var TEXTOS_GUIA = {
-    sinPosicionCercana: "Para sugerir la parada más cercana necesitas activar tu ubicación con «Mostrar mi posición».",
+    sinPosicionCercana: "Para sugerir la parada más cercana necesitas activar tu ubicación con «Mi posición».",
     yaPrimera: "Ya es tu próxima parada.",
     movida: "Parada movida al primer lugar. Tu orden de hoy quedó guardado.",
     sinParadas: "No hay paradas con coordenadas para trazar un tramo.",
@@ -395,8 +395,10 @@
   /*
     Controles del «Mapa» del encargado (RF-09-21 y RF-09-22): «Mostrar mi posición», «Detener», «Sugerir parada
     más cercana», «Trazar tramo hasta aquí» y «Mover al siguiente lugar». `entorno`: dibujo (de dibujarRuta),
-    datos, seguimiento (tramo.js), cliente, elementos {estado, anuncio, mostrar, detener, cercana, mover},
-    mover(intento, version) → Promise, almacen, recargar.
+    datos, seguimiento (tramo.js), cliente, elementos {estado, anuncio, mostrar, detener, cercana, mover y, desde
+    el 2026-11-22, caja y cerrar}, mover(intento, version) → Promise, almacen, recargar.
+    La X (`cerrar`) oculta la caja del mensaje: las distancias que se actualizan solas siguen escribiéndose sin
+    abrirla, y cualquier aviso nuevo (inicio, error, sugerencia, fin) la vuelve a mostrar.
   */
   function prepararGuia(documento, entorno) {
     var datos = entorno.datos;
@@ -405,11 +407,15 @@
     var sugerida = null;
     var sugerencia = ""; // el texto de la parada sugerida se mantiene junto al del tramo hasta cambiar de destino
     var alternar = false;
+    var cerrado = false;
 
-    function mostrarTexto(texto) { el.estado.textContent = texto; }
+    function mostrarCaja() { if (el.caja) el.caja.hidden = cerrado || !el.estado.textContent; }
+    function mostrarTexto(texto) { el.estado.textContent = texto; mostrarCaja(); }
     function anunciar(texto) {
       alternar = !alternar;
       el.anuncio.textContent = texto + (alternar ? "" : " ");
+      cerrado = false;
+      mostrarCaja();
     }
     function botones(siguiendo) {
       el.mostrar.disabled = siguiendo;
@@ -499,6 +505,9 @@
     documento.addEventListener("click", function (evento) {
       var boton = evento.target && evento.target.closest ? evento.target.closest("[data-trazar]") : null;
       if (!boton) return;
+      // En el mapa a pantalla completa la lista vive en el panel «Paradas»: se cierra para ver el tramo.
+      var panel = boton.closest("details");
+      if (panel) panel.open = false;
       trazarHasta(Number(boton.getAttribute("data-trazar")));
     });
     if (entorno.ventana) entorno.ventana.addEventListener("pagehide", function () { seguimiento.detener(true); });
@@ -507,12 +516,48 @@
       if (documento.visibilityState === "hidden") seguimiento.pausar();
       else seguimiento.reanudar();
     });
+    if (el.cerrar && el.caja) {
+      el.cerrar.hidden = false;
+      el.cerrar.addEventListener("click", function () {
+        cerrado = true;
+        mostrarCaja();
+        var foco = el.mostrar.disabled ? el.detener : el.mostrar;
+        if (foco && typeof foco.focus === "function") foco.focus();
+      });
+    }
     if (el.panel) el.panel.hidden = false; // sin JavaScript el panel y «Trazar tramo hasta aquí» no aparecen
     Array.prototype.forEach.call(documento.querySelectorAll("button[data-trazar]"), function (b) { b.hidden = false; });
     var pendiente = entorno.almacen ? leerAnuncio(entorno.almacen) : "";
     if (pendiente) { mostrarTexto(pendiente); anunciar(pendiente); }
     botones(false);
     return { seguimiento: seguimiento, trazarHasta: trazarHasta, destino: function () { return destino; } };
+  }
+
+  /*
+    Menú de tres barras del «Mapa» (2026-11-22): el botón muestra u oculta las pestañas a su derecha. Se cierra
+    con Escape (devuelve el foco al botón), al tocar fuera y al elegir una pestaña. Sin JavaScript el botón no
+    aparece y las pestañas quedan a la vista.
+  */
+  function prepararMenu(documento) {
+    var raiz = documento.querySelector("[data-mapa-menu]");
+    if (!raiz) return null;
+    var boton = raiz.querySelector("[data-mapa-menu-boton]");
+    var lista = raiz.querySelector("[data-mapa-menu-lista]");
+    if (!boton || !lista) return null;
+    function abrir(abierto) {
+      lista.hidden = !abierto;
+      boton.setAttribute("aria-expanded", abierto ? "true" : "false");
+    }
+    boton.hidden = false;
+    abrir(false);
+    boton.addEventListener("click", function () { abrir(lista.hidden); });
+    documento.addEventListener("keydown", function (evento) {
+      if (evento.key === "Escape" && !lista.hidden) { abrir(false); boton.focus(); }
+    });
+    documento.addEventListener("click", function (evento) {
+      if (!lista.hidden && evento.target && !raiz.contains(evento.target)) abrir(false);
+    });
+    return { abrir: abrir, boton: boton, lista: lista };
   }
 
   var api = {
@@ -522,6 +567,7 @@
     textoTramo: textoTramo,
     textoCercana: textoCercana,
     prepararGuia: prepararGuia,
+    prepararMenu: prepararMenu,
     POLITICA_REFERENTE: POLITICA_REFERENTE,
     atribucion: atribucion,
     opcionesTeselas: opcionesTeselas,
@@ -596,6 +642,8 @@
         detener: documento.getElementById("mapa-detener"),
         cercana: documento.getElementById("mapa-cercana"),
         mover: documento.getElementById("mapa-mover"),
+        caja: documento.getElementById("mapa-guia-caja"),
+        cerrar: documento.getElementById("mapa-guia-cerrar"),
         panel: guia,
       },
     });
@@ -608,6 +656,7 @@
     var arrancar = function () {
       global.MapaEntregas.mapas = iniciar(global.document, global.L);
       global.MapaEntregas.guia = arrancarGuia(global.document, global.MapaEntregas.mapas);
+      global.MapaEntregas.menu = prepararMenu(global.document);
     };
     if (global.document.readyState === "loading") {
       global.document.addEventListener("DOMContentLoaded", arrancar);

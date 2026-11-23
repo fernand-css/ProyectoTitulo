@@ -159,6 +159,7 @@ Bloqueos críticos: ninguno.
 
 - 2026-11-18: borrador creado con `/spec` a partir de la reserva 11 y de las decisiones de la usuaria de esta fecha. Pendiente la revisión de la usuaria; no está aprobado ni autorizado para implementar.
 - 2026-11-18: la usuaria lo pasó a Aprobado y ejecutó `/spec-impl` (en `crojas-base`, todos los pasos sin pausas). Implementado técnicamente el mismo día (T-11-01 a T-11-09, migración `entregasapp/0007`); navegador real, celular Android, axe, usabilidad y aceptación pendientes. Se conserva Aprobado.
+- 2026-11-22 (cambio pedido por el usuario, precisa RF-11-13; sin migraciones): en «Mis entregas» la barra de estado («Conectado · Ruta guardada… · No hay registros por enviar») tiene una X para cerrarla. Solo se cierra mientras todo está en calma (con señal, sin registros por enviar ni rechazados y sin resultado de envío que mostrar) y se recuerda en `sessionStorage` de la pestaña (`cesfam-estado-cerrado:<cuenta>`). Si deja de estar en calma, la barra vuelve a aparecer sola: lo importante nunca queda oculto. Al cerrar, el foco pasa a la lista sin desplazar la página. «Registrar visita» y la vista sin conexión no tienen X (`_estado_sin_conexion.html` con `cerrable`, `sin_conexion.js`). Evidencia: `sin_conexion.test.cjs` y revisión en la vista previa local; celular Android y aceptación siguen pendientes.
 
 ## Decisiones de implementación (2026-11-18)
 

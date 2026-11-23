@@ -8,7 +8,7 @@ const test = require("node:test");
 const ruta = path.join(__dirname, "../../static/js/entregas/mapa.js");
 const mapa = require(ruta);
 const tramo = require(path.join(__dirname, "../../static/js/entregas/tramo.js"));
-const { Documento, crear } = require("./dom_simulado.cjs");
+const { Documento, crear, evento } = require("./dom_simulado.cjs");
 
 // Leaflet simulado: registra cada capa, marcador y opción para revisarlos.
 function leafletFalso() {
@@ -312,10 +312,16 @@ test("solo pide a Django mover la parada; no usa innerHTML ni otras vías de red
 function paginaGuia() {
   const documento = new Documento();
   ["mapa-guia-estado", "mapa-guia-anuncio"].forEach((id) => documento.body.appendChild(crear(documento, ["p", { id }])));
+  documento.body.appendChild(crear(documento, ["div", { id: "mapa-guia-caja" }]));
+  documento.body.appendChild(crear(documento, ["button", { id: "mapa-guia-cerrar", hidden: true }, "Cerrar el mensaje"]));
   ["mapa-mostrar", "mapa-detener", "mapa-cercana"].forEach((id) => documento.body.appendChild(crear(documento, ["button", { id }])));
   documento.body.appendChild(crear(documento, ["button", { id: "mapa-mover", hidden: true }]));
   documento.body.appendChild(crear(documento, ["div", { id: "panel", "data-guia-mapa": true, hidden: true }]));
-  documento.body.appendChild(crear(documento, ["button", { "data-trazar": "43", hidden: true }, "Trazar tramo hasta aquí"]));
+  // Desde el 2026-11-22 la lista vive en el panel desplegable «Paradas».
+  const panel = crear(documento, ["details", { class: "mapa-panel-paradas" },
+    ["button", { "data-trazar": "43", hidden: true }, "Trazar tramo hasta aquí"]]);
+  panel.open = true;
+  documento.body.appendChild(panel);
   return documento;
 }
 
@@ -370,6 +376,7 @@ function armarGuia({ tramo: respuestaTramo, cercana: respuestaCercana, seguro = 
       mostrar: documento.getElementById("mapa-mostrar"), detener: documento.getElementById("mapa-detener"),
       cercana: documento.getElementById("mapa-cercana"), mover: documento.getElementById("mapa-mover"),
       panel: documento.getElementById("panel"),
+      caja: documento.getElementById("mapa-guia-caja"), cerrar: documento.getElementById("mapa-guia-cerrar"),
     },
   });
   return { documento, dibujo, geo, reloj, pedidos, guia, estado, almacen, ventana };
@@ -391,6 +398,7 @@ test("mostrar mi posición traza el tramo hasta la primera parada con coordenada
   assert.equal(g.dibujo.registro.tramos.length, 1);
   assert.equal(g.documento.getElementById("mapa-guia-estado").textContent, "Parada 1: 1,2 km por camino.");
   g.documento.querySelector("[data-trazar]").click();
+  assert.equal(g.documento.querySelector(".mapa-panel-paradas").open, false, "el panel se cierra para ver el tramo");
   await esperar();
   assert.deepEqual(g.pedidos.tramo.map((p) => p.intento), [41, 43]);
   assert.equal(g.documento.getElementById("mapa-guia-estado").textContent, "Parada 3: 1,2 km por camino.");
@@ -496,4 +504,49 @@ test("al salir de la página se detiene el seguimiento", async () => {
   g.documento.getElementById("mapa-mostrar").click();
   g.ventana.escuchas.pagehide();
   assert.equal(g.geo.limpiadas, 1);
+});
+
+test("2026-11-22: la X cierra el mensaje; las distancias no lo reabren y un aviso nuevo sí", async () => {
+  const g = armarGuia({ tramo: tramoOk(), cercana: () => ({ ok: false, mensaje: "Sin camino sintético." }) });
+  const caja = g.documento.getElementById("mapa-guia-caja");
+  const cerrar = g.documento.getElementById("mapa-guia-cerrar");
+  assert.equal(cerrar.hidden, false, "sin JavaScript la X no aparece; con él, sí");
+  g.documento.getElementById("mapa-mostrar").click();
+  g.geo.mover(-36.5, -72.2);
+  await esperar();
+  assert.equal(caja.hidden, false);
+  cerrar.click();
+  assert.equal(caja.hidden, true);
+  assert.equal(g.documento.activeElement, g.documento.getElementById("mapa-detener"), "el foco va al control vigente");
+  g.reloj.t = 25000;
+  g.geo.mover(metrosAlNorte(-36.5, 300), -72.2);
+  await esperar();
+  assert.equal(g.pedidos.tramo.length, 2);
+  assert.equal(caja.hidden, true, "la distancia se actualiza sin reabrir el mensaje");
+  g.documento.getElementById("mapa-cercana").click();
+  await esperar();
+  assert.equal(caja.hidden, false, "un aviso nuevo vuelve a mostrar el mensaje");
+  assert.equal(g.documento.getElementById("mapa-guia-estado").textContent, "Sin camino sintético.");
+});
+
+test("2026-11-22: el menú de tres barras abre las pestañas a su derecha y se cierra con Escape o al tocar fuera", () => {
+  const documento = new Documento();
+  documento.body.appendChild(crear(documento, ["div", { "data-mapa-menu": true },
+    ["button", { "data-mapa-menu-boton": true, "aria-expanded": "false", hidden: true }],
+    ["div", { "data-mapa-menu-lista": true }, ["a", { href: "/entregas/mis/" }, "Mis entregas"]]]));
+  documento.body.appendChild(crear(documento, ["p", { id: "fuera" }, "Mapa"]));
+  const menu = mapa.prepararMenu(documento);
+  assert.equal(menu.boton.hidden, false);
+  assert.equal(menu.lista.hidden, true, "con JavaScript parte cerrado");
+  menu.boton.click();
+  assert.equal(menu.lista.hidden, false);
+  assert.equal(menu.boton.getAttribute("aria-expanded"), "true");
+  documento.dispatchEvent(evento("keydown", { key: "Escape" }));
+  assert.equal(menu.lista.hidden, true);
+  assert.equal(documento.activeElement, menu.boton);
+  menu.boton.click();
+  documento.getElementById("fuera").click();
+  assert.equal(menu.lista.hidden, true);
+  assert.equal(menu.boton.getAttribute("aria-expanded"), "false");
+  assert.equal(mapa.prepararMenu(new Documento()), null, "sin menú en la página no hace nada");
 });

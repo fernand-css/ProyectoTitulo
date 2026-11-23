@@ -1,34 +1,92 @@
 {% extends 'entregas/base.html' %}
 {% load static %}
+{% comment %}
+«Mapa» del encargado (spec 09, RF-09-08, RF-09-21 y RF-09-22). Desde el 2026-11-22 el mapa ocupa todo el espacio
+de la página bajo la franja superior y a la derecha del menú (`pagina-mapa`, sin pie). Encima del mapa: las
+pestañas, los controles de la guía (arriba a la derecha, compactos) y dos paneles desplegables, «Paradas» (la
+lista, que sigue siendo la alternativa completa al mapa) y «Símbolos». En el orden del documento los paneles van
+antes del mapa, así el teclado los alcanza sin atravesar los marcadores. «Rutas» de la Q.F. sigue con _mapa.html.
+{% endcomment %}
 {% block titulo %}Mapa · Mis entregas · Entregas en terreno{% endblock %}
 {% block estilos %}{{ block.super }}<link rel="stylesheet" href="{% static 'vendor/leaflet/leaflet.css' %}">{% endblock %}
-{% block entregas %}
-{% include 'entregas/_cabecera.html' with titulo='Mapa de mis entregas' texto='Tus paradas de hoy con el mismo número de la lista, las visitas registradas y el CESFAM. Muestra tu posición para ver el tramo por camino hasta la próxima parada.' %}
+{% block atributos_cuerpo %} class="pagina-mapa"{% endblock %}
+{% block contenido %}
+<div class="entregas mapa-completo">
+  <h1 class="sr-only">Mapa de mis entregas</h1>
+  <div class="mapa-capas">
+    {# Pestañas tras un botón de tres barras (2026-11-22): al pulsarlo se despliegan a su derecha. Sin JavaScript se ven siempre. #}
+    <div class="mapa-capa mapa-capa-pestanas" data-mapa-menu>
+      <button class="mapa-menu-boton" type="button" aria-expanded="false" aria-controls="mapa-pestanas" aria-label="Secciones de Entregas" data-mapa-menu-boton hidden><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-menu"/></svg></button>
+      <div class="mapa-pestanas" id="mapa-pestanas" data-mapa-menu-lista>{% include 'components/_pestanas.html' with etiqueta='Secciones de Entregas' %}</div>
+    </div>
 
-{% include 'entregas/_ruta_rotulo.html' %}
-{% include 'entregas/_mapa.html' with destino_saltar='lista-mapa' guia=True %}
+    <div class="mapa-capa mapa-controles" role="group" aria-label="Guía con tu posición" data-guia-mapa hidden>
+      {% csrf_token %}
+      <button class="boton-mapa boton-mapa-principal" type="button" id="mapa-mostrar" aria-label="Mostrar mi posición"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-auto"/></svg><span>Mi posición</span></button>
+      <button class="boton-mapa" type="button" id="mapa-cercana" aria-label="Sugerir parada más cercana"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-brujula"/></svg><span>Más cercana</span></button>
+      <button class="boton-mapa" type="button" id="mapa-detener" disabled><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-pausa"/></svg><span>Detener</span></button>
+      <button class="boton-mapa boton-mapa-principal" type="button" id="mapa-mover" hidden><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-arriba"/></svg><span>Mover al siguiente lugar</span></button>
+    </div>
 
-<section class="visitas" id="lista-mapa" aria-labelledby="titulo-lista-mapa" tabindex="-1">
-  <h2 id="titulo-lista-mapa">Paradas en orden ({{ ruta.paradas|length }})</h2>
-  {% if ruta.paradas %}
-  <ol class="lista-mapa">
-    {% for parada in ruta.paradas %}
-    {% with nombre=parada.intento.paciente.nombres|add:" "|add:parada.intento.paciente.apellidos %}
-    <li>
-      <span><strong>{% if parada.numerada %}Parada {{ parada.numero }}{% else %}Sin coordenadas{% endif %}</strong>{% if parada.atrasada %} · Atrasada desde el {{ parada.intento.fecha_programada|date:"d/m" }}{% endif %}{% if parada.nueva %} · Nueva: no estaba en tu orden{% endif %} · {{ nombre }}{% if parada.intento.domicilio.localidad %} · {{ parada.intento.domicilio.localidad }}{% endif %}{% if parada.punto is None %} · sin marcador{% endif %}</span>
-      <span class="lista-mapa-enlaces">
-        <a href="{% url 'entregasapp:registro' parada.intento.pk %}">Registrar<span class="sr-only"> {{ nombre }}</span></a>
-        {% if parada.punto %}<a href="{% url 'entregasapp:ir_a' parada.intento.pk %}">Ir a esta parada<span class="sr-only">: {{ nombre }}</span></a>
-        <button class="boton boton-secundario boton-trazar" type="button" data-trazar="{{ parada.intento.pk }}" hidden>Trazar tramo hasta aquí<span class="sr-only">: parada {{ parada.numero }}, {{ nombre }}</span></button>{% endif %}
-      </span>
-    </li>
-    {% endwith %}
-    {% endfor %}
-  </ol>
-  {% else %}
-  <p class="suave">No quedan visitas por hacer hoy.</p>
-  {% endif %}
-  <p><a class="enlace-secundario" href="{% url 'entregasapp:mis' %}">Ver la lista completa en «Mis entregas»</a></p>
-</section>
+    <div class="mapa-paneles">
+    <details class="mapa-capa mapa-panel mapa-panel-paradas" name="mapa-paneles">
+      <summary><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-ubicacion"/></svg><span class="mapa-panel-texto">Paradas ({{ ruta.paradas|length }})</span></summary>
+      <div class="mapa-panel-cuerpo">
+        {% include 'entregas/_ruta_rotulo.html' %}
+        {% if ruta.total_km and ruta.numeradas or ruta.sin_marcador or not ruta.por_camino and not ruta.manual %}
+        <p class="mapa-leyenda">{% if ruta.total_km and ruta.numeradas %}Recorrido aprox. por camino: <strong>{{ ruta.total_km }} km</strong>, desde la partida, por las paradas, hasta el CESFAM.{% elif not ruta.por_camino and not ruta.manual %}Sin total del recorrido: el servidor de rutas no respondió.{% endif %}{% if ruta.sin_marcador %} <strong>{{ sin_marcador_texto }}</strong>: están en esta lista.{% endif %}</p>
+        {% endif %}
+        {% if ruta.paradas %}
+        <ol class="lista-mapa" id="lista-mapa">
+          {% for parada in ruta.paradas %}
+          {% with nombre=parada.intento.paciente.nombres|add:" "|add:parada.intento.paciente.apellidos %}
+          <li>
+            <span><strong>{% if parada.numerada %}Parada {{ parada.numero }}{% else %}Sin coordenadas{% endif %}</strong>{% if parada.atrasada %} · Atrasada desde el {{ parada.intento.fecha_programada|date:"d/m" }}{% endif %}{% if parada.nueva %} · Nueva: no estaba en tu orden{% endif %} · {{ nombre }}{% if parada.intento.domicilio.localidad %} · {{ parada.intento.domicilio.localidad }}{% endif %}{% if parada.punto is None %} · sin marcador{% endif %}</span>
+            <span class="lista-mapa-enlaces">
+              <a href="{% url 'entregasapp:registro' parada.intento.pk %}">Registrar<span class="sr-only"> {{ nombre }}</span></a>
+              {% if parada.punto %}<a href="{% url 'entregasapp:ir_a' parada.intento.pk %}">Ir a esta parada<span class="sr-only">: {{ nombre }}</span></a>
+              <button class="boton boton-secundario boton-trazar" type="button" data-trazar="{{ parada.intento.pk }}" hidden>Trazar tramo hasta aquí<span class="sr-only">: parada {{ parada.numero }}, {{ nombre }}</span></button>{% endif %}
+            </span>
+          </li>
+          {% endwith %}
+          {% endfor %}
+        </ol>
+        {% else %}
+        <p class="suave">No quedan visitas por hacer hoy.</p>
+        {% endif %}
+        <p><a class="enlace-secundario" href="{% url 'entregasapp:mis' %}">Ver la lista completa en «Mis entregas»</a></p>
+      </div>
+    </details>
+
+    <details class="mapa-capa mapa-panel mapa-panel-simbolos" name="mapa-paneles">
+      <summary><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-info"/></svg><span class="mapa-panel-texto">Símbolos</span></summary>
+      <div class="mapa-panel-cuerpo">
+        <ul class="mapa-simbolos" aria-label="Símbolos del mapa">
+          <li><span class="simbolo simbolo-parada" aria-hidden="true">1</span>Parada por visitar, con el número de la lista</li>
+          <li><span class="simbolo simbolo-registrada" aria-hidden="true">✓</span>Registrada hoy: ✓ entregada, ✗ no entregada</li>
+          <li><span class="simbolo simbolo-cesfam" aria-hidden="true"><span>C</span></span>CESFAM: inicio y fin del recorrido</li>
+          <li><span class="simbolo simbolo-tramo" aria-hidden="true"></span>Tramo por camino desde tu posición (línea continua)</li>
+          <li><span class="simbolo simbolo-cercana" aria-hidden="true">4</span>Parada más cercana por camino (borde doble y aviso en texto)</li>
+        </ul>
+        <p class="suave">Tu posición solo se usa para calcular el tramo por camino en el momento: no se guarda. Necesita señal.</p>
+      </div>
+    </details>
+    </div>
+  </div>
+
+  <div class="mapa mapa-ruta mapa-pantalla" id="mapa-ruta" role="region" aria-label="Mapa de las paradas de hoy" data-mapa="ruta" data-datos="datos-mapa" data-aviso="aviso-mapa-ruta"></div>
+
+  <div class="mapa-avisos">
+    {# La X cierra el mensaje; vuelve con el siguiente aviso de la guía (mapa.js). #}
+    <div class="mapa-capa mapa-guia-caja" id="mapa-guia-caja">
+      <p class="mapa-guia-texto" id="mapa-guia-estado">Pulsa «Mi posición» para ver el tramo por camino hasta tu próxima parada.</p>
+      <button class="mapa-guia-cerrar" type="button" id="mapa-guia-cerrar" hidden><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-cerrar"/></svg><span class="sr-only">Cerrar el mensaje</span></button>
+    </div>
+    <p class="mapa-aviso" id="aviso-mapa-ruta" role="status" aria-live="polite" hidden></p>
+    <noscript><p class="mapa-capa mapa-guia-texto">El mapa y el tramo por camino necesitan JavaScript. Abre «Paradas»: la lista tiene toda la información.</p></noscript>
+  </div>
+  <p class="sr-only" id="mapa-guia-anuncio" role="status" aria-live="polite"></p>
+  {{ datos_mapa|json_script:"datos-mapa" }}
+</div>
 {% endblock %}
 {% block scripts %}<script src="{% static 'vendor/leaflet/leaflet.js' %}"></script><script src="{% static 'js/entregas/tramo.js' %}"></script><script src="{% static 'js/entregas/mapa.js' %}"></script>{% endblock %}

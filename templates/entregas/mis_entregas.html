@@ -5,7 +5,7 @@
 {% block entregas %}
 {% include 'entregas/_cabecera.html' with titulo='Mis entregas' texto='Tus visitas de hoy en orden de visita, las registradas hoy y las próximas. Registra cada una al visitar el domicilio.' %}
 
-{% include 'entregas/_estado_sin_conexion.html' with cuenta=request.user.pk descargar=True %}
+{% include 'entregas/_estado_sin_conexion.html' with cuenta=request.user.pk descargar=True cerrable=True %}
 
 <p class="resumen-visitas"><time datetime="{{ hoy|date:'Y-m-d' }}">{{ hoy|date:"l d/m" }}</time> · Por visitar ({{ ruta.paradas|length }}) · Registradas hoy ({{ ruta.registradas|length }}) · Próximas ({{ ruta.proximas|length }})</p>
 
@@ -41,4 +41,4 @@
 {% endif %}
 {{ teselas|json_script:"datos-teselas" }}
 {% endblock %}
-{% block scripts %}<script src="{% static 'vendor/leaflet/leaflet.js' %}"></script><script src="{% static 'js/entregas/mapa.js' %}"></script><script src="{% static 'js/entregas/tarjetas.js' %}"></script><script src="{% static 'js/entregas/orden.js' %}"></script><script defer src="{% static 'js/entregas/sincronizar.js' %}"></script><script defer src="{% static 'js/entregas/sin_conexion.js' %}"></script>{% endblock %}
+{% block scripts %}<script src="{% static 'vendor/leaflet/leaflet.js' %}"></script><script src="{% static 'js/entregas/mapa.js' %}"></script><script src="{% static 'js/entregas/tarjetas.js' %}"></script><script src="{% static 'js/entregas/orden.js' %}"></script><script src="{% static 'js/entregas/ayuda_breve.js' %}"></script><script defer src="{% static 'js/entregas/sincronizar.js' %}"></script><script defer src="{% static 'js/entregas/sin_conexion.js' %}"></script>{% endblock %}

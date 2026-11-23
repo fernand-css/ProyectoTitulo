@@ -5,8 +5,15 @@
 {% if ruta.limite_2opt_excedido %}<p class="suave">Con más de 200 paradas, el orden sugerido solo elige la parada más cercana en cada paso.</p>{% endif %}
 
 <section class="visitas" id="lista-paradas" aria-labelledby="titulo-por-visitar" tabindex="-1" data-ruta-lista>
+  {% if controles and ruta.paradas|length > 1 %}
+  <div class="titulo-con-ayuda">
+    <h2 id="titulo-por-visitar">Por visitar en orden (<span data-ruta-cantidad>{{ ruta.numeradas|length }}</span>)</h2>
+    {% include 'entregas/_ayuda_breve_boton.html' with destino='ayuda-orden' nombre='Cómo cambiar el orden' %}
+  </div>
+  <p class="suave orden-ayuda" id="ayuda-orden" data-ayuda-texto>Cambia el orden con las flechas de cada tarjeta o arrastrando la franja de su borde derecho.</p>
+  {% else %}
   <h2 id="titulo-por-visitar">Por visitar en orden (<span data-ruta-cantidad>{{ ruta.numeradas|length }}</span>)</h2>
-  {% if controles and ruta.paradas|length > 1 %}<p class="suave orden-ayuda">Cambia el orden con las flechas de cada tarjeta o arrastrando la franja de su borde derecho.</p>{% endif %}
+  {% endif %}
   <div class="visitas-lista" data-ruta-paradas>
   {% for parada in ruta.numeradas %}
   {% include 'entregas/_tarjeta_intento.html' with intento=parada.intento registrable=ruta.es_hoy sin_acciones=consulta compacta=True %}
@@ -19,8 +26,16 @@
 {# Con controles, la sección existe aunque esté vacía (oculta) si hay visitas sin coordenadas en la ruta: así una que el encargado devuelve al final vuelve a ella sin recargar (corrección del 2026-11-16). #}
 {% if ruta.sin_coordenadas or controles and ruta.sin_marcador %}
 <section class="visitas" aria-labelledby="titulo-sin-coordenadas" data-ruta-sin-coordenadas{% if not ruta.sin_coordenadas %} hidden{% endif %}>
+  {% if controles %}
+  <div class="titulo-con-ayuda">
+    <h2 id="titulo-sin-coordenadas">Sin coordenadas: fuera del orden sugerido (<span data-ruta-sin-cantidad>{{ ruta.sin_coordenadas|length }}</span>)</h2>
+    {% include 'entregas/_ayuda_breve_boton.html' with destino='ayuda-sin-coordenadas' nombre='Qué son las visitas sin coordenadas' %}
+  </div>
+  <p class="suave orden-ayuda" id="ayuda-sin-coordenadas" data-ayuda-texto>No entran al cálculo del recorrido ni tienen marcador en el mapa. Van agrupadas por sector y localidad. Puedes cambiar su orden entre ellas con las flechas o arrastrándolas; no entran a «Por visitar en orden».</p>
+  {% else %}
   <h2 id="titulo-sin-coordenadas">Sin coordenadas: fuera del orden sugerido (<span data-ruta-sin-cantidad>{{ ruta.sin_coordenadas|length }}</span>)</h2>
-  <p class="suave">No entran al cálculo del recorrido ni tienen marcador en el mapa. Van agrupadas por sector y localidad{% if controles %}. Puedes cambiar su orden entre ellas con las flechas o arrastrándolas; no entran a «Por visitar en orden»{% endif %}.</p>
+  <p class="suave">No entran al cálculo del recorrido ni tienen marcador en el mapa. Van agrupadas por sector y localidad.</p>
+  {% endif %}
   <div class="visitas-lista" data-ruta-sin-lista>
   {% for parada in ruta.sin_coordenadas %}
   {% ifchanged parada.intento.domicilio.sector parada.intento.domicilio.localidad %}<p class="grupo-sector" data-grupo-sector>{% include 'entregas/_grupo_sector.html' with domicilio=parada.intento.domicilio %}</p>{% endifchanged %}

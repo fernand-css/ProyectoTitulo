@@ -54,6 +54,21 @@ class MisEntregasRutaTests(ConOsrmSimulado, TestCase):
                       "No entregada: Domicilio no encontrado", "Recorrido aprox. por camino:"):
             with self.subTest(texto=texto):
                 self.assertIn(texto, html)
+        # 2026-11-22: bajo el rótulo solo queda el total; las cantidades se retiraron del resumen del encargado.
+        resumen = re.search(r"<p[^>]*data-ruta-resumen[^>]*>(.*?)</p>", html, re.S).group(1)
+        self.assertNotIn("Por visitar (", resumen)
+        self.assertNotIn("Registradas hoy (", resumen)
+        # Los textos de ayuda quedan detrás de un botón informativo que los muestra 3 segundos (ayuda_breve.js).
+        for ayuda in ('aria-controls="ayuda-orden"', 'id="ayuda-orden" data-ayuda-texto>Cambia el orden',
+                      'aria-controls="ayuda-sin-coordenadas"',
+                      'id="ayuda-sin-coordenadas" data-ayuda-texto>No entran al cálculo', "js/entregas/ayuda_breve.js"):
+            with self.subTest(ayuda=ayuda):
+                self.assertIn(ayuda, html)
+        self.assertEqual(html.count("data-ayuda-boton hidden"), 2)
+        # La barra de estado sin conexión trae la X para cerrarla (sin_conexion.js la muestra).
+        self.assertIn("data-cerrable hidden>", html)
+        self.assertIn('data-cerrar-estado hidden><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-cerrar"/></svg>'
+                      '<span class="sr-only">Cerrar el aviso de conexión</span>', html)
         for retirado in ("Mover a la posición", "no considera caminos", "orden-mover"):  # RF-09-17 y RF-09-20
             with self.subTest(retirado=retirado):
                 self.assertNotIn(retirado, html)
@@ -122,6 +137,7 @@ class MisEntregasRutaTests(ConOsrmSimulado, TestCase):
         self.assertEqual([p["numero"] for p in datos["orden"]], [1, 2, 3])
         self.assertIn("Tu orden de hoy, guardado a las", datos["rotulo"])
         self.assertIn("Recorrido aprox. por camino:", datos["resumen"])
+        self.assertNotIn("Por visitar (", datos["resumen"])
         self.assertNotIn(a.entrega.paciente.rut, respuesta.content.decode())
         # Arrastre de la parada 3 a la posición 1 desde la versión nueva.
         arrastre = self.client.post(url, {"intento": c.pk, "destino": "1", "version": 1, "operacion_id": uuid.uuid4()},
@@ -220,8 +236,14 @@ class MapaTests(ConOsrmSimulado, TestCase):
             self.assertNotIn(privado, texto)
         for recurso in ("vendor/leaflet/leaflet.js", "vendor/leaflet/leaflet.css", "js/entregas/mapa.js", "js/entregas/tramo.js"):
             self.assertIn(recurso, html)
-        for texto in ("1 visita sin marcador", "Saltar el mapa e ir a la lista", "Recorrido aprox. por camino:",
-                      'role="region"', "Paradas en orden (5)", "Mostrar mi posición", "Sugerir parada más cercana",
+        # 2026-11-22: mapa a pantalla completa; lista y símbolos en paneles desplegables, controles compactos.
+        for texto in ("1 visita sin marcador", "Recorrido aprox. por camino:", '<body class="pagina-mapa">',
+                      'role="region"', '<span class="mapa-panel-texto">Paradas (5)</span></summary>',
+                      '<span class="mapa-panel-texto">Símbolos</span></summary>', 'aria-label="Mostrar mi posición"',
+                      # 2026-11-22: auto en «Mi posición», pestañas tras el botón de tres barras y X del mensaje.
+                      '<use href="#i-auto"/></svg><span>Mi posición</span>', 'aria-controls="mapa-pestanas" aria-label="Secciones de Entregas" data-mapa-menu-boton hidden',
+                      'id="mapa-guia-cerrar" hidden', "Cerrar el mensaje",
+                      "<span>Mi posición</span>", 'aria-label="Sugerir parada más cercana"', "<span>Más cercana</span>",
                       "Detener", "Mover al siguiente lugar", "Trazar tramo hasta aquí", 'aria-live="polite"',
                       "csrfmiddlewaretoken", "Necesita señal"):
             with self.subTest(texto=texto):

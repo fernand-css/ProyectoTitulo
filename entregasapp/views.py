@@ -601,7 +601,7 @@ def _orden_en_json(request, mensaje):
     y el total, para que orden.js reordene la lista sin recargar. Sin datos personales en la secuencia."""
     hoy = timezone.localdate()
     ruta = consultas.ruta_del_dia(request.user, hoy=hoy)
-    contexto = {"ruta": ruta}
+    contexto = {"ruta": ruta, "controles": True}
     return _json_sin_cache({
         "ok": True, "mensaje": mensaje, "version": ruta.version, "manual": ruta.manual,
         "orden": [{"intento": parada.intento.pk, "numero": parada.numero, "numerada": parada.numerada}

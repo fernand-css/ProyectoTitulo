@@ -1,0 +1,2 @@
+{# Botón informativo junto a un título (2026-11-22): muestra durante 3 segundos el texto `destino` (ayuda_breve.js). Sin JavaScript queda oculto y el texto sigue visible. Espera `destino` (id del texto) y `nombre` (nombre accesible). #}
+<button class="boton boton-secundario boton-ayuda" type="button" aria-controls="{{ destino }}" aria-expanded="false" data-ayuda-boton hidden><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-info"/></svg><span class="sr-only">{{ nombre }}</span></button>
