@@ -78,6 +78,33 @@
 .menu-persona-texto { display: flex; flex-direction: column; min-width: 0; line-height: 1.25; overflow-wrap: anywhere; }
 .menu-persona-texto span { color: var(--secundario-texto); font-size: 0.95rem; }
 
+/* «Accesibilidad» (2026-11-22): un <details> con forma de opción del menú que despliega las preferencias. */
+.menu-accesibilidad > summary { list-style: none; }
+.menu-accesibilidad > summary::-webkit-details-marker { display: none; }
+.menu-accesibilidad > summary::after {
+  content: "";
+  flex: none;
+  width: 0.5rem;
+  height: 0.5rem;
+  margin-left: auto;
+  border: solid currentColor;
+  border-width: 0 2px 2px 0;
+  transform: translateY(-0.15rem) rotate(45deg);
+}
+.menu-accesibilidad[open] > summary::after { transform: translateY(0.15rem) rotate(-135deg); }
+.preferencias-menu { flex-direction: column; align-items: stretch; gap: 0.6rem; padding: 0.4rem 0.5rem 0.75rem; }
+.preferencias-menu .texto-control { flex-direction: column; align-items: flex-start; }
+.preferencias-menu .tema-control { justify-content: flex-start; width: 100%; min-height: 2.75rem; }
+.tema-control-estado { margin-left: auto; padding: 0.1rem 0.55rem; color: var(--trigo-texto); background: var(--trigo-fondo); border-radius: 999px; font-size: 0.9rem; }
+.tema-control[aria-pressed="true"] .tema-control-estado { color: var(--marca-texto); background: var(--marca-fondo); }
+
+/* Hoja «Más» del celular: la persona a la izquierda y, a su derecha, el tamaño del texto y el modo oscuro. */
+.dock-cabecera { display: flex; align-items: center; gap: 0.5rem; margin: 0 0 0.2rem; }
+.dock-cabecera .menu-persona { flex: 1 1 auto; min-width: 0; margin: 0; }
+.preferencias-compacto { flex: none; flex-wrap: nowrap; gap: 0.15rem; }
+.preferencias-compacto .texto-control button, .preferencias-compacto .tema-control { min-width: 2.5rem; min-height: 2.5rem; padding-inline: 0.25rem; }
+.preferencias-compacto .tema-control .icono { width: 1.25rem; height: 1.25rem; }
+
 /* ------------------------------------------------------------------ Computador: columna lateral */
 @media (min-width: 70.0625rem) {
   .app-con-menu {
@@ -190,6 +217,15 @@
   html[data-menu="plegado"] .menu .tiene-corta .menu-corta { display: block; }
   html[data-menu="plegado"] .menu .menu-insignia { position: absolute; top: 0.15rem; right: 0.3rem; min-width: 1.35rem; margin: 0; padding: 0 0.35rem; font-size: 0.72rem; }
   html[data-menu="plegado"] .menu-persona { justify-content: center; padding-inline: 0; }
+  /* Plegado, «Accesibilidad» muestra sus botones uno bajo otro, sin rótulos. */
+  html[data-menu="plegado"] .menu-accesibilidad > summary::after { display: none; }
+  html[data-menu="plegado"] .preferencias-menu { align-items: center; padding-inline: 0; }
+  html[data-menu="plegado"] .preferencias-menu .preferencias-rotulo { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+  html[data-menu="plegado"] .preferencias-menu .texto-control,
+  html[data-menu="plegado"] .preferencias-menu .texto-control-botones { flex-direction: column; align-items: center; }
+  html[data-menu="plegado"] .preferencias-menu .tema-control { justify-content: center; width: auto; }
+  html[data-menu="plegado"] .preferencias-menu .tema-control > span:not(.tema-control-estado) { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0, 0, 0, 0); }
+  html[data-menu="plegado"] .tema-control-estado { display: none; }
   html[data-menu="plegado"] .menu-plegar .icono { transform: rotate(180deg); }
 }
 
@@ -311,7 +347,7 @@
 }
 
 @media print {
-  .menu, .barra-superior, .dock, .franja { display: none !important; }
+  .menu, .barra-superior, .dock, .preferencias, .preferencias-esquina { display: none !important; }
   .app-con-menu { display: block; }
 }
 @media (forced-colors: active) {

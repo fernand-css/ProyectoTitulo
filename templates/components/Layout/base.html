@@ -1,6 +1,6 @@
 {% load static %}
 <!doctype html>
-<html lang="es-CL">
+<html lang="es-CL"{% block atributos_html %}{% endblock %}>
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
@@ -14,6 +14,7 @@
   <link rel="preload" href="{% static 'fonts/atkinson-hyperlegible-next-latin-wght-normal.woff2' %}" as="font" type="font/woff2" crossorigin>
   <link rel="stylesheet" href="{% static 'css/base.css' %}">
   <link rel="stylesheet" href="{% static 'css/menu.css' %}">
+  <link rel="stylesheet" href="{% static 'css/tema_oscuro.css' %}">
   {% block estilos %}{% endblock %}
   <script src="{% static 'js/preferencias.js' %}"></script>
   <script defer src="{% static 'js/alpine.min.js' %}"></script>
@@ -22,17 +23,17 @@
   <script defer src="{% static 'js/entregas/almacen.js' %}"></script>
   <script defer src="{% static 'js/pwa.js' %}" data-service-worker="{% url 'coreapp:sw_js' %}" data-salir="{% url 'usuariosapp:logout' %}" data-cuenta="{% block cuenta_pwa %}{% if request.user.is_authenticated %}{{ request.user.pk }}{% endif %}{% endblock %}"></script>
 </head>
-<body>
+<body{% block atributos_cuerpo %}{% endblock %}>
   <a class="skip-link" href="#contenido">Saltar al contenido</a>
   {% include 'components/iconos.html' %}
-  {# Las pantallas con menú llevan la franja dentro de su columna; las demás la ponen aquí. #}
-  {% block franja_global %}{% endblock %}
+  {% comment %}Desde el 2026-11-22 no hay franja superior: con sesión, las preferencias de lectura van en el menú
+     («Accesibilidad» en el computador, hoja «Más» en el celular); sin sesión, en `preferencias_global`.{% endcomment %}
+  {% block preferencias_global %}{% endblock %}
   {% block cuerpo %}
   <div class="app{% if request.user.is_authenticated %} app-con-menu{% endif %}">
     {% block navegacion %}{% include 'components/navbar.html' %}{% endblock %}
     <div class="app-columna">
       {% include 'components/barra_superior.html' %}
-      {% include 'components/franja.html' %}
       <main id="contenido" class="principal" tabindex="-1">
         {% include 'components/mensajes.html' %}
         {% block contenido %}{% endblock %}

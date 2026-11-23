@@ -21,6 +21,8 @@
   font-size: calc(1.15 * var(--sala-u));
   font-variant-numeric: tabular-nums;
 }
+/* Sin franja (2026-11-22): la cápsula del tamaño del texto queda sobre el mismo fondo oscuro de la sala. */
+body:has(> main.sala) { background: var(--sala-fondo); }
 html[data-texto="grande"] .sala { --sala-escala: 1.1875; }
 html[data-texto="muy-grande"] .sala { --sala-escala: 1.375; }
 .sala [hidden] { display: none !important; }

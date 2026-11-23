@@ -120,7 +120,7 @@
   --radio-atajo: 1.15rem;
 }
 
-/* Tamaño de texto elegido por la persona (franja superior); todo el diseño usa rem. */
+/* Tamaño de texto elegido por la persona (preferencias de lectura); todo el diseño usa rem. */
 html { font-size: 100%; }
 html[data-texto="grande"] { font-size: 118.75%; }
 html[data-texto="muy-grande"] { font-size: 137.5%; }
@@ -199,23 +199,15 @@ ul, ol { margin-top: 0; }
 }
 .marca-svg { flex: none; width: 3rem; height: 3rem; border-radius: 0.8rem; }
 
-/* ------------------------------------------------------------------ Franja superior */
-.franja { color: var(--secundario-texto); background: var(--panel-fondo); border-bottom: 1px solid var(--linea); font-size: 0.85rem; }
-.franja-int {
-  max-width: var(--ancho-contenido);
-  margin: auto;
-  padding: 0.5rem 2rem;
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  flex-wrap: wrap;
-  gap: 0.25rem 1.5rem;
-}
-.franja p { display: flex; flex: 1 1 12rem; align-items: center; gap: 0.5rem; margin: 0; max-width: none; line-height: 1.35; }
-.texto-control { display: none; flex: none; align-items: center; gap: 0.35rem; }
-.js .texto-control { display: flex; }
-.texto-control-etiqueta { margin-right: 0.35rem; font-weight: 600; }
-.texto-control button {
+/* ------------------------------------------------------------------ Preferencias de lectura */
+/* Tamaño del texto y modo oscuro (components/preferencias.html, 2026-11-22). Con sesión viven en el menú:
+   «Accesibilidad» del menú lateral y la hoja «Más» del celular (menu.css). Sin sesión, solo el tamaño, en una
+   cápsula arriba a la derecha. Sin JavaScript no aparecen. */
+.preferencias { display: none; }
+.js .preferencias { display: flex; flex-wrap: wrap; align-items: center; gap: 0.4rem 0.75rem; }
+.texto-control { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.5rem; }
+.texto-control-botones { display: inline-flex; align-items: center; gap: 0.25rem; }
+.texto-control button, .tema-control {
   min-width: 2.25rem;
   min-height: 2.25rem;
   padding: 0 0.4rem;
@@ -230,8 +222,12 @@ ul, ol { margin-top: 0; }
 .texto-control button:nth-of-type(1) { font-size: 0.9rem; }
 .texto-control button:nth-of-type(2) { font-size: 1.15rem; }
 .texto-control button:nth-of-type(3) { font-size: 1.45rem; }
-.texto-control button:hover { border-color: var(--tinta); }
-.texto-control button[aria-pressed="true"] { color: var(--enlace-texto); background: var(--trigo-fondo); border-color: var(--enlace-texto); }
+.tema-control { display: inline-flex; align-items: center; justify-content: center; gap: 0.5rem; font-family: var(--fuente-texto); font-size: 1rem; }
+.texto-control button:hover, .tema-control:hover { border-color: var(--tinta); }
+.texto-control button[aria-pressed="true"], .tema-control[aria-pressed="true"] { color: var(--enlace-texto); background: var(--trigo-fondo); border-color: var(--enlace-texto); }
+.preferencias-rotulo { color: var(--secundario-texto); font-size: 0.9rem; font-weight: 600; }
+.preferencias-esquina { display: flex; justify-content: flex-end; padding: 0.5rem 0.75rem 0; }
+.preferencias-esquina .preferencias { padding: 0.15rem; color: var(--panel-texto); background: var(--panel-fondo); border: 1px solid var(--linea); border-radius: 0.8rem; }
 
 /* ------------------------------------------------------------------ Marca */
 /* El menú principal (columna lateral y barra inferior) vive en menu.css. */
@@ -619,8 +615,7 @@ form .acciones { margin-top: 0.5rem; }
   .paisaje-lema, .paisaje-arte { display: none; }
   .paisaje-arte-movil { display: none; }
   .acceso-panel { padding-top: 2rem; }
-  .franja-int, .contenedor { padding-inline: 1rem; }
-  .texto-control-etiqueta { display: none; }
+  .contenedor { padding-inline: 1rem; }
   .ficha { grid-template-columns: minmax(0, 1fr); gap: 0; }
   .ficha dd { margin-bottom: 0.75rem; }
   .pie-int { padding-inline: 1rem; }
@@ -631,5 +626,5 @@ form .acciones { margin-top: 0.5rem; }
 }
 @media (forced-colors: active) {
   .boton, .panel { border-color: ButtonText; }
-  .texto-control button[aria-pressed="true"] { outline: 3px solid Highlight; }
+  .texto-control button[aria-pressed="true"], .tema-control[aria-pressed="true"] { outline: 3px solid Highlight; }
 }

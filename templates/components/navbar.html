@@ -24,6 +24,18 @@
           </ul>
         </li>
         {% endfor %}
+        {# Configuración (2026-11-22): «Accesibilidad» despliega el tamaño del texto y el modo oscuro. #}
+        <li class="menu-grupo">
+          <p class="menu-grupo-titulo" id="menu-configuracion">Configuración</p>
+          <ul aria-labelledby="menu-configuracion">
+            <li>
+              <details class="menu-accesibilidad" data-accesibilidad>
+                <summary class="menu-enlace tiene-corta"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-accesibilidad"/></svg><span class="menu-texto">Accesibilidad</span><span class="menu-corta" aria-hidden="true">Acceso</span></summary>
+                {% include 'components/preferencias.html' with modo='menu' %}
+              </details>
+            </li>
+          </ul>
+        </li>
       </ul>
     </nav>
     <div class="menu-cuenta">

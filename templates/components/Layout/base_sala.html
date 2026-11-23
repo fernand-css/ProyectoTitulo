@@ -1,5 +1,6 @@
 {% extends 'components/Layout/base.html' %}
-{% block franja_global %}{% include 'components/franja.html' %}{% endblock %}
+{% block atributos_html %} data-solo-claro{% endblock %}
+{% block preferencias_global %}<div class="preferencias-esquina">{% include 'components/preferencias.html' with modo='flotante' %}</div>{% endblock %}
 {% block cuerpo %}
 <main id="contenido" class="principal sala" tabindex="-1">
   {% block contenido %}{% endblock %}

@@ -199,9 +199,11 @@ No quedan preguntas funcionales bloqueantes. Supuestos técnicos reversibles, a 
 - Los valores de la tabla de parámetros iniciales.
 - Que el equipo de la sala tenga un navegador con síntesis de voz y una voz en español (idealmente `es-CL`); debe comprobarse en el hardware real, que es una dependencia institucional del informe.
 - Que el servidor ASGI (Daphne) y Channels funcionen con el flujo actual de `runserver`; la versión exacta de los paquetes se fija en la implementación.
-- Si la franja superior del layout (aviso de demostración y control de tamaño de texto) se conserva o se oculta en la pantalla de sala. Se propone conservarla.
+- Si la franja superior del layout (aviso de demostración y control de tamaño de texto) se conserva o se oculta en la pantalla de sala. Se propone conservarla. *(Resuelto el 2026-11-22: se retira la franja en todas las pantallas; la sala conserva solo el control de tamaño del texto. Ver «Revisión y cambios».)*
 
 ## Revisión y cambios
+
+2026-11-22 (cambio pedido por el usuario, sin migraciones): se retira en todas las pantallas la franja superior con «Entorno de demostración: todos los datos son ficticios.». La sala conserva el control de tamaño del texto (lo exige este spec) como una cápsula pequeña arriba a la derecha (`components/preferencias.html` con `modo='flotante'`), sobre el fondo oscuro de la sala (`sala.css`). La sala queda siempre con su paleta propia: no aplica el modo oscuro del personal (`data-solo-claro`). Ver [spec 01](../01-base-del-proyecto/spec.md#cambios-posteriores).
 
 2026-11-15 (enmienda): por las letras de la enmienda del spec 04 y la urgencia del spec 10, se agrega RF-06-13. Requiere una migración que agrega la letra a `AnuncioSala`, y como toca la transacción del llamado exige las pruebas concurrentes del 05 y del 06. Sin cambios de código.
 

@@ -161,3 +161,16 @@ Los riesgos y mitigaciones originales se conservan en [plan.md](plan.md#riesgos-
 - Despliegue, HTTPS real, Docker, CI y PostgreSQL.
 
 Cada uno, cuando llegue, va en su propio spec.
+
+---
+
+## Cambios posteriores
+
+2026-11-22 y 2026-11-23 (pedidos por el usuario; sin migraciones). Cambian los layouts base y el menú, no el alcance de este spec:
+
+- **Sin franja de demostración.** Se retira `components/franja.html` («Entorno de demostración: todos los datos son ficticios.» y el control de tamaño del texto) de todas las pantallas. El pie conserva «Entorno de demostración con datos sintéticos.» (RNF-01).
+- **Preferencias de lectura en el menú** (`components/preferencias.html`, `static/js/preferencias.js`). En el computador, el menú lateral suma la categoría «Configuración» con la opción «Accesibilidad», un `<details>` con el tamaño del texto (normal, grande, muy grande) y «Modo oscuro» (botón con `aria-pressed` y «Sí/No» escrito). En el celular, la hoja «Más» los muestra en una fila compacta a la derecha de la persona. Sin sesión (acceso, tótem y sala) queda solo el tamaño del texto, en una cápsula arriba a la derecha (bloque `preferencias_global`): el tótem y la sala siguen permitiendo agrandar la letra (RNF-04).
+- **Modo oscuro.** `static/css/tema_oscuro.css` redefine bajo `html[data-tema="oscuro"]` solo las variables de `base.css`; cada pareja texto/fondo se verifica con la fórmula de WCAG (4,5:1 texto y 3:1 componentes) en `test_estaticos.py`, igual que la paleta clara. La elección se guarda en `localStorage` (`farmacia.tema`, solo «oscuro» o «claro») y se aplica antes de pintar. Las pantallas públicas marcan `<html data-solo-claro>` y no lo aplican (el tótem y la sala tienen su propia paleta). Por omisión, claro.
+- **Bloques nuevos en `base.html`:** `atributos_html`, `atributos_cuerpo` (lo usa el mapa del encargado, spec 09) y `preferencias_global`; se retira `franja_global`.
+
+Evidencia: pruebas de `coreapp` (`test_navegacion.py`, `test_plantillas.py`, `test_estaticos.py`) y revisión en la vista previa local de Inicio, Recetas, Mermas, la hoja «Más», el tótem y la sala en claro y oscuro. La auditoría con axe del modo oscuro y la prueba de usabilidad quedan pendientes, como el resto de RNF-04.

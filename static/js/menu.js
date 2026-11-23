@@ -5,6 +5,7 @@
        este navegador (clave «farmacia.menu»; preferencias.js la aplica antes de pintar para evitar un salto).
     2. Hoja «Más» del celular: se cierra con Escape (y devuelve el foco al botón), al tocar fuera, al elegir
        una opción, al salir con el teclado de la hoja y al ensanchar la ventana.
+    3. «Accesibilidad» de la columna lateral: al abrirla se desplaza para que sus botones queden a la vista.
   El ancho de corte es el mismo de menu.css (70 rem). No envía nada ni guarda datos personales.
 */
 (function () {
@@ -39,6 +40,14 @@
       mostrar();
     });
     mostrar();
+  }
+
+  // «Accesibilidad» (2026-11-22) está al final de la columna: al abrirla, sus botones se desplazan a la vista.
+  var accesibilidad = document.querySelector("[data-accesibilidad]");
+  if (accesibilidad) {
+    accesibilidad.addEventListener("toggle", function () {
+      if (accesibilidad.open && accesibilidad.scrollIntoView) { accesibilidad.scrollIntoView({ block: "nearest" }); }
+    });
   }
 
   if (mas) {

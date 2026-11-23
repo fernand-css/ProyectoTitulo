@@ -262,16 +262,42 @@ class MenuRenderizadoTests(TestCase):
         self.assertRegex(menu, r'<span class="menu-texto">Administración</span><span class="menu-corta" aria-hidden="true">Admin\.</span>')
         self.assertRegex(menu, r'<span class="menu-texto">Cerrar sesión</span><span class="menu-corta" aria-hidden="true">Salir</span>')
 
-    def test_las_pantallas_publicas_conservan_la_franja_y_no_traen_menu(self):
-        html = Client().get(reverse("usuariosapp:login")).content.decode()
-        self.assertEqual(html.count('class="franja"'), 1)
-        for ausente in ('class="menu"', 'class="dock"', "barra-superior", "app-con-menu"):
-            self.assertNotIn(ausente, html)
+    def test_las_pantallas_publicas_solo_traen_el_tamano_del_texto_sin_franja_ni_menu(self):
+        """2026-11-22: sin la franja «Entorno de demostración»; el tamaño del texto queda en una cápsula y el modo
+        oscuro no se aplica (`data-solo-claro`)."""
+        for nombre in ("usuariosapp:login", "turnosapp:totem", "turnosapp:sala"):
+            with self.subTest(pantalla=nombre):
+                html = Client().get(reverse(nombre)).content.decode()
+                self.assertNotIn("todos los datos son ficticios", html)
+                self.assertNotIn("{#", html)  # ningún comentario de plantilla queda a la vista
+                self.assertNotIn('class="franja"', html)
+                self.assertIn('<html lang="es-CL" data-solo-claro>', html)
+                self.assertEqual(html.count('class="preferencias preferencias-flotante"'), 1)
+                self.assertEqual(html.count("data-texto-nivel="), 3)
+                self.assertNotIn("data-tema-alternar", html)
+                for ausente in ('class="menu"', 'class="dock"', "barra-superior", "app-con-menu"):
+                    self.assertNotIn(ausente, html)
 
-    def test_con_menu_la_franja_va_dentro_de_la_columna_y_no_se_repite(self):
-        html = self.pagina(JEFA)
-        self.assertEqual(html.count('class="franja"'), 1)
-        self.assertGreater(html.index('class="franja"'), html.index('<div class="app-columna">'))
+    def test_con_menu_las_preferencias_van_en_accesibilidad_y_en_la_hoja_mas(self):
+        """2026-11-22: en el computador, «Configuración» › «Accesibilidad» (tamaño y modo oscuro); en el celular, a la
+        derecha de la persona en la hoja «Más». Sin franja de demostración."""
+        for rol in self.usuarios:
+            with self.subTest(rol=rol):
+                html = self.pagina(rol)
+                menu, dock = self.partes(html)
+                self.assertNotIn("todos los datos son ficticios", html)
+                self.assertNotIn("{#", html)  # ningún comentario de plantilla queda a la vista
+                self.assertNotIn('class="franja"', html)
+                self.assertNotIn("data-solo-claro", html)
+                self.assertIn('<p class="menu-grupo-titulo" id="menu-configuracion">Configuración</p>', menu)
+                self.assertRegex(menu, r'<details class="menu-accesibilidad" data-accesibilidad>\s*<summary class="menu-enlace tiene-corta">'
+                                       r'.*?<span class="menu-texto">Accesibilidad</span>')
+                self.assertIn('class="preferencias preferencias-menu"', menu)
+                self.assertIn("<span>Modo oscuro</span>", menu)
+                self.assertLess(dock.index('class="menu-persona"'), dock.index('class="preferencias preferencias-compacto"'))
+                self.assertIn('data-tema-alternar aria-pressed="false" aria-label="Modo oscuro"', dock)
+                self.assertEqual(html.count("data-texto-nivel="), 6)
+                self.assertIn("css/tema_oscuro.css", html)
 
 
 class InsigniasTests(TestCase):

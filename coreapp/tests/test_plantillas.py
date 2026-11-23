@@ -121,7 +121,8 @@ class PlantillasTests(TestCase):
             with self.subTest(plantilla=nombre):
                 html = self.renderizar(nombre, form=AuthenticationForm(self.request))
                 documento = DocumentoHTML(html)
-                self.assertIn(("html", {"lang": "es-CL"}), documento.elementos)
+                raiz = next(atributos for etiqueta, atributos in documento.elementos if etiqueta == "html")
+                self.assertEqual(raiz["lang"], "es-CL")
                 principales = [atributos for etiqueta, atributos in documento.elementos if etiqueta == "main"]
                 self.assertEqual(len(principales), 1)
                 self.assertEqual(principales[0]["id"], "contenido")

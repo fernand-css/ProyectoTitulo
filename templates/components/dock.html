@@ -13,9 +13,13 @@
       <details class="dock-mas{% if menu_principal.mas_activa %} dock-mas-activa{% endif %}" data-mas>
         <summary class="dock-enlace"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-puntos"/></svg><span class="dock-texto">Más</span>{% if menu_principal.mas_activa %}<span class="sr-only"> (incluye la página actual)</span>{% endif %}</summary>
         <div class="dock-hoja" role="group" aria-label="Más opciones">
-          {% if menu_principal.persona %}
-          <p class="menu-persona"><span class="menu-avatar" aria-hidden="true">{{ menu_principal.persona.iniciales }}</span><span class="menu-persona-texto"><strong>{{ menu_principal.persona.nombre }}</strong><span>{{ menu_principal.persona.rol }}</span></span></p>
-          {% endif %}
+          {# La persona y, a su derecha, el tamaño del texto y el modo oscuro (2026-11-22). #}
+          <div class="dock-cabecera">
+            {% if menu_principal.persona %}
+            <p class="menu-persona"><span class="menu-avatar" aria-hidden="true">{{ menu_principal.persona.iniciales }}</span><span class="menu-persona-texto"><strong>{{ menu_principal.persona.nombre }}</strong><span>{{ menu_principal.persona.rol }}</span></span></p>
+            {% endif %}
+            {% include 'components/preferencias.html' with modo='compacto' %}
+          </div>
           <ul class="menu-lista">
             {% for opcion in menu_principal.mas %}
             <li>{% include 'components/_menu_enlace.html' %}</li>

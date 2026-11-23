@@ -1,0 +1,86 @@
+/*
+  Modo oscuro (2026-11-22). preferencias.js pone `data-tema="oscuro"` en <html> cuando la persona lo elige en
+  «Accesibilidad» (menú lateral) o en la hoja «Más» del celular. Solo redefine las variables de base.css: cada
+  pareja texto/fondo se verifica con la fórmula de WCAG en coreapp/tests/test_estaticos.py (4,5:1 el texto y 3:1
+  los componentes), igual que la paleta clara. Las pantallas públicas (acceso, tótem y sala) quedan en claro.
+*/
+html[data-tema="oscuro"] {
+  color-scheme: dark;
+
+  --trigo: #223250;
+  --arena: #2a3b57;
+  --naranja: #f0a95a;
+  --ladrillo: #8eaeff;
+  --tinta: #e8eef6;
+  --linea: #2c3a50;
+  --borde: #8597b0;
+  --eucalipto: #86d6c0;
+  --menta: #12302a;
+  --sombra-panel: 0 0.75rem 2.5rem color-mix(in srgb, black 45%, transparent);
+
+  --pagina-texto: #e8eef6;
+  --pagina-fondo: #0e1621;
+  --panel-texto: #e8eef6;
+  --panel-fondo: #172131;
+  --secundario-texto: #aebbcc;
+  --secundario-fondo: #172131;
+  --marca-texto: #0b1220;
+  --marca-fondo: #8eaeff;
+  --activo-texto: #0b1220;
+  --activo-fondo: #c3d3ff;
+  --enlace-texto: #9fbbff;
+  --enlace-fondo: #172131;
+  --accion-texto: #0b1220;
+  --accion-fondo: #8eaeff;
+  --hover-texto: #0b1220;
+  --hover-fondo: #e8eef6;
+  --trigo-texto: #e8eef6;
+  --trigo-fondo: #223250;
+  --arena-texto: #e8eef6;
+  --arena-fondo: #2a3b57;
+  --suave-texto: #e8eef6;
+  --suave-fondo: #111a27;
+  --error-texto: #ffb4bf;
+  --error-fondo: #3b1820;
+  --exito-texto: #86d6c0;
+  --exito-fondo: #10302a;
+  --aviso-texto: #ffd08a;
+  --aviso-fondo: #372710;
+  --pie-texto: #aebbcc;
+  --pie-fondo: #111a27;
+  --menu-texto: #aebbcc;
+  --menu-fondo: #172131;
+  --menu-grupo-texto: #aebbcc;
+  --menu-grupo-fondo: #172131;
+  --menu-activo-texto: #9fbbff;
+  --menu-activo-fondo: #223250;
+  --menu-hover-texto: #e8eef6;
+  --menu-hover-fondo: #111a27;
+  --velo: color-mix(in srgb, black 65%, transparent);
+
+  --serie-1: #8eaeff;
+  --serie-2: #f0a95a;
+  --neutro-1: #6f819b;
+  --neutro-2: #93a4bb;
+  --neutro-3: #c3cedc;
+
+  --merma: #f0883e;
+  --merma-claro: #4a2c14;
+  --recuperada: #3cc7a8;
+  --aluminio: #243043;
+  --aluminio-tira: #1b2536;
+  --aluminio-borde: #3a4a62;
+}
+
+/* El calendario de mermas conserva su rampa ámbar clara: el texto de cada celda queda fijo para su fondo. */
+html[data-tema="oscuro"] .calendario-celda { color: #182c42; }
+html[data-tema="oscuro"] .nivel-4, html[data-tema="oscuro"] .nivel-5 { color: #ffffff; }
+
+/* Leaflet trae globos y créditos blancos: en oscuro toman los colores del panel. */
+html[data-tema="oscuro"] .leaflet-popup-content-wrapper,
+html[data-tema="oscuro"] .leaflet-popup-tip { color: var(--panel-texto); background: var(--panel-fondo); }
+html[data-tema="oscuro"] .leaflet-container .leaflet-control-attribution { color: var(--panel-texto); background: color-mix(in srgb, var(--panel-fondo) 88%, transparent); }
+html[data-tema="oscuro"] .leaflet-container .leaflet-control-attribution a { color: var(--enlace-texto); }
+html[data-tema="oscuro"] .leaflet-bar a { color: var(--panel-texto); background: var(--panel-fondo); border-bottom-color: var(--linea); }
+html[data-tema="oscuro"] .leaflet-bar a:hover { color: var(--trigo-texto); background: var(--trigo-fondo); }
+html[data-tema="oscuro"] :focus-visible { box-shadow: 0 0 0 2px #0e1621; }

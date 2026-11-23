@@ -4,7 +4,8 @@
   una tarjeta con el formulario a la izquierda y la ilustración del mostrador a la derecha. En pantallas angostas, o con
   el texto muy ampliado, la ilustración pasa debajo del formulario. El tótem usa otro layout (base_publica.html).
 {% endcomment %}
-{% block franja_global %}{% include 'components/franja.html' %}{% endblock %}
+{% block atributos_html %} data-solo-claro{% endblock %}
+{% block preferencias_global %}<div class="preferencias-esquina">{% include 'components/preferencias.html' with modo='flotante' %}</div>{% endblock %}
 {% block cuerpo %}
 <div class="entrada">
   <div class="entrada-tarjeta">

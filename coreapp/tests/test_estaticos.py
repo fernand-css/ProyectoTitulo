@@ -80,6 +80,39 @@ class EstaticosTests(SimpleTestCase):
             with self.subTest(texto=texto, fondo=fondo):
                 self.assertGreaterEqual(contraste(texto, fondo), 4.5)
 
+    def test_modo_oscuro_redefine_la_paleta_con_el_mismo_contraste(self):
+        """2026-11-22: tema_oscuro.css solo redefine variables de base.css bajo html[data-tema="oscuro"], y cada pareja
+        cumple lo mismo que en claro: 4,5:1 el texto y 3:1 los componentes (WCAG 1.4.3 y 1.4.11)."""
+        base = (settings.BASE_DIR / "static/css/base.css").read_text(encoding="utf-8")
+        oscuro_css = (settings.BASE_DIR / "static/css/tema_oscuro.css").read_text(encoding="utf-8")
+        patron = r"--([a-z0-9-]+):\s*(#[0-9a-fA-F]{6})\s*;"
+        claros = dict(re.findall(patron, base))
+        propios = dict(re.findall(patron, oscuro_css))
+        self.assertTrue(propios)
+        self.assertFalse(set(propios) - set(claros), "El modo oscuro no inventa variables: redefine las de base.css.")
+        self.assertIn('html[data-tema="oscuro"] {', oscuro_css)
+        self.assertIn("color-scheme: dark;", oscuro_css)
+        variables = {**claros, **propios}
+        textos = {nombre.removesuffix("-texto") for nombre in variables if nombre.endswith("-texto")}
+        pares = [(nombre + "-texto", nombre + "-fondo") for nombre in textos]
+        pares += [("enlace-texto", "pagina-fondo"), ("enlace-texto", "arena-fondo"), ("menu-activo-texto", "panel-fondo")]
+        pares += [(texto, fondo) for texto in ("enlace-texto", "secundario-texto") for fondo in ("trigo-fondo", "suave-fondo", "panel-fondo")]
+        pares += [(texto, "panel-fondo") for texto in ("error-texto", "exito-texto", "aviso-texto")]
+        for texto, fondo in pares:
+            with self.subTest(texto=texto, fondo=fondo):
+                self.assertGreaterEqual(contraste(variables[texto], variables[fondo]), 4.5)
+        componentes = [(primero, segundo) for primero in ("borde", "tinta", "ladrillo", "marca-fondo", "activo-fondo", "enlace-texto")
+                       for segundo in ("panel-fondo", "suave-fondo", "trigo-fondo")]
+        componentes += [(serie, "panel-fondo") for serie in ("serie-1", "serie-2", "neutro-1", "neutro-2", "neutro-3", "merma", "recuperada")]
+        for primero, segundo in componentes:
+            with self.subTest(primero=primero, segundo=segundo):
+                self.assertGreaterEqual(contraste(variables[primero], variables[segundo]), 3)
+        plantilla = (settings.BASE_DIR / "templates/components/Layout/base.html").read_text(encoding="utf-8")
+        self.assertIn("css/tema_oscuro.css", plantilla)
+        preferencias = (settings.BASE_DIR / "static/js/preferencias.js").read_text(encoding="utf-8")
+        for fragmento in ('"farmacia.tema"', "data-tema-alternar", "data-solo-claro", 'raiz.setAttribute("data-tema", "oscuro")'):
+            self.assertIn(fragmento, preferencias)
+
     def test_bordes_de_campos_cumplen_contraste_de_componentes_de_interfaz(self):
         """WCAG 1.4.11: el borde que delimita un campo debe distinguirse con al menos 3:1."""
         css = (settings.BASE_DIR / "static/css/base.css").read_text(encoding="utf-8")
