@@ -138,6 +138,10 @@ El paso 5 agrega `usuariosapp/backends.py` y lo configura en `AUTHENTICATION_BAC
 
 El paso 6 incorpora formularios/vistas/servicios de gestión, rutas bajo `/usuarios/gestion/`, plantillas `usuarios/gestion_lista.html` y `gestion_form.html` y enlace Usuarios. `usuariosapp/admin.py` sustituye el Admin de User, restringe su escritura al superusuario y deja grupos de solo lectura; Perfil no se registra para edición directa. Todas las relaciones y eventos se escriben desde servicios; no hay escrituras M2M posteriores desde Admin ni borrado de cuentas. El historial usa la bitácora filtrada. Pruebas nuevas en `test_gestion_usuarios.py` y ampliación de `test_admin.py`, incluida promoción concurrente. La revisión final del paso 7 sigue pendiente.
 
+## Límite de intentos de inicio de sesión — 2026-11-24
+
+`usuariosapp/limite_acceso.py` y el modelo `IntentoAcceso` (migración `0003_intentoacceso`, sin Admin) limitan el login (RF-02-13): `IniciarSesionView.post` reserva un intento con `limite_acceso.reservar` antes de comprobar la contraseña (5 por usuario en el equipo y 20 por equipo en ventanas de 15 minutos, UPDATE condicional y restricción única) y, con el cupo agotado, responde 429 con `error_limite` en `registration/login.html` sin autenticar. `ingreso_correcto` devuelve el cupo del equipo y borra los fallos del usuario en el equipo. Las claves son huellas `salted_hmac` del usuario sin mayúsculas más la IP (`REMOTE_ADDR`) y de la IP sola; la auditoría `auth.limite_intentos` se escribe una vez por huella y ventana. Pruebas en `usuariosapp/tests/test_limite_acceso.py`, con tres escenarios concurrentes.
+
 ## Integración final de la spec 02 — revisión visual pendiente
 
 Se integraron enlaces por permisos y sección activa, accesos desde el inicio y CSS para formularios/selectores/tarjetas adaptables. `usuariosapp/tests/test_integracion.py` comprueba destinos reales y estructura accesible de formularios. La suite completa pasó con 185 pruebas.

@@ -3,7 +3,9 @@
 {% block contenido %}
 <h1 id="titulo-login">Inicia sesión</h1>
 <p class="acceso-intro">Entra con la cuenta que usas en la Unidad de Farmacia.</p>
-{% if form.non_field_errors %}
+{% if error_limite %}
+  <div class="message message-error" role="alert">{{ error_limite }}</div>
+{% elif form.non_field_errors %}
   <div class="message message-error" role="alert">{{ form.non_field_errors }}</div>
 {% endif %}
 <form method="post" action="{% url 'usuariosapp:login' %}" aria-labelledby="titulo-login">

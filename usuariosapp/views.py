@@ -23,6 +23,7 @@ from django.views.generic import ListView
 
 from coreapp.mixins import CuentaHabilitadaMixin, RolRequeridoMixin
 from coreapp.roles import ETIQUETAS_ROLES, JEFA, ROLES_INTERNOS
+from . import limite_acceso
 from .forms import EstadoCuentaForm, GestionAltaForm, GestionEdicionForm, PerfilForm, RecuperacionForm
 from .models import Perfil
 from .services import (
@@ -102,6 +103,25 @@ class VerificarCorreoView(View):
 
 
 class IniciarSesionView(LoginView):
+    def post(self, request, *args, **kwargs):
+        usuario, clave = request.POST.get("username", ""), request.POST.get("password", "")
+        if not (usuario.strip() and clave):
+            return super().post(request, *args, **kwargs)  # Campos vacíos: no se comprueba ninguna contraseña.
+        try:
+            reserva = limite_acceso.reservar(usuario, request.META.get("REMOTE_ADDR", ""))
+        except limite_acceso.LimiteSuperado as limite:
+            # Sin comprobar la contraseña: ni la correcta entra hasta la siguiente ventana.
+            minutos = f"{limite.minutos} minuto{'' if limite.minutos == 1 else 's'}"
+            contexto = self.get_context_data(
+                form=self.get_form_class()(request, initial={"username": usuario.strip()[:150]}),
+                error_limite=f"Hubo demasiados intentos fallidos. Por seguridad, espera {minutos} antes de volver a intentarlo.",
+            )
+            return self.render_to_response(contexto, status=429)
+        respuesta = super().post(request, *args, **kwargs)
+        if request.user.is_authenticated:
+            limite_acceso.ingreso_correcto(reserva)
+        return respuesta
+
     def form_valid(self, form):
         try:
             iniciar_sesion(self.request, form.get_user())

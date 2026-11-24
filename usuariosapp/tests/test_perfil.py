@@ -187,6 +187,8 @@ class MigracionPerfilTests(TransactionTestCase):
         self.assertEqual(list(Usuario.objects.get(pk=tecnico.pk).groups.values_list("name", flat=True)), [TECNICO])
         self.assertEqual(Usuario.objects.get(pk=admin.pk).groups.count(), 0)
         self.assertTrue(Usuario.objects.get(pk=tecnico.pk).check_password(clave))
+        # El login cuenta sus intentos en la tabla de la 0003 (límite de intentos, 2026-11-24).
+        MigrationExecutor(connection).migrate([("usuariosapp", "0003_intentoacceso")])
         respuesta = self.client.post(reverse("usuariosapp:login"), {"username": admin.username, "password": clave})
         self.assertRedirects(respuesta, reverse("coreapp:inicio"))
         self.assertContains(self.client.get(reverse("coreapp:inicio")), "Administración")

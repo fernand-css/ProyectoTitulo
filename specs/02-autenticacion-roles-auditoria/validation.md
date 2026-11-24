@@ -135,6 +135,7 @@ La evidencia automatizada y HTTP real cubre los flujos e integración del módul
 | RF-02-10 | Cambios de cada tipo y desde Admin; simular fallo al auditar | Eventos sin duplicados; cambios persistentes revierten ante fallo | Verificado en demo, perfil, correo, claves, panel y Admin, incluidos permisos/M2M y rollback | Verificado |
 | RF-02-11 | Acceso directo y modificación del registro desde Admin por cada rol | Solo consulta por superusuario; sin edición/borrado | Verificado en `test_admin.py`, incluidos permisos explícitos y acciones masivas | Verificado |
 | RF-02-12 | Comandos de preparación ejecutados dos veces | Sin duplicados ni cambio de claves existentes | Verificado por `test_comandos.py` en base temporal | Verificado |
+| RF-02-13 | `usuariosapp/tests/test_limite_acceso.py`: límites por cuenta y equipo, otro equipo, mayúsculas, campos vacíos, ventana, auditoría y tres escenarios concurrentes con hilos | Espera 429 sin comprobar la contraseña; nunca más comprobaciones que el límite | 16 pruebas aprobadas sobre PostgreSQL (2026-11-24) | Verificado técnicamente |
 
 ## Regresión de la base
 
@@ -157,3 +158,15 @@ Las migraciones solo se ejecutaron en el entorno de pruebas, incluyendo retroces
 ## Aceptación funcional
 
 Pendiente. Las respuestas del equipo aclararon requisitos; no representan aceptación del funcionamiento ni aprobación automática del borrador.
+
+## Cambio posterior del 2026-11-24 — límite de intentos (RF-02-13)
+
+| Comando con `venv/Scripts/python.exe` | Resultado real |
+|---|---|
+| `manage.py test usuariosapp.tests.test_limite_acceso --noinput` | 16 pruebas aprobadas (10 HTTP, 3 de servicio y 3 concurrentes con `TransactionTestCase` e hilos: 12 claves erradas a la vez para un usuario, 28 usuarios a la vez desde un equipo y 4 ingresos correctos mezclados con 12 fallos) |
+| `manage.py test usuariosapp --noinput` | 143 pruebas aprobadas; `test_perfil.MigracionPerfilTests` aplica la `0003` antes de iniciar sesión |
+| `tools/verificar_spec_02_http.py` | Flujos HTTP aprobados sobre SQLite temporal con 49 migraciones |
+| `manage.py test --noinput` | 1249 pruebas aprobadas sobre PostgreSQL, 750 s |
+| `manage.py check` y `makemigrations --check --dry-run` | Sin problemas; sin cambios pendientes |
+
+Pendientes: revisión en navegador del mensaje de espera, comprobación con un proxy real y aceptación funcional.
