@@ -8,13 +8,12 @@ from dataclasses import dataclass
 from datetime import date, datetime, time, timedelta
 
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.db.models import Count, Exists, F, Max, OuterRef, Prefetch, Q, Subquery
 from django.db.models.functions import Lower, Trim
 from django.utils import timezone
 
 from coreapp.roles import ENCARGADO
-from coreapp.utils.rut import normalizar_rut
+from coreapp.utils.rut import condicion_busqueda_rut
 from recetasapp.models import Paciente
 from . import osrm
 from .models import Domicilio, Entrega, InscripcionReparto, IntentoEntrega, OrdenRuta, RecetaEntrega
@@ -54,15 +53,14 @@ def excepcion_vigente(paciente):
 
 
 def filtrar_busqueda(pacientes, buscar, prefijo=""):
-    """Filtra por RUT exacto o por nombre o apellido. `prefijo` permite buscar desde otra tabla."""
+    """Filtra por RUT (completo o su comienzo) o por nombre o apellido. `prefijo` permite buscar desde otra tabla."""
     buscar = (buscar or "").strip()
     if not buscar:
         return pacientes
     condicion = Q(**{f"{prefijo}nombres__icontains": buscar}) | Q(**{f"{prefijo}apellidos__icontains": buscar})
-    try:
-        condicion |= Q(**{f"{prefijo}rut": normalizar_rut(buscar)})
-    except ValidationError:
-        pass
+    por_rut = condicion_busqueda_rut(buscar, f"{prefijo}rut")
+    if por_rut is not None:
+        condicion |= por_rut
     return pacientes.filter(condicion)
 
 

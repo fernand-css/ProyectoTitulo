@@ -13,7 +13,6 @@
     {% csrf_token %}
     <input type="hidden" name="accion" value="buscar">
     <label for="{{ busqueda.buscar.id_for_label }}">{{ busqueda.buscar.label }}</label>
-    <p class="campo-ayuda" id="ayuda-buscar" data-solo-js hidden>Los resultados aparecen mientras escribes el RUT, el nombre o el apellido.</p>
     <div class="busqueda-caja">{{ busqueda.buscar }}<button class="boton" type="submit">Buscar</button></div>
   </form>
   {% include 'entregas/_excepciones_resultados.html' %}

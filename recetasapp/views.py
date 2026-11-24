@@ -18,7 +18,7 @@ from django.views.decorators.debug import sensitive_post_parameters
 from coreapp.busqueda import plantilla_y_contexto
 from coreapp.mixins import RolRequeridoMixin, tiene_rol
 from coreapp.roles import JEFA, TECNICO
-from coreapp.utils.rut import normalizar_rut
+from coreapp.utils.rut import condicion_busqueda_rut
 from .forms import (
     BusquedaPacienteForm, BusquedaPreparacionForm, BusquedaRecetaForm, CorreoAvisosForm,
     EntregaForm, ImportacionForm, RecetaForm, RetiroPreparadoForm,
@@ -68,10 +68,9 @@ class PacientesView(FarmaciaView):
                     pacientes = consultas.pacientes_sin_vigente().order_by("apellidos", "nombres", "pk")
                 if buscar:
                     condicion = Q(nombres__icontains=buscar) | Q(apellidos__icontains=buscar)
-                    try:
-                        condicion |= Q(rut=normalizar_rut(buscar))
-                    except ValidationError:
-                        pass
+                    por_rut = condicion_busqueda_rut(buscar)
+                    if por_rut is not None:
+                        condicion |= por_rut
                     pacientes = pacientes.filter(condicion)
             else:
                 pacientes = pacientes.none()
@@ -117,10 +116,9 @@ class RecetasListaView(FarmaciaView):
                 recetas = consultas.filtrar_recetas(recetas, situacion, hoy)
                 if buscar:
                     condicion = Q(codigo__icontains=buscar) | Q(paciente__nombres__icontains=buscar) | Q(paciente__apellidos__icontains=buscar)
-                    try:
-                        condicion |= Q(paciente__rut=normalizar_rut(buscar))
-                    except ValidationError:
-                        pass
+                    por_rut = condicion_busqueda_rut(buscar, "paciente__rut")
+                    if por_rut is not None:
+                        condicion |= por_rut
                     recetas = recetas.filter(condicion)
             else:
                 recetas = recetas.none()

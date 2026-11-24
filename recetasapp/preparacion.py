@@ -5,12 +5,11 @@ from dataclasses import dataclass
 from datetime import timedelta
 from math import ceil
 
-from django.core.exceptions import ValidationError
 from django.db.models import Avg, Count, Exists, F, OuterRef, Q, Value
 from django.db.models.functions import Lower, Replace
 from django.utils import timezone
 
-from coreapp.utils.rut import normalizar_rut
+from coreapp.utils.rut import condicion_busqueda_rut
 from .models import PreparacionReceta
 
 DIAS_VENTANA_PROMEDIO = 14
@@ -82,12 +81,9 @@ def pendientes_retiro(buscar=None):
     buscar = (buscar or "").strip()
     if not buscar:
         return pendientes
-    try:
-        rut = normalizar_rut(buscar)
-    except ValidationError:
-        rut = None
-    if rut:
-        return pendientes.filter(turno_receta__turno__paciente__rut=rut)
+    por_rut = condicion_busqueda_rut(buscar, "turno_receta__turno__paciente__rut")
+    if por_rut is not None:
+        return pendientes.filter(por_rut)
     return (
         pendientes.annotate(apellidos_normalizados=_apellidos_sin_acentos())
         .filter(apellidos_normalizados__icontains=_normalizar_apellido(buscar))

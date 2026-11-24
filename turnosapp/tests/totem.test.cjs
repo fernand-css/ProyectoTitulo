@@ -115,3 +115,100 @@ test('La entrada avisa a los 20 s restantes y luego limpia', () => {
   caso.avanzar(20000);
   assert.equal(caso.limpiezas(), 1);
 });
+
+// Formato del RUT (2026-11-23): el último carácter es el dígito verificador; el guion y los puntos se ponen solos.
+function conTeclado(valorInicial = '') {
+  const eventos = {};
+  const input = {
+    value: valorInicial, maxLength: 12, selectionStart: valorInicial.length, selectionEnd: valorInicial.length,
+    addEventListener: (nombre, fn) => { eventos[nombre] = fn; },
+    setSelectionRange(a, b) { this.selectionStart = a; this.selectionEnd = b; },
+    focus() {},
+  };
+  let clic;
+  const teclado = {hidden: true, addEventListener: (nombre, fn) => { clic = fn; }};
+  const ayuda = {hidden: true};
+  const panel = {
+    hidden: false, dataset: {segundos: '120'}, hasAttribute: () => false, addEventListener() {},
+    querySelector(selector) {
+      return ({'[name=rut]': input, '.totem-teclado': teclado, '[data-finalizar]': {addEventListener() {}},
+        '[data-aviso]': {hidden: true}, '[data-ampliar]': {addEventListener() {}}})[selector] || null;
+    },
+    querySelectorAll: selector => selector === '[data-solo-js]' ? [ayuda] : [],
+  };
+  runInNewContext(codigo, {
+    document: {querySelector: () => panel}, window: {addEventListener() {}},
+    Date: {now: () => 0}, setInterval() {}, FormData: class {}, fetch: async () => ({ok: true}),
+  });
+  const pulsar = (atributos) => clic({target: {closest: () => ({
+    hasAttribute: nombre => nombre in atributos, dataset: atributos,
+  })}});
+  return {
+    input, teclado, ayuda,
+    teclas(texto) { for (const tecla of texto) pulsar({tecla}); },
+    borrar: () => pulsar({'data-borrar': ''}),
+    limpiar: () => pulsar({'data-limpiar': ''}),
+    cursor(lugar) { input.selectionStart = input.selectionEnd = lugar; },
+    escribirFisico(valor, cursor = valor.length) { input.value = valor; this.cursor(cursor); eventos.input(); },
+  };
+}
+
+test('El teclado en pantalla pone el guion y los puntos mientras se escribe', () => {
+  const caso = conTeclado();
+  assert.equal(caso.teclado.hidden, false);
+  assert.equal(caso.ayuda.hidden, false, 'La ayuda «se ponen solos» solo aparece con JavaScript');
+  ['1', '1-2', '12-3', '123-4', '1.234-5', '12.345-6', '123.456-7', '1.234.567-8'].forEach((esperado, i) => {
+    caso.teclas('12345678'[i]);
+    assert.equal(caso.input.value, esperado);
+  });
+  caso.teclas('5');
+  assert.equal(caso.input.value, '12.345.678-5');
+  assert.equal(caso.input.selectionStart, 12);
+  caso.teclas('9');
+  assert.equal(caso.input.value, '12.345.678-5', 'No pasa de 8 cifras más el dígito verificador');
+});
+
+test('La K va al final como dígito verificador', () => {
+  const caso = conTeclado();
+  caso.teclas('6000000K');
+  assert.equal(caso.input.value, '6.000.000-K');
+  const otro = conTeclado();
+  otro.teclas('1K2');
+  assert.equal(otro.input.value, '1-2', 'Una K que no queda al final se descarta');
+});
+
+test('«Borrar» quita el último número y no solo el guion o un punto', () => {
+  const caso = conTeclado();
+  caso.teclas('123456785');
+  caso.borrar();
+  assert.equal(caso.input.value, '1.234.567-8');
+  caso.cursor(9);  // justo después del guion de «1.234.567-8»
+  caso.borrar();
+  assert.equal(caso.input.value, '123.456-8', 'Borra el 7 que está antes del guion');
+  caso.limpiar();
+  assert.equal(caso.input.value, '');
+  caso.borrar();
+  assert.equal(caso.input.value, '');
+});
+
+test('Una tecla en medio del RUT se inserta donde está el cursor', () => {
+  const caso = conTeclado();
+  caso.teclas('12345685');
+  caso.cursor(8);  // «1.234.56|8-5»: después del 6
+  caso.teclas('7');
+  assert.equal(caso.input.value, '12.345.678-5');
+  assert.equal(caso.input.selectionStart, 9, 'El cursor queda después del 7');
+});
+
+test('Con teclado físico o al pegar también se da formato', () => {
+  const caso = conTeclado();
+  caso.escribirFisico('123456785');
+  assert.equal(caso.input.value, '12.345.678-5');
+  caso.escribirFisico(' 12345678-k ');
+  assert.equal(caso.input.value, '12.345.678-K');
+  caso.escribirFisico('0012-3');
+  assert.equal(caso.input.value, '12-3', 'Sin ceros a la izquierda');
+  caso.escribirFisico('1.2345-6', 4);  // cursor después del «3»
+  assert.equal(caso.input.value, '12.345-6');
+  assert.equal(caso.input.selectionStart, 4);
+});

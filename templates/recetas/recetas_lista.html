@@ -12,7 +12,6 @@
   <form method="post" class="busqueda busqueda-ancha" role="search" data-en-vivo="busqueda">
     {% csrf_token %}
     <label for="{{ form.buscar.id_for_label }}">{{ form.buscar.label }}</label>
-    <p class="campo-ayuda" id="ayuda-buscar" data-solo-js hidden>La lista se actualiza mientras escribes.</p>
     <div class="busqueda-caja">
       <div class="busqueda-campo">
         <svg class="icono" aria-hidden="true" focusable="false"><use href="#i-lupa"/></svg>

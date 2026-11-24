@@ -88,7 +88,7 @@ class BuscadoresEnVivoTests(TestCase):
         html_pagina, html_fragmento = pagina.content.decode(), fragmento.content.decode()
         self.assertIn('data-en-vivo="busqueda"', html_pagina)
         self.assertIn("js/busqueda_en_vivo.js", html_pagina)
-        self.assertIn("data-solo-js hidden", html_pagina, "la ayuda solo aparece con JavaScript")
+        self.assertNotIn("se actualiza mientras escribes", html_pagina, "sin ayuda sobre la búsqueda en vivo")
         self.assertTemplateUsed(fragmento, PLANTILLA)
         self.assertNotIn("<html", html_fragmento)
         self.assertNotIn('data-en-vivo="busqueda"', html_fragmento, "el campo donde se escribe no se reemplaza")

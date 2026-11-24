@@ -4,6 +4,7 @@ import re
 from itertools import cycle
 
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 
 _PATRON_RUT = re.compile(
     r"([1-9][0-9]{0,7}|[1-9][0-9]{0,2}(?:\.[0-9]{3}){1,2})-?([0-9K])"
@@ -38,6 +39,30 @@ def validar_rut(valor):
     except ValidationError:
         return False
     return True
+
+
+# Lo que puede ser un RUT, completo o a medio escribir, ya sin puntos ni espacios: «12345», «12345678-»,
+# «12345678-5», «123456785» o «10000013K».
+_PATRON_BUSQUEDA = re.compile(r"[1-9][0-9]{0,8}(?:-[0-9K]?)?|[1-9][0-9]{0,7}K")
+
+
+def condicion_busqueda_rut(texto, campo="rut"):
+    """Condición que encuentra el RUT buscado en `campo`, o None si el texto no parece un RUT.
+
+    Acepta puntos, guion, espacios y k minúscula. Un RUT completo y válido se busca exacto; además, el texto sin
+    puntos ni espacios se busca como comienzo del RUT guardado (sin puntos, con guion), para que la búsqueda en vivo
+    encuentre mientras se escribe y que el RUT sin dígito verificador («12345678» o «12.345.678») encuentre
+    «12345678-5». Si el mismo texto es también un RUT completo sin guion («1234567» + «8»), salen ambos.
+    """
+    limpio = re.sub(r"[.\s]", "", texto).upper() if isinstance(texto, str) else ""
+    if not _PATRON_BUSQUEDA.fullmatch(limpio):
+        return None
+    condicion = Q(**{f"{campo}__startswith": limpio})
+    try:
+        condicion |= Q(**{campo: normalizar_rut(limpio)})
+    except ValidationError:
+        pass
+    return condicion
 
 
 def formatear_rut(valor):

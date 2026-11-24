@@ -12,7 +12,6 @@
 <form class="preparacion-busqueda" method="post" role="search" data-en-vivo="busqueda">
   {% csrf_token %}
   <label for="{{ form.buscar.id_for_label }}">{{ form.buscar.label }}</label>
-  <p class="campo-ayuda" id="ayuda-buscar" data-solo-js hidden>La lista se actualiza mientras escribes.</p>
   <div class="preparacion-busqueda-caja">
     {{ form.buscar }}
     <button class="boton" type="submit">Buscar</button>

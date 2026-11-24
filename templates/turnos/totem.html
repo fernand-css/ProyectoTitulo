@@ -11,7 +11,7 @@
 <form method="post" action="{% url 'turnosapp:totem' %}" data-emision>
 {% csrf_token %}{{ form.operacion_id }}
 <div class="campo"><label for="{{ form.rut.id_for_label }}">Tu RUT</label>
-{{ form.rut }}<p id="rut-ayuda">Incluye el dígito después del guion. Si termina en K, usa la tecla K.</p></div>
+{{ form.rut }}<p id="rut-ayuda">Escribe tu RUT completo, con el número que va después del guion. <span data-solo-js hidden>El guion y los puntos se ponen solos. </span>Si termina en K, usa la tecla K.</p></div>
 <div class="totem-teclado" aria-label="Teclado para ingresar RUT" hidden>
 {% for tecla in teclas %}<button type="button" data-tecla="{{ tecla }}">{{ tecla }}</button>{% endfor %}
 <button type="button" data-borrar aria-label="Borrar último carácter">Borrar</button>

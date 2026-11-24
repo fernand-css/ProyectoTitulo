@@ -16,7 +16,7 @@
     {% if form.non_field_errors %}<div class="message message-error" role="alert">{{ form.non_field_errors }}</div>{% endif %}
     <div class="campo">
       <label for="{{ form.buscar.id_for_label }}">{{ form.buscar.label }}</label>
-      <p class="campo-ayuda" id="filtro_ayuda">RUT, nombre o apellido. La lista se actualiza mientras escribes o cambias un filtro.</p>
+      <p class="campo-ayuda" id="filtro_ayuda">RUT, nombre o apellido.</p>
       <div class="busqueda-caja">{{ form.buscar }}<button class="boton" type="submit">Buscar</button></div>
       {% if form.buscar.errors %}<div class="campo-error" role="alert">{{ form.buscar.errors }}</div>{% endif %}
     </div>

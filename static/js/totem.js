@@ -38,17 +38,66 @@
     const texto = frase.textContent.trim();
     anuncio.textContent = anuncio.textContent === texto ? texto + "\u00a0" : texto;
   }
+  // Formato del RUT mientras se escribe: el último carácter es siempre el dígito verificador, así que el guion
+  // y los puntos se ponen solos («1234» → «123-4» → «12.345.678-5»). Se trabaja sobre los caracteres que cuentan
+  // (números y K); la K solo vale al final y el cuerpo tiene a lo más 8 cifras. El servidor acepta el RUT con o
+  // sin puntos y guion, así que el formato solo ayuda a leerlo antes de confirmar.
+  const MAXIMO = 9;
+  const significativos = (texto) => String(texto).toUpperCase().replace(/[^0-9K]/g, "");
+  function depurar(crudo) {
+    const sinCeros = crudo.replace(/^0+/, "");
+    return (sinCeros.slice(0, -1).replace(/K/g, "") + sinCeros.slice(-1)).slice(0, MAXIMO);
+  }
+  function formatear(crudo) {
+    if (crudo.length < 2) return crudo;
+    return crudo.slice(0, -1).replace(/\B(?=(\d{3})+$)/g, ".") + "-" + crudo.slice(-1);
+  }
+  // Posición en el texto con formato justo después del carácter que cuenta número `n`.
+  function posicion(formateado, n) {
+    if (n <= 0) return 0;
+    let vistos = 0;
+    for (let i = 0; i < formateado.length; i++) if (/[0-9K]/.test(formateado[i]) && ++vistos === n) return i + 1;
+    return formateado.length;
+  }
+  function escribir(crudo, cursor) {
+    const limpio = depurar(crudo);
+    const texto = formatear(limpio);
+    input.value = texto;
+    const lugar = posicion(texto, Math.min(cursor, limpio.length));
+    if (input.setSelectionRange) input.setSelectionRange(lugar, lugar);
+  }
+  // Cuántos caracteres que cuentan hay antes de cada extremo de la selección.
+  function seleccion() {
+    const fin = input.selectionEnd ?? input.value.length;
+    const inicio = input.selectionStart ?? fin;
+    return [significativos(input.value.slice(0, inicio)).length, significativos(input.value.slice(0, fin)).length];
+  }
+  if (input) {
+    // Teclado físico o texto pegado: se vuelve a dar formato conservando el lugar del cursor.
+    input.addEventListener("input", () => {
+      const [, despues] = seleccion();
+      escribir(significativos(input.value), despues);
+    });
+    if (input.value) escribir(significativos(input.value), MAXIMO);
+  }
   const teclado = panel.querySelector(".totem-teclado");
-  if (teclado) {
+  if (teclado && input) {
     teclado.hidden = false;
+    for (const ayuda of panel.querySelectorAll("[data-solo-js]")) ayuda.hidden = false;
     teclado.addEventListener("click", (event) => {
       const boton = event.target.closest("button");
       if (!boton) return;
-      const inicio = input.selectionStart ?? input.value.length;
-      const fin = input.selectionEnd ?? inicio;
-      if (boton.hasAttribute("data-limpiar")) input.value = "";
-      else if (boton.hasAttribute("data-borrar")) input.setRangeText("", inicio === fin ? Math.max(0, inicio - 1) : inicio, fin, "end");
-      else if (input.value.length - (fin - inicio) < input.maxLength) input.setRangeText(boton.dataset.tecla, inicio, fin, "end");
+      const crudo = significativos(input.value);
+      const [inicio, fin] = seleccion();
+      if (boton.hasAttribute("data-limpiar")) escribir("", 0);
+      else if (boton.hasAttribute("data-borrar")) {
+        // Borra el último número o K antes del cursor, nunca solo un punto o el guion.
+        const desde = inicio === fin ? Math.max(0, inicio - 1) : inicio;
+        escribir(crudo.slice(0, desde) + crudo.slice(fin), desde);
+      } else {
+        const nuevo = crudo.slice(0, inicio) + boton.dataset.tecla + crudo.slice(fin);
+        if (nuevo.length <= MAXIMO) escribir(nuevo, inicio + 1);
+      }
       input.focus();
     });
   }

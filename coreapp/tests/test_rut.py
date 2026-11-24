@@ -3,9 +3,10 @@
 from random import Random
 
 from django.core.exceptions import ValidationError
+from django.db.models import Q
 from django.test import SimpleTestCase
 
-from coreapp.utils.rut import calcular_dv, formatear_rut, normalizar_rut, validar_rut
+from coreapp.utils.rut import calcular_dv, condicion_busqueda_rut, formatear_rut, normalizar_rut, validar_rut
 from coreapp.utils.sinteticos import generar_rut, generar_ruts
 
 
@@ -50,3 +51,36 @@ class RutTests(SimpleTestCase):
         self.assertEqual(generar_ruts(0, Random(1)), [])
         with self.assertRaises(ValueError):
             generar_ruts(-1, Random(1))
+
+
+class CondicionBusquedaRutTests(SimpleTestCase):
+    """Buscadores con RUT: completo en cualquier formato o a medio escribir; lo demás queda para el nombre."""
+
+    def test_rut_completo_se_busca_exacto_y_como_comienzo(self):
+        for valor in ("12345678-5", "12.345.678-5", "123456785", " 12.345.678-5 ", "12345678 - 5", "12345678 5"):
+            with self.subTest(valor=valor):
+                condicion = condicion_busqueda_rut(valor)
+                self.assertIn(("rut", "12345678-5"), condicion.children)
+
+    def test_rut_a_medio_escribir_o_sin_dv_se_busca_como_comienzo(self):
+        casos = {"12345": "12345", "12.345": "12345", "12345678": "12345678", "12.345.678": "12345678",
+                 "12345678-": "12345678-", "6.000.000-k": "6000000-K"}
+        for valor, comienzo in casos.items():
+            with self.subTest(valor=valor):
+                self.assertIn(("rut__startswith", comienzo), condicion_busqueda_rut(valor).children)
+
+    def test_cuerpo_que_tambien_es_rut_completo_busca_ambos(self):
+        # «12345674» es el cuerpo 12345674 sin DV o el RUT 1.234.567-4 sin guion: salen los dos.
+        condicion = condicion_busqueda_rut("12345674")
+        self.assertIn(("rut__startswith", "12345674"), condicion.children)
+        self.assertIn(("rut", "1234567-4"), condicion.children)
+
+    def test_campo_de_otra_tabla(self):
+        condicion = condicion_busqueda_rut("12.345", "paciente__rut")
+        self.assertEqual(condicion, Q(paciente__rut__startswith="12345"))
+
+    def test_lo_que_no_parece_rut_devuelve_none(self):
+        for valor in ("", "   ", None, 12345, "González", "Reparto 3", "DESP-12", "0123", "12345-6-7",
+                      "1234567890", "12k3", "-5"):
+            with self.subTest(valor=valor):
+                self.assertIsNone(condicion_busqueda_rut(valor))
