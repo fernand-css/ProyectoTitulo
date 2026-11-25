@@ -102,3 +102,85 @@ Leídos el 2026-11-17:
 ## Decisiones para implementar
 
 Ninguna funcional pendiente; los supuestos de la spec se confirman al aprobarla.
+
+## Enmienda del 2026-11-25
+
+Diseño de la [enmienda del 2026-11-25](spec.md#enmienda-del-2026-11-25--dashboard-de-mermas-y-entregas-borrador) (RF-13-11 a RF-13-22), con la [segunda enmienda del 05](../05-cola-ponderada-y-llamado/spec.md#segunda-enmienda-del-2026-11-25--causa-de-no-entrega-borrador) (RF-05-14) y la [enmienda del 07](../07-preparacion-y-tiempos-de-espera/spec.md#enmienda-del-2026-11-25--derivar-desde-pendientes-de-retiro-borrador) (RF-07-13). Estado: **aprobado el 2026-11-25** («pasa las enmiendas a aprobado e implementa»); implementación autorizada.
+
+### Inspección de la base
+
+Leídos el 2026-11-25 en `crojas-base`:
+
+- `indicadoresapp/mermas.py`: `preparaciones(periodo)` anota `entregada`, `por_despacho` y `en_despacho`; `resumir` agrega en Python por fecha local (serie, estados, crónico/general, cierres, estante, día de la semana) y arma el detalle por paciente; `pacientes_de_la_pagina` solo lo usa el panel.
+- `indicadoresapp/filtros.py`: `FiltroMermasForm` (`desde`, `hasta`, `tipo`, `pagina`) y `atajos`.
+- `indicadoresapp/entregas.py`: `EntregaReceta` por fecha de confirmación, por día con promedio de 7 días o por semana.
+- `indicadoresapp/graficos.py`: blíster, calendario, barras y división; `recetasapp/graficos.py`: `columnas` (geometría SVG) y `promedio_movil`.
+- `indicadoresapp/reportes.py`: `DatosReporte` agregado, Excel con openpyxl y PDF con ReportLab.
+- `indicadoresapp/views.py`: `PanelMermasView`, `ReporteMermasView` (`mermas/reporte.<formato>`) y `DerivarMermaView`, cuyo «Volver» lleva al panel.
+- `turnosapp/models.py`: `CierreAtencion` (`resultado`, `motivo` de 500) y `DetalleCierre` (`entregada`, `motivo`, `entrega`), con las restricciones `cierre_sin_entrega_motivo` y `detalle_cierre_entrega_coherente`; última migración `0013_evento_numero_anterior`. `Turno` hereda `creado_en` de `ModeloAuditado` (hora de emisión).
+- `turnosapp/forms.py`: `FinalizarForm` con `motivo` general y `motivo_<receta>` de texto. `turnosapp/atencion.py`: `finalizar_atencion(actor, turno_id, operacion_id, *, recetas_entregadas, motivo="", motivos=None)` copia el motivo propio o el general a cada `DetalleCierre`.
+- `recetasapp/views.py`: `PendientesRetiroView` (`recetasapp:preparacion_pendientes`) con búsqueda en vivo y parcial `_pendientes_resultados.html`.
+- `entregasapp/models.py`: `IntentoEntrega` (`resultado`, `motivo` con seis opciones, `registrado_en`) y `RecetaEntrega` (`resultado` pendiente, descontada o no descontada; `preparacion`).
+
+### Diseño propuesto
+
+| Archivo | Cambio |
+|---|---|
+| `turnosapp/models.py` y `migrations/0014_causa_no_entrega.py` | `CausaNoEntrega` (TextChoices: `sin_stock`, `no_la_pide`, `no_vigente`, `cambio_indicacion`, `otro`) y el campo opcional `causa` (`max_length=20`, `blank=True`, `default=""`) en `CierreAtencion` y `DetalleCierre`. Sin tocar las restricciones. |
+| `turnosapp/forms.py`, `turnosapp/atencion.py`, `templates/turnos/finalizar.html` | `causa` general y `causa_<receta>` como listas, y `detalle` de hasta 200 caracteres exigido con «Otro». `finalizar_atencion(..., causa="", causas=None)` guarda el código y arma un `motivo` legible («Sin stock», «Otro: …»); sin causa, el texto recibido se guarda como «Otro» (compatibilidad). |
+| `indicadoresapp/periodos.py` (nuevo; reemplaza `filtros.py`) | `Periodo` con `clase` (`1d`, `3d`, `7d`, `14d`, `mes`, `semestre`, `anio`, `personalizado`), `anterior_equivalente()`, `anterior()` y `siguiente()` para las flechas, `granularidad` (día, semana o mes) y `titulo`; formulario GET `FiltroPanelForm` (`periodo`, `ref` con la fecha de inicio de Mes, Semestre o Año, `desde`, `hasta`, `tipo`) que acepta los enlaces antiguos con `desde` y `hasta`. |
+| `indicadoresapp/mermas.py` | Conserva `preparaciones` y RF-13-01. `resumir` deja de armar el detalle por paciente, suma «más de 14 días» y la barra de lo preparado (preparaciones listas del período cuyo turno cerró, incluidas las entregadas en la atención) y agrupa la serie por la granularidad del período. Se retira `pacientes_de_la_pagina`. |
+| `indicadoresapp/canales.py` (nuevo; absorbe `entregas.py`) | Tabla por canal (RF-13-14), entregas por día (RF-13-17) y motivos (RF-13-16). Lectura pura, agregada en Python por fecha local, con el filtro de tipo. |
+| `indicadoresapp/ausentes.py` (nuevo) | Grilla día × hora de RF-13-19 desde `Turno.creado_en` y el estado actual del turno. |
+| `indicadoresapp/tablero.py` (nuevo) | `armar(periodo, hoy)` devuelve un `Tablero` (dataclass solo con cifras) con todo el panel y la comparación con el período anterior. La vista y los reportes lo usan, así que los reportes siguen sin recibir objetos de pacientes. |
+| `indicadoresapp/graficos.py` | Conserva calendario, barras y división; suma columnas por mes, columnas apiladas, barra al 100 % con textura y grilla de calor. Se retira el blíster. |
+| `indicadoresapp/reportes.py` | `excel(tablero)` con hojas «Resumen», «Por día» y «Ausentes por hora»; `csv_por_dia(tablero)` nuevo; `pdf(tablero)` con las secciones de RF-13-21. |
+| `indicadoresapp/views.py`, `urls.py` | `PanelMermasView` con `periodos` y `tablero`; `ReporteMermasView` acepta `csv` (`text/csv; charset=utf-8`); `DerivarMermaView` con «Volver» a `recetasapp:preparacion_pendientes`. Rutas sin cambios. |
+| `templates/indicadores/mermas.html` (y parciales `_cifras.html`, `_canales.html`, `_motivos.html`, `_ausentes.html`) | Dashboard de RF-13-20, sin RUT ni nombres. |
+| `static/css/indicadores.css`, `static/css/base.css`, `static/css/tema_oscuro.css` | Grilla de tarjetas, botones de período, celdas de calor y texturas; colores nuevos en las dos paletas. |
+| `recetasapp/views.py`, `templates/recetas/_pendientes_resultados.html` | `puede_derivar` (Q.F. o superusuario) y enlace «Derivar a domicilio» en las filas «Sin retirar» (RF-07-13). |
+| `indicadoresapp/management/commands/generar_mermas_demo.py` | Causas de no entrega y turnos ausentes con hora de emisión repartida en la jornada (UPDATE de `creado_en` después de crear, porque es `auto_now_add`). |
+| `tools/verificar_spec_13_http.py` | 366 días sintéticos con visitas a domicilio registradas; mide el panel por período y las tres descargas. |
+
+### Reglas de cálculo
+
+- **Farmacia (RF-13-14):** `TurnoReceta` de turnos con `fecha` en el período y estado de cierre. Entregada en la atención: `detalle_cierre__entregada=True`. «Retiradas después»: sin entrega en la atención y con `EntregaReceta` ligada a la preparación, sin `RecetaEntrega` descontada. Se suman a las entregadas las `EntregaReceta` sin `turno_receta` y sin despacho, por fecha local de `creado_en`. Los turnos activos se cuentan aparte para la nota.
+- **Domicilio (RF-13-14):** `RecetaEntrega` de `IntentoEntrega` con `registrado_en` en el período y resultado `entregada` o `no_entregada`. Entregada: intento entregado y receta `descontada`. No entregada: intento no entregado (todas sus recetas) o receta `no_descontada`.
+- **Motivos (RF-13-16):** farmacia, por receta no entregada: turno `ausente` → «Paciente ausente»; `sin_atencion_cierre` → «Sin atención al cierre»; si no, `DetalleCierre.causa` (vacía → «Otro»). Domicilio, por intento `no_entregada`: `IntentoEntrega.motivo`.
+- **Entregas por día (RF-13-17):** farmacia por fecha local de `EntregaReceta.creado_en` (sin las del reparto), separando las que vienen de un retiro posterior; domicilio por fecha local de `registrado_en`.
+- **Ausentes (RF-13-19):** `Turno` con `fecha` en el período, por `weekday()` y hora local de `creado_en`; ausente = `estado="ausente"` al consultar.
+- **Comparación (RF-13-12):** un segundo `Tablero` reducido (solo cifras clave) con `periodo.anterior_equivalente()`.
+
+### Columnas del CSV
+
+Una fila por día, en este orden, con encabezados sin tildes para que sirvan de nombre de columna:
+
+`fecha;farmacia_entregadas_atencion_o_ficha;farmacia_retiradas_despues;farmacia_no_entregadas;domicilio_entregadas;domicilio_no_entregadas;merma;turnos_emitidos;turnos_ausentes;farmacia_paciente_ausente;farmacia_sin_atencion_al_cierre;farmacia_sin_stock;farmacia_paciente_no_la_pide;farmacia_receta_no_vigente;farmacia_cambio_de_indicacion;farmacia_otro;domicilio_sin_receptor;domicilio_domicilio_no_encontrado;domicilio_camino_intransitable;domicilio_rechazo;domicilio_paciente_ausente;domicilio_otro`
+
+Base de fecha por columna: entregas de farmacia por fecha de la entrega; `farmacia_no_entregadas` y los motivos de farmacia por fecha del turno; domicilio por fecha del registro de la visita; `merma` por fecha de preparación; turnos por fecha del turno. La hoja «Por día» del Excel repite estas columnas con encabezados legibles.
+
+### Migraciones y reversión
+
+- `turnosapp/0014_causa_no_entrega`: dos campos opcionales con valor vacío; reversible sin pérdida (solo se pierde el código; el texto queda en `motivo`).
+- Sin migraciones en `indicadoresapp`, `recetasapp` ni `entregasapp`. No se migra la base local sin instrucción del equipo.
+
+### Plan de pruebas
+
+- `indicadoresapp/tests/`: períodos (ocho clases, flechas, límites, enlaces antiguos, comparación con meses de distinto largo), canales (criterios de RF-13-14, incluidos turnos activos y recetas desde la ficha), motivos (causas y registros antiguos como «Otro»), entregas por día, lo preparado, ausentes (el reincorporado y atendido no cuenta), composición del panel por rol (sin RUT ni nombres en el HTML de la Dirección) y descargas (CSV con BOM, «;» y una fila por día; Excel con tres hojas; PDF; sin datos personales ni texto de «Otro»; auditoría).
+- `turnosapp/tests/`: causa por receta y general, «Otro» con y sin detalle, compatibilidad de llamadas con solo texto e historial; las pruebas concurrentes del 05 sin cambios y en verde.
+- `recetasapp/tests/`: enlace por rol y por estado de la fila, también en la respuesta de la búsqueda en vivo.
+- `coreapp/tests/test_estaticos.py`: contraste de los colores nuevos en las dos paletas.
+- Regresión completa, `makemigrations --check --dry-run` y `tools/verificar_spec_13_http.py` con 366 días.
+
+### Riesgos de la enmienda
+
+- **Volumen de un año.** La agregación en Python se mide con un año sintético; si «Año» supera 2 s, se agrega por fecha en la base con `TruncDate` y la zona local, comprobado en SQLite y PostgreSQL. Con el volumen real del CESFAM (unas 1.200 recetas diarias) habría que agregar en la base desde el inicio; se anota como límite del prototipo.
+- **Bases de fecha distintas** (turno, entrega, registro y preparación): cada tarjeta dice cuál usa y el CSV lo documenta, para que no se lean como contradicciones.
+- **Cambio en el cierre del 05,** que tiene pruebas concurrentes: el cambio se limita a validar y guardar la causa dentro de la misma transacción.
+- **Detalle de «Otro» con datos de pacientes:** nunca sale del historial privado; las pruebas buscan ese texto en el panel y en las descargas.
+
+### Documentos afectados
+
+- `specs/README.md` (índice), al crear y al aprobar.
+- Specs 05 y 07: sus enmiendas, ya redactadas.
+- `CLAUDE.md` y `docs/estructura.md`, al implementar.

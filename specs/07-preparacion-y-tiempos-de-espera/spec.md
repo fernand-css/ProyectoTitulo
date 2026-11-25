@@ -1,8 +1,9 @@
 # SPEC 07 — Preparación y tiempos de espera
 
-> **Estado:** Implementado
+> **Estado:** Aprobado (cambio de la usuaria del 2026-11-25 para implementar la enmienda; antes «Implementado»)
 > **Depende de:** [SPEC 01](../01-base-del-proyecto/spec.md), [SPEC 02](../02-autenticacion-roles-auditoria/spec.md), [SPEC 03](../03-padron-y-recetas/spec.md), [SPEC 04](../04-emision-de-turnos/spec.md) y [SPEC 05](../05-cola-ponderada-y-llamado/spec.md)
 > **Fecha:** 2026-11-03
+> **Enmienda:** 2026-11-25, **Aprobada** por la usuaria el mismo día en el chat («pasa las enmiendas a aprobado e implementa») — «Pendientes de retiro» ofrece «Derivar a domicilio» a la Q.F. y al superusuario (RF-07-13 nuevo; ver [Enmienda del 2026-11-25](#enmienda-del-2026-11-25--derivar-desde-pendientes-de-retiro-borrador)). Deriva de la [enmienda del spec 13](../13-panel-de-mermas/spec.md#enmienda-del-2026-11-25--dashboard-de-mermas-y-entregas-borrador), que saca del panel de mermas el detalle por paciente.
 > **Objetivo:** Registrar cuándo queda lista la preparación de cada receta de un turno, permitir retirar después los medicamentos preparados de quien no se presentó y mostrar un tiempo estimado de espera calculado con los tiempos reales de preparación.
 
 Módulo: `recetasapp` (preparación y retiro) con integración en `turnosapp` (emisión, tótem, comprobante y panel). Fuente: HU-06, HU-17, HU-18, HU-21, RNF-01/02/04/05 del [informe](../../docs/Informe.md) y las respuestas del usuario en esta sesión.
@@ -30,6 +31,7 @@ Resultado esperado:
 | Marcar «Lista» y corregir una marca propia o ajena del día | No | Sí | No | Sí | Sí |
 | Registrar el retiro de un preparado pendiente | No | Sí | No | Sí | Sí |
 | Ver la estimación y la carga de preparación en el panel del 05 | No | Sí | No | Sí | Sí |
+| Derivar a domicilio desde «Pendientes de retiro» *(enmienda 2026-11-25)* | No | No | No | Sí | Sí |
 | Dar de baja un preparado (merma) | No | No | No | No | No |
 | Elegir qué se prepara primero o borrar historial | No | No | No | No | No |
 
@@ -78,6 +80,7 @@ Revalidar cuenta activa, perfil y rol único en servidor; conservar la excepció
 - **RF-07-10 — Estimación para el personal:** EL PANEL del 05 muestra al Técnico y a la Q.F. cuántas recetas faltan por preparar, el promedio vigente con su número de muestras y la estimación actual, y se actualiza con su consulta periódica. Enlaza a la sección Preparación.
 - **RF-07-11 — Permisos, privacidad y auditoría:** EL SISTEMA aplica la matriz de permisos, exige POST con CSRF para todo cambio y revalida actor y estado en servidor. Las vistas del módulo son privadas y no se guardan en caché. La auditoría registra quién marcó, corrigió o retiró, sin RUT, nombres ni texto libre. Si falla la auditoría de una operación, se revierte esa operación.
 - **RF-07-12 — Concurrencia y compatibilidad:** EL SISTEMA no genera dos preparaciones por receta de turno, no cuenta dos veces una marca «Lista», no registra dos entregas por el mismo vínculo turno-receta ni excede el cupo, incluso con operaciones simultáneas y entre las pantallas del 03, del 05 y de este spec. SI un ausente tiene todas sus recetas ya retiradas, ENTONCES no puede reincorporarse. Las pruebas existentes del 03, 04, 05 y 06 pasan sin cambios.
+- **RF-07-13 — Derivar desde «Pendientes de retiro»** *(enmienda del 2026-11-25)*: ver la [sección de la enmienda](#enmienda-del-2026-11-25--derivar-desde-pendientes-de-retiro-borrador).
 
 ## Datos y reglas
 
@@ -115,6 +118,8 @@ Revalidar cuenta activa, perfil y rol único en servidor; conservar la excepció
 | RF-07-11 | Encargado, anónimo, cuenta inactiva o sin perfil; POST sin CSRF | Acceso rechazado; ninguna acción se ejecuta. |
 | RF-07-12 | Mínimo tres escenarios concurrentes con hilos y conexiones separadas | Cero duplicados de preparación, marca, entrega o descuento; el cupo nunca se excede. |
 | RF-07-12 | Reincorporar un ausente cuyas recetas ya se retiraron | Rechazo con el motivo. |
+| RF-07-13 | *(2026-11-25)* La Q.F. abre «Pendientes de retiro» con una receta «Sin retirar» y otra «En despacho» | «Derivar a domicilio» solo en la fila «Sin retirar»; lleva a la derivación del 13 y «Volver» regresa a «Pendientes de retiro». |
+| RF-07-13 | *(2026-11-25)* El Técnico abre «Pendientes de retiro» | Sin «Derivar a domicilio»; el retiro sigue igual. |
 
 ## No funcionales
 
@@ -155,3 +160,29 @@ No hay bloqueos críticos para redactar. Pendiente de confirmar por el usuario: 
 ## Revisión y cambios
 
 2026-11-03: primer bloque (inicio en la emisión con marca «Lista», tres cierres que dejan pendientes, solo retiro sin baja, estimación en tótem/comprobante/panel) y segundo bloque (fórmula recomendada, sección dentro de Recetas, reglas de vigencia a la fecha de preparación, Q.F. también marca y retira). Se guardan cuatro documentos como Borrador, sin código, migraciones ni aceptación funcional.
+
+## Enmienda del 2026-11-25 — Derivar desde «Pendientes de retiro» (Borrador)
+
+Pedida por la usuaria el 2026-11-25 junto con la [enmienda del spec 13](../13-panel-de-mermas/spec.md#enmienda-del-2026-11-25--dashboard-de-mermas-y-entregas-borrador), que saca del panel de mermas el detalle por paciente y con él el botón «Derivar a domicilio». Se redacta en `crojas-base`.
+
+**Objetivo de la enmienda:** Que la Q.F. derive al reparto, desde «Pendientes de retiro», a un paciente con recetas preparadas y sin retirar.
+
+### Requisitos de la enmienda
+
+- **RF-07-13 — Derivar desde «Pendientes de retiro»:**
+  - Para la Q.F. y el superusuario, cada fila «Sin retirar» de «Pendientes de retiro» muestra el enlace «Derivar a domicilio», que abre la derivación del paciente de esa fila (RF-13-06). La derivación lleva todas sus recetas sin retirar y las demás elegibles, como hoy; si el paciente tiene varias filas, todas llevan a la misma página.
+  - Las filas «En despacho» no lo muestran. El Técnico no lo ve.
+  - «Volver» en la página de derivación regresa a «Pendientes de retiro». Tras derivar, el sistema muestra la entrega creada, como hoy.
+  - La búsqueda en vivo de la lista conserva el enlace: va dentro del parcial de resultados.
+  - El retiro posterior (RF-07-06), la consulta `pendientes_retiro` y sus permisos no cambian.
+
+### Compatibilidad de la enmienda
+
+- No hay migraciones ni cambios en los servicios del 07 ni del 08; la página y el servicio de derivación son los del 13.
+- Las pruebas del 07 siguen en verde; se suman las del enlace por rol y por estado de la fila.
+
+### Revisión de la enmienda
+
+2026-11-25: borrador redactado junto con la enmienda del 13. Sin código ni aprobación.
+
+2026-11-25 (aprobación): la usuaria indicó «pasa las enmiendas a aprobado e implementa». Se implementa como T-13-14 del [spec 13](../13-panel-de-mermas/tasks.md).

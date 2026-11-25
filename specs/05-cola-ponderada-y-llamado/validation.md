@@ -148,3 +148,7 @@ Se crearon dos migraciones y se ejecutaron solo en SQLite temporal, incluida pru
 ## Aceptación funcional
 
 Pendiente. El usuario marcó Aprobado, invocó `spec-impl 05` y confirmó «si, continua» para T-05-01. No marcar Implementado ni aceptación completa por las pruebas del esquema.
+
+## Segunda enmienda del 2026-11-25
+
+RF-05-14 implementado técnicamente el 2026-11-25 (T-13-09 del spec 13). Evidencia en la [validación del 13](../13-panel-de-mermas/validation.md#enmienda-del-2026-11-25); las pruebas concurrentes del 05 siguen en verde. Navegador del formulario de cierre y aceptación pendientes.

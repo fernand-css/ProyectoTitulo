@@ -5,6 +5,10 @@ cerrados con una receta preparada que no se entregó en la atención: eso es lo 
 Una parte se retira después en farmacia con el servicio auditado del 07 (`retirar_preparado`), para que el panel
 también muestre recuperadas.
 
+Desde la enmienda del 2026-11-25, cada turno lleva su hora de emisión (`creado_en`, para «Ausentes por día y
+hora») y los cierres «atendido» y «cerrado sin entrega» llevan su causa de no entrega del RF-05-14 (para los
+motivos de farmacia). No crea entregas en la atención ni visitas a domicilio: esas cifras salen del uso real.
+
 No toca la jornada de hoy (ni su cola ni su contador), no emite por el tótem ni programa entregas, y numera los
 turnos de cada día después de los que ya existan. Los turnos históricos se escriben directo en la base, sin
 auditoría por turno, porque representan atenciones pasadas de una demostración. Sin `--aplicar` solo informa.
@@ -26,21 +30,28 @@ from coreapp.mixins import tiene_rol
 from coreapp.roles import JEFA
 from recetasapp.models import PreparacionReceta, Receta
 from recetasapp.services import retirar_preparado
-from turnosapp.models import Turno, TurnoReceta
+from turnosapp.models import CausaNoEntrega, CierreAtencion, DetalleCierre, OperacionAtencion, Turno, TurnoReceta
 
 # Cómo cerró el turno: la mayoría de las recetas no retiradas son de pacientes ausentes.
 CIERRES = (("ausente", 45), ("atendido", 25), ("cerrado_sin_entrega", 15), ("sin_atencion_cierre", 15))
 EDAD_PREFERENCIAL = 60
+# Causa de no entrega (RF-05-14) de los cierres con atención; «Otro» lleva un detalle sintético.
+CAUSAS = (("sin_stock", 35), ("no_la_pide", 25), ("no_vigente", 15), ("cambio_indicacion", 10), ("otro", 15))
+DETALLE_OTRO = "Detalle sintético de demostración"
+
+
+def _sortear(azar, opciones):
+    tirada = azar.randint(1, sum(peso for _, peso in opciones))
+    acumulado = 0
+    for valor, peso in opciones:
+        acumulado += peso
+        if tirada <= acumulado:
+            return valor
+    return opciones[0][0]
 
 
 def _cierre(azar):
-    tirada = azar.randint(1, 100)
-    acumulado = 0
-    for estado, peso in CIERRES:
-        acumulado += peso
-        if tirada <= acumulado:
-            return estado
-    return CIERRES[0][0]
+    return _sortear(azar, CIERRES)
 
 
 def _fila(receta, fecha):
@@ -110,7 +121,7 @@ class Command(BaseCommand):
                 continue
         self.stdout.write(self.style.SUCCESS(
             f"Historial sintético creado: {len(creadas)} recetas preparadas en {dias} días; {retiradas} retiradas "
-            f"después en farmacia y {len(creadas) - retiradas} sin retirar. Abre «Mermas» con el rango de {dias} días."
+            f"después en farmacia y {len(creadas) - retiradas} sin retirar. Abre «Mermas» con «Personalizado» de {dias} días."
         ))
 
     @transaction.atomic
@@ -125,19 +136,35 @@ class Command(BaseCommand):
             numero = siguientes[letra]
             siguientes[letra] += 1
             llegada = timezone.make_aware(datetime.combine(fecha, time(8, 0)), zona) + timedelta(minutes=azar.randint(0, 600))
+            estado = _cierre(azar)
+            cerrado = llegada + timedelta(minutes=azar.randint(20, 90))
             turno = Turno.objects.create(
                 paciente=receta.paciente, rut=receta.paciente.rut, fecha=fecha, letra=letra, numero=numero,
-                tipo_atencion=tipo, estado=_cierre(azar), entrada_cola=llegada,
-                cerrado_en=llegada + timedelta(minutes=azar.randint(20, 90)),
+                tipo_atencion=tipo, estado=estado, entrada_cola=llegada, cerrado_en=cerrado,
             )
+            # `creado_en` es la hora de emisión (auto_now_add): se fija después para «Ausentes por día y hora».
+            Turno.objects.filter(pk=turno.pk).update(creado_en=llegada)
+            vinculo = TurnoReceta.objects.create(turno=turno, receta=receta)
             lista = llegada + timedelta(minutes=azar.randint(5, 25))
             preparacion = PreparacionReceta.objects.create(
-                turno_receta=TurnoReceta.objects.create(turno=turno, receta=receta),
+                turno_receta=vinculo,
                 recibida_en=llegada, lista_en=lista, lista_por=actor, inicio_medido=llegada,
                 duracion_segundos=int((lista - llegada).total_seconds()),
             )
+            if estado in ("atendido", "cerrado_sin_entrega"):
+                self.cerrar_sin_entregar(turno, vinculo, cerrado, azar, actor)
             ids.append(preparacion.pk)
         return ids
+
+    def cerrar_sin_entregar(self, turno, vinculo, instante, azar, actor):
+        """Cierre con la causa de no entrega del RF-05-14, como lo dejaría el formulario de la ventanilla."""
+        causa = _sortear(azar, CAUSAS)
+        motivo = f"Otro: {DETALLE_OTRO}" if causa == CausaNoEntrega.OTRO else CausaNoEntrega(causa).label
+        operacion = OperacionAtencion.objects.create(actor=actor, tipo="finalizar", turno=turno, huella="d" * 64,
+                                                     resultado={"demostracion": True})
+        cierre = CierreAtencion.objects.create(turno=turno, actor=actor, operacion=operacion, instante=instante,
+                                               resultado="sin_entrega", causa=causa, motivo=motivo)
+        DetalleCierre.objects.create(cierre=cierre, turno_receta=vinculo, entregada=False, causa=causa, motivo=motivo)
 
     def cuenta(self, usuario, aplicar):
         if not usuario:

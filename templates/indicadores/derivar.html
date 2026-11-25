@@ -1,12 +1,12 @@
 {% extends 'components/Layout/base.html' %}
 {% load static %}
-{% block titulo %}Derivar a domicilio · Mermas{% endblock %}
+{% block titulo %}Derivar a domicilio · Pendientes de retiro{% endblock %}
 {% block estilos %}<link rel="stylesheet" href="{% static 'css/recetas.css' %}"><link rel="stylesheet" href="{% static 'css/indicadores.css' %}">{% endblock %}
 {# Spec 13 (RF-13-06): programa un despacho con lo ya preparado y sin retirar, más las otras recetas elegibles. #}
 {% block contenido %}
 <div class="contenedor pagina">
   <nav class="migas" aria-label="Ruta de navegación"><ol>
-    <li><a href="{{ volver }}">Mermas</a></li>
+    <li><a href="{{ volver }}">Pendientes de retiro</a></li>
     <li><span aria-current="page">Derivar a domicilio</span></li>
   </ol></nav>
   <header class="seccion">
@@ -46,11 +46,11 @@
     {% for campo in form.hidden_fields %}{{ campo }}{% endfor %}
     <div class="derivar-acciones">
       <button class="boton" type="submit">Programar entrega a domicilio</button>
-      <a class="boton boton-secundario" href="{{ volver }}">Volver al panel</a>
+      <a class="boton boton-secundario" href="{{ volver }}">Volver a Pendientes de retiro</a>
     </div>
   </form>
   {% else %}
-  <p><a class="boton boton-secundario" href="{{ volver }}">Volver al panel</a></p>
+  <p><a class="boton boton-secundario" href="{{ volver }}">Volver a Pendientes de retiro</a></p>
   {% endif %}
 </div>
 {% endblock %}

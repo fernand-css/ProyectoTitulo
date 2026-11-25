@@ -157,7 +157,7 @@ class PanelTests(DatosCierre, TestCase):
     def test_cierre_sin_motivo_conserva_uuid_y_no_entrega(self):
         datos = self.cierre(recetas_entregadas=[])
         respuesta = self.client.post(self.url("finalizar_atencion", pk=self.actual.pk), datos)
-        self.assertContains(respuesta, "Indica el motivo del cierre sin entrega")
+        self.assertContains(respuesta, "Indica la causa del cierre sin entrega")
         self.assertContains(respuesta, datos["operacion_id"])
         self.assertFalse(EntregaReceta.objects.exists())
 

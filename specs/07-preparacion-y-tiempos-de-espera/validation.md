@@ -60,3 +60,7 @@ Intenté consultar el navegador disponible para revisar escritorio y móvil, per
 ## Migración
 
 `recetasapp/0004_preparacionreceta` se aplicó solo al preparar bases desechables para pruebas. No se migró la base PostgreSQL del proyecto. Revertirla elimina el registro de preparación y los tiempos medidos; respáldese la base antes de cualquier reversión en un entorno de demostración.
+
+## Enmienda del 2026-11-25
+
+RF-07-13 implementado técnicamente el 2026-11-25 (T-13-14 del spec 13). Evidencia en la [validación del 13](../13-panel-de-mermas/validation.md#enmienda-del-2026-11-25); revisado en el navegador de la previsualización. Aceptación pendiente.

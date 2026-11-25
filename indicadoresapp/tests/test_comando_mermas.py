@@ -2,12 +2,15 @@
 
 from io import StringIO
 
+from datetime import timedelta
+
 from django.core.management import CommandError, call_command
 from django.test import TestCase
+from django.utils import timezone
 
-from indicadoresapp import mermas
+from indicadoresapp import ausentes, mermas
 from recetasapp.models import PreparacionReceta
-from turnosapp.models import Turno
+from turnosapp.models import DetalleCierre, Turno
 from .ayudas import equipo, hoy, paciente, receta
 
 
@@ -37,10 +40,22 @@ class GenerarMermasDemoTests(TestCase):
         self.assertTrue(PreparacionReceta.objects.exists())
         self.assertFalse(Turno.objects.filter(fecha=hoy()).exists())
         self.assertFalse(Turno.objects.filter(estado__in=("esperando", "llamado")).exists())
-        resumen = mermas.resumir(mermas.periodo_por_omision())
+        periodo = mermas.Periodo(hoy() - timedelta(days=29), hoy())
+        resumen = mermas.resumir(periodo)
         self.assertGreater(resumen.merma, 0)
         self.assertGreater(resumen.cifras["tarde"], 0)
         self.assertEqual(resumen.merma + resumen.recuperadas, PreparacionReceta.objects.count())
+
+    def test_causas_y_hora_de_emision_para_el_dashboard(self):
+        self.llamar("--aplicar", "--cuenta", self.e["qf"].username, "--dias", "15", "--por-dia", "8")
+        con_atencion = Turno.objects.filter(estado__in=("atendido", "cerrado_sin_entrega")).count()
+        self.assertEqual(DetalleCierre.objects.exclude(causa="").count(), con_atencion)
+        self.assertFalse(DetalleCierre.objects.filter(causa="otro").exclude(motivo__startswith="Otro: ").exists())
+        horas = {timezone.localtime(t.creado_en).hour for t in Turno.objects.all()}
+        self.assertTrue(horas <= set(range(8, 19)))
+        self.assertTrue(all(timezone.localtime(t.creado_en).date() == t.fecha for t in Turno.objects.all()))
+        datos = ausentes.resumir(mermas.Periodo(hoy() - timedelta(days=15), hoy()))
+        self.assertEqual(datos.ausentes, Turno.objects.filter(estado="ausente").count())
 
     def test_repetir_numera_despues_de_los_existentes(self):
         argumentos = ("--aplicar", "--cuenta", self.e["qf"].username, "--dias", "3", "--por-dia", "5")

@@ -21,11 +21,30 @@ from .sala import registrar_anuncio
 from .cola import bloquear_cola, cerrar_esperas_anteriores, ConflictoCola, solicitar_seleccion
 from .models import (
     LETRA_POR_TIPO, ConfiguracionCola, ContadorTurnosDiario, EventoTurno, Letra, OcupacionVentanilla,
-    OperacionAtencion, TipoAtencionVentanilla, Turno, TurnoReceta, Ventanilla, CierreAtencion, DetalleCierre,
+    OperacionAtencion, TipoAtencionVentanilla, Turno, TurnoReceta, Ventanilla, CausaNoEntrega, CierreAtencion, DetalleCierre,
 )
 
 
 MOTIVO_SIN_RECETAS = "Atención sin recetas del sistema"
+DETALLE_OTRO_MAXIMO = 200
+CAUSAS_VALIDAS = frozenset(CausaNoEntrega.values)
+
+
+def resolver_causa(codigo, detalle):
+    """RF-05-14: (código, texto legible) de una causa de no entrega.
+
+    Con código, el texto es el nombre de la causa, u «Otro: <detalle>» (que exige el detalle). Sin código, un texto
+    libre (llamadas anteriores a la enmienda) cuenta como «Otro» y se guarda tal cual. Sin ninguno, ("", "").
+    """
+    if codigo:
+        if codigo == CausaNoEntrega.OTRO:
+            if not detalle:
+                raise ValidationError("Escribe el detalle de la causa «Otro».")
+            return codigo, f"Otro: {detalle}"
+        return codigo, CausaNoEntrega(codigo).label
+    if detalle:
+        return CausaNoEntrega.OTRO.value, detalle
+    return "", ""
 TIPO_POR_LETRA = {letra: tipo for tipo, letra in LETRA_POR_TIPO.items()}
 # Quién puede pedir cada operación; el resto de la autorización se revisa en su rama.
 ROLES = {
@@ -142,9 +161,13 @@ def _operar(actor, tipo, destino, identidad, datos, huella):
             datos = {**datos, "motivo": MOTIVO_SIN_RECETAS}
         ids = {v.receta_id for v in vinculos}
         seleccion = set(datos["recetas"])
-        motivos = datos["motivos"]
-        if seleccion - ids or set(map(int, motivos)) - ids:
+        motivos, causas = datos["motivos"], datos.get("causas", {})
+        if seleccion - ids or set(map(int, motivos)) - ids or set(map(int, causas)) - ids:
             raise ValidationError("La selección no corresponde a las recetas del turno.")
+        # RF-05-14: la causa general vale para las recetas sin causa ni texto propios.
+        # Sin recetas (RF-05-13) el motivo es fijo y no lleva causa.
+        general = resolver_causa(datos.get("causa", ""), datos["motivo"]) if vinculos else ("", MOTIVO_SIN_RECETAS)
+        no_entregadas = {}
         entregas = {}
         for vinculo in vinculos:
             anterior = EntregaReceta.objects.filter(turno_receta=vinculo).first()
@@ -153,16 +176,21 @@ def _operar(actor, tipo, destino, identidad, datos, huella):
             elif vinculo.receta_id in seleccion:
                 entregas[vinculo.pk] = _registrar_entrega_sin_reintento(actor, vinculo.receta_id,
                     uuid.uuid5(identidad, f"entrega:{vinculo.receta_id}"), turno_receta_id=vinculo.pk, fecha=hoy)
-            elif not motivos.get(str(vinculo.receta_id), datos["motivo"]):
-                raise ValidationError("Indica un motivo para cada receta no entregada.")
-        if not entregas and not datos["motivo"]:
+            else:
+                clave = str(vinculo.receta_id)
+                propia = (causas.get(clave) or motivos.get(clave)) and resolver_causa(causas.get(clave, ""), motivos.get(clave, ""))
+                no_entregadas[vinculo.pk] = propia or general
+                if not no_entregadas[vinculo.pk][1]:
+                    raise ValidationError("Indica un motivo para cada receta no entregada.")
+        if not entregas and not general[1]:
             raise ValidationError("Indica el motivo del cierre sin entrega.")
         cierre = CierreAtencion.objects.create(turno=turno, actor=actor, operacion=operacion, instante=ahora,
-            resultado="con_entrega" if entregas else "sin_entrega", motivo=datos["motivo"])
+            resultado="con_entrega" if entregas else "sin_entrega", causa=general[0], motivo=general[1])
         for vinculo in vinculos:
             entrega = entregas.get(vinculo.pk)
+            causa, motivo = ("", "") if entrega else no_entregadas[vinculo.pk]
             detalle = DetalleCierre(cierre=cierre, turno_receta=vinculo, entregada=entrega is not None,
-                entrega=entrega, motivo="" if entrega else motivos.get(str(vinculo.receta_id), datos["motivo"]))
+                entrega=entrega, causa=causa, motivo=motivo)
             detalle.full_clean()
             detalle.save()
         turno.estado = "atendido" if entregas else "cerrado_sin_entrega"
@@ -381,18 +409,35 @@ def reincorporar(actor, turno_id, operacion_id):
     return _ejecutar(actor, "reincorporar", turno_id, operacion_id)
 
 
-def finalizar_atencion(actor, turno_id, operacion_id, *, recetas_entregadas, motivo="", motivos=None):
+def finalizar_atencion(actor, turno_id, operacion_id, *, recetas_entregadas, motivo="", motivos=None,
+                       causa="", causas=None):
+    """Cierra la atención. `causa`/`causas` (RF-05-14) son códigos de `CausaNoEntrega`; `motivo`/`motivos`, el
+    detalle de «Otro» o, sin código, el texto libre anterior a la enmienda (se guarda como «Otro»)."""
     if not isinstance(recetas_entregadas, (list, tuple)) or any(not isinstance(pk, int) or isinstance(pk, bool) or pk < 1 for pk in recetas_entregadas):
         raise ValidationError("Indica las recetas entregadas del turno.")
     if not isinstance(motivo, str) or len(motivo) > 500 or (motivos is not None and not isinstance(motivos, dict)):
         raise ValidationError("Indica motivos válidos de hasta 500 caracteres.")
+    if not isinstance(causa, str) or (causa and causa not in CAUSAS_VALIDAS) or (causas is not None and not isinstance(causas, dict)):
+        raise ValidationError("Indica una causa de no entrega válida.")
     normalizados = {}
     for pk, texto in (motivos or {}).items():
         if not str(pk).isdigit() or int(pk) < 1 or not isinstance(texto, str) or len(texto) > 500:
             raise ValidationError("Indica motivos válidos para las recetas no entregadas.")
         normalizados[str(int(pk))] = texto.strip()
-    return _ejecutar(actor, "finalizar", turno_id, operacion_id, {"recetas": sorted(set(recetas_entregadas)),
-        "motivo": motivo.strip(), "motivos": normalizados})
+    codigos = {}
+    for pk, codigo in (causas or {}).items():
+        if not str(pk).isdigit() or int(pk) < 1 or not isinstance(codigo, str) or (codigo and codigo not in CAUSAS_VALIDAS):
+            raise ValidationError("Indica una causa de no entrega válida.")
+        if codigo:
+            codigos[str(int(pk))] = codigo
+    for codigo, texto in [(causa, motivo.strip()), *((codigos[pk], normalizados.get(pk, "")) for pk in codigos)]:
+        if codigo == CausaNoEntrega.OTRO and len(texto) > DETALLE_OTRO_MAXIMO:
+            raise ValidationError(f"El detalle de «Otro» admite hasta {DETALLE_OTRO_MAXIMO} caracteres.")
+    datos = {"recetas": sorted(set(recetas_entregadas)), "motivo": motivo.strip(), "motivos": normalizados}
+    if causa or codigos:
+        # Solo con causas: las llamadas anteriores conservan la misma huella de la operación.
+        datos.update(causa=causa, causas=codigos)
+    return _ejecutar(actor, "finalizar", turno_id, operacion_id, datos)
 
 
 def terminar_turno_ventanilla(actor, ventanilla_id, operacion_id, *, confirmar=False):

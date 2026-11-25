@@ -1,4 +1,4 @@
-"""Consulta del panel de mermas y sus filtros (RF-13-01 a RF-13-03)."""
+"""Consulta de la merma (RF-13-01), lo entregado en la atención (RF-13-18) y la serie por granularidad (RF-13-15)."""
 
 import uuid
 from datetime import timedelta
@@ -7,7 +7,7 @@ from django.test import TestCase
 
 from entregasapp import services as reparto
 from indicadoresapp import mermas
-from indicadoresapp.filtros import FiltroMermasForm, atajos
+from indicadoresapp.periodos import periodo_de
 from recetasapp.services import retirar_preparado
 from .ayudas import entregada_en_la_atencion, equipo, hoy, paciente, preparada
 
@@ -15,7 +15,7 @@ from .ayudas import entregada_en_la_atencion, equipo, hoy, paciente, preparada
 class EstadosTests(TestCase):
     def setUp(self):
         self.e = equipo()
-        self.periodo = mermas.periodo_por_omision()
+        self.periodo = mermas.Periodo(hoy() - timedelta(days=29), hoy())
 
     def resumen(self, periodo=None):
         return mermas.resumir(periodo or self.periodo)
@@ -42,9 +42,16 @@ class EstadosTests(TestCase):
     def test_cuenta_los_cuatro_cierres(self):
         for estado in mermas.CIERRES:
             preparada(paciente(), estado=estado, usuario=self.e["tecnico"])
+        self.assertEqual(self.resumen().merma, 4)
+
+    def test_preparadas_incluyen_las_entregadas_en_la_atencion(self):
+        preparada(paciente(), usuario=self.e["tecnico"])
+        for _ in range(3):
+            entregada_en_la_atencion(preparada(paciente(), estado="atendido", usuario=self.e["tecnico"]), self.e["tecnico"])
         resumen = self.resumen()
-        self.assertEqual(resumen.merma, 4)
-        self.assertEqual([cantidad for _, _, cantidad in resumen.por_cierre], [1, 1, 1, 1])
+        self.assertEqual((resumen.en_atencion, resumen.preparadas, resumen.merma), (3, 4, 1))
+        self.assertEqual(resumen.merma_porcentaje, 25)
+        self.assertEqual(sum(resumen.merma_por_dia.values()), 1)
 
     def test_filtro_por_tipo_usa_la_marca_cronico(self):
         preparada(paciente(cronico=True), usuario=self.e["tecnico"])
@@ -62,7 +69,7 @@ class EstadosTests(TestCase):
         largo = mermas.Periodo(hoy() - timedelta(days=89), hoy())
         self.assertEqual(self.resumen(largo).merma, 2)
 
-    def test_serie_por_dia_y_por_semana(self):
+    def test_serie_por_dia_semana_y_mes(self):
         preparada(paciente(), dias_atras=2, usuario=self.e["tecnico"])
         corto = self.resumen(mermas.Periodo(hoy() - timedelta(days=9), hoy()))
         self.assertFalse(corto.por_semana)
@@ -72,41 +79,6 @@ class EstadosTests(TestCase):
         self.assertTrue(largo.por_semana)
         self.assertTrue(all(fecha.weekday() == 0 for fecha, _ in largo.serie))
         self.assertEqual(sum(valor for _, valor in largo.serie), 1)
-
-    def test_detalle_por_paciente_ordenado_por_la_mas_antigua(self):
-        reciente = paciente()
-        antigua = paciente()
-        preparada(reciente, dias_atras=1, usuario=self.e["tecnico"])
-        preparada(antigua, dias_atras=5, usuario=self.e["tecnico"])
-        preparada(antigua, dias_atras=2, usuario=self.e["tecnico"])
-        detalle = self.resumen().pacientes
-        self.assertEqual([d["paciente_id"] for d in detalle], [antigua.pk, reciente.pk])
-        self.assertEqual(detalle[0]["sin_retirar"], 2)
-
-
-class FiltrosTests(TestCase):
-    def test_por_omision_ultimos_30_dias(self):
-        periodo = FiltroMermasForm().periodo()
-        self.assertEqual((periodo.fin, periodo.dias, periodo.tipo), (hoy(), 30, "todos"))
-
-    def test_rechaza_invertido_futuro_y_demasiado_largo(self):
-        casos = (
-            {"desde": hoy(), "hasta": hoy() - timedelta(days=1)},
-            {"desde": hoy(), "hasta": hoy() + timedelta(days=1)},
-            {"desde": hoy() - timedelta(days=399), "hasta": hoy()},
-        )
-        for datos in casos:
-            form = FiltroMermasForm({clave: f"{valor:%Y-%m-%d}" for clave, valor in datos.items()})
-            self.assertFalse(form.is_valid(), datos)
-            self.assertEqual(form.periodo().dias, 30)
-
-    def test_acepta_366_dias_y_tipo(self):
-        form = FiltroMermasForm({"desde": f"{hoy() - timedelta(days=365):%Y-%m-%d}", "hasta": f"{hoy():%Y-%m-%d}", "tipo": "cronico"})
-        self.assertTrue(form.is_valid())
-        self.assertEqual((form.periodo().dias, form.periodo().tipo), (366, "cronico"))
-
-    def test_mes_anterior_es_el_mes_calendario_completo(self):
-        _, desde, hasta = atajos(hoy())[3]
-        self.assertEqual(desde.day, 1)
-        self.assertEqual((hasta + timedelta(days=1)).day, 1)
-        self.assertLess(hasta, hoy().replace(day=1))
+        anio = self.resumen(periodo_de("anio", hoy()))
+        self.assertEqual(anio.granularidad, "mes")
+        self.assertTrue(all(fecha.day == 1 for fecha, _ in anio.serie))

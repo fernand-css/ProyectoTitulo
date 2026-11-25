@@ -3,7 +3,11 @@ from django import forms
 from coreapp.utils.rut import normalizar_rut
 import uuid
 from recetasapp.services import evaluar_elegibilidad
-from .models import TIPOS_VENTANILLA
+from .models import TIPOS_VENTANILLA, CausaNoEntrega
+
+# RF-05-14: lista cerrada de causas de no entrega, sin opción preseleccionada.
+OPCIONES_CAUSA = [("", "Elige una causa"), *CausaNoEntrega.choices]
+AYUDA_DETALLE = "Solo con «Otro». Hasta 200 caracteres."
 
 
 class EmisionTurnoForm(forms.Form):
@@ -72,9 +76,11 @@ class SeleccionRecetas(forms.CheckboxSelectMultiple):
 
 class FinalizarForm(OperacionForm):
     recetas_entregadas = forms.MultipleChoiceField(label="Recetas entregadas ahora", required=False)
-    motivo = forms.CharField(label="Motivo general de no entrega", required=False, max_length=500,
-        help_text="Se aplica a las recetas sin motivo propio. Es obligatorio si no hubo entregas.",
-        widget=forms.Textarea(attrs={"rows": 3}))
+    # RF-05-14: causa general en lista cerrada; `motivo` es el detalle de «Otro».
+    causa = forms.ChoiceField(label="Causa general de no entrega", required=False, choices=OPCIONES_CAUSA,
+        help_text="Se aplica a las recetas sin causa propia. Es obligatoria si no hubo entregas.")
+    motivo = forms.CharField(label="Detalle de la causa general «Otro»", required=False, max_length=200,
+        help_text=AYUDA_DETALLE, widget=forms.TextInput(attrs={"autocomplete": "off"}))
     confirmar = forms.BooleanField(label="Confirmo las entregas indicadas y el cierre de esta atención")
 
     def __init__(self, *args, turno, **kwargs):
@@ -87,10 +93,11 @@ class FinalizarForm(OperacionForm):
             self.motivo_fijo = MOTIVO_SIN_RECETAS
             # Enmienda RF-05-13: el servicio pone el motivo fijo; solo se confirma el cierre.
             self.fields.pop("recetas_entregadas")
+            self.fields.pop("causa")
             self.fields.pop("motivo")
             self.fields["confirmar"].label = "Confirmo el cierre de esta atención sin entrega de recetas"
             return
-        bloqueadas, opciones = [], []
+        bloqueadas, opciones, orden = [], [], ["recetas_entregadas"]
         for vinculo in self.vinculos:
             receta = vinculo.receta
             entrega = getattr(vinculo, "entrega", None)
@@ -104,13 +111,21 @@ class FinalizarForm(OperacionForm):
             if entrega or not estado["elegible"]:
                 bloqueadas.append(receta.pk)
             opciones.append((str(receta.pk), receta.codigo + sufijo))
-            self.fields[f"motivo_{receta.pk}"] = forms.CharField(label=f"Motivo de no entrega de {receta.codigo}",
-                required=False, max_length=500, widget=forms.HiddenInput if entrega else forms.TextInput(attrs={"autocomplete": "off"}))
+            if not entrega:
+                self.fields[f"causa_{receta.pk}"] = forms.ChoiceField(label=f"Causa de no entrega de {receta.codigo}",
+                    required=False, choices=OPCIONES_CAUSA)
+                orden.append(f"causa_{receta.pk}")
+            self.fields[f"motivo_{receta.pk}"] = forms.CharField(
+                label=f"Detalle de «Otro» para {receta.codigo}", required=False, max_length=200,
+                help_text="" if entrega else AYUDA_DETALLE,
+                widget=forms.HiddenInput if entrega else forms.TextInput(attrs={"autocomplete": "off"}))
+            orden.append(f"motivo_{receta.pk}")
         # Las opciones siguen siendo válidas en un POST repetido tras el cierre;
         # bloquear la interacción HTML no impide recuperar el resultado idempotente.
         self.fields["recetas_entregadas"].choices = opciones
         self.fields["recetas_entregadas"].widget = SeleccionRecetas(bloqueadas=bloqueadas, marcadas=self.previamente_entregadas)
         self.fields["recetas_entregadas"].widget.choices = opciones
+        self.order_fields([*orden, "causa", "motivo", "confirmar"])
 
     def clean(self):
         datos = super().clean()
@@ -118,22 +133,35 @@ class FinalizarForm(OperacionForm):
             return datos
         seleccion = {int(pk) for pk in datos.get("recetas_entregadas", [])}
         realizadas = seleccion | self.previamente_entregadas
-        if not realizadas and not datos.get("motivo", "").strip():
-            self.add_error("motivo", "Indica el motivo del cierre sin entrega.")
+        general = datos.get("causa") or ("otro" if datos.get("motivo", "").strip() else "")
+        if datos.get("causa") == "otro" and not datos.get("motivo", "").strip():
+            self.add_error("motivo", "Escribe el detalle de la causa «Otro».")
+        if not realizadas and not general:
+            self.add_error("causa", "Indica la causa del cierre sin entrega.")
         for vinculo in self.vinculos:
             pk = vinculo.receta_id
-            campo = f"motivo_{pk}"
-            if pk not in realizadas and not datos.get("motivo", "").strip() and not datos.get(campo, "").strip():
-                self.add_error(campo, "Indica el motivo de no entrega de esta receta.")
+            if pk in realizadas:
+                continue
+            causa, detalle = datos.get(f"causa_{pk}", ""), datos.get(f"motivo_{pk}", "").strip()
+            if causa == "otro" and not detalle:
+                self.add_error(f"motivo_{pk}", "Escribe el detalle de la causa «Otro».")
+            elif not causa and not detalle and not general:
+                self.add_error(f"causa_{pk}", "Indica la causa de no entrega de esta receta.")
         return datos
 
     def argumentos(self):
         if self.sin_recetas:
             return {"recetas_entregadas": [], "motivo": "", "motivos": {}}
-        return {"recetas_entregadas": [int(pk) for pk in self.cleaned_data["recetas_entregadas"]],
-            "motivo": self.cleaned_data["motivo"],
-            "motivos": {int(nombre.removeprefix("motivo_")): valor for nombre, valor in self.cleaned_data.items()
-                if nombre.startswith("motivo_") and valor}}
+        datos = self.cleaned_data
+        motivos = {int(nombre.removeprefix("motivo_")): valor for nombre, valor in datos.items()
+                   if nombre.startswith("motivo_") and valor}
+        causas = {int(nombre.removeprefix("causa_")): valor for nombre, valor in datos.items()
+                  if nombre.startswith("causa_") and valor}
+        argumentos = {"recetas_entregadas": [int(pk) for pk in datos["recetas_entregadas"]],
+                      "motivo": datos["motivo"], "motivos": motivos}
+        if datos.get("causa") or causas:
+            argumentos.update(causa=datos.get("causa", ""), causas=causas)
+        return argumentos
 
 
 class TerminarTurnoForm(OperacionForm):

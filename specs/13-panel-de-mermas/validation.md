@@ -62,3 +62,31 @@ Migración `entregasapp/0003_recetaentrega_preparacion` (reversible). En bases e
 ## Aceptación funcional
 
 Pendiente; no marcarla automáticamente después de ejecutar pruebas.
+
+## Enmienda del 2026-11-25
+
+Implementada técnicamente el 2026-11-25 en `crojas-base`, sin commit, junto con la [segunda enmienda del 05](../05-cola-ponderada-y-llamado/spec.md#segunda-enmienda-del-2026-11-25--causa-de-no-entrega-borrador) (RF-05-14) y la [enmienda del 07](../07-preparacion-y-tiempos-de-espera/spec.md#enmienda-del-2026-11-25--derivar-desde-pendientes-de-retiro-borrador) (RF-07-13). Pruebas Django sobre la base PostgreSQL de pruebas; medición HTTP con SQLite temporal.
+
+| RF | Prueba / pasos / comando | Esperado | Obtenido | Estado |
+|---|---|---|---|---|
+| RF-05-14 | `turnosapp.tests.test_causa_no_entrega` (14), `test_panel`, concurrentes del 05 | Causa por receta y general; «Otro» exige detalle; texto libre = «Otro»; auditoría sin el detalle | Según la spec; las pruebas concurrentes del 05 siguen en verde | Aprobado en pruebas |
+| RF-13-11 | `test_periodos.ClasesTests`, `FiltroTests`, `test_vistas.PanelTests` | Ocho clases, flechas, límites, enlaces antiguos, mes por omisión | Según la spec (con fecha fija 25-11-2026 en las pruebas unitarias) | Aprobado en pruebas |
+| RF-13-12 | `test_periodos.ComparacionTests`, `test_canales.CifrasClaveTests` | Mismos días del período anterior; texto con palabras; sin datos | Según la spec | Aprobado en pruebas |
+| RF-13-13 | `test_canales.CifrasClaveTests`, `test_vistas.test_enlace_a_pendientes_solo_para_la_qf` | Cuatro cifras; «más de 14 días» con enlace solo para la Q.F. | Según la spec | Aprobado en pruebas |
+| RF-13-14 | `test_canales.FarmaciaTests`, `DomicilioTests` | Criterios 2/3/5 40,0 % y 1/4/5 20,0 %; turnos activos en la nota; ficha por su fecha | Según la spec | Aprobado en pruebas |
+| RF-13-15 | `test_graficos.CalendarioTests`, `test_vistas.test_semestre_y_anio_van_en_columnas` | Calendario con «Aún no»; columnas por semana o mes | Según la spec | Aprobado en pruebas y en el navegador |
+| RF-13-16 | `test_canales` (motivos, cierre antiguo = «Otro» sin su texto) | Motivos por receta y por visita; texto libre oculto | Según la spec | Aprobado en pruebas |
+| RF-13-17 | `test_canales.test_retiro_posterior_cuenta_el_dia_del_retiro`, `test_graficos.ColumnasApiladasTests` | Retiro en el día del retiro; dos gráficos apilados | Según la spec | Aprobado en pruebas y en el navegador |
+| RF-13-18 | `test_mermas.test_preparadas_incluyen_las_entregadas_en_la_atencion`, `test_graficos.test_barra_al_100_suma_cien_y_marca_las_vacias` | Cinco partes que suman 100 | Según la spec | Aprobado en pruebas |
+| RF-13-19 | `test_canales.AusentesTests` | Celda lunes 10 h: 4 emitidos, 1 ausente, 25 %; fin de semana solo con turnos | Según la spec | Aprobado en pruebas y en el navegador |
+| RF-13-20 | `test_vistas.test_dashboard_sin_datos_personales_para_ningun_rol` | Sin RUT ni nombres; sin blíster ni detalle | Según la spec | Aprobado en pruebas |
+| RF-13-21 | `test_vistas.ReportesTests` y herramienta HTTP | CSV con BOM, «;», una fila por día; Excel con sus hojas; PDF; sin datos personales; auditados | Según la spec; el Excel suma la hoja «Datos de gráficos» (ver la revisión de la spec) | Aprobado en pruebas; Excel y visor de PDF reales pendientes |
+| RF-13-22 y RF-07-13 | `test_derivar_desde_pendientes`, `test_vistas.test_deriva_y_redirige_a_la_entrega`, herramienta HTTP | Enlace solo en «Sin retirar» para Q.F. y superusuario, también en la búsqueda en vivo; «Volver» a Pendientes | Según la spec; 20 derivaciones por HTTP desde Pendientes | Aprobado en pruebas y HTTP |
+| RNF-04 | `coreapp/tests/test_estaticos.py` (sin colores nuevos); navegador | Contraste AA, sin depender del color | Solo variables existentes; grilla de ausentes corregida a texto claro en los dos tonos oscuros; revisado en claro, oscuro y 375 px | Parcial: axe y usabilidad pendientes |
+| RNF-05 | `python tools/verificar_spec_13_http.py` (366 días, 14.640 preparaciones, 4.758 visitas) | p95 ≤ 2 s | Panel: 1 día 98,77 ms; 7 días 125,63; mes 191,84; semestre 632,23; año 737,04; 366 días 800,09. Descargas del año: Excel 880,05; CSV 740,85; PDF 785,86. Derivar 179,88 | Aprobado |
+
+Regresión: 1289 pruebas: 1288 OK y 1 falla en `coreapp.tests.test_estaticos` (la variable `--horas` de la grilla de ausentes no estaba definida en el CSS); corregida con un valor por omisión y vueltas a correr `coreapp.tests.test_estaticos` e `indicadoresapp`: 106 OK. `check` sin incidencias y `makemigrations --check --dry-run` sin cambios.
+
+Límites: medición secuencial en loopback sobre SQLite, sin el volumen real del CESFAM (unas 1.200 recetas diarias; ver los riesgos del plan). Navegador revisado en la previsualización, sin axe. No se abrieron el Excel, el CSV ni el PDF en sus programas reales. `generar_mermas_demo` no crea entregas en la atención ni visitas (supuesto 6). La migración `turnosapp/0014` se aplicó en la base local (PostgreSQL) el 2026-11-25 por pedido de la usuaria («Sí, migra»); `migrate --plan` queda sin operaciones pendientes.
+
+Aceptación funcional de la enmienda: pendiente; no marcarla automáticamente después de ejecutar pruebas.

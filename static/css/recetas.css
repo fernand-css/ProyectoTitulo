@@ -8,7 +8,7 @@
 
 /* ------------------------------------------------------------------ Banda de búsqueda del padrón */
 .padron-cabecera { position: relative; color: var(--panel-texto); background: var(--panel-fondo); border-bottom: 1px solid var(--linea); }
-.padron-cabecera-int { max-width: var(--ancho-contenido); margin: auto; padding: 2rem clamp(1rem, 3vw, 2.5rem) 1.75rem; }
+.padron-cabecera-int { padding: 2rem clamp(1rem, 3vw, 2.5rem) 1.75rem; }
 .padron-cabecera .migas { margin-bottom: 1.25rem; }
 .padron-cabecera .migas a, .padron-cabecera .migas [aria-current="page"] { color: var(--trigo-texto); }
 .padron-cabecera .migas li + li::before { border-color: var(--trigo-texto); }

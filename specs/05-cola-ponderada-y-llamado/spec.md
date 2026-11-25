@@ -4,6 +4,7 @@
 > **Depende de:** [SPEC 01](../01-base-del-proyecto/spec.md), [SPEC 02](../02-autenticacion-roles-auditoria/spec.md), [SPEC 03](../03-padron-y-recetas/spec.md) y [SPEC 04](../04-emision-de-turnos/spec.md)
 > **Fecha:** 2026-11-02
 > **Enmienda:** 2026-11-15 — letras P/G/C/U, fila U siempre primera, turnos sin recetas y sin paciente del padrón, reincorporación sin bloqueo por edad (RF-05-01, 02, 03, 06, 07 y 11 modificados; RF-05-13 nuevo). Deriva de la [enmienda del spec 04](../04-emision-de-turnos/spec.md) y del [spec 10](../10-gestion-de-turnos-por-personal/spec.md). Aprobada por la usuaria e implementada técnicamente el 2026-11-15 (T-05-07 a T-05-10; ver `validation.md`); revisión visual y aceptación pendientes.
+> **Segunda enmienda:** 2026-11-25, **Aprobada** por la usuaria el mismo día en el chat («pasa las enmiendas a aprobado e implementa») — la causa de no entrega al cerrar la atención pasa a una lista cerrada más «Otro» (RF-05-07 modificado; RF-05-14 nuevo; ver [Segunda enmienda del 2026-11-25](#segunda-enmienda-del-2026-11-25--causa-de-no-entrega-borrador)). Deriva de la [enmienda del spec 13](../13-panel-de-mermas/spec.md#enmienda-del-2026-11-25--dashboard-de-mermas-y-entregas-borrador), cuyos motivos de no entrega en farmacia se arman con esta causa. El título de su sección conserva «Borrador» para no romper los enlaces; manda esta cabecera.
 > **Objetivo:** Asignar automáticamente los turnos a ventanillas compatibles mediante una cola ponderada y permitir al Técnico confirmar entregas y cerrar la atención para continuar con el siguiente paciente sin duplicaciones.
 
 Módulo: `turnosapp`, integrado con `recetasapp`. Fuente: respuestas del usuario en esta sesión y HU-04/05/06/10/11/21, RNF-01/02/04/05 del [informe](../../docs/Informe.md).
@@ -74,6 +75,7 @@ Fuera: preparación de medicamentos y pendientes de retiro de HU-17; estimación
   - **RF-05-07:** un turno sin recetas vinculadas (fuera del padrón o sin elegibles) se cierra con resultado sin entrega y el motivo fijo «Atención sin recetas del sistema», sin exigir texto al Técnico. No se registra ninguna `EntregaReceta` ni cuenta como dispensación.
   - **RF-05-11:** se mantiene la recuperación de activos por RUT, pero la numeración es una serie diaria por letra (P, G, C, U), según RF-04-05.
   - El panel privado muestra la letra con el número y, para un turno sin paciente del padrón, el rótulo «No registrado en el padrón» en lugar del nombre. El RUT solo se ve en el panel privado.
+- **RF-05-14 — Segunda enmienda del 2026-11-25** *(aprobada el 2026-11-25; modifica RF-05-07)*: cada receta no entregada al cerrar la atención, y el motivo general del cierre, llevan una **causa** de una lista cerrada en lugar de texto libre. Detalle y criterios en la [sección de la enmienda](#segunda-enmienda-del-2026-11-25--causa-de-no-entrega-borrador).
 - **RF-05-12 — Permisos, historial y auditoría:** aplicar matriz, CSRF y POST a cambios, revalidar actor/estado en servidor, conservar historial de ocupaciones/llamados/retornos/cierres/configuración y motivos. Sin borrado directo en Admin. Auditoría técnica sin RUT, nombres, datos clínicos ni texto libre de motivos. Si falla auditar una operación, revertir esa operación; no revertir un cierre previo por fallo al auditar el llamado siguiente.
 
 ## Datos y reglas
@@ -111,6 +113,9 @@ Fuera: preparación de medicamentos y pendientes de retiro de HU-17; estimación
 | RF-05-13 | *(2026-11-15)* Cierre de un turno sin recetas | Resultado sin entrega con el motivo fijo; ninguna `EntregaReceta`. |
 | RF-05-13 | *(2026-11-15)* Reincorporar a una persona de 82 años ausente | Se reincorpora; solo se rechaza si una receta del turno está en un despacho abierto o si ese RUT tiene otro activo. |
 | RF-05-13 | *(2026-11-15)* Concurrencia: dos ventanillas libres y un U llega mientras se cierra otra atención | Un solo llamado del U, nunca a dos ventanillas; pruebas con `TransactionTestCase` e hilos. |
+| RF-05-14 | *(2026-11-25)* Cierre con una receta entregada y otra no, con causa «Sin stock» | La receta no entregada guarda la causa `sin_stock` y el historial muestra «No entregada — Sin stock». |
+| RF-05-14 | *(2026-11-25)* Causa «Otro» sin detalle | Rechazo con un mensaje junto al campo del detalle; sin cierre ni entregas. |
+| RF-05-14 | *(2026-11-25)* Cierre sin entregas con causa general «Paciente no la pide» | Resultado sin entrega; cada receta guarda esa causa. |
 
 ## No funcionales
 
@@ -167,3 +172,43 @@ No quedan preguntas funcionales bloqueantes para redactar. Los nombres de modelo
 2026-11-02: usuario invocó `spec-impl 05` y reiteró «no crear una nueva rama, solo hacer commit». Rama actual verificada: `fdaza`. Se hará un único commit de los cambios propios del 05 al finalizar, sin commits intermedios. Hay cambios ajenos ya preparados en el índice de Git (01/02/03/04); preservarlos sin incluirlos en el commit del 05, sin stash ni limpieza. Esta instrucción prevalece sobre `AutoCreateBranch: true`. Confirmación de arranque y pausas por paso de la skill siguen vigentes mientras el usuario no indique otro ritmo.
 
 Se conserva la preferencia vigente de trabajar en `fdaza`, sin rama nueva y con un solo commit de implementación al cierre autorizado. Esta definición no autoriza todavía implementación ni commit; no se modifica la configuración de ramas ni se heredan autorizaciones de código del 04.
+
+## Segunda enmienda del 2026-11-25 — Causa de no entrega (Borrador)
+
+Pedida por la usuaria el 2026-11-25 junto con la [enmienda del spec 13](../13-panel-de-mermas/spec.md#enmienda-del-2026-11-25--dashboard-de-mermas-y-entregas-borrador): el panel de mermas necesita agrupar por qué no se entregó cada receta en farmacia, y el texto libre no se puede agrupar. Se redacta en `crojas-base`. Aprobada por la usuaria el 2026-11-25; reemplaza el texto libre de RF-05-07.
+
+**Objetivo de la enmienda:** Que el Técnico elija de una lista cerrada la causa de cada receta que no entrega al cerrar la atención, para que la Jefatura pueda contar las no entregas por causa.
+
+### Requisitos de la enmienda
+
+- **RF-05-14 — Causa de no entrega** *(modifica RF-05-07)*:
+  - Al cerrar la atención, cada receta no entregada lleva una causa de esta lista: «Sin stock», «Paciente no la pide», «Receta no vigente o sin cupo», «Cambio de indicación» y «Otro». El orden de la lista es ese y no hay opción preseleccionada.
+  - El «Motivo general de no entrega» pasa a ser una «Causa general» de la misma lista: se aplica a las recetas no entregadas sin causa propia y es obligatoria si no se entregó ninguna, como hoy el motivo general.
+  - Con «Otro» se exige un detalle de texto de hasta 200 caracteres; con las demás causas no se pide texto.
+  - SI falta la causa de una receta no entregada (sin causa general), o falta el detalle de «Otro», ENTONCES se rechaza el cierre completo con un mensaje junto al campo y no se guarda ninguna entrega, como hoy.
+  - Se guarda el código de la causa junto al texto que ya existe: el `motivo` sigue guardando un texto legible (el nombre de la causa, o «Otro: <detalle>»), así el historial, la ficha y las restricciones actuales no cambian. Los cierres anteriores quedan sin código y se consideran «Otro» en el panel del 13.
+  - El turno sin recetas del sistema conserva su motivo fijo «Atención sin recetas del sistema» (RF-05-13) y no pide causa.
+  - El formulario funciona sin JavaScript: una lista desplegable por receta y para la causa general, y el campo de detalle visible junto a cada una (sin ocultarlo con JavaScript); con JavaScript, el detalle puede aparecer solo al elegir «Otro», sin cambiar lo que se envía.
+  - La auditoría puede guardar el código de la causa, nunca el detalle de «Otro» (RF-05-12).
+
+### Criterios de aceptación de la enmienda
+
+Ver las filas RF-05-14 en [Criterios de aceptación](#criterios-de-aceptación).
+
+### Compatibilidad de la enmienda
+
+- El cierre sigue siendo una sola operación atómica e idempotente (RF-05-07 y RF-05-08); la causa viaja en la misma transacción y no cambia el control de concurrencia. Las pruebas concurrentes del 05 siguen en verde sin escenarios nuevos.
+- `finalizar_atencion` acepta las causas además del texto; las llamadas que solo envían texto (pruebas y herramientas anteriores) siguen funcionando y se guardan como «Otro».
+- Migración nueva en `turnosapp` solo con campos opcionales; los registros anteriores no se tocan.
+
+### Decisiones de la enmienda
+
+- **Lista cerrada más «Otro»** (decisión de la usuaria del 2026-11-25). Se descartó mantener el texto libre: el panel del 13 solo podría mostrar cómo cerró el turno.
+- **Las cinco causas** son las del boceto del 13; se pueden ajustar antes de aprobar.
+- **Se conserva el texto en `motivo`** para no tocar el historial ni las restricciones `cierre_sin_entrega_motivo` y `detalle_cierre_entrega_coherente`.
+
+### Revisión de la enmienda
+
+2026-11-25: borrador redactado junto con la enmienda del 13. Sin código, migraciones ni aprobación.
+
+2026-11-25 (aprobación): la usuaria indicó «pasa las enmiendas a aprobado e implementa». Se implementa como T-13-09 del [spec 13](../13-panel-de-mermas/tasks.md).

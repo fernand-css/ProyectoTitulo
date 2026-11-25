@@ -1,43 +1,13 @@
-"""Gráficos del panel de mermas: blíster, calendario, barras y la frase del día de la semana."""
+"""Gráficos del panel de mermas: calendario, barras, columnas apiladas, barra al 100 % y la frase del día."""
 
 import uuid
 from datetime import date, timedelta
 
 from django.test import SimpleTestCase, TestCase
-from django.urls import reverse
 
 from indicadoresapp import graficos, mermas
 from recetasapp.services import retirar_preparado
 from .ayudas import equipo, hoy, paciente, preparada
-
-
-def cifras(sin_retirar=0, en_despacho=0, tarde=0, despacho=0):
-    return {"sin_retirar": sin_retirar, "en_despacho": en_despacho, "tarde": tarde, "despacho": despacho}
-
-
-class BlisterTests(SimpleTestCase):
-    def test_un_alveolo_por_receta_en_tiras_de_diez(self):
-        datos = graficos.blister(cifras(3, 1, 4, 2))
-        self.assertEqual(datos["escala"], 1)
-        celdas = [c for tira in datos["tiras"] for c in tira]
-        self.assertEqual(celdas, ["sin_retirar"] * 3 + ["en_despacho"] + ["tarde"] * 4 + ["despacho"] * 2)
-        self.assertTrue(all(len(tira) == 10 for tira in datos["tiras"]))
-
-    def test_completa_la_ultima_tira_con_alveolos_vacios(self):
-        datos = graficos.blister(cifras(13))
-        self.assertEqual(datos["tiras"][-1], ["sin_retirar"] * 3 + ["vacio"] * 7)
-
-    def test_sin_recetas_no_hay_blister(self):
-        self.assertIsNone(graficos.blister(cifras()))
-
-    def test_muchas_recetas_agrupan_y_ningun_estado_desaparece(self):
-        datos = graficos.blister(cifras(900, 1, 500, 3))
-        self.assertEqual(datos["escala"], 5)
-        celdas = [c for tira in datos["tiras"] for c in tira if c != "vacio"]
-        self.assertLessEqual(len(celdas), graficos.MAX_ALVEOLOS + 2)
-        self.assertEqual({c for c in celdas}, {"sin_retirar", "en_despacho", "tarde", "despacho"})
-        # La leyenda conserva las cifras exactas.
-        self.assertEqual([p["cantidad"] for p in datos["leyenda"]], [900, 1, 500, 3])
 
 
 class CalendarioTests(SimpleTestCase):
@@ -56,6 +26,17 @@ class CalendarioTests(SimpleTestCase):
         noviembre = [c for semana in datos["semanas"] for c in semana if c and c["fecha"] == date(2026, 11, 1)][0]
         self.assertEqual(noviembre["etiqueta"], "1 nov")
         self.assertEqual(datos["semanas"][-1][-1], None)
+        self.assertFalse(datos["con_futuro"])
+
+    def test_mes_en_curso_marca_los_dias_que_aun_no_llegan(self):
+        inicio, fin, ultimo = date(2026, 11, 1), date(2026, 11, 25), date(2026, 11, 30)
+        serie = [(inicio + timedelta(days=i), 1) for i in range(25)]
+        datos = graficos.calendario(serie, inicio, fin, ultimo)
+        celdas = [c for semana in datos["semanas"] for c in semana if c]
+        futuros = [c["fecha"].day for c in celdas if c["futuro"]]
+        self.assertEqual(futuros, [26, 27, 28, 29, 30])
+        self.assertTrue(datos["con_futuro"])
+        self.assertIn("aún no", [c for c in celdas if c["futuro"]][0]["tip"])
 
     def test_frase_del_dia_que_destaca(self):
         self.assertEqual(graficos.frase_dia_semana([32, 10, 9, 8, 9, 0, 0], 68, 30),
@@ -65,17 +46,52 @@ class CalendarioTests(SimpleTestCase):
 
 
 class BarrasTests(SimpleTestCase):
-    def test_ancho_relativo_y_orden(self):
+    def test_ancho_relativo_orden_y_porcentaje(self):
         barras = graficos.barras([("a", "A", 2), ("b", "B", 8), ("c", "C", 0)], ordenar=True)
         self.assertEqual([b["clave"] for b in barras], ["b", "a", "c"])
         self.assertEqual([b["ancho"] for b in barras], ["100.0", "25.0", "0.0"])
+        self.assertEqual([b["porcentaje"] for b in barras], ["80", "20", "0"])
+        iguales = graficos.barras([("a", "A", 3), ("b", "B", 3), ("c", "C", 3)])
+        self.assertEqual([b["porcentaje"] for b in iguales], ["33,3", "33,3", "33,3"])
 
     def test_division_suma_cien(self):
         partes = graficos.division([("cronico", "Crónico", 2), ("general", "General", 1)])
         self.assertEqual([p["porcentaje"] for p in partes], [67, 33])
 
+    def test_barra_al_100_suma_cien_y_marca_las_vacias(self):
+        partes = graficos.barra_100([("a", "A", 5), ("b", "B", 1), ("c", "C", 0), ("d", "D", 1), ("e", "E", 1)])
+        self.assertEqual(sum(p["porcentaje"] for p in partes), 100)
+        self.assertEqual([p["visible"] for p in partes], [True, True, False, True, True])
+        self.assertEqual([p["orden"] for p in partes], [1, 2, 3, 4, 5])
 
-class EsperaYPanelTests(TestCase):
+
+class ColumnasApiladasTests(SimpleTestCase):
+    def test_partes_de_abajo_hacia_arriba_con_extremo_redondeado_solo_arriba(self):
+        serie = [(date(2026, 11, 1), [3, 1]), (date(2026, 11, 2), [0, 2]), (date(2026, 11, 3), [0, 0])]
+        datos = graficos.columnas_apiladas(serie, ("atencion", "despues"))
+        primera, segunda, tercera = datos["columnas"]
+        self.assertEqual([p["clave"] for p in primera["partes"]], ["atencion", "despues"])
+        self.assertIn("Q", primera["partes"][1]["ruta"])      # la de arriba, redondeada
+        self.assertNotIn("Q", primera["partes"][0]["ruta"])   # la de abajo, recta
+        self.assertEqual([p["clave"] for p in segunda["partes"]], ["despues"])
+        self.assertEqual(tercera["partes"], [])
+        self.assertEqual((datos["total"], datos["maximo"], datos["dia_maximo"]), (6, 4, date(2026, 11, 1)))
+        self.assertEqual(datos["ruta_promedio"], "")
+
+    def test_promedio_como_linea(self):
+        serie = [(date(2026, 11, d), [d, 0]) for d in range(1, 4)]
+        datos = graficos.columnas_apiladas(serie, ("a", "b"), [1.0, 1.5, 2.0])
+        self.assertTrue(datos["ruta_promedio"].startswith("M"))
+
+    def test_etiquetas_por_granularidad(self):
+        fecha = date(2026, 11, 2)
+        self.assertEqual(graficos.etiqueta(fecha, "dia"), "2 nov")
+        self.assertEqual(graficos.etiqueta(fecha, "semana"), "Semana del 2 nov")
+        self.assertEqual(graficos.etiqueta(fecha.replace(day=1), "mes"), "Noviembre 2026")
+        self.assertEqual(graficos.marca(fecha.replace(day=1), "mes"), "nov")
+
+
+class EsperaTests(TestCase):
     def setUp(self):
         self.e = equipo()
 
@@ -84,17 +100,8 @@ class EsperaYPanelTests(TestCase):
         preparada(paciente(), dias_atras=20, usuario=self.e["tecnico"])
         tarde = preparada(paciente(), dias_atras=5, usuario=self.e["tecnico"])
         retirar_preparado(self.e["tecnico"], tarde.pk, uuid.uuid4())
-        resumen = mermas.resumir(mermas.periodo_por_omision())
+        resumen = mermas.resumir(mermas.Periodo(hoy() - timedelta(days=29), hoy()))
         self.assertEqual([c for _, c in resumen.espera], [1, 0, 0, 1, 0])
+        self.assertEqual(resumen.mas_de_14, 1)
         self.assertEqual(sum(resumen.por_dia_semana), 2)
-        self.assertEqual(resumen.por_dia_semana[(hoy() - timedelta(days=20)).weekday()] >= 1, True)
-
-    def test_panel_muestra_blister_y_calendario(self):
-        preparada(paciente(), dias_atras=2, usuario=self.e["tecnico"])
-        self.client.force_login(self.e["qf"])
-        respuesta = self.client.get(reverse("indicadoresapp:mermas"))
-        self.assertContains(respuesta, "Queda 1 receta por entregar")
-        self.assertContains(respuesta, "alveolo-sin_retirar")
-        self.assertContains(respuesta, "calendario-celda")
-        self.assertContains(respuesta, "Cuánto llevan en el estante")
-        self.assertContains(respuesta, "2 días")
+        self.assertGreaterEqual(resumen.por_dia_semana[(hoy() - timedelta(days=20)).weekday()], 1)

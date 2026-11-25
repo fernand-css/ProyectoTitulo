@@ -115,7 +115,6 @@
 
   --fuente-titulo: "Figtree", "Segoe UI", system-ui, -apple-system, sans-serif;
   --fuente-texto: "Atkinson Hyperlegible Next", "Segoe UI", system-ui, -apple-system, sans-serif;
-  --ancho-contenido: 72rem;
   --radio-panel: 0.9rem;
   --radio-atajo: 1.15rem;
 }
@@ -274,7 +273,8 @@ ul, ol { margin-top: 0; }
 /* ------------------------------------------------------------------ Contenido */
 .principal { flex: 1; }
 .principal:focus { outline: none; }
-.contenedor { max-width: var(--ancho-contenido); margin-inline: auto; padding-inline: clamp(1rem, 3vw, 2.5rem); }
+/* Las vistas usan todo el ancho disponible (sin columna centrada); solo queda el margen interior. */
+.contenedor { padding-inline: clamp(1rem, 3vw, 2.5rem); }
 .pagina { padding-block: 2rem 3.5rem; }
 .migas { margin-bottom: 1.5rem; font-size: 0.95rem; }
 .migas ol { display: flex; flex-wrap: wrap; align-items: center; gap: 0.25rem 0.6rem; margin: 0; padding: 0; list-style: none; }
@@ -463,9 +463,7 @@ form .acciones { margin-top: 0.5rem; }
 .banda span:nth-child(3) { background: var(--ladrillo); }
 .banda span:nth-child(4) { background: var(--activo-fondo); }
 .pie-int {
-  max-width: var(--ancho-contenido);
-  margin: auto;
-  padding: 1.5rem 2rem;
+  padding: 1.5rem clamp(1rem, 3vw, 2.5rem);
   display: grid;
   grid-template-columns: repeat(auto-fit, minmax(min(100%, 15rem), 1fr));
   gap: 1.5rem 2.5rem;

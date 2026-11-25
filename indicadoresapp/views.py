@@ -1,11 +1,11 @@
-"""Panel de mermas (spec 13): consulta, reportes y derivación al reparto."""
+"""Panel de mermas (spec 13): dashboard, descargas y derivación al reparto."""
 
 import uuid
+from calendar import monthrange
 
 from django import forms
 from django.contrib import messages
 from django.core.exceptions import ValidationError
-from django.core.paginator import Paginator
 from django.db import DatabaseError
 from django.http import Http404, HttpResponse
 from django.shortcuts import get_object_or_404, redirect, render
@@ -20,11 +20,14 @@ from coreapp.mixins import RolRequeridoMixin
 from coreapp.roles import DIRECTOR, ETIQUETAS_ROLES, JEFA, SUPERUSUARIO, estado_acceso
 from recetasapp.graficos import columnas
 from recetasapp.models import Paciente
-from . import entregas, graficos, mermas, reportes
-from .filtros import FiltroMermasForm, atajos
+from . import canales as canales_mod
+from . import graficos, reportes
+from . import tablero as tablero_mod
+from .periodos import DIA, MES, FiltroPanelForm, opciones
 
 FORMATOS = {
     "xlsx": "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+    "csv": "text/csv; charset=utf-8",
     "pdf": "application/pdf",
 }
 
@@ -34,23 +37,8 @@ def _rol_texto(usuario):
     return "Administración" if rol == SUPERUSUARIO else ETIQUETAS_ROLES.get(rol, "")
 
 
-def _consulta(periodo, extra=None):
-    """Parámetros GET del filtro (fechas y tipo), sin datos personales."""
-    partes = [f"desde={periodo.inicio:%Y-%m-%d}", f"hasta={periodo.fin:%Y-%m-%d}", f"tipo={periodo.tipo}"]
-    partes += [f"{clave}={valor}" for clave, valor in (extra or {}).items()]
-    return "?" + "&".join(partes)
-
-
-def _grafico_evolucion(resumen):
-    grafico = columnas(resumen.serie)
-    for columna in grafico["columnas"]:
-        fecha = columna["fecha"]
-        columna["texto"] = (f"Semana del {reportes.fecha_corta(fecha)}" if resumen.por_semana
-                            else reportes.fecha_corta(fecha))
-        columna["tip"] = f"{columna['texto']}: {columna['valor']} receta{'s' if columna['valor'] != 1 else ''}"
-    for marca in grafico["marcas_x"]:
-        marca["texto"] = f"{marca['fecha'].day} {reportes.MESES[marca['fecha'].month - 1]}"
-    return grafico
+def _plural(cantidad, singular, plural=None):
+    return f"{cantidad} {singular if cantidad == 1 else (plural or singular + 's')}"
 
 
 def _decimal(valor):
@@ -59,85 +47,134 @@ def _decimal(valor):
     return texto[:-2] if texto.endswith(",0") else texto
 
 
-def _grafico_entregas(periodo):
-    """Entregas confirmadas del período como columnas (y su promedio de 7 días si va por día), con sus textos."""
-    datos = entregas.resumir(periodo)
-    if not datos.total:
-        return None
-    grafico = columnas(datos.serie, datos.promedios or None)
+def _textos_columnas(grafico, granularidad):
     for columna in grafico["columnas"]:
-        fecha, valor = columna["fecha"], columna["valor"]
-        cantidad = f"{valor} entrega{'s' if valor != 1 else ''}"
-        if datos.por_semana:
-            columna["texto"] = f"Semana del {reportes.fecha_corta(fecha)}"
-            columna["tip"] = f"{columna['texto']}: {cantidad}"
-        else:
-            columna["texto"] = reportes.fecha_corta(fecha)
-            columna["promedio_texto"] = _decimal(columna["promedio"])
-            columna["tip"] = (f"{columna['texto']}: {cantidad} · promedio de {entregas.VENTANA_PROMEDIO} días: "
-                              f"{columna['promedio_texto']}")
+        columna["texto"] = graficos.etiqueta(columna["fecha"], granularidad)
     for marca in grafico["marcas_x"]:
-        marca["texto"] = reportes.fecha_corta(marca["fecha"])
-    grafico.update(
-        por_semana=datos.por_semana, ventana=entregas.VENTANA_PROMEDIO,
-        promedio_diario=_decimal(datos.total / periodo.dias),
-        maximo_texto=(f"la semana del {reportes.fecha_corta(grafico['dia_maximo'])}" if datos.por_semana
-                      else f"el {reportes.fecha_corta(grafico['dia_maximo'])}"),
-        ultimo_promedio_texto=_decimal(grafico["ultimo_promedio"]) if grafico["ultimo_promedio"] is not None else "",
-    )
+        marca["texto"] = graficos.marca(marca["fecha"], granularidad)
     return grafico
+
+
+def _merma_por_periodo(tablero):
+    """RF-13-15: calendario hasta 31 días (con los días que aún no llegan del mes en curso) o columnas."""
+    resumen, periodo = tablero.resumen, tablero.periodo
+    if not resumen.merma:
+        return None, None
+    if periodo.granularidad == DIA:
+        hasta = None
+        if periodo.clase == MES and not periodo.completo:
+            hasta = periodo.inicio.replace(day=monthrange(periodo.inicio.year, periodo.inicio.month)[1])
+        return graficos.calendario(resumen.serie, periodo.inicio, periodo.fin, hasta), None
+    grafico = _textos_columnas(columnas(resumen.serie), periodo.granularidad)
+    for columna in grafico["columnas"]:
+        columna["tip"] = f"{columna['texto']}: {_plural(columna['valor'], 'receta')}"
+    return None, grafico
+
+
+def _agrupar(periodo, por_dia, campos):
+    """Suma por clave de la serie (día, semana o mes) los `campos` de cada `Dia` de `canales.por_dia`."""
+    serie = {clave: [0] * len(campos) for clave in periodo.claves()}
+    for fecha, dia in por_dia.items():
+        valores = serie[periodo.clave(fecha)]
+        for i, campo in enumerate(campos):
+            valores[i] += getattr(dia, campo)
+    return list(serie.items())
+
+
+def _entregas_por_dia(tablero):
+    """RF-13-17: farmacia (en la atención o desde la ficha, y retiradas después) y domicilio, en dos gráficos."""
+    periodo, canales = tablero.periodo, tablero.canales
+    granularidad = periodo.granularidad
+    farmacia_serie = _agrupar(periodo, canales.por_dia, ("farmacia_atencion_o_ficha", "farmacia_retiradas_despues"))
+    domicilio_serie = _agrupar(periodo, canales.por_dia, ("domicilio_entregadas", "domicilio_no_entregadas"))
+    farmacia = domicilio = None
+    if any(sum(valores) for _, valores in farmacia_serie):
+        promedios = canales_mod.promedios_farmacia(periodo, canales) if granularidad == DIA else None
+        farmacia = _textos_columnas(graficos.columnas_apiladas(farmacia_serie, ("atencion", "despues"), promedios),
+                                    granularidad)
+        for columna in farmacia["columnas"]:
+            atencion, despues = columna["valores"]
+            columna["tip"] = (f"{columna['texto']}: {_plural(columna['total'], 'receta')} ({atencion} en la atención o "
+                              f"desde la ficha, {despues} retirada{'s' if despues != 1 else ''} después)")
+            if columna["promedio"] is not None:
+                columna["promedio_texto"] = _decimal(columna["promedio"])
+                columna["tip"] += f" · promedio de 7 días: {columna['promedio_texto']}"
+    if any(sum(valores) for _, valores in domicilio_serie):
+        domicilio = _textos_columnas(graficos.columnas_apiladas(domicilio_serie, ("entregadas", "no_entregadas")),
+                                     granularidad)
+        for columna in domicilio["columnas"]:
+            buenas, malas = columna["valores"]
+            columna["tip"] = (f"{columna['texto']}: {buenas} entregada{'s' if buenas != 1 else ''}, "
+                              f"{malas} no entregada{'s' if malas != 1 else ''}")
+    return farmacia, domicilio
+
+
+def _filas_canales(canales):
+    def fila(texto, entregadas, no_entregadas, clave):
+        total = entregadas + no_entregadas
+        return {"clave": clave, "texto": texto, "entregadas": tablero_mod.entero(entregadas),
+                "no_entregadas": tablero_mod.entero(no_entregadas), "total": tablero_mod.entero(total),
+                "porcentaje": f"{tablero_mod.decimal(100 * entregadas / total)} %" if total else "—"}
+
+    return [
+        fila("Farmacia", canales.farmacia_entregadas, canales.farmacia_no_entregadas, "farmacia"),
+        fila("Domicilio", canales.domicilio_entregadas, canales.domicilio_no_entregadas, "domicilio"),
+        fila("Total", canales.entregadas, canales.no_entregadas, "total"),
+    ]
 
 
 @method_decorator(never_cache, name="dispatch")
 class PanelMermasView(RolRequeridoMixin, View):
-    """RF-13-02 a RF-13-04. También es el inicio de la Dirección del CESFAM (RF-13-08)."""
+    """Dashboard de mermas y entregas (RF-13-11 a RF-13-20). También es el inicio de la Dirección (RF-13-08)."""
 
     roles_permitidos = (JEFA, DIRECTOR)
 
     def get(self, request):
-        form = FiltroMermasForm(request.GET or None)
-        periodo = form.periodo()
-        resumen = mermas.resumir(periodo)
-        paginas = Paginator(resumen.pacientes, mermas.POR_PAGINA)
-        pagina = paginas.get_page(form.pagina())
-        pagina.object_list = mermas.pacientes_de_la_pagina(list(pagina.object_list))
         hoy = timezone.localdate()
+        form = FiltroPanelForm(request.GET or None, hoy=hoy)
+        periodo = form.elegido()
+        tablero = tablero_mod.armar(periodo, hoy)
+        resumen, canales = tablero.resumen, tablero.canales
+        calendario, evolucion = _merma_por_periodo(tablero)
+        farmacia, domicilio = _entregas_por_dia(tablero)
+        anterior, siguiente = periodo.anterior(), periodo.siguiente(hoy)
         contexto = {
-            "form": form, "periodo": periodo, "resumen": resumen, "pagina": pagina,
+            "form": form, "periodo": periodo, "tablero": tablero, "resumen": resumen, "canales": canales,
+            "opciones": opciones(periodo, hoy), "consulta": periodo.consulta(),
+            "anterior_url": anterior.consulta() if anterior else "",
+            "siguiente_url": siguiente.consulta() if siguiente else "",
             "puede_derivar": estado_acceso(request.user)[1] in (JEFA, SUPERUSUARIO),
-            "atajos": [
-                {"texto": texto, "url": _consulta(mermas.Periodo(desde, hasta, periodo.tipo)),
-                 "actual": (desde, hasta) == (periodo.inicio, periodo.fin)}
-                for texto, desde, hasta in atajos(hoy)
-            ],
-            "consulta": _consulta(periodo),
-            "blister": graficos.blister(resumen.cifras),
-            "evolucion": _grafico_evolucion(resumen) if resumen.merma and resumen.por_semana else None,
-            "calendario": (graficos.calendario(resumen.serie, periodo.inicio, periodo.fin)
-                           if resumen.merma and not resumen.por_semana else None),
+            "cifras": tablero.cifras,
+            "filas_canales": _filas_canales(canales),
+            "calendario": calendario, "evolucion": evolucion,
             "frase_dia": graficos.frase_dia_semana(resumen.por_dia_semana, resumen.merma, periodo.dias),
+            "motivos_farmacia": graficos.barras(canales.motivos_farmacia, ordenar=True),
+            "motivos_domicilio": graficos.barras(canales.motivos_domicilio, ordenar=True),
+            "no_entregadas_farmacia": sum(cantidad for _, _, cantidad in canales.motivos_farmacia),
+            "farmacia": farmacia, "domicilio": domicilio,
+            "preparadas": graficos.barra_100(reportes.partes_preparadas(resumen)),
             "espera": graficos.barras([(i, texto, cantidad) for i, (texto, cantidad) in enumerate(resumen.espera)]),
-            "sin_retirar_viejas": sum(cantidad for _, cantidad in resumen.espera[3:]),
             "por_tipo": graficos.division(resumen.por_tipo),
-            "por_cierre": graficos.barras(resumen.por_cierre, ordenar=True),
-            "inicio_texto": reportes.fecha_larga(periodo.inicio), "fin_texto": reportes.fecha_larga(periodo.fin),
-            "entregas": _grafico_entregas(periodo),
+            "ausentes": tablero.ausentes,
+            "formatos": (("xlsx", "Excel"), ("csv", "CSV"), ("pdf", "PDF")),
         }
         return render(request, "indicadores/mermas.html", contexto)
 
 
 @method_decorator(never_cache, name="dispatch")
 class ReporteMermasView(RolRequeridoMixin, View):
-    """RF-13-05: Excel o PDF con cifras y gráficos, nunca con datos personales. Cada descarga queda auditada."""
+    """RF-13-21: Excel, CSV o PDF con las cifras del dashboard, nunca con datos personales. Cada descarga se audita."""
 
     roles_permitidos = (JEFA, DIRECTOR)
 
     def get(self, request, formato):
         if formato not in FORMATOS:
             raise Http404
-        periodo = FiltroMermasForm(request.GET or None).periodo()
-        datos = reportes.datos_desde(mermas.resumir(periodo), _rol_texto(request.user))
-        contenido = reportes.excel(datos) if formato == "xlsx" else reportes.pdf(datos)
+        hoy = timezone.localdate()
+        periodo = FiltroPanelForm(request.GET or None, hoy=hoy).elegido()
+        datos = reportes.datos_desde(tablero_mod.armar(periodo, hoy), _rol_texto(request.user))
+        generador = {"xlsx": reportes.excel, "csv": reportes.csv_por_dia, "pdf": reportes.pdf}[formato]
+        contenido = generador(datos)
         registrar_referencia(
             request.user, f"mermas.reporte_{formato}", "indicadores.ReporteMermas",
             f"{periodo.inicio:%Y-%m-%d}_{periodo.fin:%Y-%m-%d}_{periodo.tipo}",
@@ -201,8 +238,8 @@ class DerivarMermaView(RolRequeridoMixin, View):
             "paciente": paciente, "form": form, "elegible": form.elegible,
             "motivos": consultas.motivos_de(paciente), "preparaciones": preparaciones_para_derivar(paciente),
             "abierta": consultas.entrega_abierta(paciente),
-            # Vuelve al panel con el mismo filtro (fechas y tipo; nunca datos personales).
-            "volver": reverse("indicadoresapp:mermas") + _consulta(FiltroMermasForm(request.GET or None).periodo()),
+            # RF-13-22: la derivación se inicia en «Pendientes de retiro» y vuelve ahí.
+            "volver": reverse("recetasapp:preparacion_pendientes"),
         }
 
     def get(self, request, paciente_id):

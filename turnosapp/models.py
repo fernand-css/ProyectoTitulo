@@ -276,6 +276,16 @@ class AnuncioSala(models.Model):
         indexes = [models.Index(fields=["fecha", "id"], name="sala_fecha_id_idx")]
 
 
+class CausaNoEntrega(models.TextChoices):
+    """RF-05-14: por qué no se entregó una receta al cerrar la atención (lista cerrada más «Otro»)."""
+
+    SIN_STOCK = "sin_stock", "Sin stock"
+    NO_LA_PIDE = "no_la_pide", "Paciente no la pide"
+    NO_VIGENTE = "no_vigente", "Receta no vigente o sin cupo"
+    CAMBIO_INDICACION = "cambio_indicacion", "Cambio de indicación"
+    OTRO = "otro", "Otro"
+
+
 class CierreAtencion(models.Model):
     turno = models.OneToOneField(Turno, on_delete=models.PROTECT, related_name="cierre_atencion")
     actor = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.PROTECT, related_name="cierres_atencion")
@@ -283,6 +293,8 @@ class CierreAtencion(models.Model):
     instante = models.DateTimeField(default=timezone.now)
     resultado = models.CharField(max_length=12, choices=[("con_entrega", "Con entrega"), ("sin_entrega", "Sin entrega")])
     motivo = models.CharField(max_length=500, blank=True)
+    # RF-05-14: código de la causa general; vacío en los cierres anteriores a la enmienda y sin recetas.
+    causa = models.CharField(max_length=20, choices=CausaNoEntrega.choices, blank=True, default="")
 
     class Meta:
         constraints = [
@@ -296,6 +308,8 @@ class DetalleCierre(models.Model):
     turno_receta = models.OneToOneField(TurnoReceta, on_delete=models.PROTECT, related_name="detalle_cierre")
     entregada = models.BooleanField(default=False)
     motivo = models.CharField(max_length=500, blank=True)
+    # RF-05-14: código de la causa; el texto legible sigue en `motivo`. Vacío = cierre anterior a la enmienda.
+    causa = models.CharField(max_length=20, choices=CausaNoEntrega.choices, blank=True, default="")
     entrega = models.OneToOneField("recetasapp.EntregaReceta", null=True, blank=True, on_delete=models.PROTECT, related_name="detalle_cierre")
 
     class Meta:

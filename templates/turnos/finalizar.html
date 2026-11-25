@@ -2,6 +2,6 @@
 {% block titulo %}Finalizar atención · Farmacia{% endblock %}
 {% block turnos %}<h1>Finalizar atención {{ turno.codigo }}</h1>
 {% if turno %}<p><strong>{% if turno.paciente %}{{ turno.paciente.nombres }} {{ turno.paciente.apellidos }}{% else %}No registrado en el padrón{% endif %}</strong> · RUT {{ turno.rut|rut }}</p>{% endif %}
-{% if form.sin_recetas %}<p>Este turno no tiene recetas del sistema. Se cerrará sin entrega con el motivo «{{ form.motivo_fijo }}».</p>{% else %}<p>Marca únicamente las recetas entregadas ahora. Las ya registradas se conservan y no se descuentan de nuevo. Indica por qué no se entregaron las restantes.</p>{% endif %}
+{% if form.sin_recetas %}<p>Este turno no tiene recetas del sistema. Se cerrará sin entrega con el motivo «{{ form.motivo_fijo }}».</p>{% else %}<p>Marca únicamente las recetas entregadas ahora. Las ya registradas se conservan y no se descuentan de nuevo. Elige por qué no se entregaron las restantes; con «Otro», escribe el detalle.</p>{% endif %}
 <form class="panel cola-formulario" method="post">{% csrf_token %}{% include 'turnos/_campos.html' %}<button class="boton" type="submit">Finalizar y confirmar entregas</button> <a href="{% url 'turnosapp:panel' %}">Volver sin finalizar</a></form>
 <p>Después del cierre se llamará al siguiente turno compatible si la ventanilla sigue en automático.</p>{% endblock %}

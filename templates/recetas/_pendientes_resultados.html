@@ -24,6 +24,9 @@
             {% csrf_token %}{{ item.retiro_form.operacion_id }}
             <button class="boton" type="submit">Registrar retiro</button>
           </form>
+          {% if puede_derivar %}{# Spec 07, RF-07-13: deriva al reparto todo lo sin retirar del paciente (RF-13-06). #}
+          <a class="boton boton-secundario pendiente-derivar" href="{% url 'indicadoresapp:mermas_derivar' paciente_id=item.turno_receta.receta.paciente_id %}">Derivar a domicilio<span class="sr-only"> a {{ item.turno_receta.turno.paciente.nombres }} {{ item.turno_receta.turno.paciente.apellidos }}</span></a>
+          {% endif %}
           {% endif %}
         </td>
       </tr>

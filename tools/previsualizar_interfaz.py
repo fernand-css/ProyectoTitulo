@@ -108,20 +108,92 @@ def main():
         azar = Random(1313)
         recetas_demo = list(Receta.objects.select_related("paciente").order_by("pk"))
         cierres = ("ausente", "sin_atencion_cierre", "atendido", "cerrado_sin_entrega")
+        # Enmienda del 2026-11-25: hora de emisión repartida, causa en los cierres con atención, recetas entregadas en
+        # la atención y visitas a domicilio registradas, para revisar todo el dashboard.
+        from entregasapp.models import Entrega, IntentoEntrega, RecetaEntrega
+        from turnosapp.models import CierreAtencion, DetalleCierre, OperacionAtencion
+        zona = timezone.get_current_timezone()
+        causas = ("sin_stock", "no_la_pide", "no_vigente", "cambio_indicacion", "otro")
+        etiquetas = {"sin_stock": "Sin stock", "no_la_pide": "Paciente no la pide", "no_vigente": "Receta no vigente o sin cupo",
+                     "cambio_indicacion": "Cambio de indicación", "otro": "Otro: Detalle sintético de demostración"}
+        pacientes_demo = list(Paciente.objects.order_by("pk")[:40])
+        recetas_atencion = [Receta.objects.create(paciente=p, codigo=f"ATENCION-{i:04d}", fecha_inicio=hoy - timedelta(days=60),
+                                                  fecha_fin_exclusiva=hoy + timedelta(days=150), vigencia_meses=6, max_entregas=200)
+                            for i, p in enumerate(pacientes_demo)]
+        numeros_entrega = {}
+
+        def cerrar(turno, vinculo, entregada, instante):
+            operacion = OperacionAtencion.objects.create(actor=usuarios["tecnico"], tipo="finalizar", turno=turno,
+                                                         huella="v" * 64, resultado={})
+            causa = "" if entregada else azar.choice(causas)
+            cierre = CierreAtencion.objects.create(turno=turno, actor=usuarios["tecnico"], operacion=operacion, instante=instante,
+                                                   resultado="con_entrega" if entregada else "sin_entrega", causa=causa,
+                                                   motivo="" if entregada else etiquetas[causa])
+            entrega = None
+            if entregada:
+                numeros_entrega[vinculo.receta_id] = numeros_entrega.get(vinculo.receta_id, 0) + 1
+                entrega = EntregaReceta.objects.create(receta=vinculo.receta, numero=numeros_entrega[vinculo.receta_id],
+                                                       turno_receta=vinculo)
+                EntregaReceta.objects.filter(pk=entrega.pk).update(creado_en=instante)
+            DetalleCierre.objects.create(cierre=cierre, turno_receta=vinculo, entregada=entregada, entrega=entrega,
+                                         causa=causa, motivo="" if entregada else etiquetas[causa])
+
         for dias_atras in range(1, 46):
             fecha = hoy - timedelta(days=dias_atras)
-            momento = timezone.make_aware(datetime.combine(fecha, hora(10)), timezone.get_current_timezone())
-            for numero, receta in enumerate(azar.sample(recetas_demo, azar.randint(0, 4)), start=1):
+            inicio_dia = timezone.make_aware(datetime.combine(fecha, hora(8)), zona)
+            numero = 0
+            for receta in azar.sample(recetas_demo, azar.randint(0, 4)):
+                numero += 1
+                momento = inicio_dia + timedelta(minutes=azar.randint(0, 11 * 60))
+                estado = cierres[(dias_atras + numero) % 4]
                 turno = Turno.objects.create(
                     paciente=receta.paciente, rut=receta.paciente.rut, fecha=fecha, letra="G", numero=numero,
-                    tipo_atencion="general", estado=cierres[(dias_atras + numero) % 4], entrada_cola=momento,
+                    tipo_atencion="general", estado=estado, entrada_cola=momento,
                     cerrado_en=momento + timedelta(hours=1),
                 )
+                Turno.objects.filter(pk=turno.pk).update(creado_en=momento)
+                vinculo = TurnoReceta.objects.create(turno=turno, receta=receta)
                 PreparacionReceta.objects.create(
-                    turno_receta=TurnoReceta.objects.create(turno=turno, receta=receta), recibida_en=momento,
+                    turno_receta=vinculo, recibida_en=momento,
                     lista_en=momento + timedelta(minutes=12), lista_por=usuarios["tecnico"],
                     inicio_medido=momento, duracion_segundos=720,
                 )
+                if estado in ("atendido", "cerrado_sin_entrega"):
+                    cerrar(turno, vinculo, False, momento + timedelta(hours=1))
+            if fecha.weekday() < 5:
+                for receta in azar.sample(recetas_atencion, 12):
+                    numero += 1
+                    momento = inicio_dia + timedelta(minutes=azar.randint(0, 11 * 60))
+                    turno = Turno.objects.create(
+                        paciente=receta.paciente, rut=receta.paciente.rut, fecha=fecha, letra="G", numero=numero,
+                        tipo_atencion="general", estado="atendido", entrada_cola=momento, cerrado_en=momento + timedelta(minutes=30),
+                    )
+                    Turno.objects.filter(pk=turno.pk).update(creado_en=momento)
+                    vinculo = TurnoReceta.objects.create(turno=turno, receta=receta)
+                    PreparacionReceta.objects.create(
+                        turno_receta=vinculo, recibida_en=momento, lista_en=momento + timedelta(minutes=12),
+                        lista_por=usuarios["tecnico"], inicio_medido=momento, duracion_segundos=720,
+                    )
+                    cerrar(turno, vinculo, True, momento + timedelta(minutes=30))
+                registro = inicio_dia + timedelta(hours=4)
+                for n, receta in enumerate(azar.sample(recetas_atencion, 2)):
+                    entrega = Entrega.objects.create(paciente=receta.paciente, estado="entregada", operacion_id=uuid.uuid4(),
+                                                     cerrada_en=registro)
+                    if n == 0 and azar.random() < 0.4:
+                        IntentoEntrega.objects.create(entrega=entrega, numero=1, fecha_programada=fecha,
+                                                      encargado=usuarios["terreno"], resultado="no_entregada",
+                                                      motivo=azar.choice(("sin_receptor", "camino_intransitable", "domicilio_no_encontrado")),
+                                                      registrado_en=registro - timedelta(hours=2),
+                                                      registrado_por=usuarios["terreno"], operacion_id=uuid.uuid4())
+                    numeros_entrega[receta.pk] = numeros_entrega.get(receta.pk, 0) + 1
+                    entrega_receta = EntregaReceta.objects.create(receta=receta, numero=numeros_entrega[receta.pk])
+                    RecetaEntrega.objects.create(entrega=entrega, receta=receta, resultado="descontada",
+                                                 entrega_receta=entrega_receta)
+                    IntentoEntrega.objects.create(entrega=entrega, numero=entrega.intentos.count() + 1, fecha_programada=fecha,
+                                                  encargado=usuarios["terreno"], resultado="entregada", registrado_en=registro,
+                                                  registrado_por=usuarios["terreno"], operacion_id=uuid.uuid4())
+        for receta_id, cantidad in numeros_entrega.items():
+            Receta.objects.filter(pk=receta_id).update(entregas_completadas=cantidad)
 
         # Reparto (specs 08, 09 y 11): tres visitas de hoy para el encargado, para revisar «Mis entregas» y la vista
         # sin conexión. Pacientes y coordenadas sintéticos, cerca del origen configurado.
