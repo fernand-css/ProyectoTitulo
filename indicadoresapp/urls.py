@@ -9,5 +9,4 @@ app_name = "indicadoresapp"
 urlpatterns = [
     path("mermas/", views.PanelMermasView.as_view(), name="mermas"),
     path("mermas/reporte.<str:formato>", views.ReporteMermasView.as_view(), name="mermas_reporte"),
-    path("mermas/derivar/<int:paciente_id>/", views.DerivarMermaView.as_view(), name="mermas_derivar"),
 ]

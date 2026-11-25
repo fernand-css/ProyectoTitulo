@@ -1,4 +1,4 @@
-"""Spec 13 por HTTP real: dashboard de mermas y entregas, descargas y derivación. Solo SQLite temporal y datos sintéticos.
+"""Spec 13 por HTTP real: dashboard de mermas y entregas y descargas. Solo SQLite temporal y datos sintéticos.
 
 Desde la enmienda del 2026-11-25 genera 366 días: turnos cerrados con su receta preparada (con hora de emisión
 repartida en la jornada y causa de no entrega en los cierres con atención) y visitas a domicilio registradas, y
@@ -209,33 +209,17 @@ def ejecutar(base_datos):
                         if formato == "csv":
                             assert contenido.startswith("﻿".encode("utf-8"))
                         medidas.setdefault(f"reporte_{formato}_{nombre}", []).append(segundos)
-        # Derivación por HTTP desde «Pendientes de retiro» de 20 pacientes de 80 años o más con recetas sin retirar.
-        estado, html, _, _ = qf.pedir("/recetas/preparacion/pendientes/")
-        assert estado == 200 and "Derivar a domicilio".encode() in html
-        elegibles = [p for p in pacientes if p.fecha_nacimiento.year == 1940]
-        abiertas_antes = Entrega.objects.filter(estado__in=Entrega.ABIERTAS).count()
-        derivados = 0
-        for persona in elegibles:
-            if derivados >= 20:
-                break
-            ruta = f"/indicadores/mermas/derivar/{persona.pk}/"
-            estado, html, _, _ = qf.pedir(ruta)
-            if "Programar entrega a domicilio".encode() not in html:
-                continue
-            assert "/recetas/preparacion/pendientes/".encode() in html  # «Volver» a Pendientes de retiro
-            datos = {"fecha": f"{hoy:%Y-%m-%d}", "encargado": encargado.pk, "operacion_id": str(uuid.uuid4())}
-            estado, _, segundos, url = qf.pedir(ruta, datos)
-            assert estado == 200 and "/entregas/" in url, (estado, url)
-            medidas.setdefault("derivar", []).append(segundos)
-            derivados += 1
-        assert derivados >= 10, derivados
-        assert Entrega.objects.filter(estado__in=Entrega.ABIERTAS).count() - abiertas_antes == derivados
+        # Cambio del 2026-11-25: «Pendientes de retiro» ya no ofrece «Derivar a domicilio» y su pantalla no existe.
+        estado, html, segundos, _ = qf.pedir("/recetas/preparacion/pendientes/")
+        assert estado == 200 and "Derivar a domicilio".encode() not in html
+        medidas.setdefault("pendientes_retiro", []).append(segundos)
+        assert qf.pedir(f"/indicadores/mermas/derivar/{pacientes[0].pk}/")[0] == 404
         informe = {
             "http": "aprobado", "pacientes_sinteticos": 670, "dias": DIAS,
             "preparaciones_sinteticas": DIAS * POR_DIA, "visitas_sinteticas": int(DIAS * VISITAS_POR_DIA * 1.3),
             "director": "inicio con el dashboard, sin RUT ni «Derivar a domicilio»; 403 en Recetas, Pendientes de retiro, Atención, Entregas y Usuarios",
             "descargas": "Excel, CSV (con BOM) y PDF del mes y del año para la Q.F. y el Director, sin ninguno de 200 RUT sintéticos",
-            "derivaciones_desde_pendientes": derivados,
+            "pendientes_de_retiro": "sin «Derivar a domicilio»; la ruta de derivación responde 404",
             "mediciones": {k: {"muestras": len(v), "p95_ms": p95(v)} for k, v in medidas.items()},
             "limites": "WSGI en loopback, carga secuencial y SQLite; sin navegador, axe, visor de PDF ni Excel reales ni usabilidad",
         }

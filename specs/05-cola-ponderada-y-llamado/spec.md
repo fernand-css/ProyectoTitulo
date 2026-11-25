@@ -151,6 +151,8 @@ No quedan preguntas funcionales bloqueantes para redactar. Los nombres de modelo
 
 ## Revisión y cambios
 
+2026-11-25 (presentación, pedida por la usuaria): en «Atención y cola», el Técnico sin ventanilla elige entre tarjetas como las de «Ventanillas» de la Q.F. (número, «Libre», letras que admite y «Ocupar ventanilla»), en vez de una lista con un botón por fila a todo el ancho. Solo se muestran las habilitadas, en operación y sin operador (`ventanillas_libres` en `turnosapp/panel.py`); si no queda ninguna, un aviso lo dice. El bloque «Admite» es un parcial compartido (`templates/turnos/_admite.html`). Sin cambios en servicios, permisos ni concurrencia.
+
 2026-11-15 (enmienda): por la enmienda del spec 04 (tótem abierto y letras P/G/C) y la urgencia del spec 10, la usuaria decidió que U se llama siempre primero con un número nuevo de su serie. Se agrega RF-05-13, que modifica RF-05-01, 02, 03, 06, 07 y 11. La implementación toca la selección y el llamado, por lo que exige pruebas concurrentes (regla 4 de `CLAUDE.md`). Sin cambios de código.
 
 2026-11-02: primer bloque 1A/2A, llamado totalmente automático, 4A/5A y descuento al confirmar entrega al finalizar. Segundo bloque 1A/2A/3A/4A/5A. Último bloque 1A/2A/3C/4A. Se guardan cuatro documentos como Borrador, sin código, migraciones ni aceptación funcional.

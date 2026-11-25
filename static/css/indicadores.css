@@ -158,8 +158,3 @@
   .mermas-filtro, .mermas-descargas, .mermas-ir, .mermas-flecha, .cifra-enlace, .datos { display: none; }
   .calendario-celda, .calor-celda, .barra, .parte-100 { print-color-adjust: exact; -webkit-print-color-adjust: exact; }
 }
-
-/* Derivación al reparto */
-.derivar-recetas { margin: 0 0 1.25rem; padding-left: 1.2rem; }
-.derivar-aviso { margin: 0 0 1.25rem; }
-.derivar-acciones { display: flex; flex-wrap: wrap; gap: 0.75rem; }

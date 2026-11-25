@@ -65,7 +65,13 @@
 </div><p class="suave cola-ayuda">Pausa antes de abandonar el puesto. Cerrar esta pestaña no detiene los llamados automáticos. «Terminar mi turno» registra la hora de término y deja la ventanilla deshabilitada hasta que la Q.F. la vuelva a abrir.</p>
 </div>
 {% else %}<h2 id="puesto-titulo">Elige una ventanilla libre</h2><p>Ocúpala e inicia la atención automática cuando estés listo.</p>
-{% for vent in ventanillas %}{% if vent.habilitada and not vent.retirada and not vent.operador_id %}<form class="cola-ocupar" method="post" action="{% url 'turnosapp:accion_ventanilla' pk=vent.pk accion='ocupar' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ vent.nonce_ocupar }}"><button class="boton" type="submit">Ocupar ventanilla {{ vent.numero }}</button><span>{{ vent.tipos_texto }}</span></form>{% endif %}{% empty %}<p>No hay ventanillas preparadas.</p>{% endfor %}{% endif %}
+{% if ventanillas_libres %}<ul class="vent-tarjetas cola-elegir" aria-label="Ventanillas libres">{% for vent in ventanillas_libres %}<li class="vent-tarjeta">
+<div class="vent-tarjeta-cab"><h3>Ventanilla {{ vent.numero }}</h3><span class="vent-estado">Libre</span></div>
+{% include 'turnos/_admite.html' %}
+<form class="cola-ocupar" method="post" action="{% url 'turnosapp:accion_ventanilla' pk=vent.pk accion='ocupar' %}">{% csrf_token %}<input type="hidden" name="operacion_id" value="{{ vent.nonce_ocupar }}"><button class="boton" type="submit">Ocupar ventanilla<span class="sr-only"> {{ vent.numero }}</span></button></form>
+</li>{% endfor %}</ul>
+{% elif ventanillas %}<p class="cola-sin-libres">No hay ventanillas libres: todas están ocupadas o cerradas. Pide a la Q.F. que abra una.</p>
+{% else %}<p>No hay ventanillas preparadas.</p>{% endif %}{% endif %}
 {% else %}<h2 id="puesto-titulo">Supervisión de la atención</h2>
 <ul class="cola-supervision" aria-label="Ventanillas">{% for vent in ventanillas %}{% if not vent.retirada %}<li class="cola-supervision-ventanilla{% if not vent.habilitada %} cola-supervision-cerrada{% endif %}">
 <h3>Ventanilla {{ vent.numero }}</h3>

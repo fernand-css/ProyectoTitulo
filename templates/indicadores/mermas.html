@@ -56,7 +56,7 @@
         <p class="cifra-valor">{{ cifra.valor }}</p>
         <p class="cifra-detalle">{{ cifra.detalle }}</p>
         <p class="cifra-comparacion{% if cifra.tendencia %} tendencia-{{ cifra.tendencia }}{% endif %}">{% if cifra.sentido %}<span class="cifra-flecha" aria-hidden="true">{% if cifra.sentido == 'sube' %}↑{% else %}↓{% endif %}</span>{% endif %}{{ cifra.comparacion }}</p>
-        {% if cifra.enlace and puede_derivar and resumen.cifras.sin_retirar %}<a class="cifra-enlace" href="{% url 'recetasapp:preparacion_pendientes' %}">Ver en «Pendientes de retiro»</a>{% endif %}
+        {% if cifra.enlace and ve_pendientes and resumen.cifras.sin_retirar %}<a class="cifra-enlace" href="{% url 'recetasapp:preparacion_pendientes' %}">Ver en «Pendientes de retiro»</a>{% endif %}
       </li>
       {% endfor %}
     </ul>
@@ -254,7 +254,7 @@
       <ol class="barras barras-espera">
         {% for barra in espera %}<li><span class="barra-texto">{{ barra.texto }}</span><span class="barra-carril" aria-hidden="true"><span class="barra barra-tramo-{{ barra.tramo }}" style="width: {{ barra.ancho }}%"></span></span><strong class="barra-cifra">{{ barra.cantidad }}</strong></li>{% endfor %}
       </ol>
-      {% if puede_derivar %}<a class="mermas-ir" href="{% url 'recetasapp:preparacion_pendientes' %}">Derivar a domicilio desde «Pendientes de retiro»</a>{% endif %}
+      {% if ve_pendientes %}<a class="mermas-ir" href="{% url 'recetasapp:preparacion_pendientes' %}">Ver las recetas en «Pendientes de retiro»</a>{% endif %}
       {% endif %}
     </section>
 

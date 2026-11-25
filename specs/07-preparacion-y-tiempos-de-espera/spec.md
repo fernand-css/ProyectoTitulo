@@ -186,3 +186,5 @@ Pedida por la usuaria el 2026-11-25 junto con la [enmienda del spec 13](../13-pa
 2026-11-25: borrador redactado junto con la enmienda del 13. Sin código ni aprobación.
 
 2026-11-25 (aprobación): la usuaria indicó «pasa las enmiendas a aprobado e implementa». Se implementa como T-13-14 del [spec 13](../13-panel-de-mermas/tasks.md).
+
+2026-11-25 (cambio posterior): la usuaria decidió quitar «Derivar a domicilio» de «Pendientes de retiro» («no quiero esa opción»). **RF-07-13 queda retirado** con sus dos criterios; la fila «Sin retirar» vuelve a tener solo «Registrar retiro» y la «En despacho» sigue igual. Detalle en el [cambio posterior del spec 13](../13-panel-de-mermas/spec.md#cambio-posterior-del-2026-11-25--se-retira-derivar-a-domicilio).

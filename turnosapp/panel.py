@@ -25,6 +25,14 @@ def _preparaciones_del_turno(turno):
     return items
 
 
+LETRA_DE_TIPO = {"preferencial": "P", "general": "G", "cronicos": "C", "urgencia": "U"}
+NOMBRE_DE_LETRA = {"P": "preferencial", "G": "general", "C": "crónicos", "U": "urgencia"}
+
+
+def _enumerar(palabras):
+    return palabras[0] if len(palabras) == 1 else ", ".join(palabras[:-1]) + " y " + palabras[-1]
+
+
 # Filas a las que el personal puede mover un turno en espera (la urgencia tiene su propia acción).
 OPCIONES_FILA = [("P", "Preferencial"), ("G", "General"), ("C", "Crónicos")]
 
@@ -45,7 +53,10 @@ def contexto_panel(usuario, pagina=1):
         vent.turno_actual = llamados.get(vent.pk)
         vent.es_propia = bool(propia and vent.pk == propia.pk)
         vent.nonce_ocupar = uuid.uuid4()
-        vent.tipos_texto = ", ".join(tipo.get_codigo_display() for tipo in vent.tipos.all()) or "Ninguno"
+        # Letras que admite (P, G, C, U) para las tarjetas del Técnico y de la Q.F.
+        admitidas = {LETRA_DE_TIPO[tipo.codigo] for tipo in vent.tipos.all()}
+        vent.letras = [letra for letra in ("P", "G", "C", "U") if letra in admitidas]
+        vent.letras_texto = ("Solo " + _enumerar([NOMBRE_DE_LETRA[l] for l in vent.letras])) if 0 < len(vent.letras) < 4 else ""
         vent.activa_hoy = vent.automatico and vent.fecha_activacion == hoy and vent.habilitada and not vent.retirada
     espera = (Turno.objects.filter(fecha=hoy, estado="esperando")
         .annotate(cantidad_recetas=Count("recetas_vinculadas")).order_by("entrada_cola", "numero", "pk"))
@@ -60,7 +71,9 @@ def contexto_panel(usuario, pagina=1):
     sin_cobertura = [etiqueta for codigo, etiqueta in TIPOS_VENTANILLA if codigo not in habilitados and espera.filter(tipo_atencion=codigo).exists()]
     from .espera import estimar_espera
     estimacion_preparacion = estimar_espera(ahora)
-    return {"ventanillas": ventanillas, "propia": propia, "vigente": vigente, "pagina_cola": pagina_cola,
+    # Tarjetas para que el Técnico sin ventanilla elija una: habilitadas, en operación y sin operador.
+    libres = [v for v in ventanillas if v.habilitada and not v.retirada and not v.operador_id]
+    return {"ventanillas": ventanillas, "ventanillas_libres": libres, "propia": propia, "vigente": vigente, "pagina_cola": pagina_cola,
         "puede_operar": operar, "puede_gestionar": gestionar, "configuracion": ConfiguracionCola.objects.filter(pk=1).first(),
         "ausentes": Turno.objects.filter(fecha=hoy, estado="ausente").order_by("numero")[:100],
         "pendientes": PendienteSeleccion.objects.filter(estado="pendiente").order_by("creado_en")[:20],
@@ -76,16 +89,10 @@ def contexto_panel(usuario, pagina=1):
 
 # ---- Página «Ventanillas» de la Q.F.: tarjetas por ventanilla, resumen y orden de llamado ----
 
-LETRA_DE_TIPO = {"preferencial": "P", "general": "G", "cronicos": "C", "urgencia": "U"}
-NOMBRE_DE_LETRA = {"P": "preferencial", "G": "general", "C": "crónicos", "U": "urgencia"}
 ESTADOS_VENTANILLA = {
     "atendiendo": "Atendiendo", "esperando": "Esperando turno", "pausa": "En pausa",
     "libre": "Libre", "cerrada": "Cerrada",
 }
-
-
-def _enumerar(palabras):
-    return palabras[0] if len(palabras) == 1 else ", ".join(palabras[:-1]) + " y " + palabras[-1]
 
 
 def _orden_de_llamado(config):
@@ -124,9 +131,6 @@ def contexto_gestion(usuario):
         else:
             vent.estado_clave = "libre"
         vent.estado_texto = ESTADOS_VENTANILLA[vent.estado_clave]
-        admitidas = {LETRA_DE_TIPO[tipo.codigo] for tipo in vent.tipos.all()}
-        vent.letras = [letra for letra in ("P", "G", "C", "U") if letra in admitidas]
-        vent.letras_texto = ("Solo " + _enumerar([NOMBRE_DE_LETRA[l] for l in vent.letras])) if 0 < len(vent.letras) < 4 else ""
         vent.letra_actual = vent.turno_actual[:1] if vent.turno_actual else ""
         vent.termino = terminos.get(vent.pk) if vent.estado_clave == "cerrada" else None
         vent.puede_terminar = bool(vent.operador_id or vent.habilitada)

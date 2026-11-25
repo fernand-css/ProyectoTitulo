@@ -27,7 +27,7 @@
 {% elif vent.estado_clave == 'pausa' %}Sin turno en curso · no recibe llamados
 {% else %}Libre para que un Técnico la ocupe{% endif %}</div>
 <p class="vent-operador"><svg class="icono" aria-hidden="true" focusable="false" viewBox="0 0 24 24"><circle cx="12" cy="8" r="4"/><path d="M4 21a8 8 0 0 1 16 0"/></svg>{% if vent.operador %}{{ vent.operador.get_username }}{% else %}Sin operador{% endif %}</p>
-<div class="vent-admite"><span class="vent-admite-rotulo">Admite</span>{% if vent.letras %}<span class="vent-admite-letras">{% for letra in vent.letras %}<span class="cola-letra" data-letra="{{ letra }}">{{ letra }}</span>{% endfor %}</span>{% if vent.letras_texto %}<span class="vent-admite-texto">{{ vent.letras_texto }}</span>{% endif %}{% else %}<span class="vent-admite-texto">Ningún tipo: no recibe turnos</span>{% endif %}</div>
+{% include 'turnos/_admite.html' %}
 <div class="vent-acciones">{% if vent.estado_clave == 'cerrada' %}<a class="boton" href="{% url 'turnosapp:ventanilla_configurar' pk=vent.pk %}">Abrir ventanilla<span class="sr-only"> {{ vent.numero }}</span></a>{% endif %}
 <a class="boton boton-secundario" href="{% url 'turnosapp:ventanilla_configurar' pk=vent.pk %}">Configurar<span class="sr-only"> ventanilla {{ vent.numero }}</span></a>
 {% if vent.puede_terminar %}<a class="boton boton-secundario cola-boton-terminar" href="{% url 'turnosapp:terminar_turno' pk=vent.pk %}">Terminar turno<span class="sr-only"> de la ventanilla {{ vent.numero }}</span></a>{% endif %}</div>

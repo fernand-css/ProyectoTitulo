@@ -1,0 +1,2 @@
+{# Letras que admite una ventanilla (vent.letras y vent.letras_texto de turnosapp/panel.py). Tarjetas del panel y de «Ventanillas». #}
+<div class="vent-admite"><span class="vent-admite-rotulo">Admite</span>{% if vent.letras %}<span class="vent-admite-letras">{% for letra in vent.letras %}<span class="cola-letra" data-letra="{{ letra }}">{{ letra }}</span>{% endfor %}</span>{% if vent.letras_texto %}<span class="vent-admite-texto">{{ vent.letras_texto }}</span>{% endif %}{% else %}<span class="vent-admite-texto">Ningún tipo: no recibe turnos</span>{% endif %}</div>

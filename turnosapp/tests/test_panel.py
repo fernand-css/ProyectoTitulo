@@ -13,6 +13,7 @@ from django.utils import timezone
 from recetasapp.models import EntregaReceta, PreparacionReceta, Receta
 from turnosapp.models import CierreAtencion, TurnoReceta, Ventanilla
 from .datos_cierre import DatosCierre
+from .datos_cola import DatosCola
 
 
 class Estructura(HTMLParser):
@@ -258,3 +259,46 @@ class AtencionReorganizadaTests(DatosCierre, TestCase):
         html = self.client.get(reverse("turnosapp:panel")).content.decode()
         self.assertIn(f'<li><a href="{reverse("turnosapp:panel")}">Atención</a></li>', html)
         self.assertNotIn(">Turnos</a></li>", html)
+
+
+class EleccionDeVentanillaTests(DatosCola, TestCase):
+    """Cambio del 2026-11-25: el Técnico sin ventanilla elige entre tarjetas como las de «Ventanillas» de la Q.F."""
+
+    def setUp(self):
+        super().setUp()
+        self.client.force_login(self.personal["tecnico"])
+
+    def eleccion(self):
+        html = self.client.get(reverse("turnosapp:estado")).json()["html"]
+        inicio = html.index('class="vent-tarjetas cola-elegir"')
+        return html[inicio:html.index("</ul>", inicio)]
+
+    def test_una_tarjeta_por_ventanilla_libre_con_lo_que_admite(self):
+        self.activar(numero=2)  # la ocupa otro Técnico
+        Ventanilla.objects.filter(numero=3).update(habilitada=False)
+        cuarta = Ventanilla.objects.get(numero=4)
+        cuarta.tipos.set(["preferencial", "cronicos"])
+        eleccion = self.eleccion()
+        self.assertEqual(eleccion.count('<li class="vent-tarjeta">'), 2)
+        self.assertIn("<h3>Ventanilla 1</h3>", eleccion)
+        self.assertIn("<h3>Ventanilla 4</h3>", eleccion)
+        self.assertNotIn("Ventanilla 2", eleccion)
+        self.assertNotIn("Ventanilla 3", eleccion)
+        self.assertIn("Solo preferencial y crónicos", eleccion)
+        self.assertIn(reverse("turnosapp:accion_ventanilla", kwargs={"pk": cuarta.pk, "accion": "ocupar"}), eleccion)
+        self.assertIn('Ocupar ventanilla<span class="sr-only"> 4</span>', eleccion)
+
+    def test_sin_ventanillas_libres_lo_dice(self):
+        Ventanilla.objects.update(habilitada=False)
+        html = self.client.get(reverse("turnosapp:estado")).json()["html"]
+        self.assertNotIn("cola-elegir", html)
+        self.assertIn("No hay ventanillas libres", html)
+
+    def test_ocupar_desde_la_tarjeta(self):
+        ventanilla = Ventanilla.objects.get(numero=1)
+        respuesta = self.client.post(reverse("turnosapp:accion_ventanilla", kwargs={"pk": ventanilla.pk, "accion": "ocupar"}),
+                                     {"operacion_id": str(uuid.uuid4())})
+        self.assertEqual(respuesta.status_code, 302)
+        ventanilla.refresh_from_db()
+        self.assertEqual(ventanilla.operador, self.personal["tecnico"])
+        self.assertNotIn("cola-elegir", self.client.get(reverse("turnosapp:estado")).json()["html"])

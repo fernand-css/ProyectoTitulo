@@ -367,3 +367,12 @@ Reversibles; se confirman al aprobar:
 - **Detalle de «Otro»:** el campo de texto conserva su nombre (`motivo` y `motivo_<receta>`) y pasa a ser el detalle; un detalle escrito sin elegir causa se guarda como «Otro», igual que las llamadas anteriores al servicio.
 - **`filtros.py` y `entregas.py` se retiraron**, reemplazados por `periodos.py` y `canales.py`; sus pruebas se reemplazaron por `test_periodos.py` y `test_canales.py`. El formulario se lee con `elegido()`: un método llamado `periodo()` tapaba el campo `periodo` y Django lo ignoraba.
 - **`tools/previsualizar_interfaz.py`** suma, en su base temporal, horas de emisión repartidas, causas, recetas entregadas en la atención y visitas a domicilio registradas, para revisar todo el dashboard.
+
+## Cambio posterior del 2026-11-25 — Se retira «Derivar a domicilio»
+
+Decisión de la usuaria, después de implementar la enmienda: «Pendientes de retiro» ya no ofrece «Derivar a domicilio» («no quiero esa opción»). Implementado el mismo día en `crojas-base`, sin commit ni migraciones.
+
+- **RF-13-22 queda retirado** y RF-13-06 se queda sin entrada en la interfaz: se borraron la página `/indicadores/mermas/derivar/<id>/` (`DerivarMermaView`, `DerivarForm`, `templates/indicadores/derivar.html` y sus estilos), su ruta (`mermas_derivar`) y sus pruebas de vista. La ruta antigua responde 404.
+- **El servicio se conserva** (`entregasapp.services.derivar_desde_merma` y `preparaciones_para_derivar`, con `RecetaEntrega.preparacion`), porque las entregas ya derivadas siguen mostrando «En despacho» en «Pendientes de retiro» y el panel clasifica `en_despacho` y `despacho` con esos datos. Sus pruebas de servicio y de concurrencia siguen igual. Desde la interfaz ya no se crean derivaciones nuevas.
+- **En el panel**, el enlace «Derivar a domicilio desde «Pendientes de retiro»» de «Cuánto llevan en el estante» pasa a «Ver las recetas en «Pendientes de retiro»», solo para la Q.F. y el superusuario (`ve_pendientes`, antes `puede_derivar`).
+- **Pruebas:** `test_derivar_desde_pendientes.py` se reemplazó por `test_pendientes_sin_derivar.py` (ningún rol ve el botón, tampoco con la búsqueda en vivo; la ruta antigua da 404; el panel no ofrece derivar). `tools/verificar_spec_13_http.py` ya no deriva por HTTP: comprueba que «Pendientes de retiro» no tiene el botón, mide esa página y que la ruta antigua dé 404.

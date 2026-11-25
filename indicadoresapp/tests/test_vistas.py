@@ -1,7 +1,6 @@
-"""Dashboard, descargas, derivación por la interfaz y rol Director del CESFAM (RF-13-08 a RF-13-22)."""
+"""Dashboard, descargas y rol Director del CESFAM (RF-13-08 a RF-13-21)."""
 
 import io
-import uuid
 import zipfile
 from datetime import timedelta
 
@@ -11,7 +10,6 @@ from django.urls import reverse
 from coreapp.models import RegistroAuditoria
 from coreapp.navegacion import armar_menu
 from coreapp.roles import DIRECTOR, JEFA, ROLES_INTERNOS
-from entregasapp.models import Entrega
 from usuariosapp.services import crear_roles
 from .ayudas import cuenta, equipo, hoy, paciente, preparada
 
@@ -40,8 +38,7 @@ class AccesoTests(TestCase):
         inicio = self.client.get("/")
         self.assertEqual(inicio.status_code, 200)
         self.assertContains(inicio, "Mermas y entregas")
-        for ruta in ("/recetas/", "/recetas/pacientes/", "/turnos/panel/", "/entregas/", "/usuarios/gestion/",
-                     reverse("indicadoresapp:mermas_derivar", args=[paciente().pk])):
+        for ruta in ("/recetas/", "/recetas/pacientes/", "/turnos/panel/", "/entregas/", "/usuarios/gestion/"):
             self.assertEqual(self.client.get(ruta).status_code, 403, ruta)
 
     def test_menu_del_director_solo_mermas_y_perfil(self):
@@ -198,44 +195,3 @@ class ReportesTests(TestCase):
         self.client.force_login(self.e["tecnico"])
         self.assertEqual(self.client.get(reverse("indicadoresapp:mermas_reporte", args=["csv"])).status_code, 403)
 
-
-class DerivarVistaTests(TestCase):
-    def setUp(self):
-        self.e = equipo()
-        self.client.force_login(self.e["qf"])
-
-    def url(self, persona):
-        return reverse("indicadoresapp:mermas_derivar", args=[persona.pk])
-
-    def test_deriva_y_redirige_a_la_entrega(self):
-        persona = paciente(edad=85)
-        preparada(persona, usuario=self.e["tecnico"])
-        pagina = self.client.get(self.url(persona))
-        self.assertContains(pagina, "Programar entrega a domicilio")
-        # RF-13-22: «Volver» regresa a «Pendientes de retiro».
-        self.assertContains(pagina, f'href="{reverse("recetasapp:preparacion_pendientes")}"')
-        respuesta = self.client.post(self.url(persona), {
-            "fecha": f"{hoy():%Y-%m-%d}", "encargado": self.e["encargado"].pk, "operacion_id": uuid.uuid4(),
-        })
-        entrega = Entrega.objects.get(paciente=persona)
-        self.assertRedirects(respuesta, reverse("entregasapp:detalle", args=[entrega.pk]), fetch_redirect_response=False)
-
-    def test_no_elegible_pide_motivo(self):
-        persona = paciente(edad=60)
-        preparada(persona, usuario=self.e["tecnico"])
-        self.assertContains(self.client.get(self.url(persona)), "Motivo de la excepción de reparto")
-        respuesta = self.client.post(self.url(persona), {
-            "fecha": f"{hoy():%Y-%m-%d}", "encargado": self.e["encargado"].pk, "operacion_id": uuid.uuid4(),
-        })
-        self.assertEqual(respuesta.status_code, 200)
-        self.assertFalse(Entrega.objects.exists())
-
-    def test_director_no_deriva(self):
-        persona = paciente(edad=85)
-        preparada(persona, usuario=self.e["tecnico"])
-        self.client.force_login(cuenta("director_derivar", DIRECTOR))
-        respuesta = self.client.post(self.url(persona), {
-            "fecha": f"{hoy():%Y-%m-%d}", "encargado": self.e["encargado"].pk, "operacion_id": uuid.uuid4(),
-        })
-        self.assertEqual(respuesta.status_code, 403)
-        self.assertFalse(Entrega.objects.exists())

@@ -412,8 +412,6 @@ class PendientesRetiroView(FarmaciaView):
             item.retiro_form = RetiroPreparadoForm(initial={"operacion_id": uuid.uuid4()})
         return self.render("preparacion_pendientes.html", {
             "form": form, "page_obj": page_obj, "buscar": buscar, "pestanas": pestanas.recetas("retiro"),
-            # RF-07-13: la Q.F. (y el superusuario) deriva al reparto desde aquí; el Técnico no.
-            "puede_derivar": tiene_rol(request.user, JEFA),
         }, zonas=("_pendientes_limpiar.html", "_pendientes_resultados.html"))
 
     def get(self, request):
