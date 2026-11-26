@@ -30,10 +30,13 @@ class VistasTests(TestCase):
         self.entrega = reverse("recetasapp:entrega_confirmar", args=[self.receta.pk])
 
     def test_matriz_get_y_post_directo(self):
+        pacientes = self.consultas[:2]  # la lista y la ficha: solo la Q.F. y el superusuario
         for nombre, usuario in self.actores.items():
             self.client.force_login(usuario)
             for ruta in self.consultas:
-                self.assertEqual(self.client.get(ruta).status_code, 403 if nombre == "encargado" else 200)
+                prohibida = nombre == "encargado" or (nombre == "tecnico" and ruta in pacientes)
+                with self.subTest(actor=nombre, ruta=ruta):
+                    self.assertEqual(self.client.get(ruta).status_code, 403 if prohibida else 200)
             for ruta in self.gestion:
                 self.assertEqual(self.client.get(ruta).status_code, 200 if nombre in ("qf", "admin") else 403)
             self.assertEqual(self.client.get(self.entrega).status_code, 200 if nombre in ("tecnico", "admin") else 403)
@@ -43,7 +46,7 @@ class VistasTests(TestCase):
         self.assertEqual(self.client.get(self.consultas[0]).status_code, 302)
 
     def test_busqueda_post_y_paginacion_no_exponen_rut_en_url(self):
-        self.client.force_login(self.actores["tecnico"])
+        self.client.force_login(self.actores["qf"])
         respuesta = self.client.post(self.consultas[0], {"buscar": fila()[0], "pagina": 1})
         self.assertContains(respuesta, fila()[1])
         self.assertEqual(respuesta["Cache-Control"].find("no-store") >= 0, True)
@@ -154,16 +157,17 @@ class VistasTests(TestCase):
         self.client.force_login(usuario)
         usuario.is_active = False
         usuario.save()
-        self.assertIn(self.client.get(self.consultas[0]).status_code, (302, 403))
+        self.assertIn(self.client.get(self.consultas[3]).status_code, (302, 403))
         usuario.is_active = True
         usuario.save()
         self.client.force_login(usuario)
+        self.assertEqual(self.client.get(self.consultas[3]).status_code, 200)
         usuario.perfil.delete()
-        self.assertEqual(self.client.get(self.consultas[0]).status_code, 403)
+        self.assertEqual(self.client.get(self.consultas[3]).status_code, 403)
 
     # ------------------------------------------------------------------ Libreta de control (presentación)
     def test_lista_resume_la_receta_de_cada_paciente(self):
-        self.client.force_login(self.actores["tecnico"])
+        self.client.force_login(self.actores["qf"])
         respuesta = self.client.get(self.consultas[0])
         self.assertContains(respuesta, "Vigente")
         self.assertContains(respuesta, "0 de 12 entregas")
@@ -171,7 +175,7 @@ class VistasTests(TestCase):
         self.assertContains(respuesta, "Mostrando del")
 
     def test_lista_y_ficha_muestran_el_rut_con_formato(self):
-        self.client.force_login(self.actores["tecnico"])
+        self.client.force_login(self.actores["qf"])
         paciente = Paciente.objects.get()
         cuerpo = paciente.rut[:-2][::-1]
         legible = ".".join(cuerpo[i:i + 3] for i in range(0, len(cuerpo), 3))[::-1] + "-" + paciente.rut[-1]
@@ -194,10 +198,8 @@ class VistasTests(TestCase):
             modelo.objects.all().delete()
         self.client.force_login(self.actores["qf"])
         self.assertContains(self.client.get(self.consultas[0]), "Importar padrón")
-        self.client.force_login(self.actores["tecnico"])
-        respuesta = self.client.get(self.consultas[0])
-        self.assertContains(respuesta, "El padrón está vacío")
-        self.assertNotContains(respuesta, "Importar padrón")
+        self.client.force_login(self.actores["tecnico"])  # Pacientes no es del Técnico
+        self.assertEqual(self.client.get(self.consultas[0]).status_code, 403)
 
     def test_ficha_de_receta_dibuja_casillas_con_texto_para_lectores_de_pantalla(self):
         self.client.force_login(self.actores["tecnico"])

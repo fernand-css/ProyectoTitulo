@@ -86,16 +86,12 @@ class PermisosTests(TestCase):
                     self.assertIn(self.client.get(url).status_code, (302, 403))
             self.client.logout()
 
-    def test_el_tecnico_consulta_pero_cualquier_post_se_rechaza(self):
+    def test_el_tecnico_no_entra_a_entregas_ni_por_get_ni_por_post(self):
+        # «Entregas» es de la Q.F., el superusuario y el encargado de terreno: el Técnico no la ve.
         self.client.force_login(self.equipo["tecnico"])
-        for nombre in ("programacion", "pendientes", "detalle", "domicilios", "domicilio"):
-            with self.subTest(get=nombre):
-                respuesta = self.client.get(self.rutas_get()[nombre])
-                self.assertEqual(respuesta.status_code, 200)
-                self.assertIn("no-store", respuesta["Cache-Control"])
-        for nombre in ("programar", "mis", "registro", "excepciones", "fotos"):
+        for nombre, url in {**self.rutas_get(), "foto": reverse("entregasapp:foto", args=[self.foto.pk])}.items():
             with self.subTest(prohibida=nombre):
-                self.assertEqual(self.client.get(self.rutas_get()[nombre]).status_code, 403)
+                self.assertEqual(self.client.get(url).status_code, 403)
         antes = self.estado()
         for nombre, url in self.rutas_post().items():
             with self.subTest(post=nombre):

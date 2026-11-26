@@ -1,12 +1,12 @@
 {% extends 'recetas/base.html' %}
 {% block titulo %}Receta {{ receta.codigo }} · Farmacia{% endblock %}
-{% block migas %}<li><a href="{% url 'recetasapp:recetas' %}">Recetas</a></li>{% if receta %}<li><a href="{% url 'recetasapp:paciente_detalle' pk=receta.paciente_id %}">{{ receta.paciente.apellidos }}, {{ receta.paciente.nombres }}</a></li><li><span aria-current="page">Receta {{ receta.codigo }}</span></li>{% endif %}{% endblock %}
+{% block migas %}<li><a href="{% url 'recetasapp:recetas' %}">Recetas</a></li>{% if receta %}{% if ve_pacientes %}<li><a href="{% url 'recetasapp:paciente_detalle' pk=receta.paciente_id %}">{{ receta.paciente.apellidos }}, {{ receta.paciente.nombres }}</a></li>{% endif %}<li><span aria-current="page">Receta {{ receta.codigo }}</span></li>{% endif %}{% endblock %}
 {% block farmacia %}
 {% if receta %}
 <header class="encabezado">
   <div>
     <h1>Receta {{ receta.codigo }}</h1>
-    <p>Paciente: <a href="{% url 'recetasapp:paciente_detalle' pk=receta.paciente_id %}">{{ receta.paciente.nombres }} {{ receta.paciente.apellidos }}</a></p>
+    <p>Paciente: {% if ve_pacientes %}<a href="{% url 'recetasapp:paciente_detalle' pk=receta.paciente_id %}">{{ receta.paciente.nombres }} {{ receta.paciente.apellidos }}</a>{% else %}{{ receta.paciente.nombres }} {{ receta.paciente.apellidos }}{% endif %}</p>
   </div>
   <div class="acciones">
     {% if puede_crear %}<a class="boton boton-secundario" href="{% url 'recetasapp:receta_renovar' pk=receta.pk %}"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-renovar"/></svg>Registrar renovación</a>{% endif %}
@@ -17,7 +17,7 @@
 {% if despacho %}
 <div class="message message-warning" role="status">
   <div><p><strong>En entrega a domicilio abierta.</strong> La receta tiene una entrega a domicilio abierta: no se dispensa en farmacia hasta que la entrega se cierre o se anule.</p>
-  <p><a href="{% url 'entregasapp:detalle' despacho.pk %}">Ver la entrega a domicilio</a></p></div>
+  {% if ve_pacientes %}<p><a href="{% url 'entregasapp:detalle' despacho.pk %}">Ver la entrega a domicilio</a></p>{% endif %}</div>
 </div>
 {% endif %}
 

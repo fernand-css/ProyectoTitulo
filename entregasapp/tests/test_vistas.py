@@ -63,18 +63,14 @@ class ProgramarVistaTests(TestCase):
         self.assertNotContains(pagina, "Revisar recetas")
         self.assertFalse(Entrega.objects.exists())
 
-    def test_el_tecnico_ve_la_programacion_sin_botones_de_cambio(self):
+    def test_el_tecnico_no_ve_la_programacion_ni_el_detalle(self):
         programar_entrega(self.equipo["qf"], self.persona.pk, hoy(), self.equipo["encargado"].pk, uuid.uuid4())
         self.client.force_login(self.equipo["tecnico"])
-        lista = self.client.get(reverse("entregasapp:programacion"))
-        self.assertContains(lista, self.persona.apellidos)
-        self.assertNotContains(lista, "Programar entrega")
         entrega = Entrega.objects.get()
-        detalle = self.client.get(reverse("entregasapp:detalle", args=[entrega.pk]))
-        self.assertContains(detalle, "Historial de intentos")
-        self.assertNotContains(detalle, "Reasignar entrega")
-        self.assertNotContains(detalle, "Anular entrega")
-        self.assertEqual(self.client.get(reverse("entregasapp:programar")).status_code, 403)
+        for url in (reverse("entregasapp:indice"), reverse("entregasapp:programacion"),
+                    reverse("entregasapp:detalle", args=[entrega.pk]), reverse("entregasapp:programar")):
+            with self.subTest(url=url):
+                self.assertEqual(self.client.get(url).status_code, 403)
 
 
 class GestionVistaTests(TestCase):
@@ -152,7 +148,7 @@ class DomicilioVistaTests(CarpetaPrivadaMixin, TestCase):
         self.assertRedirects(verificar, url)
         self.assertContains(self.client.get(url), "Verificado el")
 
-    def test_la_qf_edita_pero_no_ve_el_boton_de_verificar_y_el_tecnico_solo_consulta(self):
+    def test_la_qf_edita_pero_no_ve_el_boton_de_verificar_y_el_tecnico_no_entra(self):
         domicilio = guardar_domicilio(self.equipo["encargado"], self.persona.pk, DOMICILIO)
         url = reverse("entregasapp:domicilio", args=[self.persona.pk])
         self.client.force_login(self.equipo["qf"])
@@ -162,11 +158,7 @@ class DomicilioVistaTests(CarpetaPrivadaMixin, TestCase):
         self.assertEqual(self.client.post(reverse("entregasapp:domicilio_verificar", args=[domicilio.pk]),
                                           {"version": domicilio.version}).status_code, 403)
         self.client.force_login(self.equipo["tecnico"])
-        pagina = self.client.get(url)
-        self.assertContains(pagina, "Camino a Dadinco km 2")
-        self.assertNotContains(pagina, "Guardar domicilio")
-        self.assertNotContains(pagina, "Registrar fotos")
-        self.assertNotContains(pagina, "data-fotos-dialogo")
+        self.assertEqual(self.client.get(url).status_code, 403)
         self.assertEqual(self.client.post(url, DOMICILIO).status_code, 403)
 
     def test_fotos_privadas_por_http(self):
@@ -208,6 +200,8 @@ class DomicilioVistaTests(CarpetaPrivadaMixin, TestCase):
         guardar_domicilio(self.equipo["encargado"], self.persona.pk, DOMICILIO)
         sin_registro = paciente(edad=95)
         self.client.force_login(self.equipo["tecnico"])
+        self.assertEqual(self.client.get(reverse("entregasapp:domicilios")).status_code, 403)
+        self.client.force_login(self.equipo["qf"])
         lista = self.client.get(reverse("entregasapp:domicilios"))
         self.assertContains(lista, self.persona.apellidos)
         self.assertContains(lista, sin_registro.apellidos)
@@ -248,14 +242,21 @@ class FichaYRecetaTests(TestCase):
         self.assertNotContains(detalle, "Confirmar entrega")
         confirmar = self.client.get(reverse("recetasapp:entrega_confirmar", args=[self.receta.pk]))
         self.assertContains(confirmar, "La receta tiene una entrega a domicilio abierta")
-        self.assertContains(confirmar, reverse("entregasapp:detalle", args=[entrega.pk]))
         self.assertNotContains(confirmar, "<form method=\"post\" class=\"panel\">")
+        # El Técnico no ve Entregas ni Pacientes: el aviso no lleva enlaces a la entrega ni a la ficha.
+        for pagina in (detalle, confirmar):
+            self.assertNotContains(pagina, reverse("entregasapp:detalle", args=[entrega.pk]))
+            self.assertNotContains(pagina, reverse("recetasapp:paciente_detalle", args=[self.persona.pk]))
+        self.client.force_login(self.equipo["qf"])
+        detalle = self.client.get(reverse("recetasapp:receta_detalle", args=[self.receta.pk]))
+        self.assertContains(detalle, reverse("entregasapp:detalle", args=[entrega.pk]))
+        self.assertContains(detalle, reverse("recetasapp:paciente_detalle", args=[self.persona.pk]))
 
     def test_la_pestana_entregas_rotula_las_entregas_a_domicilio(self):
         programar_entrega(self.equipo["qf"], self.persona.pk, hoy(), self.equipo["encargado"].pk, uuid.uuid4())
         intento = Entrega.objects.get().intentos.get()
         registrar_entregada(self.equipo["encargado"], intento.pk, uuid.uuid4())
-        self.client.force_login(self.equipo["tecnico"])
+        self.client.force_login(self.equipo["qf"])
         pagina = self.client.get(reverse("recetasapp:paciente_detalle", args=[self.persona.pk]) + "?pestana=entregas")
         self.assertContains(pagina, "A domicilio")
 
@@ -373,14 +374,11 @@ class FotosModalVistaTests(CarpetaPrivadaMixin, TestCase):
         self.assertContains(error, "Vuelve a elegir los archivos", status_code=400)
         self.assertEqual(FotoDomicilio.objects.count(), 1)
 
-    def test_el_tecnico_solo_ve_y_csrf_obligatorio(self):
+    def test_el_tecnico_no_entra_y_csrf_obligatorio(self):
         self.agregar(1)
         self.client.force_login(self.equipo["tecnico"])
-        ficha = self.client.get(self.ficha)
-        self.assertContains(ficha, "data-visor-abrir")
-        self.assertContains(ficha, "Ver foto ampliada: ")
-        self.assertContains(ficha, 'id="visor-foto"')
-        self.assertNotContains(ficha, "Gestionar fotos")
+        self.assertEqual(self.client.get(self.ficha).status_code, 403)
+        self.assertEqual(self.client.get(reverse("entregasapp:foto", args=[self.ids()[0]])).status_code, 403)
         self.assertEqual(self.client.get(self.url).status_code, 403)
         self.assertEqual(self.client.post(self.url, {"mostradas": str(self.ids()[0]), "borrar": self.ids()}).status_code, 403)
         cliente = Client(enforce_csrf_checks=True)

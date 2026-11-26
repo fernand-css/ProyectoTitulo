@@ -164,6 +164,8 @@ class BuscadoresEnVivoTests(TestCase):
         excepciones = reverse("entregasapp:excepciones")
         self.client.force_login(self.equipo["tecnico"])
         self.assertEqual(self.client.post(excepciones, {"accion": "buscar", "buscar": "a"}, **EN_VIVO).status_code, 403)
+        self.assertEqual(self.client.post(reverse("recetasapp:pacientes"), {"buscar": "a"}, **EN_VIVO).status_code, 403)
+        self.assertEqual(self.client.post(reverse("entregasapp:domicilios"), {"buscar": "a"}, **EN_VIVO).status_code, 403)
         self.client.force_login(self.equipo["encargado"])
         self.assertEqual(self.client.post(reverse("recetasapp:pacientes"), {"buscar": "a"}, **EN_VIVO).status_code, 403)
         self.client.logout()

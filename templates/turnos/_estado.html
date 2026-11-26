@@ -51,7 +51,7 @@
 </section>
 {% endif %}
 <div class="cola-cierre">
-{% if vigente.paciente_id %}<a href="{% url 'recetasapp:paciente_detalle' pk=vigente.paciente_id %}">Ver ficha del paciente</a>{% endif %}
+{% if vigente.paciente_id and puede_gestionar %}<a href="{% url 'recetasapp:paciente_detalle' pk=vigente.paciente_id %}">Ver ficha del paciente</a>{% endif %}
 <a class="boton" href="{% url 'turnosapp:finalizar_atencion' pk=vigente.pk %}">Finalizar y registrar entregas</a>
 </div>
 </div>

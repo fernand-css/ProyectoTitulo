@@ -22,7 +22,7 @@ La plataforma actúa como control interno simulado, separado del sistema clínic
 
 | Acción / datos | Anónimo / tótem | Técnico | Encargado de terreno | Q.F. | Superusuario activo |
 |---|---|---|---|---|---|
-| Consultar padrón, buscar paciente y consultar recetas e historial | No | Sí | No | Sí | Sí |
+| Consultar padrón, buscar paciente y consultar recetas e historial | No | Sí; desde el 2026-11-25, solo desde Recetas (sin «Pacientes» ni ficha) | No | Sí | Sí |
 | Descargar plantillas, importar y consultar reportes de cargas | No | No | No | Sí | Sí |
 | Crear receta simulada o renovación vinculada | No | No | No | Sí | Sí |
 | Confirmar entrega del ciclo | No | Sí | No | No | Sí |
@@ -123,6 +123,8 @@ Las decisiones funcionales y el diseño de `plan.md` forman parte del documento 
 2026-11-02: el usuario marcó el estado Aprobado, invocó `spec-impl` e indicó «solo hacer commit, no crees una rama nueva». Luego confirmó «comienza» para el paso 1 y posteriormente «si, ahora continua todos los pasos solito». Se ejecutaron de corrido los pasos 2 a 6; código y verificación técnica completados. La evidencia y los límites de revisión visual están en `validation.md`.
 
 2026-11-02 (posterior): a petición del usuario se rediseñaron las pantallas del módulo («libreta de control») y se registró su revisión visual, móvil y de accesibilidad. Decisiones que se apartan de «reutilizar componentes existentes» (NFR de presentación): el módulo agrega componentes propios (casillas y sellos, línea de vigencia, barra de carga) sobre la misma identidad, paleta y tipografías; todo color sale de `base.css`. No cambia el contrato funcional ni la matriz de permisos; añade tres ayudas de lectura: resumen de receta por paciente en el padrón, filtro `?estado=rechazada` del reporte y vista previa de crear/renovar (la validación sigue en el servidor). El Técnico ve además el nombre y el RUT del paciente al confirmar una entrega, para evitar sellar la receta equivocada.
+
+2026-11-25 (cambio de permisos pedido por la usuaria: «quita estas vistas del técnico de farmacia, no debería verlos»): «Pacientes» (la lista y la ficha con sus pestañas Recetas, Entregas y Datos) queda solo para la Q.F. y el superusuario. El Técnico deja de verlo en el menú y en su inicio, y recibe 403 si entra por URL (`recetasapp.views.VEN_PACIENTES`). Sigue buscando por RUT o nombre y consultando la vigencia en «Recetas › Todas las recetas», y confirma las entregas desde Atención o desde la receta. En la receta y en «Confirmar entrega», el nombre del paciente se muestra sin enlace a la ficha, y la miga de pan omite al paciente. En el resumen de Recetas, la cifra «Pacientes sin receta vigente» se muestra sin enlace. En el panel de Atención se oculta «Ver ficha del paciente». El informe no asigna Pacientes al Técnico: HU-21 se cumple desde Recetas. Sin migraciones.
 
 ## Acuerdo de ejecución
 

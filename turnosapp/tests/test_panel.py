@@ -212,11 +212,13 @@ class AtencionReorganizadaTests(DatosCierre, TestCase):
     def html(self):
         return self.client.get(reverse("turnosapp:estado")).json()["html"]
 
-    def test_la_persona_en_ventanilla_muestra_sus_datos_y_la_ficha_del_paciente(self):
+    def test_la_persona_en_ventanilla_muestra_sus_datos_sin_enlace_a_la_ficha(self):
         html = self.html()
         self.assertIn("Ventanilla 1", html)
         self.assertIn("Paciente sintético Cola", html)
-        self.assertIn(f'href="{reverse("recetasapp:paciente_detalle", args=[self.actual.paciente_id])}">Ver ficha del paciente</a>', html)
+        # La ficha del paciente es de la Q.F. y el superusuario: el Técnico no la ve.
+        self.assertNotIn("Ver ficha del paciente", html)
+        self.assertNotIn(reverse("recetasapp:paciente_detalle", args=[self.actual.paciente_id]), html)
         self.assertIn("Finalizar y registrar entregas", html)
         self.assertIn('class="cola-puesto cola-puesto-activo"', html)
 

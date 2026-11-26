@@ -61,10 +61,11 @@ class InicioPorPerfilTests(TestCase):
                 self.assertIn(texto, html)
         self.assertNotIn("Abrir atención y cola", html)
 
-    def test_tecnico_ve_su_atencion_y_pacientes_pero_no_usuarios(self):
+    def test_tecnico_ve_su_atencion_pero_no_pacientes_ni_usuarios(self):
         html = self.entrar(TECNICO)
         self.assertIn("Abrir atención y cola", html)
-        self.assertIn("Busca a una persona por RUT o apellido", html)
+        self.assertNotIn("Busca a una persona por RUT o apellido", html)
+        self.assertNotIn(reverse("recetasapp:pacientes"), html)
         self.assertNotIn("Recetas y pacientes", html)
         self.assertNotIn("Crea y administra las cuentas del equipo.", html)
         self.assertNotIn("Mira la fila de espera", html)

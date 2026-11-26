@@ -55,12 +55,6 @@
         </div>
       </li>
       {% endif %}
-      {% if rol == 'Técnico en Farmacia' %}
-      <li><a class="acceso" href="{% url 'recetasapp:pacientes' %}">
-        <span class="acceso-icono"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-padron"/></svg></span>
-        <strong>Pacientes</strong><span>Busca a una persona por RUT o apellido y revisa sus recetas.</span>
-      </a></li>
-      {% endif %}
       {% if rol == 'Jefa de Farmacia' or rol == 'superusuario' %}
       <li><a class="acceso" href="{% url 'turnosapp:panel' %}">
         <span class="acceso-icono"><svg class="icono" aria-hidden="true" focusable="false"><use href="#i-turno"/></svg></span>

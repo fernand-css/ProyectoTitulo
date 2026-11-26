@@ -28,7 +28,7 @@ class FichaConPestanasTests(TestCase):
         self.paciente = self.nuevo("Ana", telefono="+56 9 5555 0001", direccion="Dadinco, km 2, casa roja", es_cronico=True)
         self.vigente = self.receta(self.paciente, "FICHA-1", date(2026, 6, 1))
         self.vencida = self.receta(self.paciente, "FICHA-0", date(2025, 1, 1))
-        self.client.force_login(self.actores["tecnico"])
+        self.client.force_login(self.actores["qf"])  # la ficha es de la Q.F. y el superusuario
 
     def nuevo(self, nombre, **campos):
         return Paciente.objects.create(rut=next(self.ruts), nombres=nombre, apellidos="Sintética", fecha_nacimiento=date(1950, 1, 1), **campos)
@@ -122,13 +122,12 @@ class FichaConPestanasTests(TestCase):
         self.assertNotIn(">Padrón<", html)
         self.assertIn("Sintética", html)
 
-    def test_solo_quien_puede_crear_ve_el_boton_crear_receta(self):
-        nueva = reverse("recetasapp:receta_nueva")
-        self.assertNotContains(self.ficha(), f'href="{nueva}"')
-        self.client.force_login(self.actores["qf"])
-        self.assertContains(self.ficha(), f'href="{nueva}"')
+    def test_la_qf_ve_el_boton_crear_receta(self):
+        self.assertContains(self.ficha(), f'href="{reverse("recetasapp:receta_nueva")}"')
 
-    def test_el_encargado_no_entra_a_ninguna_pestana(self):
-        self.client.force_login(self.actores["encargado"])
-        for valor in ("", "entregas", "datos"):
-            self.assertEqual(self.ficha(pestana=valor).status_code, 403)
+    def test_el_tecnico_y_el_encargado_no_entran_a_ninguna_pestana(self):
+        for actor in ("tecnico", "encargado"):
+            self.client.force_login(self.actores[actor])
+            for valor in ("", "entregas", "datos"):
+                with self.subTest(actor=actor, pestana=valor):
+                    self.assertEqual(self.ficha(pestana=valor).status_code, 403)

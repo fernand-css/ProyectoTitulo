@@ -74,13 +74,14 @@ ENTRADAS = (
         en_barra=True, contador="fila", contador_texto="en espera",
         activa=lambda app, nombre: app == "turnosapp" and nombre not in (*CONFIGURACION_DE_TURNOS, "sala"),
     ),
-    Entrada("padron", "Pacientes", "recetasapp:pacientes", "i-padron", grupo="Trabajo", roles=PERSONAL_DE_FARMACIA,
+    # Pacientes y Entregas son de la Q.F. y el superusuario; el Técnico trabaja desde Atención y Recetas.
+    Entrada("padron", "Pacientes", "recetasapp:pacientes", "i-padron", grupo="Trabajo", roles=GESTION,
             en_barra=True, activa=_en("recetasapp", "pacientes", "paciente_detalle", "plantilla", prefijos=("importacion",))),
     Entrada("recetas", "Recetas", "recetasapp:recetas", "i-documento", grupo="Trabajo", roles=PERSONAL_DE_FARMACIA,
             en_barra=True, contador="por_preparar", contador_texto="por preparar",
             activa=_en("recetasapp", "recetas", "recetas_lista", "entrega_confirmar", prefijos=("receta_", "preparacion"))),
     # Spec 08: la farmacia ve Programación, Pendientes de gestión y Domicilios como pestañas de «Entregas».
-    Entrada("entregas", "Entregas", "entregasapp:indice", "i-mapa", grupo="Trabajo", roles=PERSONAL_DE_FARMACIA,
+    Entrada("entregas", "Entregas", "entregasapp:indice", "i-mapa", grupo="Trabajo", roles=GESTION,
             activa=_en("entregasapp", *ENTREGAS_FARMACIA, prefijos=("domicilio", "foto", "excepcion"))),
     Entrada("sala", "Sala de espera", "turnosapp:sala", "i-sala", grupo="Trabajo", roles=PERSONAL_DE_FARMACIA,
             corta="Sala", otra_pestana=True),

@@ -26,7 +26,7 @@ Resultado esperado:
 
 | Acción / datos | Anónimo / tótem | Técnico | Encargado de terreno | Q.F. | Superusuario activo |
 |---|---|---|---|---|---|
-| Ver domicilios, fotos y entregas | No | Sí, solo consulta | Sí | Sí | Sí |
+| Ver domicilios, fotos y entregas | No | No (desde el 2026-11-25; antes, solo consulta) | Sí | Sí | Sí |
 | Registrar o editar un domicilio, agregar o borrar fotos | No | No | Sí | Sí | Sí |
 | Marcar un domicilio como verificado | No | No | **Sí** | No | No |
 | Inscribir o retirar una excepción de reparto | No | No | No | Sí | Sí |
@@ -35,7 +35,7 @@ Resultado esperado:
 | Emitir turno con una receta de entrega abierta | Rechazado con texto | — | — | — | — |
 | Confirmar en farmacia una receta de entrega abierta | — | Rechazado con motivo | — | — | — |
 
-Revalidar cuenta activa, perfil y rol único en el servidor, como en el 02. **Excepción a la regla del superusuario:** por decisión del usuario, el superusuario actúa como la Q.F. No verifica domicilios ni registra resultados, porque esas acciones atestiguan una visita en terreno. Solo el encargado asignado a un intento registra su resultado. El Técnico consulta sin modificar.
+Revalidar cuenta activa, perfil y rol único en el servidor, como en el 02. **Excepción a la regla del superusuario:** por decisión del usuario, el superusuario actúa como la Q.F. No verifica domicilios ni registra resultados, porque esas acciones atestiguan una visita en terreno. Solo el encargado asignado a un intento registra su resultado. Desde el 2026-11-25 el Técnico no ve «Entregas» (ver «Revisión y cambios»).
 
 ## Alcance y exclusiones
 
@@ -319,3 +319,5 @@ Se modifican RF-08-01 y sus criterios, y se agregan RF-08-16 y RF-08-17 y las ta
 2026-11-17 (spec 13): la derivación desde el panel de mermas (`derivar_desde_merma`) es el único camino que lleva recetas preparadas y sin retirar en un despacho; «Programar entrega» las sigue excluyendo. Cada una viaja con su preparación (`RecetaEntrega.preparacion`, migración `0003`); al registrar «Entregada» se evalúa a la fecha de preparación y la entrega se liga al vínculo del turno. Las demás recetas siguen esta spec sin cambios. Ver [spec 13](../13-panel-de-mermas/spec.md).
 
 2026-11-18 (spec 11, compatibilidad): `registrar_entregada` y `registrar_no_entregada` aceptan `registrado_en` opcional (hora del celular de un registro sin conexión, con 5 min de tolerancia y 2 días de plazo) y guardan `IntentoEntrega.sincronizado_en` (migración `entregasapp/0007`). Sin el parámetro, el flujo del 08 no cambia: idempotencia por `operacion_id`, «gana una sola operación» (RF-08-15) y descuento con `_registrar_entrega_sin_reintento`. Sus errores llevan ahora un código (`reasignada`, `anulada`, `ya_registrada`, `invalido`, `hora_invalida`, `fuera_de_plazo`) que usa la sincronización; los mensajes son los mismos. Ver [spec 11](../11-reparto-sin-conexion/spec.md).
+
+2026-11-25 (cambio de permisos pedido por la usuaria: «quita estas vistas del técnico de farmacia, no debería verlos»): «Entregas» queda para la Q.F., el superusuario y el encargado de terreno. El Técnico deja de verla en el menú y recibe 403 en todas sus pantallas, incluidas las fotos (`entregasapp.views.TODOS` sin el Técnico; se retira `FARMACIA`). Reemplaza la fila «Ver domicilios, fotos y entregas» de la matriz y, para el Técnico, RF-08-13 y los criterios que esperaban que el Técnico consultara sin botones. La pestaña «Rutas» ya no comprueba el rol, porque a esas pestañas solo llegan la Q.F. y el superusuario. El bloqueo de doble vía no cambia: al confirmar en farmacia una receta con una entrega abierta, el Técnico ve el aviso, ahora sin enlace a la entrega. El informe no asigna la consulta de entregas al Técnico (HU-13, HU-14 y HU-16 son de la Jefa y del encargado). Sin migraciones.

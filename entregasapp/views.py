@@ -30,7 +30,7 @@ from django.views.decorators.cache import never_cache
 
 from coreapp.busqueda import plantilla_y_contexto
 from coreapp.mixins import RolRequeridoMixin, tiene_rol
-from coreapp.roles import ENCARGADO, JEFA, TECNICO
+from coreapp.roles import ENCARGADO, JEFA
 from recetasapp.models import Paciente
 from recetasapp.services import evaluar_elegibilidad
 from . import consultas, fotos, mapa, osrm, services, sin_conexion
@@ -42,8 +42,8 @@ from .forms import (
 )
 from .models import Domicilio, Entrega, FotoDomicilio, InscripcionReparto, IntentoEntrega, RecetaEntrega
 
-TODOS = (JEFA, TECNICO, ENCARGADO)
-FARMACIA = (JEFA, TECNICO)
+# «Entregas» es de la Q.F. (y el superusuario) y del encargado de terreno; el Técnico en Farmacia no la ve.
+TODOS = (JEFA, ENCARGADO)
 GESTION = (JEFA,)
 
 
@@ -78,10 +78,9 @@ class EntregasView(RolRequeridoMixin, View):
                         ("domicilios", "Domicilios", "entregasapp:domicilios", None)]
         else:
             opciones = [("programacion", "Programación", "entregasapp:programacion", None),
-                        ("pendientes", "Pendientes de gestión", "entregasapp:pendientes", consultas.pendientes_gestion().count())]
-            if tiene_rol(self.request.user, JEFA):  # spec 09: «Rutas» es de la Q.F. y el superusuario, no del Técnico
-                opciones.append(("rutas", "Rutas", "entregasapp:rutas", None))
-            opciones.append(("domicilios", "Domicilios", "entregasapp:domicilios", None))
+                        ("pendientes", "Pendientes de gestión", "entregasapp:pendientes", consultas.pendientes_gestion().count()),
+                        ("rutas", "Rutas", "entregasapp:rutas", None),
+                        ("domicilios", "Domicilios", "entregasapp:domicilios", None)]
         return [{"clave": clave, "texto": texto, "url": reverse(destino), "cantidad": cantidad, "actual": clave == actual}
                 for clave, texto, destino, cantidad in opciones]
 
@@ -97,7 +96,7 @@ class IndiceView(EntregasView):
     def get(self, request):
         if services.es_encargado(request.user):
             return redirect("entregasapp:mis")
-        if tiene_rol(request.user, *FARMACIA):
+        if tiene_rol(request.user, *GESTION):
             return redirect("entregasapp:programacion")
         raise PermissionDenied
 
@@ -117,7 +116,7 @@ def _preparar_filas(entregas):
 
 
 class ProgramacionView(EntregasView):
-    roles_permitidos = FARMACIA
+    roles_permitidos = GESTION
 
     def get(self, request):
         form = FiltroEntregasForm(request.GET or None)
@@ -394,7 +393,7 @@ class ProgramarTramoView(EntregasView):
 
 
 class PendientesView(EntregasView):
-    roles_permitidos = FARMACIA
+    roles_permitidos = GESTION
 
     def get(self, request):
         form = FiltroEntregasForm(request.GET or None)
@@ -413,7 +412,7 @@ class DetalleEntregaView(EntregasView):
         if services.es_encargado(self.request.user):
             if not entrega.intentos.filter(encargado=self.request.user).exists():
                 raise PermissionDenied
-        elif not tiene_rol(self.request.user, *FARMACIA):
+        elif not tiene_rol(self.request.user, *GESTION):
             raise PermissionDenied
         return entrega
 

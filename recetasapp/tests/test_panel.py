@@ -79,6 +79,15 @@ class PanelTests(TestCase):
         # Las tres cifras con enlace llevan flecha; la que no se puede pulsar no.
         self.assertEqual(respuesta.content.decode().count("kpi-ir"), 3)
 
+    def test_el_tecnico_ve_la_cifra_de_pacientes_sin_vigente_pero_sin_enlace_a_pacientes(self):
+        self.escenario()
+        self.entrar("tecnico")
+        respuesta = self.client.get(reverse("recetasapp:recetas"))
+        kpis = {k["clave"]: k for k in respuesta.context["tablero"]["kpis"]}
+        self.assertEqual((kpis["sin-vigente"]["valor"], kpis["sin-vigente"]["enlace"]), (3, ""))
+        self.assertNotContains(respuesta, reverse("recetasapp:pacientes"))
+        self.assertEqual(respuesta.content.decode().count("kpi-ir"), 2)
+
     def test_las_entregas_de_la_semana_se_comparan_con_los_siete_dias_anteriores(self):
         self.escenario()
         receta = self.recetas["Holgada"]
@@ -389,7 +398,7 @@ class PanelTests(TestCase):
 
     def test_el_menu_separa_padron_y_recetas_segun_el_rol_y_no_tiene_resumen(self):
         padron, recetas = reverse("recetasapp:pacientes"), reverse("recetasapp:recetas")
-        for actor, esperado in (("qf", {padron, recetas}), ("admin", {padron, recetas}), ("tecnico", {padron, recetas}), ("encargado", set())):
+        for actor, esperado in (("qf", {padron, recetas}), ("admin", {padron, recetas}), ("tecnico", {recetas}), ("encargado", set())):
             with self.subTest(actor=actor):
                 self.entrar(actor)
                 html = self.client.get(reverse("coreapp:inicio")).content.decode()
@@ -448,8 +457,11 @@ class PanelTests(TestCase):
                 self.entrar(actor)
                 html = self.client.get(reverse("coreapp:inicio")).content.decode()
                 self.assertIn(f'href="{recetas}">Recetas</a>', html)
-                # La Jefa lo tiene en su bloque principal; el Técnico, como acceso propio.
-                self.assertIn(f'href="{pacientes}">Pacientes</a>' if actor == "qf" else f'href="{pacientes}"', html)
+                # Pacientes es de la Jefa (en su bloque principal); el Técnico no lo ve.
+                if actor == "qf":
+                    self.assertIn(f'href="{pacientes}">Pacientes</a>', html)
+                else:
+                    self.assertNotIn(f'href="{pacientes}"', html)
                 self.assertNotIn("Abrir resumen", html)
         self.entrar("encargado")
         html = self.client.get(reverse("coreapp:inicio")).content.decode()

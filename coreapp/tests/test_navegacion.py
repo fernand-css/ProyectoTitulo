@@ -19,7 +19,8 @@ from usuariosapp.tests.test_gestion_usuarios import cuenta_personal
 # Spec 13: «Mermas» para la Q.F., el superusuario y la Dirección (cuyo inicio es el panel: no ve «Inicio»).
 VISIBLES = {
     JEFA: ["Inicio", "Atención", "Pacientes", "Recetas", "Entregas", "Sala de espera", "Mermas", "Ventanillas y pesos", "Usuarios"],
-    TECNICO: ["Inicio", "Atención", "Pacientes", "Recetas", "Entregas", "Sala de espera"],
+    # Pacientes y Entregas son de la Q.F. y el superusuario: el Técnico trabaja desde Atención y Recetas.
+    TECNICO: ["Inicio", "Atención", "Recetas", "Sala de espera"],
     ENCARGADO: ["Inicio", "Mis entregas", "Domicilios"],
     SUPERUSUARIO: ["Inicio", "Atención", "Pacientes", "Recetas", "Entregas", "Sala de espera", "Mermas", "Ventanillas y pesos", "Usuarios", "Administración"],
     DIRECTOR: ["Mermas"],
@@ -53,7 +54,7 @@ class MenuPorPerfilTests(TestCase):
     def test_la_barra_del_celular_lleva_el_trabajo_y_el_resto_va_en_mas_sin_perder_nada(self):
         esperado = {
             JEFA: (["inicio", "turnos", "padron", "recetas"], ["entregas", "sala", "mermas", "ventanillas", "usuarios"]),
-            TECNICO: (["inicio", "turnos", "padron", "recetas"], ["entregas", "sala"]),
+            TECNICO: (["inicio", "turnos", "recetas"], ["sala"]),
             ENCARGADO: (["inicio", "mis_entregas"], ["domicilios"]),
             SUPERUSUARIO: (["inicio", "turnos", "padron", "recetas"], ["entregas", "sala", "mermas", "ventanillas", "usuarios", "administracion"]),
             DIRECTOR: (["mermas"], []),

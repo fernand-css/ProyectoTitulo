@@ -32,6 +32,15 @@ from .services import (
 )
 
 
+# Pacientes (la lista y la ficha) es de la Q.F. y el superusuario. El Técnico trabaja desde Atención y Recetas,
+# y las pantallas que comparte con la Q.F. le muestran el nombre del paciente sin enlace a la ficha.
+VEN_PACIENTES = (JEFA,)
+
+
+def ve_pacientes(usuario):
+    return tiene_rol(usuario, *VEN_PACIENTES)
+
+
 @method_decorator(never_cache, name="dispatch")
 @method_decorator(sensitive_post_parameters(), name="dispatch")
 class FarmaciaView(RolRequeridoMixin, View):
@@ -49,6 +58,8 @@ class FarmaciaView(RolRequeridoMixin, View):
 
 
 class PacientesView(FarmaciaView):
+    roles_permitidos = VEN_PACIENTES
+
     def get(self, request):
         # Los enlaces del resumen llegan con el filtro en la URL; la búsqueda por RUT nunca viaja así.
         datos = {"filtro": request.GET["filtro"]} if "filtro" in request.GET else None
@@ -90,6 +101,10 @@ class RecetasView(FarmaciaView):
 
     def get(self, request):
         panel = tablero.armar(timezone.localdate())
+        if not ve_pacientes(request.user):  # la cifra se muestra, pero la lista de pacientes no es del Técnico
+            for kpi in panel["kpis"]:
+                if kpi["clave"] == "sin-vigente":
+                    kpi["enlace"] = ""
         return self.render("recetas_resumen.html", {
             "tablero": panel, "pestanas": pestanas.recetas("resumen", total=panel["total"]),
         })
@@ -137,6 +152,8 @@ class RecetasListaView(FarmaciaView):
 
 class PacienteView(FarmaciaView):
     """Ficha de un paciente en tres pestañas (?pestana=): sus recetas, sus entregas y sus datos."""
+
+    roles_permitidos = VEN_PACIENTES
 
     def get(self, request, pk):
         paciente = get_object_or_404(Paciente, pk=pk)
@@ -236,7 +253,7 @@ class RecetaView(FarmaciaView):
             "receta": receta, "estado": receta.estado, "entregas": entregas,
             "vigencia": presentacion.linea_vigencia(receta), "sello_nuevo": sello_nuevo,
             "puede_crear": tiene_rol(request.user, JEFA), "puede_entregar": tiene_rol(request.user, TECNICO),
-            "despacho": _despacho_abierto(receta),
+            "despacho": _despacho_abierto(receta), "ve_pacientes": ve_pacientes(request.user),
         })
 
 
@@ -278,7 +295,8 @@ class ConfirmarEntregaView(FarmaciaView):
         from .confirmacion import preparar_contexto
         operacion = uuid.uuid4()
         return self.render("entrega_confirmar.html", {"receta": receta, "estado": receta.estado, "despacho": _despacho_abierto(receta),
-            "form": EntregaForm(initial={"operacion_id": operacion, "contexto": preparar_contexto(request.user, receta, operacion)})})
+            "form": EntregaForm(initial={"operacion_id": operacion, "contexto": preparar_contexto(request.user, receta, operacion)}),
+            "ve_pacientes": ve_pacientes(request.user)})
 
     def post(self, request, pk):
         receta = get_object_or_404(Receta.objects.select_related("paciente"), pk=pk)
@@ -301,7 +319,8 @@ class ConfirmarEntregaView(FarmaciaView):
         receta.refresh_from_db()
         presentacion.preparar_receta(receta, proxima=True)
         return self.render("entrega_confirmar.html", {"receta": receta, "estado": receta.estado, "form": form,
-                                                      "despacho": _despacho_abierto(receta)})
+                                                      "despacho": _despacho_abierto(receta),
+                                                      "ve_pacientes": ve_pacientes(request.user)})
 
 
 class ImportacionesView(FarmaciaView):
